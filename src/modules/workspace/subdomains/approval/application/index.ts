@@ -1,1 +1,6 @@
-export { ApproveTaskAcceptanceUseCase, SubmitIssueRetestUseCase, PassIssueRetestUseCase, FailIssueRetestUseCase } from "./use-cases/ApprovalUseCases";
+export {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "./use-cases/ApprovalUseCases";

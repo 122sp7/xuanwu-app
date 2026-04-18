@@ -1,92 +1,90 @@
+import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { ApprovalTaskRepository, ApprovalIssueRepository, ApprovalTaskStatus, ApprovalIssueStatus } from "../../domain/repositories/ApprovalRepository";
+import type { ApprovalDecisionRepository } from "../../domain/repositories/ApprovalDecisionRepository";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
+import { ApprovalDecision } from "../../domain/entities/ApprovalDecision";
+import type { CreateApprovalDecisionInput } from "../../domain/entities/ApprovalDecision";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
 
-function canTransitionTask(from: ApprovalTaskStatus, to: ApprovalTaskStatus): boolean {
-  const map: Record<ApprovalTaskStatus, readonly ApprovalTaskStatus[]> = {
-    draft: ["in_progress"],
-    in_progress: ["qa", "cancelled"],
-    qa: ["acceptance", "in_progress"],
-    acceptance: ["accepted", "qa"],
-    accepted: ["archived"],
-    archived: [],
-    cancelled: [],
-  };
-  return map[from]?.includes(to) ?? false;
-}
-
-function canTransitionIssue(from: ApprovalIssueStatus, to: ApprovalIssueStatus): boolean {
-  const map: Record<ApprovalIssueStatus, readonly ApprovalIssueStatus[]> = {
-    open: ["fixing", "wont_fix"],
-    fixing: ["retest"],
-    retest: ["resolved", "fixing"],
-    resolved: ["closed"],
-    wont_fix: ["closed"],
-    closed: [],
-  };
-  return map[from]?.includes(to) ?? false;
-}
-
-export class ApproveTaskAcceptanceUseCase {
+export class CreateApprovalDecisionUseCase {
   constructor(
-    private readonly taskRepo: ApprovalTaskRepository,
-    private readonly issueRepo: ApprovalIssueRepository,
+    private readonly decisionRepo: ApprovalDecisionRepository,
+    private readonly taskRepo: TaskRepository,
   ) {}
-  async execute(taskId: string): Promise<CommandResult> {
+
+  async execute(input: CreateApprovalDecisionInput): Promise<CommandResult> {
     try {
-      const task = await this.taskRepo.findById(taskId);
+      const task = await this.taskRepo.findById(input.taskId);
       if (!task) return commandFailureFrom("APPROVAL_TASK_NOT_FOUND", "Task not found.");
-      if (!canTransitionTask(task.status, "accepted")) return commandFailureFrom("APPROVAL_INVALID_TRANSITION", `Cannot approve from '${task.status}'.`);
-      const openIssues = await this.issueRepo.countOpenByTaskIdAndStage(taskId, "acceptance");
-      if (openIssues > 0) return commandFailureFrom("APPROVAL_HAS_OPEN_ISSUES", "Task has open acceptance-stage issues.");
-      await this.taskRepo.updateStatus(taskId, "accepted", new Date().toISOString());
-      return commandSuccess(taskId, Date.now());
+      if (task.status !== "acceptance") {
+        return commandFailureFrom("APPROVAL_INVALID_STATE", `Task must be in 'acceptance' state, got '${task.status}'.`);
+      }
+      const decision = ApprovalDecision.create(uuid(), input);
+      await this.decisionRepo.save(decision.getSnapshot());
+      return commandSuccess(decision.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom("APPROVAL_CREATE_FAILED", err instanceof Error ? err.message : "Failed to create approval decision.");
+    }
+  }
+}
+
+export class ApproveTaskUseCase {
+  constructor(
+    private readonly decisionRepo: ApprovalDecisionRepository,
+    private readonly taskRepo: TaskRepository,
+    private readonly issueRepo: IssueRepository,
+  ) {}
+
+  async execute(decisionId: string, comments?: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.decisionRepo.findById(decisionId);
+      if (!snapshot) return commandFailureFrom("APPROVAL_NOT_FOUND", "Approval decision not found.");
+      const task = await this.taskRepo.findById(snapshot.taskId);
+      if (!task) return commandFailureFrom("APPROVAL_TASK_NOT_FOUND", "Task not found.");
+      if (!canTransitionTaskStatus(task.status, "accepted")) {
+        return commandFailureFrom("APPROVAL_INVALID_TRANSITION", `Cannot approve from task status '${task.status}'.`);
+      }
+      const openIssues = await this.issueRepo.countOpenByTaskIdAndStage(snapshot.taskId, "acceptance");
+      if (openIssues > 0) {
+        return commandFailureFrom("APPROVAL_HAS_OPEN_ISSUES", "Task has open acceptance-stage issues.");
+      }
+      const decision = ApprovalDecision.reconstitute(snapshot);
+      decision.approve(comments);
+      await this.decisionRepo.save(decision.getSnapshot());
+      await this.taskRepo.updateStatus(snapshot.taskId, "accepted", new Date().toISOString());
+      return commandSuccess(decisionId, Date.now());
     } catch (err) {
       return commandFailureFrom("APPROVAL_FAILED", err instanceof Error ? err.message : "Failed to approve task.");
     }
   }
 }
 
-export class SubmitIssueRetestUseCase {
-  constructor(private readonly issueRepo: ApprovalIssueRepository) {}
-  async execute(issueId: string): Promise<CommandResult> {
+export class RejectApprovalUseCase {
+  constructor(
+    private readonly decisionRepo: ApprovalDecisionRepository,
+    private readonly taskRepo: TaskRepository,
+  ) {}
+
+  async execute(decisionId: string, comments?: string): Promise<CommandResult> {
     try {
-      const issue = await this.issueRepo.findById(issueId);
-      if (!issue) return commandFailureFrom("APPROVAL_ISSUE_NOT_FOUND", "Issue not found.");
-      if (!canTransitionIssue(issue.status, "retest")) return commandFailureFrom("APPROVAL_INVALID_TRANSITION", `Cannot submit retest from '${issue.status}'.`);
-      await this.issueRepo.updateStatus(issueId, "retest", new Date().toISOString());
-      return commandSuccess(issueId, Date.now());
+      const snapshot = await this.decisionRepo.findById(decisionId);
+      if (!snapshot) return commandFailureFrom("APPROVAL_NOT_FOUND", "Approval decision not found.");
+      const decision = ApprovalDecision.reconstitute(snapshot);
+      decision.reject(comments);
+      await this.decisionRepo.save(decision.getSnapshot());
+      await this.taskRepo.updateStatus(snapshot.taskId, "qa", new Date().toISOString());
+      return commandSuccess(decisionId, Date.now());
     } catch (err) {
-      return commandFailureFrom("APPROVAL_RETEST_FAILED", err instanceof Error ? err.message : "Failed.");
+      return commandFailureFrom("APPROVAL_REJECT_FAILED", err instanceof Error ? err.message : "Failed to reject approval.");
     }
   }
 }
 
-export class PassIssueRetestUseCase {
-  constructor(private readonly issueRepo: ApprovalIssueRepository) {}
-  async execute(issueId: string): Promise<CommandResult> {
-    try {
-      const issue = await this.issueRepo.findById(issueId);
-      if (!issue) return commandFailureFrom("APPROVAL_ISSUE_NOT_FOUND", "Issue not found.");
-      if (!canTransitionIssue(issue.status, "resolved")) return commandFailureFrom("APPROVAL_INVALID_TRANSITION", `Cannot pass retest from '${issue.status}'.`);
-      await this.issueRepo.updateStatus(issueId, "resolved", new Date().toISOString());
-      return commandSuccess(issueId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("APPROVAL_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Failed.");
-    }
-  }
-}
+export class ListApprovalDecisionsUseCase {
+  constructor(private readonly decisionRepo: ApprovalDecisionRepository) {}
 
-export class FailIssueRetestUseCase {
-  constructor(private readonly issueRepo: ApprovalIssueRepository) {}
-  async execute(issueId: string): Promise<CommandResult> {
-    try {
-      const issue = await this.issueRepo.findById(issueId);
-      if (!issue) return commandFailureFrom("APPROVAL_ISSUE_NOT_FOUND", "Issue not found.");
-      if (!canTransitionIssue(issue.status, "fixing")) return commandFailureFrom("APPROVAL_INVALID_TRANSITION", `Cannot fail retest from '${issue.status}'.`);
-      await this.issueRepo.updateStatus(issueId, "fixing", new Date().toISOString());
-      return commandSuccess(issueId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("APPROVAL_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Failed.");
-    }
+  async execute(workspaceId: string): Promise<import("../../domain/entities/ApprovalDecision").ApprovalDecisionSnapshot[]> {
+    return this.decisionRepo.findByWorkspaceId(workspaceId);
   }
 }

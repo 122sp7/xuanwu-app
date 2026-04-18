@@ -37,7 +37,32 @@ import {
   ConfirmCandidatesUseCase,
 } from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
 import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
-import { CreateTaskUseCase } from "../../subdomains/task/application/use-cases/TaskUseCases";
+import {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  TransitionTaskStatusUseCase,
+  DeleteTaskUseCase,
+} from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
+import {
+  OpenIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ResolveIssueUseCase,
+} from "../../subdomains/issue/application/use-cases/IssueUseCases";
+import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
+import {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "../../subdomains/quality/application/use-cases/QualityUseCases";
+import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
+import {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
 
 type FirestoreWhereOperator =
   | "<"
@@ -161,6 +186,55 @@ export function createClientTaskFormationUseCases() {
       createTask: (input) => createTaskUseCase.execute(input),
     }),
     getJobSnapshot: (jobId: string) => jobRepo.findById(jobId),
+  };
+}
+
+export function createClientTaskUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const taskRepo = new FirestoreTaskRepository(db);
+  return {
+    createTask: new CreateTaskUseCase(taskRepo),
+    updateTask: new UpdateTaskUseCase(taskRepo),
+    transitionTaskStatus: new TransitionTaskStatusUseCase(taskRepo),
+    deleteTask: new DeleteTaskUseCase(taskRepo),
+    listTasksByWorkspace: (workspaceId: string) => taskRepo.findByWorkspaceId(workspaceId),
+  };
+}
+
+export function createClientIssueUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const issueRepo = new FirestoreIssueRepository(db);
+  return {
+    openIssue: new OpenIssueUseCase(issueRepo),
+    transitionIssueStatus: new TransitionIssueStatusUseCase(issueRepo),
+    resolveIssue: new ResolveIssueUseCase(issueRepo),
+    listIssuesByTask: (taskId: string) => issueRepo.findByTaskId(taskId),
+    listIssuesByWorkspace: (_workspaceId: string) => issueRepo.findByTaskId(""), // workspace-level query via tasks
+  };
+}
+
+export function createClientQualityUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const reviewRepo = new FirestoreQualityReviewRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
+  return {
+    startQualityReview: new StartQualityReviewUseCase(reviewRepo, taskRepo),
+    passQualityReview: new PassQualityReviewUseCase(reviewRepo, taskRepo),
+    failQualityReview: new FailQualityReviewUseCase(reviewRepo, taskRepo),
+    listQualityReviews: new ListQualityReviewsUseCase(reviewRepo),
+  };
+}
+
+export function createClientApprovalUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const decisionRepo = new FirestoreApprovalDecisionRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
+  const issueRepo = new FirestoreIssueRepository(db);
+  return {
+    createApprovalDecision: new CreateApprovalDecisionUseCase(decisionRepo, taskRepo),
+    approveTask: new ApproveTaskUseCase(decisionRepo, taskRepo, issueRepo),
+    rejectApproval: new RejectApprovalUseCase(decisionRepo, taskRepo),
+    listApprovalDecisions: new ListApprovalDecisionsUseCase(decisionRepo),
   };
 }
 
