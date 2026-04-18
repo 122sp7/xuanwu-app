@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-98 files | 2,528 lines
+98 files | 2,685 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 72 | 926 |
-| TypeScript (TSX) | 18 | 834 |
-| Markdown | 8 | 768 |
+| TypeScript | 72 | 931 |
+| TypeScript (TSX) | 18 | 972 |
+| Markdown | 8 | 782 |
 
 **Largest files:**
-- `docs/structure/contexts/platform/ubiquitous-language.md` (138 lines)
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (190 lines)
+- `docs/structure/contexts/platform/ubiquitous-language.md` (141 lines)
 - `docs/structure/contexts/platform/README.md` (133 lines)
-- `docs/structure/contexts/platform/AGENT.md` (107 lines)
+- `docs/structure/contexts/platform/AGENT.md` (108 lines)
 - `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
-- `src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (89 lines)
+- `src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (94 lines)
+- `docs/structure/contexts/platform/bounded-contexts.md` (89 lines)
+- `docs/structure/contexts/platform/subdomains.md` (89 lines)
 - `src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx` (86 lines)
-- `docs/structure/contexts/platform/bounded-contexts.md` (84 lines)
-- `docs/structure/contexts/platform/subdomains.md` (84 lines)
 - `src/modules/platform/README.md` (84 lines)
-- `docs/structure/contexts/platform/context-map.md` (80 lines)

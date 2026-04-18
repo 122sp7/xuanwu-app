@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-224 files | 3,962 lines
+239 files | 4,794 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 210 | 2,817 |
-| Markdown | 8 | 758 |
-| TypeScript (TSX) | 6 | 387 |
+| TypeScript (TSX) | 19 | 833 |
+| Markdown | 10 | 1,144 |
 
 **Largest files:**
+- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (175 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
-- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (151 lines)
+- `src/modules/workspace/subdomains/task-formation/AGENT.md` (166 lines)
 - `docs/structure/contexts/workspace/README.md` (126 lines)
 - `docs/structure/contexts/workspace/ubiquitous-language.md` (120 lines)
 - `docs/structure/contexts/workspace/AGENT.md` (100 lines)
 - `docs/structure/contexts/workspace/bounded-contexts.md` (93 lines)
 - `src/modules/workspace/README.md` (85 lines)
-- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (81 lines)
-- `docs/structure/contexts/workspace/subdomains.md` (80 lines)
-- `docs/structure/contexts/workspace/context-map.md` (79 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx` (83 lines)

@@ -1,16 +1,16 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/notion/AGENT.md (103 lines)
+docs/structure/contexts/notion/AGENT.md (112 lines)
 docs/structure/contexts/notion/bounded-contexts.md (83 lines)
 docs/structure/contexts/notion/context-map.md (80 lines)
 docs/structure/contexts/notion/README.md (117 lines)
-docs/structure/contexts/notion/subdomains.md (75 lines)
+docs/structure/contexts/notion/subdomains.md (72 lines)
 docs/structure/contexts/notion/ubiquitous-language.md (94 lines)
 src/modules/notion/adapters/inbound/react/index.ts (4 lines)
-src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx (16 lines)
-src/modules/notion/adapters/inbound/react/NotionKnowledgeSection.tsx (14 lines)
-src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx (20 lines)
+src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx (24 lines)
+src/modules/notion/adapters/inbound/react/NotionKnowledgeSection.tsx (19 lines)
+src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx (28 lines)
 src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx (16 lines)
 src/modules/notion/adapters/inbound/server-actions/database-actions.ts (14 lines)
 src/modules/notion/adapters/inbound/server-actions/page-actions.ts (18 lines)

@@ -1,5 +1,33 @@
 # Files
 
+## File: src/modules/ai/index.ts
+````typescript
+/**
+ * AI Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// generation
+⋮----
+// chunk
+⋮----
+// embedding
+⋮----
+// retrieval
+⋮----
+// context
+⋮----
+// pipeline
+⋮----
+// citation
+⋮----
+// evaluation
+⋮----
+// memory
+⋮----
+// tool-calling
+````
+
 ## File: src/modules/ai/orchestration/index.ts
 ````typescript
 // ai — orchestration layer
@@ -38,6 +66,147 @@
 // chunk — adapters aggregate
 ````
 
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/index.ts
+````typescript
+// chunk — outbound adapters
+````
+
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/memory/InMemoryChunkRepository.ts
+````typescript
+import type { ChunkSnapshot, ChunkStatus } from "../../../domain/entities/Chunk";
+import type { ChunkRepository, ChunkQuery } from "../../../domain/repositories/ChunkRepository";
+⋮----
+export class InMemoryChunkRepository implements ChunkRepository {
+⋮----
+async save(snapshot: ChunkSnapshot): Promise<void>
+⋮----
+async saveAll(snapshots: ChunkSnapshot[]): Promise<void>
+⋮----
+async findById(id: string): Promise<ChunkSnapshot | null>
+⋮----
+async findBySourceId(sourceId: string): Promise<ChunkSnapshot[]>
+⋮----
+async query(params: ChunkQuery): Promise<ChunkSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+⋮----
+async deleteBySourceId(sourceId: string): Promise<void>
+````
+
+## File: src/modules/ai/subdomains/chunk/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/chunk/application/use-cases/ChunkUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { Chunk, type CreateChunkInput } from "../../domain/entities/Chunk";
+import type { ChunkRepository } from "../../domain/repositories/ChunkRepository";
+⋮----
+export class CreateChunkUseCase {
+⋮----
+constructor(private readonly repo: ChunkRepository)
+⋮----
+async execute(input: CreateChunkInput): Promise<CommandResult>
+⋮----
+export class BulkCreateChunksUseCase {
+⋮----
+async execute(inputs: CreateChunkInput[]): Promise<CommandResult>
+⋮----
+export class GetChunksBySourceUseCase {
+⋮----
+async execute(sourceId: string)
+````
+
+## File: src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts
+````typescript
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
+⋮----
+export type ChunkId = z.infer<typeof ChunkIdSchema>;
+⋮----
+export type ChunkStatus = z.infer<typeof ChunkStatusSchema>;
+⋮----
+export interface ChunkSnapshot {
+  readonly id: string;
+  readonly sourceId: string;
+  readonly sourceType: string;
+  readonly content: string;
+  readonly order: number;
+  readonly tokenCount?: number;
+  readonly metadata: Record<string, unknown>;
+  readonly status: ChunkStatus;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateChunkInput {
+  readonly sourceId: string;
+  readonly sourceType: string;
+  readonly content: string;
+  readonly order: number;
+  readonly tokenCount?: number;
+  readonly metadata?: Record<string, unknown>;
+}
+⋮----
+export class Chunk {
+⋮----
+private constructor(private _props: ChunkSnapshot)
+⋮----
+static create(input: CreateChunkInput): Chunk
+⋮----
+static reconstitute(snapshot: ChunkSnapshot): Chunk
+⋮----
+markEmbedded(): void
+⋮----
+markIndexed(): void
+⋮----
+markFailed(): void
+⋮----
+get id(): string
+get sourceId(): string
+get content(): string
+get status(): ChunkStatus
+⋮----
+getSnapshot(): Readonly<ChunkSnapshot>
+````
+
+## File: src/modules/ai/subdomains/chunk/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/chunk/domain/repositories/ChunkRepository.ts
+````typescript
+import type { ChunkSnapshot, ChunkStatus } from "../entities/Chunk";
+⋮----
+export interface ChunkQuery {
+  readonly sourceId?: string;
+  readonly status?: ChunkStatus;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+⋮----
+export interface ChunkRepository {
+  save(snapshot: ChunkSnapshot): Promise<void>;
+  saveAll(snapshots: ChunkSnapshot[]): Promise<void>;
+  findById(id: string): Promise<ChunkSnapshot | null>;
+  findBySourceId(sourceId: string): Promise<ChunkSnapshot[]>;
+  query(params: ChunkQuery): Promise<ChunkSnapshot[]>;
+  delete(id: string): Promise<void>;
+  deleteBySourceId(sourceId: string): Promise<void>;
+}
+⋮----
+save(snapshot: ChunkSnapshot): Promise<void>;
+saveAll(snapshots: ChunkSnapshot[]): Promise<void>;
+findById(id: string): Promise<ChunkSnapshot | null>;
+findBySourceId(sourceId: string): Promise<ChunkSnapshot[]>;
+query(params: ChunkQuery): Promise<ChunkSnapshot[]>;
+delete(id: string): Promise<void>;
+deleteBySourceId(sourceId: string): Promise<void>;
+````
+
 ## File: src/modules/ai/subdomains/citation/adapters/inbound/index.ts
 ````typescript
 // citation — inbound adapters placeholder
@@ -59,6 +228,41 @@
 ````typescript
 // citation — application layer placeholder
 // TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/ai/subdomains/citation/application/use-cases/CitationUseCases.ts
+````typescript
+// TODO: implement citation building use-cases
+````
+
+## File: src/modules/ai/subdomains/citation/domain/entities/Citation.ts
+````typescript
+export interface CitationSource {
+  readonly id: string;
+  readonly sourceId: string;
+  readonly chunkId: string;
+  readonly title?: string;
+  readonly excerpt: string;
+  readonly score: number;
+  readonly url?: string;
+}
+⋮----
+export interface Citation {
+  readonly id: string;
+  readonly responseId: string;
+  readonly sources: CitationSource[];
+  readonly createdAtISO: string;
+}
+⋮----
+export interface CitationRepository {
+  save(citation: Citation): Promise<void>;
+  findById(id: string): Promise<Citation | null>;
+  findByResponseId(responseId: string): Promise<Citation | null>;
+}
+⋮----
+save(citation: Citation): Promise<void>;
+findById(id: string): Promise<Citation | null>;
+findByResponseId(responseId: string): Promise<Citation | null>;
 ````
 
 ## File: src/modules/ai/subdomains/citation/domain/index.ts
@@ -90,10 +294,90 @@
 // TODO: export use-cases, DTOs, ports
 ````
 
+## File: src/modules/ai/subdomains/context/application/use-cases/ContextUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { ContextSession } from "../../domain/entities/ContextSession";
+import type { ContextSessionRepository } from "../../domain/repositories/ContextSessionRepository";
+⋮----
+export class CreateContextSessionUseCase {
+⋮----
+constructor(private readonly repo: ContextSessionRepository)
+⋮----
+async execute(input:
+⋮----
+export class AddContextMessageUseCase {
+````
+
+## File: src/modules/ai/subdomains/context/domain/entities/ContextSession.ts
+````typescript
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
+⋮----
+export type ContextSessionId = z.infer<typeof ContextSessionIdSchema>;
+⋮----
+export type ContextRole = "user" | "assistant" | "system";
+⋮----
+export interface ContextMessage {
+  readonly id: string;
+  readonly role: ContextRole;
+  readonly content: string;
+  readonly createdAtISO: string;
+}
+⋮----
+export interface ContextSessionSnapshot {
+  readonly id: string;
+  readonly actorId?: string;
+  readonly workspaceId?: string;
+  readonly messages: ContextMessage[];
+  readonly systemPrompt?: string;
+  readonly model?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export class ContextSession {
+⋮----
+private constructor(private _props: ContextSessionSnapshot)
+⋮----
+static create(input: {
+    actorId?: string;
+    workspaceId?: string;
+    systemPrompt?: string;
+    model?: string;
+}): ContextSession
+⋮----
+static reconstitute(snapshot: ContextSessionSnapshot): ContextSession
+⋮----
+addMessage(role: ContextRole, content: string): void
+⋮----
+get id(): string
+get messages(): ContextMessage[]
+⋮----
+getSnapshot(): Readonly<ContextSessionSnapshot>
+````
+
 ## File: src/modules/ai/subdomains/context/domain/index.ts
 ````typescript
 // context — domain layer placeholder
 // TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/context/domain/repositories/ContextSessionRepository.ts
+````typescript
+import type { ContextSessionSnapshot } from "../entities/ContextSession";
+⋮----
+export interface ContextSessionRepository {
+  save(snapshot: ContextSessionSnapshot): Promise<void>;
+  findById(id: string): Promise<ContextSessionSnapshot | null>;
+  findByActorId(actorId: string, limit?: number): Promise<ContextSessionSnapshot[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(snapshot: ContextSessionSnapshot): Promise<void>;
+findById(id: string): Promise<ContextSessionSnapshot | null>;
+findByActorId(actorId: string, limit?: number): Promise<ContextSessionSnapshot[]>;
+delete(id: string): Promise<void>;
 ````
 
 ## File: src/modules/ai/subdomains/embedding/adapters/inbound/index.ts
@@ -105,6 +389,111 @@
 ## File: src/modules/ai/subdomains/embedding/adapters/index.ts
 ````typescript
 // embedding — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/index.ts
+````typescript
+// embedding — outbound adapters
+````
+
+## File: src/modules/ai/subdomains/embedding/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/embedding/application/use-cases/EmbeddingUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { Embedding } from "../../domain/entities/Embedding";
+import type { EmbeddingGenerationPort } from "../../domain/entities/Embedding";
+import type { EmbeddingRepository } from "../../domain/repositories/EmbeddingRepository";
+⋮----
+export class GenerateAndStoreEmbeddingUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: {
+    chunkId: string;
+    sourceId: string;
+    text: string;
+    model?: string;
+}): Promise<CommandResult>
+````
+
+## File: src/modules/ai/subdomains/embedding/domain/entities/Embedding.ts
+````typescript
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
+⋮----
+export type EmbeddingId = z.infer<typeof EmbeddingIdSchema>;
+⋮----
+export interface EmbeddingSnapshot {
+  readonly id: string;
+  readonly chunkId: string;
+  readonly sourceId: string;
+  readonly vector: number[];
+  readonly model: string;
+  readonly dimensions: number;
+  readonly createdAtISO: string;
+}
+⋮----
+export interface CreateEmbeddingInput {
+  readonly chunkId: string;
+  readonly sourceId: string;
+  readonly vector: number[];
+  readonly model: string;
+}
+⋮----
+export class Embedding {
+⋮----
+private constructor(private readonly _props: EmbeddingSnapshot)
+⋮----
+static create(input: CreateEmbeddingInput): Embedding
+⋮----
+static reconstitute(snapshot: EmbeddingSnapshot): Embedding
+⋮----
+get id(): string
+get chunkId(): string
+get vector(): number[]
+get model(): string
+⋮----
+getSnapshot(): Readonly<EmbeddingSnapshot>
+⋮----
+export interface EmbeddingGenerationPort {
+  generateEmbedding(text: string, model?: string): Promise<{ vector: number[]; model: string }>;
+  generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<{ vector: number[]; model: string }>>;
+}
+⋮----
+generateEmbedding(text: string, model?: string): Promise<
+generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<
+````
+
+## File: src/modules/ai/subdomains/embedding/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/embedding/domain/repositories/EmbeddingRepository.ts
+````typescript
+import type { EmbeddingSnapshot } from "../entities/Embedding";
+⋮----
+export interface EmbeddingRepository {
+  save(snapshot: EmbeddingSnapshot): Promise<void>;
+  saveAll(snapshots: EmbeddingSnapshot[]): Promise<void>;
+  findById(id: string): Promise<EmbeddingSnapshot | null>;
+  findByChunkId(chunkId: string): Promise<EmbeddingSnapshot | null>;
+  findBySourceId(sourceId: string): Promise<EmbeddingSnapshot[]>;
+  delete(id: string): Promise<void>;
+  deleteBySourceId(sourceId: string): Promise<void>;
+}
+⋮----
+save(snapshot: EmbeddingSnapshot): Promise<void>;
+saveAll(snapshots: EmbeddingSnapshot[]): Promise<void>;
+findById(id: string): Promise<EmbeddingSnapshot | null>;
+findByChunkId(chunkId: string): Promise<EmbeddingSnapshot | null>;
+findBySourceId(sourceId: string): Promise<EmbeddingSnapshot[]>;
+delete(id: string): Promise<void>;
+deleteBySourceId(sourceId: string): Promise<void>;
 ````
 
 ## File: src/modules/ai/subdomains/evaluation/adapters/inbound/index.ts
@@ -130,6 +519,52 @@
 // TODO: export use-cases, DTOs, ports
 ````
 
+## File: src/modules/ai/subdomains/evaluation/application/use-cases/EvaluationUseCases.ts
+````typescript
+// TODO: implement evaluation use-cases
+````
+
+## File: src/modules/ai/subdomains/evaluation/domain/entities/EvaluationResult.ts
+````typescript
+export type EvaluationVerdict = "pass" | "fail" | "needs_review";
+⋮----
+export interface EvaluationCriterion {
+  readonly name: string;
+  readonly weight: number;
+  readonly description?: string;
+}
+⋮----
+export interface EvaluationResult {
+  readonly id: string;
+  readonly responseId: string;
+  readonly criteria: Array<{
+    readonly criterion: EvaluationCriterion;
+    readonly score: number;
+    readonly verdict: EvaluationVerdict;
+    readonly reasoning?: string;
+  }>;
+  readonly overallScore: number;
+  readonly overallVerdict: EvaluationVerdict;
+  readonly evaluatedAtISO: string;
+}
+⋮----
+export interface EvaluationPort {
+  evaluate(input: {
+    response: string;
+    context?: string;
+    criteria: EvaluationCriterion[];
+    model?: string;
+  }): Promise<Omit<EvaluationResult, "id" | "responseId" | "evaluatedAtISO">>;
+}
+⋮----
+evaluate(input: {
+    response: string;
+    context?: string;
+    criteria: EvaluationCriterion[];
+    model?: string;
+  }): Promise<Omit<EvaluationResult, "id" | "responseId" | "evaluatedAtISO">>;
+````
+
 ## File: src/modules/ai/subdomains/evaluation/domain/index.ts
 ````typescript
 // evaluation — domain layer placeholder
@@ -153,6 +588,136 @@
 // TODO: export Firestore repositories, external clients
 ````
 
+## File: src/modules/ai/subdomains/generation/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/generation/application/use-cases/GenerationUseCases.ts
+````typescript
+import type {
+  TextGenerationPort,
+  GenerateTextInput,
+  GenerateTextOutput,
+  ContentDistillationPort,
+  DistillContentInput,
+  DistillationOutput,
+  TaskExtractionPort,
+  TaskExtractionInput,
+  TaskExtractionOutput,
+} from "../../domain/ports/GenerationPorts";
+⋮----
+export class GenerateTextUseCase {
+⋮----
+constructor(private readonly port: TextGenerationPort)
+⋮----
+async execute(input: GenerateTextInput): Promise<
+⋮----
+export class DistillContentUseCase {
+⋮----
+constructor(private readonly port: ContentDistillationPort)
+⋮----
+async execute(input: DistillContentInput): Promise<
+⋮----
+export class ExtractTasksUseCase {
+⋮----
+constructor(private readonly port: TaskExtractionPort)
+⋮----
+async execute(input: TaskExtractionInput): Promise<
+````
+
+## File: src/modules/ai/subdomains/generation/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts
+````typescript
+/**
+ * generation — domain ports
+ * Distilled from modules/ai/domain/ports/AiTextGenerationPort.ts and DistillationPort.ts
+ */
+⋮----
+export interface GenerateTextInput {
+  readonly prompt: string;
+  readonly system?: string;
+  readonly model?: string;
+}
+⋮----
+export interface GenerateTextOutput {
+  readonly text: string;
+  readonly model: string;
+  readonly finishReason?: string;
+  readonly traceId?: string;
+  readonly completedAt?: string;
+}
+⋮----
+export interface TextGenerationPort {
+  generateText(input: GenerateTextInput): Promise<GenerateTextOutput>;
+}
+⋮----
+generateText(input: GenerateTextInput): Promise<GenerateTextOutput>;
+⋮----
+export interface DistillationSource {
+  readonly title?: string | null;
+  readonly text: string;
+}
+⋮----
+export interface DistillContentInput {
+  readonly sources: readonly DistillationSource[];
+  readonly objective?: string;
+  readonly model?: string;
+}
+⋮----
+export interface DistillationItem {
+  readonly title: string;
+  readonly summary: string;
+  readonly sourceTitle?: string | null;
+}
+⋮----
+export interface DistillationOutput {
+  readonly overview: string;
+  readonly items: readonly DistillationItem[];
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+export interface ContentDistillationPort {
+  distill(input: DistillContentInput): Promise<DistillationOutput>;
+}
+⋮----
+distill(input: DistillContentInput): Promise<DistillationOutput>;
+⋮----
+export interface TaskExtractionItem {
+  readonly title: string;
+  readonly description?: string;
+  readonly dueDate?: string;
+  readonly metadata?: Record<string, unknown>;
+}
+⋮----
+export interface TaskExtractionInput {
+  readonly content: string;
+  readonly maxCandidates?: number;
+  readonly model?: string;
+  readonly promptFamily?: string;
+  readonly context?: Record<string, unknown>;
+}
+⋮----
+export interface TaskExtractionOutput {
+  readonly tasks: readonly TaskExtractionItem[];
+  readonly model: string;
+  readonly traceId: string;
+  readonly completedAt: string;
+}
+⋮----
+export interface TaskExtractionPort {
+  extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
+}
+⋮----
+extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
+````
+
 ## File: src/modules/ai/subdomains/memory/adapters/inbound/index.ts
 ````typescript
 // memory — adapters/inbound placeholder
@@ -174,6 +739,37 @@
 ````typescript
 // memory — application layer placeholder
 // TODO: export use-cases, DTOs, application services
+````
+
+## File: src/modules/ai/subdomains/memory/application/use-cases/MemoryUseCases.ts
+````typescript
+// TODO: implement memory upsert/query use-cases
+````
+
+## File: src/modules/ai/subdomains/memory/domain/entities/MemoryItem.ts
+````typescript
+export interface MemoryItem {
+  readonly id: string;
+  readonly actorId: string;
+  readonly key: string;
+  readonly value: string;
+  readonly tags: string[];
+  readonly expiresAtISO?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface MemoryRepository {
+  save(item: MemoryItem): Promise<void>;
+  findByActorAndKey(actorId: string, key: string): Promise<MemoryItem | null>;
+  findByActor(actorId: string, tags?: string[]): Promise<MemoryItem[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(item: MemoryItem): Promise<void>;
+findByActorAndKey(actorId: string, key: string): Promise<MemoryItem | null>;
+findByActor(actorId: string, tags?: string[]): Promise<MemoryItem[]>;
+delete(id: string): Promise<void>;
 ````
 
 ## File: src/modules/ai/subdomains/memory/domain/index.ts
@@ -205,6 +801,50 @@
 // TODO: export use-cases, DTOs, ports
 ````
 
+## File: src/modules/ai/subdomains/pipeline/application/use-cases/PipelineUseCases.ts
+````typescript
+// TODO: implement pipeline use-cases for prompt rendering and pipeline orchestration
+````
+
+## File: src/modules/ai/subdomains/pipeline/domain/entities/PromptTemplate.ts
+````typescript
+export interface PromptTemplate {
+  readonly id: string;
+  readonly name: string;
+  readonly family: string;
+  readonly system?: string;
+  readonly userTemplate: string;
+  readonly variables: string[];
+  readonly model?: string;
+  readonly version: number;
+  readonly createdAtISO: string;
+}
+⋮----
+export interface PromptTemplateRepository {
+  save(template: PromptTemplate): Promise<void>;
+  findById(id: string): Promise<PromptTemplate | null>;
+  findByFamily(family: string): Promise<PromptTemplate[]>;
+  findLatestByName(name: string): Promise<PromptTemplate | null>;
+}
+⋮----
+save(template: PromptTemplate): Promise<void>;
+findById(id: string): Promise<PromptTemplate | null>;
+findByFamily(family: string): Promise<PromptTemplate[]>;
+findLatestByName(name: string): Promise<PromptTemplate | null>;
+⋮----
+export interface RenderedPrompt {
+  readonly system?: string;
+  readonly user: string;
+  readonly model?: string;
+}
+⋮----
+export interface PromptRenderPort {
+  render(template: PromptTemplate, variables: Record<string, string>): RenderedPrompt;
+}
+⋮----
+render(template: PromptTemplate, variables: Record<string, string>): RenderedPrompt;
+````
+
 ## File: src/modules/ai/subdomains/pipeline/domain/index.ts
 ````typescript
 // pipeline — domain layer placeholder
@@ -234,10 +874,64 @@
 // TODO: export use-cases, DTOs, ports
 ````
 
+## File: src/modules/ai/subdomains/retrieval/application/use-cases/RetrievalUseCases.ts
+````typescript
+import type { SemanticSearchPort, SemanticSearchInput, VectorSearchResult } from "../../domain/ports/RetrievalPorts";
+⋮----
+export class SemanticSearchUseCase {
+⋮----
+constructor(private readonly port: SemanticSearchPort)
+⋮----
+async execute(input: SemanticSearchInput): Promise<VectorSearchResult[]>
+````
+
 ## File: src/modules/ai/subdomains/retrieval/domain/index.ts
 ````typescript
 // retrieval — domain layer placeholder
 // TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/retrieval/domain/ports/RetrievalPorts.ts
+````typescript
+export interface VectorSearchResult {
+  readonly id: string;
+  readonly chunkId: string;
+  readonly sourceId: string;
+  readonly score: number;
+  readonly content?: string;
+  readonly metadata?: Record<string, unknown>;
+}
+⋮----
+export interface VectorSearchInput {
+  readonly queryVector: number[];
+  readonly limit?: number;
+  readonly minScore?: number;
+  readonly filter?: Record<string, unknown>;
+}
+⋮----
+export interface VectorSearchPort {
+  search(input: VectorSearchInput): Promise<VectorSearchResult[]>;
+  upsert(id: string, vector: number[], metadata?: Record<string, unknown>): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+search(input: VectorSearchInput): Promise<VectorSearchResult[]>;
+upsert(id: string, vector: number[], metadata?: Record<string, unknown>): Promise<void>;
+delete(id: string): Promise<void>;
+⋮----
+export interface SemanticSearchInput {
+  readonly query: string;
+  readonly limit?: number;
+  readonly minScore?: number;
+  readonly filter?: Record<string, unknown>;
+  readonly model?: string;
+}
+⋮----
+export interface SemanticSearchPort {
+  semanticSearch(input: SemanticSearchInput): Promise<VectorSearchResult[]>;
+}
+⋮----
+semanticSearch(input: SemanticSearchInput): Promise<VectorSearchResult[]>;
 ````
 
 ## File: src/modules/ai/subdomains/tool-calling/adapters/inbound/index.ts
@@ -261,6 +955,42 @@
 ````typescript
 // tool-calling — application layer placeholder
 // TODO: export use-cases, DTOs, application services
+````
+
+## File: src/modules/ai/subdomains/tool-calling/application/use-cases/ToolCallingUseCases.ts
+````typescript
+// TODO: implement tool invocation and registration use-cases
+````
+
+## File: src/modules/ai/subdomains/tool-calling/domain/entities/AiTool.ts
+````typescript
+export interface AiTool {
+  readonly name: string;
+  readonly description: string;
+  readonly inputSchema: Record<string, unknown>;
+  readonly outputSchema: Record<string, unknown>;
+}
+⋮----
+export interface ToolCallInput {
+  readonly toolName: string;
+  readonly args: Record<string, unknown>;
+  readonly actorId?: string;
+}
+⋮----
+export interface ToolCallOutput {
+  readonly toolName: string;
+  readonly result: unknown;
+  readonly traceId: string;
+  readonly executedAtISO: string;
+}
+⋮----
+export interface ToolRuntimePort {
+  call(input: ToolCallInput): Promise<ToolCallOutput>;
+  listAvailable(): Promise<AiTool[]>;
+}
+⋮----
+call(input: ToolCallInput): Promise<ToolCallOutput>;
+listAvailable(): Promise<AiTool[]>;
 ````
 
 ## File: src/modules/ai/subdomains/tool-calling/domain/index.ts
@@ -938,530 +1668,78 @@ flowchart LR
 - 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
 ````
 
-## File: src/modules/ai/index.ts
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
 ````typescript
 /**
- * AI Module — public API surface.
- * All cross-module consumers must import from here only.
+ * chunk-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching chunking jobs
+ * to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
  */
 ⋮----
-// generation
+import { z } from "zod";
 ⋮----
-// chunk
+/** Unique identifier for this job (used for idempotency) */
 ⋮----
-// embedding
+/** The raw document content to be chunked */
 ⋮----
-// retrieval
+/** Workspace scope for multi-tenant isolation */
 ⋮----
-// context
+/** Source type (e.g. "notion-page", "uploaded-file") */
 ⋮----
-// pipeline
+/** Optional hint for chunking strategy */
 ⋮----
-// citation
+/** Max token count per chunk; py_fn uses default if omitted */
 ⋮----
-// evaluation
+/** ISO 8601 timestamp when the job was requested */
 ⋮----
-// memory
-⋮----
-// tool-calling
+export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
 ````
 
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/index.ts
-````typescript
-// chunk — outbound adapters
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/memory/InMemoryChunkRepository.ts
-````typescript
-import type { ChunkSnapshot, ChunkStatus } from "../../../domain/entities/Chunk";
-import type { ChunkRepository, ChunkQuery } from "../../../domain/repositories/ChunkRepository";
-⋮----
-export class InMemoryChunkRepository implements ChunkRepository {
-⋮----
-async save(snapshot: ChunkSnapshot): Promise<void>
-⋮----
-async saveAll(snapshots: ChunkSnapshot[]): Promise<void>
-⋮----
-async findById(id: string): Promise<ChunkSnapshot | null>
-⋮----
-async findBySourceId(sourceId: string): Promise<ChunkSnapshot[]>
-⋮----
-async query(params: ChunkQuery): Promise<ChunkSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
-⋮----
-async deleteBySourceId(sourceId: string): Promise<void>
-````
-
-## File: src/modules/ai/subdomains/chunk/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/chunk/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/chunk/domain/repositories/ChunkRepository.ts
-````typescript
-import type { ChunkSnapshot, ChunkStatus } from "../entities/Chunk";
-⋮----
-export interface ChunkQuery {
-  readonly sourceId?: string;
-  readonly status?: ChunkStatus;
-  readonly limit?: number;
-  readonly offset?: number;
-}
-⋮----
-export interface ChunkRepository {
-  save(snapshot: ChunkSnapshot): Promise<void>;
-  saveAll(snapshots: ChunkSnapshot[]): Promise<void>;
-  findById(id: string): Promise<ChunkSnapshot | null>;
-  findBySourceId(sourceId: string): Promise<ChunkSnapshot[]>;
-  query(params: ChunkQuery): Promise<ChunkSnapshot[]>;
-  delete(id: string): Promise<void>;
-  deleteBySourceId(sourceId: string): Promise<void>;
-}
-⋮----
-save(snapshot: ChunkSnapshot): Promise<void>;
-saveAll(snapshots: ChunkSnapshot[]): Promise<void>;
-findById(id: string): Promise<ChunkSnapshot | null>;
-findBySourceId(sourceId: string): Promise<ChunkSnapshot[]>;
-query(params: ChunkQuery): Promise<ChunkSnapshot[]>;
-delete(id: string): Promise<void>;
-deleteBySourceId(sourceId: string): Promise<void>;
-````
-
-## File: src/modules/ai/subdomains/citation/application/use-cases/CitationUseCases.ts
-````typescript
-// TODO: implement citation building use-cases
-````
-
-## File: src/modules/ai/subdomains/citation/domain/entities/Citation.ts
-````typescript
-export interface CitationSource {
-  readonly id: string;
-  readonly sourceId: string;
-  readonly chunkId: string;
-  readonly title?: string;
-  readonly excerpt: string;
-  readonly score: number;
-  readonly url?: string;
-}
-⋮----
-export interface Citation {
-  readonly id: string;
-  readonly responseId: string;
-  readonly sources: CitationSource[];
-  readonly createdAtISO: string;
-}
-⋮----
-export interface CitationRepository {
-  save(citation: Citation): Promise<void>;
-  findById(id: string): Promise<Citation | null>;
-  findByResponseId(responseId: string): Promise<Citation | null>;
-}
-⋮----
-save(citation: Citation): Promise<void>;
-findById(id: string): Promise<Citation | null>;
-findByResponseId(responseId: string): Promise<Citation | null>;
-````
-
-## File: src/modules/ai/subdomains/context/domain/repositories/ContextSessionRepository.ts
-````typescript
-import type { ContextSessionSnapshot } from "../entities/ContextSession";
-⋮----
-export interface ContextSessionRepository {
-  save(snapshot: ContextSessionSnapshot): Promise<void>;
-  findById(id: string): Promise<ContextSessionSnapshot | null>;
-  findByActorId(actorId: string, limit?: number): Promise<ContextSessionSnapshot[]>;
-  delete(id: string): Promise<void>;
-}
-⋮----
-save(snapshot: ContextSessionSnapshot): Promise<void>;
-findById(id: string): Promise<ContextSessionSnapshot | null>;
-findByActorId(actorId: string, limit?: number): Promise<ContextSessionSnapshot[]>;
-delete(id: string): Promise<void>;
-````
-
-## File: src/modules/ai/subdomains/embedding/adapters/outbound/index.ts
-````typescript
-// embedding — outbound adapters
-````
-
-## File: src/modules/ai/subdomains/embedding/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/embedding/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/embedding/domain/repositories/EmbeddingRepository.ts
-````typescript
-import type { EmbeddingSnapshot } from "../entities/Embedding";
-⋮----
-export interface EmbeddingRepository {
-  save(snapshot: EmbeddingSnapshot): Promise<void>;
-  saveAll(snapshots: EmbeddingSnapshot[]): Promise<void>;
-  findById(id: string): Promise<EmbeddingSnapshot | null>;
-  findByChunkId(chunkId: string): Promise<EmbeddingSnapshot | null>;
-  findBySourceId(sourceId: string): Promise<EmbeddingSnapshot[]>;
-  delete(id: string): Promise<void>;
-  deleteBySourceId(sourceId: string): Promise<void>;
-}
-⋮----
-save(snapshot: EmbeddingSnapshot): Promise<void>;
-saveAll(snapshots: EmbeddingSnapshot[]): Promise<void>;
-findById(id: string): Promise<EmbeddingSnapshot | null>;
-findByChunkId(chunkId: string): Promise<EmbeddingSnapshot | null>;
-findBySourceId(sourceId: string): Promise<EmbeddingSnapshot[]>;
-delete(id: string): Promise<void>;
-deleteBySourceId(sourceId: string): Promise<void>;
-````
-
-## File: src/modules/ai/subdomains/evaluation/application/use-cases/EvaluationUseCases.ts
-````typescript
-// TODO: implement evaluation use-cases
-````
-
-## File: src/modules/ai/subdomains/evaluation/domain/entities/EvaluationResult.ts
-````typescript
-export type EvaluationVerdict = "pass" | "fail" | "needs_review";
-⋮----
-export interface EvaluationCriterion {
-  readonly name: string;
-  readonly weight: number;
-  readonly description?: string;
-}
-⋮----
-export interface EvaluationResult {
-  readonly id: string;
-  readonly responseId: string;
-  readonly criteria: Array<{
-    readonly criterion: EvaluationCriterion;
-    readonly score: number;
-    readonly verdict: EvaluationVerdict;
-    readonly reasoning?: string;
-  }>;
-  readonly overallScore: number;
-  readonly overallVerdict: EvaluationVerdict;
-  readonly evaluatedAtISO: string;
-}
-⋮----
-export interface EvaluationPort {
-  evaluate(input: {
-    response: string;
-    context?: string;
-    criteria: EvaluationCriterion[];
-    model?: string;
-  }): Promise<Omit<EvaluationResult, "id" | "responseId" | "evaluatedAtISO">>;
-}
-⋮----
-evaluate(input: {
-    response: string;
-    context?: string;
-    criteria: EvaluationCriterion[];
-    model?: string;
-  }): Promise<Omit<EvaluationResult, "id" | "responseId" | "evaluatedAtISO">>;
-````
-
-## File: src/modules/ai/subdomains/generation/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/generation/application/use-cases/GenerationUseCases.ts
-````typescript
-import type {
-  TextGenerationPort,
-  GenerateTextInput,
-  GenerateTextOutput,
-  ContentDistillationPort,
-  DistillContentInput,
-  DistillationOutput,
-  TaskExtractionPort,
-  TaskExtractionInput,
-  TaskExtractionOutput,
-} from "../../domain/ports/GenerationPorts";
-⋮----
-export class GenerateTextUseCase {
-⋮----
-constructor(private readonly port: TextGenerationPort)
-⋮----
-async execute(input: GenerateTextInput): Promise<
-⋮----
-export class DistillContentUseCase {
-⋮----
-constructor(private readonly port: ContentDistillationPort)
-⋮----
-async execute(input: DistillContentInput): Promise<
-⋮----
-export class ExtractTasksUseCase {
-⋮----
-constructor(private readonly port: TaskExtractionPort)
-⋮----
-async execute(input: TaskExtractionInput): Promise<
-````
-
-## File: src/modules/ai/subdomains/generation/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
 ````typescript
 /**
- * generation — domain ports
- * Distilled from modules/ai/domain/ports/AiTextGenerationPort.ts and DistillationPort.ts
+ * embedding-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching embedding generation
+ * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
  */
 ⋮----
-export interface GenerateTextInput {
-  readonly prompt: string;
-  readonly system?: string;
-  readonly model?: string;
-}
+import { z } from "zod";
 ⋮----
-export interface GenerateTextOutput {
-  readonly text: string;
-  readonly model: string;
-  readonly finishReason?: string;
-  readonly traceId?: string;
-  readonly completedAt?: string;
-}
+/** Unique identifier for this job (used for idempotency) */
 ⋮----
-export interface TextGenerationPort {
-  generateText(input: GenerateTextInput): Promise<GenerateTextOutput>;
-}
+/** The document/artifact that sourced these chunks */
 ⋮----
-generateText(input: GenerateTextInput): Promise<GenerateTextOutput>;
+/** Workspace scope for multi-tenant isolation */
 ⋮----
-export interface DistillationSource {
-  readonly title?: string | null;
-  readonly text: string;
-}
+/** Chunk IDs to generate embeddings for (at least one required) */
 ⋮----
-export interface DistillContentInput {
-  readonly sources: readonly DistillationSource[];
-  readonly objective?: string;
-  readonly model?: string;
-}
+/** Optional model hint; py_fn selects default if omitted */
 ⋮----
-export interface DistillationItem {
-  readonly title: string;
-  readonly summary: string;
-  readonly sourceTitle?: string | null;
-}
+/** ISO 8601 timestamp when the job was requested */
 ⋮----
-export interface DistillationOutput {
-  readonly overview: string;
-  readonly items: readonly DistillationItem[];
-  readonly model: string;
-  readonly traceId: string;
-  readonly completedAt: string;
-}
-⋮----
-export interface ContentDistillationPort {
-  distill(input: DistillContentInput): Promise<DistillationOutput>;
-}
-⋮----
-distill(input: DistillContentInput): Promise<DistillationOutput>;
-⋮----
-export interface TaskExtractionItem {
-  readonly title: string;
-  readonly description?: string;
-  readonly dueDate?: string;
-  readonly metadata?: Record<string, unknown>;
-}
-⋮----
-export interface TaskExtractionInput {
-  readonly content: string;
-  readonly maxCandidates?: number;
-  readonly model?: string;
-  readonly promptFamily?: string;
-  readonly context?: Record<string, unknown>;
-}
-⋮----
-export interface TaskExtractionOutput {
-  readonly tasks: readonly TaskExtractionItem[];
-  readonly model: string;
-  readonly traceId: string;
-  readonly completedAt: string;
-}
-⋮----
-export interface TaskExtractionPort {
-  extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
-}
-⋮----
-extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
-````
-
-## File: src/modules/ai/subdomains/memory/application/use-cases/MemoryUseCases.ts
-````typescript
-// TODO: implement memory upsert/query use-cases
-````
-
-## File: src/modules/ai/subdomains/memory/domain/entities/MemoryItem.ts
-````typescript
-export interface MemoryItem {
-  readonly id: string;
-  readonly actorId: string;
-  readonly key: string;
-  readonly value: string;
-  readonly tags: string[];
-  readonly expiresAtISO?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface MemoryRepository {
-  save(item: MemoryItem): Promise<void>;
-  findByActorAndKey(actorId: string, key: string): Promise<MemoryItem | null>;
-  findByActor(actorId: string, tags?: string[]): Promise<MemoryItem[]>;
-  delete(id: string): Promise<void>;
-}
-⋮----
-save(item: MemoryItem): Promise<void>;
-findByActorAndKey(actorId: string, key: string): Promise<MemoryItem | null>;
-findByActor(actorId: string, tags?: string[]): Promise<MemoryItem[]>;
-delete(id: string): Promise<void>;
-````
-
-## File: src/modules/ai/subdomains/pipeline/application/use-cases/PipelineUseCases.ts
-````typescript
-// TODO: implement pipeline use-cases for prompt rendering and pipeline orchestration
-````
-
-## File: src/modules/ai/subdomains/pipeline/domain/entities/PromptTemplate.ts
-````typescript
-export interface PromptTemplate {
-  readonly id: string;
-  readonly name: string;
-  readonly family: string;
-  readonly system?: string;
-  readonly userTemplate: string;
-  readonly variables: string[];
-  readonly model?: string;
-  readonly version: number;
-  readonly createdAtISO: string;
-}
-⋮----
-export interface PromptTemplateRepository {
-  save(template: PromptTemplate): Promise<void>;
-  findById(id: string): Promise<PromptTemplate | null>;
-  findByFamily(family: string): Promise<PromptTemplate[]>;
-  findLatestByName(name: string): Promise<PromptTemplate | null>;
-}
-⋮----
-save(template: PromptTemplate): Promise<void>;
-findById(id: string): Promise<PromptTemplate | null>;
-findByFamily(family: string): Promise<PromptTemplate[]>;
-findLatestByName(name: string): Promise<PromptTemplate | null>;
-⋮----
-export interface RenderedPrompt {
-  readonly system?: string;
-  readonly user: string;
-  readonly model?: string;
-}
-⋮----
-export interface PromptRenderPort {
-  render(template: PromptTemplate, variables: Record<string, string>): RenderedPrompt;
-}
-⋮----
-render(template: PromptTemplate, variables: Record<string, string>): RenderedPrompt;
-````
-
-## File: src/modules/ai/subdomains/retrieval/application/use-cases/RetrievalUseCases.ts
-````typescript
-import type { SemanticSearchPort, SemanticSearchInput, VectorSearchResult } from "../../domain/ports/RetrievalPorts";
-⋮----
-export class SemanticSearchUseCase {
-⋮----
-constructor(private readonly port: SemanticSearchPort)
-⋮----
-async execute(input: SemanticSearchInput): Promise<VectorSearchResult[]>
-````
-
-## File: src/modules/ai/subdomains/retrieval/domain/ports/RetrievalPorts.ts
-````typescript
-export interface VectorSearchResult {
-  readonly id: string;
-  readonly chunkId: string;
-  readonly sourceId: string;
-  readonly score: number;
-  readonly content?: string;
-  readonly metadata?: Record<string, unknown>;
-}
-⋮----
-export interface VectorSearchInput {
-  readonly queryVector: number[];
-  readonly limit?: number;
-  readonly minScore?: number;
-  readonly filter?: Record<string, unknown>;
-}
-⋮----
-export interface VectorSearchPort {
-  search(input: VectorSearchInput): Promise<VectorSearchResult[]>;
-  upsert(id: string, vector: number[], metadata?: Record<string, unknown>): Promise<void>;
-  delete(id: string): Promise<void>;
-}
-⋮----
-search(input: VectorSearchInput): Promise<VectorSearchResult[]>;
-upsert(id: string, vector: number[], metadata?: Record<string, unknown>): Promise<void>;
-delete(id: string): Promise<void>;
-⋮----
-export interface SemanticSearchInput {
-  readonly query: string;
-  readonly limit?: number;
-  readonly minScore?: number;
-  readonly filter?: Record<string, unknown>;
-  readonly model?: string;
-}
-⋮----
-export interface SemanticSearchPort {
-  semanticSearch(input: SemanticSearchInput): Promise<VectorSearchResult[]>;
-}
-⋮----
-semanticSearch(input: SemanticSearchInput): Promise<VectorSearchResult[]>;
-````
-
-## File: src/modules/ai/subdomains/tool-calling/application/use-cases/ToolCallingUseCases.ts
-````typescript
-// TODO: implement tool invocation and registration use-cases
-````
-
-## File: src/modules/ai/subdomains/tool-calling/domain/entities/AiTool.ts
-````typescript
-export interface AiTool {
-  readonly name: string;
-  readonly description: string;
-  readonly inputSchema: Record<string, unknown>;
-  readonly outputSchema: Record<string, unknown>;
-}
-⋮----
-export interface ToolCallInput {
-  readonly toolName: string;
-  readonly args: Record<string, unknown>;
-  readonly actorId?: string;
-}
-⋮----
-export interface ToolCallOutput {
-  readonly toolName: string;
-  readonly result: unknown;
-  readonly traceId: string;
-  readonly executedAtISO: string;
-}
-⋮----
-export interface ToolRuntimePort {
-  call(input: ToolCallInput): Promise<ToolCallOutput>;
-  listAvailable(): Promise<AiTool[]>;
-}
-⋮----
-call(input: ToolCallInput): Promise<ToolCallOutput>;
-listAvailable(): Promise<AiTool[]>;
+export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ````
 
 ## File: src/modules/ai/README.md
@@ -1579,210 +1857,6 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/ai/subdomains/chunk/application/use-cases/ChunkUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Chunk, type CreateChunkInput } from "../../domain/entities/Chunk";
-import type { ChunkRepository } from "../../domain/repositories/ChunkRepository";
-⋮----
-export class CreateChunkUseCase {
-⋮----
-constructor(private readonly repo: ChunkRepository)
-⋮----
-async execute(input: CreateChunkInput): Promise<CommandResult>
-⋮----
-export class BulkCreateChunksUseCase {
-⋮----
-async execute(inputs: CreateChunkInput[]): Promise<CommandResult>
-⋮----
-export class GetChunksBySourceUseCase {
-⋮----
-async execute(sourceId: string)
-````
-
-## File: src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts
-````typescript
-import { z } from "zod";
-import { v4 as uuid } from "uuid";
-⋮----
-export type ChunkId = z.infer<typeof ChunkIdSchema>;
-⋮----
-export type ChunkStatus = z.infer<typeof ChunkStatusSchema>;
-⋮----
-export interface ChunkSnapshot {
-  readonly id: string;
-  readonly sourceId: string;
-  readonly sourceType: string;
-  readonly content: string;
-  readonly order: number;
-  readonly tokenCount?: number;
-  readonly metadata: Record<string, unknown>;
-  readonly status: ChunkStatus;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateChunkInput {
-  readonly sourceId: string;
-  readonly sourceType: string;
-  readonly content: string;
-  readonly order: number;
-  readonly tokenCount?: number;
-  readonly metadata?: Record<string, unknown>;
-}
-⋮----
-export class Chunk {
-⋮----
-private constructor(private _props: ChunkSnapshot)
-⋮----
-static create(input: CreateChunkInput): Chunk
-⋮----
-static reconstitute(snapshot: ChunkSnapshot): Chunk
-⋮----
-markEmbedded(): void
-⋮----
-markIndexed(): void
-⋮----
-markFailed(): void
-⋮----
-get id(): string
-get sourceId(): string
-get content(): string
-get status(): ChunkStatus
-⋮----
-getSnapshot(): Readonly<ChunkSnapshot>
-````
-
-## File: src/modules/ai/subdomains/context/application/use-cases/ContextUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { ContextSession } from "../../domain/entities/ContextSession";
-import type { ContextSessionRepository } from "../../domain/repositories/ContextSessionRepository";
-⋮----
-export class CreateContextSessionUseCase {
-⋮----
-constructor(private readonly repo: ContextSessionRepository)
-⋮----
-async execute(input:
-⋮----
-export class AddContextMessageUseCase {
-````
-
-## File: src/modules/ai/subdomains/context/domain/entities/ContextSession.ts
-````typescript
-import { z } from "zod";
-import { v4 as uuid } from "uuid";
-⋮----
-export type ContextSessionId = z.infer<typeof ContextSessionIdSchema>;
-⋮----
-export type ContextRole = "user" | "assistant" | "system";
-⋮----
-export interface ContextMessage {
-  readonly id: string;
-  readonly role: ContextRole;
-  readonly content: string;
-  readonly createdAtISO: string;
-}
-⋮----
-export interface ContextSessionSnapshot {
-  readonly id: string;
-  readonly actorId?: string;
-  readonly workspaceId?: string;
-  readonly messages: ContextMessage[];
-  readonly systemPrompt?: string;
-  readonly model?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export class ContextSession {
-⋮----
-private constructor(private _props: ContextSessionSnapshot)
-⋮----
-static create(input: {
-    actorId?: string;
-    workspaceId?: string;
-    systemPrompt?: string;
-    model?: string;
-}): ContextSession
-⋮----
-static reconstitute(snapshot: ContextSessionSnapshot): ContextSession
-⋮----
-addMessage(role: ContextRole, content: string): void
-⋮----
-get id(): string
-get messages(): ContextMessage[]
-⋮----
-getSnapshot(): Readonly<ContextSessionSnapshot>
-````
-
-## File: src/modules/ai/subdomains/embedding/application/use-cases/EmbeddingUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Embedding } from "../../domain/entities/Embedding";
-import type { EmbeddingGenerationPort } from "../../domain/entities/Embedding";
-import type { EmbeddingRepository } from "../../domain/repositories/EmbeddingRepository";
-⋮----
-export class GenerateAndStoreEmbeddingUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: {
-    chunkId: string;
-    sourceId: string;
-    text: string;
-    model?: string;
-}): Promise<CommandResult>
-````
-
-## File: src/modules/ai/subdomains/embedding/domain/entities/Embedding.ts
-````typescript
-import { z } from "zod";
-import { v4 as uuid } from "uuid";
-⋮----
-export type EmbeddingId = z.infer<typeof EmbeddingIdSchema>;
-⋮----
-export interface EmbeddingSnapshot {
-  readonly id: string;
-  readonly chunkId: string;
-  readonly sourceId: string;
-  readonly vector: number[];
-  readonly model: string;
-  readonly dimensions: number;
-  readonly createdAtISO: string;
-}
-⋮----
-export interface CreateEmbeddingInput {
-  readonly chunkId: string;
-  readonly sourceId: string;
-  readonly vector: number[];
-  readonly model: string;
-}
-⋮----
-export class Embedding {
-⋮----
-private constructor(private readonly _props: EmbeddingSnapshot)
-⋮----
-static create(input: CreateEmbeddingInput): Embedding
-⋮----
-static reconstitute(snapshot: EmbeddingSnapshot): Embedding
-⋮----
-get id(): string
-get chunkId(): string
-get vector(): number[]
-get model(): string
-⋮----
-getSnapshot(): Readonly<EmbeddingSnapshot>
-⋮----
-export interface EmbeddingGenerationPort {
-  generateEmbedding(text: string, model?: string): Promise<{ vector: number[]; model: string }>;
-  generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<{ vector: number[]; model: string }>>;
-}
-⋮----
-generateEmbedding(text: string, model?: string): Promise<
-generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<
-````
-
 ## File: src/modules/ai/AGENT.md
 ````markdown
 # AI Module — Agent Guide
@@ -1861,78 +1935,4 @@ generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
-````typescript
-/**
- * chunk-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching chunking jobs
- * to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The raw document content to be chunked */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Source type (e.g. "notion-page", "uploaded-file") */
-⋮----
-/** Optional hint for chunking strategy */
-⋮----
-/** Max token count per chunk; py_fn uses default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
-````
-
-## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
-````typescript
-/**
- * embedding-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching embedding generation
- * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The document/artifact that sourced these chunks */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Chunk IDs to generate embeddings for (at least one required) */
-⋮----
-/** Optional model hint; py_fn selects default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ````

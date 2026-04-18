@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1345 files | 38,775 lines
+1361 files | 40,229 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 823 | 10,926 |
-| Markdown | 284 | 21,895 |
-| TypeScript (TSX) | 95 | 2,167 |
+| TypeScript | 823 | 10,931 |
+| Markdown | 287 | 22,721 |
+| TypeScript (TSX) | 108 | 2,790 |
 | Python | 63 | 1,459 |
 | No Extension | 52 | 57 |
 | JSON | 19 | 2,025 |
@@ -68,4 +68,4 @@ This skill contains the following reference files:
 - `py_fn/README.md` (265 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
-- `docs/structure/domain/ddd-strategic-design.md` (218 lines)
+- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)

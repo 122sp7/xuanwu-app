@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-55 files | 1,566 lines
+55 files | 1,584 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 43 | 824 |
 | Markdown | 8 | 658 |
-| TypeScript (TSX) | 4 | 84 |
+| TypeScript (TSX) | 4 | 102 |
 
 **Largest files:**
 - `docs/structure/contexts/notebooklm/README.md` (113 lines)

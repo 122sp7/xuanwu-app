@@ -1,10 +1,10 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/iam/AGENT.md (11 lines)
-docs/structure/contexts/iam/bounded-contexts.md (11 lines)
-docs/structure/contexts/iam/context-map.md (15 lines)
-docs/structure/contexts/iam/README.md (16 lines)
+docs/structure/contexts/iam/AGENT.md (74 lines)
+docs/structure/contexts/iam/bounded-contexts.md (12 lines)
+docs/structure/contexts/iam/context-map.md (16 lines)
+docs/structure/contexts/iam/README.md (27 lines)
 docs/structure/contexts/iam/subdomains.md (28 lines)
 docs/structure/contexts/iam/ubiquitous-language.md (17 lines)
 src/modules/iam/adapters/inbound/react/AuthContext.tsx (67 lines)

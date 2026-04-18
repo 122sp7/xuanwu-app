@@ -1,5 +1,25 @@
 # Files
 
+## File: src/modules/notion/index.ts
+````typescript
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
+````
+
 ## File: src/modules/notion/orchestration/index.ts
 ````typescript
 // notion — orchestration layer
@@ -44,6 +64,154 @@
 // TODO: export Firestore repositories, external clients
 ````
 
+## File: src/modules/notion/subdomains/block/adapters/outbound/memory/InMemoryBlockRepository.ts
+````typescript
+import type { BlockSnapshot } from "../../../domain/entities/Block";
+import type { BlockRepository } from "../../../domain/repositories/BlockRepository";
+⋮----
+export class InMemoryBlockRepository implements BlockRepository {
+⋮----
+async save(snapshot: BlockSnapshot): Promise<void>
+⋮----
+async saveAll(snapshots: BlockSnapshot[]): Promise<void>
+⋮----
+async findById(id: string): Promise<BlockSnapshot | null>
+⋮----
+async findByPageId(pageId: string): Promise<BlockSnapshot[]>
+⋮----
+async findChildren(parentBlockId: string): Promise<BlockSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+⋮----
+async deleteByPageId(pageId: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/block/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/block/application/use-cases/BlockUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { Block, type CreateBlockInput, type BlockContent } from "../../domain/entities/Block";
+import type { BlockRepository } from "../../domain/repositories/BlockRepository";
+⋮----
+export class CreateBlockUseCase {
+⋮----
+constructor(private readonly repo: BlockRepository)
+⋮----
+async execute(input: CreateBlockInput): Promise<CommandResult>
+⋮----
+export class UpdateBlockUseCase {
+⋮----
+async execute(blockId: string, content: Partial<BlockContent>): Promise<CommandResult>
+⋮----
+export class GetPageBlocksUseCase {
+⋮----
+async execute(pageId: string)
+````
+
+## File: src/modules/notion/subdomains/block/domain/entities/Block.ts
+````typescript
+/**
+ * Block — distilled from modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type BlockType =
+  | "paragraph"
+  | "heading_1"
+  | "heading_2"
+  | "heading_3"
+  | "bulleted_list"
+  | "numbered_list"
+  | "todo"
+  | "toggle"
+  | "code"
+  | "quote"
+  | "callout"
+  | "divider"
+  | "image"
+  | "file"
+  | "embed";
+⋮----
+export interface BlockContent {
+  readonly type: BlockType;
+  readonly text?: string;
+  readonly checked?: boolean;
+  readonly url?: string;
+  readonly language?: string;
+  readonly attributes?: Record<string, unknown>;
+}
+⋮----
+export interface BlockSnapshot {
+  readonly id: string;
+  readonly pageId: string;
+  readonly parentBlockId?: string;
+  readonly order: number;
+  readonly content: BlockContent;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateBlockInput {
+  readonly pageId: string;
+  readonly parentBlockId?: string;
+  readonly order: number;
+  readonly content: BlockContent;
+  readonly createdByUserId: string;
+}
+⋮----
+export class Block {
+⋮----
+private constructor(private _props: BlockSnapshot)
+⋮----
+static create(input: CreateBlockInput): Block
+⋮----
+static reconstitute(snapshot: BlockSnapshot): Block
+⋮----
+update(content: Partial<BlockContent>): void
+⋮----
+reorder(order: number): void
+⋮----
+get id(): string
+get pageId(): string
+get content(): BlockContent
+get order(): number
+⋮----
+getSnapshot(): Readonly<BlockSnapshot>
+````
+
+## File: src/modules/notion/subdomains/block/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/block/domain/repositories/BlockRepository.ts
+````typescript
+import type { BlockSnapshot } from "../entities/Block";
+⋮----
+export interface BlockRepository {
+  save(snapshot: BlockSnapshot): Promise<void>;
+  saveAll(snapshots: BlockSnapshot[]): Promise<void>;
+  findById(id: string): Promise<BlockSnapshot | null>;
+  findByPageId(pageId: string): Promise<BlockSnapshot[]>;
+  findChildren(parentBlockId: string): Promise<BlockSnapshot[]>;
+  delete(id: string): Promise<void>;
+  deleteByPageId(pageId: string): Promise<void>;
+}
+⋮----
+save(snapshot: BlockSnapshot): Promise<void>;
+saveAll(snapshots: BlockSnapshot[]): Promise<void>;
+findById(id: string): Promise<BlockSnapshot | null>;
+findByPageId(pageId: string): Promise<BlockSnapshot[]>;
+findChildren(parentBlockId: string): Promise<BlockSnapshot[]>;
+delete(id: string): Promise<void>;
+deleteByPageId(pageId: string): Promise<void>;
+````
+
 ## File: src/modules/notion/subdomains/collaboration/adapters/inbound/index.ts
 ````typescript
 // collaboration — inbound adapters placeholder
@@ -65,6 +233,49 @@
 ````typescript
 // collaboration — application layer placeholder
 // TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/notion/subdomains/collaboration/application/use-cases/CollaborationUseCases.ts
+````typescript
+// TODO: implement collaboration use-cases (commenting, presence, sharing)
+````
+
+## File: src/modules/notion/subdomains/collaboration/domain/entities/Comment.ts
+````typescript
+export type PresenceStatus = "online" | "idle" | "offline";
+⋮----
+export interface PagePresence {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly cursorPosition?: number;
+  readonly status: PresenceStatus;
+  readonly lastSeenISO: string;
+}
+⋮----
+export interface Comment {
+  readonly id: string;
+  readonly pageId: string;
+  readonly blockId?: string;
+  readonly accountId: string;
+  readonly content: string;
+  readonly resolved: boolean;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CommentRepository {
+  save(comment: Comment): Promise<void>;
+  findById(id: string): Promise<Comment | null>;
+  findByPageId(pageId: string): Promise<Comment[]>;
+  resolveComment(id: string): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(comment: Comment): Promise<void>;
+findById(id: string): Promise<Comment | null>;
+findByPageId(pageId: string): Promise<Comment[]>;
+resolveComment(id: string): Promise<void>;
+delete(id: string): Promise<void>;
 ````
 
 ## File: src/modules/notion/subdomains/collaboration/domain/index.ts
@@ -90,6 +301,131 @@
 // TODO: export Firestore repositories, external clients
 ````
 
+## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
+````typescript
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+export class InMemoryDatabaseRepository implements DatabaseRepository {
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByPageId(pageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/database/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/database/application/use-cases/DatabaseUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { Database, type CreateDatabaseInput, type DatabaseProperty } from "../../domain/entities/Database";
+import type { DatabaseRepository } from "../../domain/repositories/DatabaseRepository";
+⋮----
+export class CreateDatabaseUseCase {
+⋮----
+constructor(private readonly repo: DatabaseRepository)
+⋮----
+async execute(input: CreateDatabaseInput): Promise<CommandResult>
+⋮----
+export class AddPropertyUseCase {
+⋮----
+async execute(databaseId: string, property: DatabaseProperty): Promise<CommandResult>
+````
+
+## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
+````typescript
+/**
+ * Database — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
+ * Represents a structured collection of pages with typed properties (Notion-style database).
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type PropertyType = "text" | "number" | "select" | "multi_select" | "date" | "checkbox" | "url" | "email" | "file" | "relation";
+⋮----
+export interface DatabaseProperty {
+  readonly id: string;
+  readonly name: string;
+  readonly type: PropertyType;
+  readonly options?: string[];
+}
+⋮----
+export type DatabaseStatus = "active" | "archived";
+⋮----
+export interface DatabaseSnapshot {
+  readonly id: string;
+  readonly pageId: string;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly properties: DatabaseProperty[];
+  readonly status: DatabaseStatus;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateDatabaseInput {
+  readonly pageId: string;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly properties?: DatabaseProperty[];
+  readonly createdByUserId: string;
+}
+⋮----
+export class Database {
+⋮----
+private constructor(private _props: DatabaseSnapshot)
+⋮----
+static create(input: CreateDatabaseInput): Database
+⋮----
+static reconstitute(snapshot: DatabaseSnapshot): Database
+⋮----
+addProperty(property: DatabaseProperty): void
+⋮----
+get id(): string
+get title(): string
+get pageId(): string
+get properties(): DatabaseProperty[]
+⋮----
+getSnapshot(): Readonly<DatabaseSnapshot>
+````
+
+## File: src/modules/notion/subdomains/database/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts
+````typescript
+import type { DatabaseSnapshot } from "../entities/Database";
+⋮----
+export interface DatabaseRepository {
+  save(snapshot: DatabaseSnapshot): Promise<void>;
+  findById(id: string): Promise<DatabaseSnapshot | null>;
+  findByPageId(pageId: string): Promise<DatabaseSnapshot[]>;
+  findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(snapshot: DatabaseSnapshot): Promise<void>;
+findById(id: string): Promise<DatabaseSnapshot | null>;
+findByPageId(pageId: string): Promise<DatabaseSnapshot[]>;
+findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>;
+delete(id: string): Promise<void>;
+````
+
 ## File: src/modules/notion/subdomains/page/adapters/inbound/index.ts
 ````typescript
 // page — inbound adapters placeholder
@@ -105,6 +441,155 @@
 ````typescript
 // page — outbound adapters placeholder
 // TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notion/subdomains/page/adapters/outbound/memory/InMemoryPageRepository.ts
+````typescript
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
+⋮----
+export class InMemoryPageRepository implements PageRepository {
+⋮----
+async save(snapshot: PageSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<PageSnapshot | null>
+⋮----
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+⋮----
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/page/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/page/application/use-cases/PageUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { Page, type CreatePageInput } from "../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../domain/repositories/PageRepository";
+⋮----
+export class CreatePageUseCase {
+⋮----
+constructor(private readonly repo: PageRepository)
+⋮----
+async execute(input: CreatePageInput): Promise<CommandResult>
+⋮----
+export class RenamePageUseCase {
+⋮----
+async execute(pageId: string, title: string): Promise<CommandResult>
+⋮----
+export class ArchivePageUseCase {
+⋮----
+async execute(pageId: string): Promise<CommandResult>
+⋮----
+export class QueryPagesUseCase {
+⋮----
+async execute(params: PageQuery)
+````
+
+## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
+````typescript
+/**
+ * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type PageStatus = "active" | "archived";
+⋮----
+export interface PageSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: PageStatus;
+  readonly ownerId?: string;
+  readonly iconUrl?: string;
+  readonly coverUrl?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly parentPageId?: string | null;
+  readonly createdByUserId: string;
+  readonly order?: number;
+}
+⋮----
+function slugify(title: string): string
+⋮----
+export class Page {
+⋮----
+private constructor(private _props: PageSnapshot)
+⋮----
+static create(input: CreatePageInput): Page
+⋮----
+static reconstitute(snapshot: PageSnapshot): Page
+⋮----
+rename(title: string): void
+⋮----
+appendBlock(blockId: string): void
+⋮----
+archive(): void
+⋮----
+get id(): string
+get title(): string
+get slug(): string
+get status(): PageStatus
+get blockIds(): readonly string[]
+get parentPageId(): string | null
+⋮----
+getSnapshot(): Readonly<PageSnapshot>
+⋮----
+pullDomainEvents()
+````
+
+## File: src/modules/notion/subdomains/page/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/page/domain/repositories/PageRepository.ts
+````typescript
+import type { PageSnapshot, PageStatus } from "../entities/Page";
+⋮----
+export interface PageQuery {
+  readonly accountId?: string;
+  readonly workspaceId?: string;
+  readonly parentPageId?: string | null;
+  readonly status?: PageStatus;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+⋮----
+export interface PageRepository {
+  save(snapshot: PageSnapshot): Promise<void>;
+  findById(id: string): Promise<PageSnapshot | null>;
+  findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>;
+  findChildren(parentPageId: string): Promise<PageSnapshot[]>;
+  query(params: PageQuery): Promise<PageSnapshot[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(snapshot: PageSnapshot): Promise<void>;
+findById(id: string): Promise<PageSnapshot | null>;
+findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>;
+findChildren(parentPageId: string): Promise<PageSnapshot[]>;
+query(params: PageQuery): Promise<PageSnapshot[]>;
+delete(id: string): Promise<void>;
 ````
 
 ## File: src/modules/notion/subdomains/template/adapters/inbound/index.ts
@@ -128,6 +613,51 @@
 ````typescript
 // template — application layer placeholder
 // TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts
+````typescript
+// TODO: implement template management use-cases
+````
+
+## File: src/modules/notion/subdomains/template/domain/entities/Template.ts
+````typescript
+/**
+ * Template — distilled from notion taxonomy subdomain
+ * Represents a reusable page/database template.
+ */
+export type TemplateScope = "workspace" | "organization" | "global";
+export type TemplateCategory = "page" | "database" | "workflow";
+⋮----
+export interface Template {
+  readonly id: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly scope: TemplateScope;
+  readonly category: TemplateCategory;
+  readonly workspaceId?: string;
+  readonly organizationId?: string;
+  readonly createdByUserId: string;
+  readonly pageSnapshotId?: string;
+  readonly databaseSnapshotId?: string;
+  readonly tags: string[];
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface TemplateRepository {
+  save(template: Template): Promise<void>;
+  findById(id: string): Promise<Template | null>;
+  findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>;
+  listByCategory(category: TemplateCategory): Promise<Template[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(template: Template): Promise<void>;
+findById(id: string): Promise<Template | null>;
+findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>;
+listByCategory(category: TemplateCategory): Promise<Template[]>;
+delete(id: string): Promise<void>;
 ````
 
 ## File: src/modules/notion/subdomains/template/domain/index.ts
@@ -159,117 +689,60 @@
 // TODO: export use-cases, DTOs, ports
 ````
 
+## File: src/modules/notion/subdomains/view/application/use-cases/ViewUseCases.ts
+````typescript
+// TODO: implement view CRUD use-cases
+````
+
+## File: src/modules/notion/subdomains/view/domain/entities/View.ts
+````typescript
+/**
+ * View — distilled from modules/notion/subdomains/knowledge (relations/filters)
+ * Represents a filtered/sorted view of a database.
+ */
+export type ViewType = "table" | "board" | "gallery" | "list" | "calendar" | "timeline";
+⋮----
+export interface FilterCondition {
+  readonly propertyId: string;
+  readonly operator: "equals" | "not_equals" | "contains" | "not_contains" | "is_empty" | "is_not_empty" | "greater_than" | "less_than";
+  readonly value?: unknown;
+}
+⋮----
+export interface SortCondition {
+  readonly propertyId: string;
+  readonly direction: "asc" | "desc";
+}
+⋮----
+export interface ViewSnapshot {
+  readonly id: string;
+  readonly databaseId: string;
+  readonly name: string;
+  readonly type: ViewType;
+  readonly filters: FilterCondition[];
+  readonly sorts: SortCondition[];
+  readonly visiblePropertyIds: string[];
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface ViewRepository {
+  save(snapshot: ViewSnapshot): Promise<void>;
+  findById(id: string): Promise<ViewSnapshot | null>;
+  findByDatabaseId(databaseId: string): Promise<ViewSnapshot[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(snapshot: ViewSnapshot): Promise<void>;
+findById(id: string): Promise<ViewSnapshot | null>;
+findByDatabaseId(databaseId: string): Promise<ViewSnapshot[]>;
+delete(id: string): Promise<void>;
+````
+
 ## File: src/modules/notion/subdomains/view/domain/index.ts
 ````typescript
 // view — domain layer placeholder
 // TODO: export entities, value-objects, repositories, events, services
-````
-
-## File: docs/structure/contexts/notion/AGENT.md
-````markdown
-# Notion Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
-
-## Canonical Ownership
-
-- knowledge
-- authoring
-- collaboration
-- database
-- taxonomy
-- relations
-- knowledge-engagement
-- attachments
-- automation
-- external-knowledge-sync
-- notes
-- templates
-- publishing
-- knowledge-versioning
-
-## Route Here When
-
-- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
-- 問題需要把輸入吸收成正式知識內容的正典狀態。
-- 問題需要定義內容版本、內容協作與內容交付。
-
-## Route Elsewhere When
-
-- 身份、租戶與授權治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
-- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- notion 的正典內容不等於 notebooklm 的衍生輸出。
-- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
-- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
-- notion 可以消費 ai context，但不擁有 AI provider / policy 的正典邊界。
-- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
-- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
-
-## Hard Prohibitions
-
-- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
-- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
-- 不得讓 notion 直接接管 iam 的 actor、tenant、access 或 billing 的 entitlement 治理責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
-- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 ai context，而不是在 notion 內重建 generic `ai` 子域。
-- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
-- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
-- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Notion Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
-	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
-	Output --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
 ## File: docs/structure/contexts/notion/bounded-contexts.md
@@ -564,85 +1037,6 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/structure/contexts/notion/subdomains.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-## Recommended Order
-
-1. taxonomy
-2. relations
-3. publishing
-
-## Anti-Patterns
-
-- 不把 taxonomy 混成 authoring 裡的附屬設定。
-- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
-- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
-- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-engagement、external-knowledge-sync、knowledge-versioning 哪一個內容責任。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
-- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Authoring["Authoring"] --> Knowledge["Knowledge"]
-	Knowledge --> Taxonomy["Taxonomy"]
-	Knowledge --> Relations["Relations"]
-	Taxonomy --> Publishing["Publishing"]
-	Relations --> Publishing
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
 ## File: docs/structure/contexts/notion/ubiquitous-language.md
 ````markdown
 # Notion
@@ -747,68 +1141,6 @@ flowchart LR
  * notion/adapters/inbound/react — barrel.
  * Section components for notion tabs in the workspace view.
  */
-````
-
-## File: src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx
-````typescript
-/**
- * NotionDatabaseSection — notion.database tab — structured database list.
- */
-⋮----
-import { LayoutGrid } from "lucide-react";
-import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
-import { queryDatabasesAction } from "../server-actions/database-actions";
-⋮----
-interface NotionDatabaseSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-const load = () =>
-````
-
-## File: src/modules/notion/adapters/inbound/react/NotionKnowledgeSection.tsx
-````typescript
-/**
- * NotionKnowledgeSection — top-level knowledge hub for the notion.knowledge tab.
- * Shows page count summary and quick links.
- */
-⋮----
-import { FileText, BookOpen, Layout, LayoutGrid } from "lucide-react";
-import Link from "next/link";
-⋮----
-interface NotionKnowledgeSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-export function NotionKnowledgeSection(
-````
-
-## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
-````typescript
-/**
- * NotionPagesSection — notion.pages tab — hierarchical page list.
- */
-⋮----
-import { FileText, Plus } from "lucide-react";
-import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
-import { queryPagesAction, createPageAction } from "../server-actions/page-actions";
-⋮----
-interface NotionPagesSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId: string;
-}
-⋮----
-const load = () =>
-⋮----
-const handleCreate = () =>
 ````
 
 ## File: src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx
@@ -957,324 +1289,279 @@ export async function createKnowledgePage(
 ): Promise<CreateKnowledgePageResult>
 ````
 
-## File: src/modules/notion/index.ts
+## File: docs/structure/contexts/notion/AGENT.md
+````markdown
+# Notion Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
+
+## Canonical Ownership
+
+**戰略語言（DDD strategic vocabulary）：**
+- knowledge（頁面知識語義，實作層整合至 page）
+- authoring（文章建立與驗證）
+- collaboration（協作評論與共編）
+- database（結構化知識庫，原 knowledge-database）
+- taxonomy（分類法與語義組織，整合至 page / database metadata）
+- relations（關聯與 backlink，以 view 承接呈現）
+- knowledge-engagement（知識使用行為量測）
+- attachments（附件與媒體關聯儲存）
+- automation（知識事件觸發自動化）
+- external-knowledge-sync（外部系統雙向整合）
+- notes（個人輕量筆記）
+- templates（頁面模板管理）
+- publishing（正式發布與對外交付）
+- knowledge-versioning（全域版本快照策略）
+
+**實作層子域（`src/modules/notion/` 目錄名稱）：**
+- `page` — 頁面文件創作、版本、knowledge 語義整合
+- `block` — 頁面內容區塊
+- `database` — 結構化知識庫（含 taxonomy/relations 的 metadata 維度）
+- `view` — database 多視圖、篩選、排序（含 relations 呈現）
+- `collaboration` — 協作評論、共編
+- `template` — 模板管理
+
+## Route Here When
+
+- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
+- 問題需要把輸入吸收成正式知識內容的正典狀態。
+- 問題需要定義內容版本、內容協作與內容交付。
+
+## Route Elsewhere When
+
+- 身份、租戶與授權治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
+- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- notion 的正典內容不等於 notebooklm 的衍生輸出。
+- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
+- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
+- notion 可以消費 ai context，但不擁有 AI provider / policy 的正典邊界。
+- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
+- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
+
+## Hard Prohibitions
+
+- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
+- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
+- 不得讓 notion 直接接管 iam 的 actor、tenant、access 或 billing 的 entitlement 治理責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
+- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 ai context，而不是在 notion 內重建 generic `ai` 子域。
+- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
+- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
+- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Notion Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
+	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
+	Output --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/structure/contexts/notion/subdomains.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付（實作層以 `page` + `block` 對應）|
+| authoring | 知識庫文章建立、驗證與分類（實作層整合至 `page` 子域）|
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+| taxonomy | 分類法與語義組織邊界 |
+| relations | 內容之間關聯與 backlink 邊界 |
+| publishing | 正式發布與對外交付邊界 |
+
+> **實作層命名備注：** `src/modules/notion/` 以 `page`、`block`、`database`、`view`、`collaboration`、`template` 作為子域目錄名稱。
+> `view` 子域承接 `database` 的多視圖能力；`block` 是 `page` 的內容區塊子結構。
+> `knowledge-database` 已正式重命名為 `database`；戰略文件中的舊名視為 deprecated。
+
+## Recommended Gap Subdomains
+
+無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
+
+## Anti-Patterns
+
+- 不把 taxonomy 混成 authoring 裡的附屬設定。
+- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
+- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-engagement、external-knowledge-sync、knowledge-versioning 哪一個內容責任。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
+- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Authoring["Authoring"] --> Knowledge["Knowledge"]
+	Knowledge --> Taxonomy["Taxonomy"]
+	Knowledge --> Relations["Relations"]
+	Taxonomy --> Publishing["Publishing"]
+	Relations --> Publishing
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx
 ````typescript
 /**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
+ * NotionDatabaseSection — notion.database tab — structured database list.
+ *
+ * Closed-loop design: databases hold structured workspace data (requirements,
+ * milestones, personnel). Each database can be sent to workspace.task-formation.
  */
 ⋮----
-// page
+import { LayoutGrid, ListPlus } from "lucide-react";
+import Link from "next/link";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
+import { queryDatabasesAction } from "../server-actions/database-actions";
 ⋮----
-// block
-⋮----
-// database
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-````
-
-## File: src/modules/notion/subdomains/block/adapters/outbound/memory/InMemoryBlockRepository.ts
-````typescript
-import type { BlockSnapshot } from "../../../domain/entities/Block";
-import type { BlockRepository } from "../../../domain/repositories/BlockRepository";
-⋮----
-export class InMemoryBlockRepository implements BlockRepository {
-⋮----
-async save(snapshot: BlockSnapshot): Promise<void>
-⋮----
-async saveAll(snapshots: BlockSnapshot[]): Promise<void>
-⋮----
-async findById(id: string): Promise<BlockSnapshot | null>
-⋮----
-async findByPageId(pageId: string): Promise<BlockSnapshot[]>
-⋮----
-async findChildren(parentBlockId: string): Promise<BlockSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
-⋮----
-async deleteByPageId(pageId: string): Promise<void>
-````
-
-## File: src/modules/notion/subdomains/block/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/block/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/block/domain/repositories/BlockRepository.ts
-````typescript
-import type { BlockSnapshot } from "../entities/Block";
-⋮----
-export interface BlockRepository {
-  save(snapshot: BlockSnapshot): Promise<void>;
-  saveAll(snapshots: BlockSnapshot[]): Promise<void>;
-  findById(id: string): Promise<BlockSnapshot | null>;
-  findByPageId(pageId: string): Promise<BlockSnapshot[]>;
-  findChildren(parentBlockId: string): Promise<BlockSnapshot[]>;
-  delete(id: string): Promise<void>;
-  deleteByPageId(pageId: string): Promise<void>;
+interface NotionDatabaseSectionProps {
+  workspaceId: string;
+  accountId: string;
 }
 ⋮----
-save(snapshot: BlockSnapshot): Promise<void>;
-saveAll(snapshots: BlockSnapshot[]): Promise<void>;
-findById(id: string): Promise<BlockSnapshot | null>;
-findByPageId(pageId: string): Promise<BlockSnapshot[]>;
-findChildren(parentBlockId: string): Promise<BlockSnapshot[]>;
-delete(id: string): Promise<void>;
-deleteByPageId(pageId: string): Promise<void>;
+function taskFormationHref(accountId: string, workspaceId: string)
+⋮----
+const load = () =>
+⋮----
+href=
 ````
 
-## File: src/modules/notion/subdomains/collaboration/application/use-cases/CollaborationUseCases.ts
-````typescript
-// TODO: implement collaboration use-cases (commenting, presence, sharing)
-````
-
-## File: src/modules/notion/subdomains/collaboration/domain/entities/Comment.ts
-````typescript
-export type PresenceStatus = "online" | "idle" | "offline";
-⋮----
-export interface PagePresence {
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly cursorPosition?: number;
-  readonly status: PresenceStatus;
-  readonly lastSeenISO: string;
-}
-⋮----
-export interface Comment {
-  readonly id: string;
-  readonly pageId: string;
-  readonly blockId?: string;
-  readonly accountId: string;
-  readonly content: string;
-  readonly resolved: boolean;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CommentRepository {
-  save(comment: Comment): Promise<void>;
-  findById(id: string): Promise<Comment | null>;
-  findByPageId(pageId: string): Promise<Comment[]>;
-  resolveComment(id: string): Promise<void>;
-  delete(id: string): Promise<void>;
-}
-⋮----
-save(comment: Comment): Promise<void>;
-findById(id: string): Promise<Comment | null>;
-findByPageId(pageId: string): Promise<Comment[]>;
-resolveComment(id: string): Promise<void>;
-delete(id: string): Promise<void>;
-````
-
-## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
-````typescript
-import type { DatabaseSnapshot } from "../../../domain/entities/Database";
-import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
-⋮----
-export class InMemoryDatabaseRepository implements DatabaseRepository {
-⋮----
-async save(snapshot: DatabaseSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<DatabaseSnapshot | null>
-⋮----
-async findByPageId(pageId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
-````
-
-## File: src/modules/notion/subdomains/database/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/database/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts
-````typescript
-import type { DatabaseSnapshot } from "../entities/Database";
-⋮----
-export interface DatabaseRepository {
-  save(snapshot: DatabaseSnapshot): Promise<void>;
-  findById(id: string): Promise<DatabaseSnapshot | null>;
-  findByPageId(pageId: string): Promise<DatabaseSnapshot[]>;
-  findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>;
-  delete(id: string): Promise<void>;
-}
-⋮----
-save(snapshot: DatabaseSnapshot): Promise<void>;
-findById(id: string): Promise<DatabaseSnapshot | null>;
-findByPageId(pageId: string): Promise<DatabaseSnapshot[]>;
-findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>;
-delete(id: string): Promise<void>;
-````
-
-## File: src/modules/notion/subdomains/page/adapters/outbound/memory/InMemoryPageRepository.ts
-````typescript
-import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
-⋮----
-export class InMemoryPageRepository implements PageRepository {
-⋮----
-async save(snapshot: PageSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<PageSnapshot | null>
-⋮----
-async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
-⋮----
-async findChildren(parentPageId: string): Promise<PageSnapshot[]>
-⋮----
-async query(params: PageQuery): Promise<PageSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
-````
-
-## File: src/modules/notion/subdomains/page/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/page/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/page/domain/repositories/PageRepository.ts
-````typescript
-import type { PageSnapshot, PageStatus } from "../entities/Page";
-⋮----
-export interface PageQuery {
-  readonly accountId?: string;
-  readonly workspaceId?: string;
-  readonly parentPageId?: string | null;
-  readonly status?: PageStatus;
-  readonly limit?: number;
-  readonly offset?: number;
-}
-⋮----
-export interface PageRepository {
-  save(snapshot: PageSnapshot): Promise<void>;
-  findById(id: string): Promise<PageSnapshot | null>;
-  findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>;
-  findChildren(parentPageId: string): Promise<PageSnapshot[]>;
-  query(params: PageQuery): Promise<PageSnapshot[]>;
-  delete(id: string): Promise<void>;
-}
-⋮----
-save(snapshot: PageSnapshot): Promise<void>;
-findById(id: string): Promise<PageSnapshot | null>;
-findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>;
-findChildren(parentPageId: string): Promise<PageSnapshot[]>;
-query(params: PageQuery): Promise<PageSnapshot[]>;
-delete(id: string): Promise<void>;
-````
-
-## File: src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts
-````typescript
-// TODO: implement template management use-cases
-````
-
-## File: src/modules/notion/subdomains/template/domain/entities/Template.ts
+## File: src/modules/notion/adapters/inbound/react/NotionKnowledgeSection.tsx
 ````typescript
 /**
- * Template — distilled from notion taxonomy subdomain
- * Represents a reusable page/database template.
+ * NotionKnowledgeSection — top-level knowledge hub for the notion.knowledge tab.
+ *
+ * Closed-loop design: the knowledge hub is the central orchestrator showing
+ * the full data flow pipeline:
+ *   Sources (upload) → Pages/Database (structure) → AI (analysis) → Tasks (execution)
  */
-export type TemplateScope = "workspace" | "organization" | "global";
-export type TemplateCategory = "page" | "database" | "workflow";
 ⋮----
-export interface Template {
-  readonly id: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly scope: TemplateScope;
-  readonly category: TemplateCategory;
-  readonly workspaceId?: string;
-  readonly organizationId?: string;
-  readonly createdByUserId: string;
-  readonly pageSnapshotId?: string;
-  readonly databaseSnapshotId?: string;
-  readonly tags: string[];
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
+import { FileText, BookOpen, Layout, LayoutGrid, Upload, ListPlus, ArrowRight, Brain } from "lucide-react";
+import Link from "next/link";
+⋮----
+interface NotionKnowledgeSectionProps {
+  workspaceId: string;
+  accountId: string;
 }
 ⋮----
-export interface TemplateRepository {
-  save(template: Template): Promise<void>;
-  findById(id: string): Promise<Template | null>;
-  findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>;
-  listByCategory(category: TemplateCategory): Promise<Template[]>;
-  delete(id: string): Promise<void>;
-}
+{/* Closed-loop pipeline visualization */}
 ⋮----
-save(template: Template): Promise<void>;
-findById(id: string): Promise<Template | null>;
-findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>;
-listByCategory(category: TemplateCategory): Promise<Template[]>;
-delete(id: string): Promise<void>;
+{/* Knowledge type quick access */}
 ````
 
-## File: src/modules/notion/subdomains/view/application/use-cases/ViewUseCases.ts
-````typescript
-// TODO: implement view CRUD use-cases
-````
-
-## File: src/modules/notion/subdomains/view/domain/entities/View.ts
+## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
 ````typescript
 /**
- * View — distilled from modules/notion/subdomains/knowledge (relations/filters)
- * Represents a filtered/sorted view of a database.
+ * NotionPagesSection — notion.pages tab — hierarchical page list.
+ *
+ * Closed-loop design: pages are the knowledge output of document parsing.
+ * Each page can be sent to workspace.task-formation as a task generation source.
  */
-export type ViewType = "table" | "board" | "gallery" | "list" | "calendar" | "timeline";
 ⋮----
-export interface FilterCondition {
-  readonly propertyId: string;
-  readonly operator: "equals" | "not_equals" | "contains" | "not_contains" | "is_empty" | "is_not_empty" | "greater_than" | "less_than";
-  readonly value?: unknown;
+import { FileText, Plus, ListPlus } from "lucide-react";
+import Link from "next/link";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
+import { queryPagesAction, createPageAction } from "../server-actions/page-actions";
+⋮----
+interface NotionPagesSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId: string;
 }
 ⋮----
-export interface SortCondition {
-  readonly propertyId: string;
-  readonly direction: "asc" | "desc";
-}
+function taskFormationHref(accountId: string, workspaceId: string)
 ⋮----
-export interface ViewSnapshot {
-  readonly id: string;
-  readonly databaseId: string;
-  readonly name: string;
-  readonly type: ViewType;
-  readonly filters: FilterCondition[];
-  readonly sorts: SortCondition[];
-  readonly visiblePropertyIds: string[];
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
+const load = () =>
 ⋮----
-export interface ViewRepository {
-  save(snapshot: ViewSnapshot): Promise<void>;
-  findById(id: string): Promise<ViewSnapshot | null>;
-  findByDatabaseId(databaseId: string): Promise<ViewSnapshot[]>;
-  delete(id: string): Promise<void>;
-}
+const handleCreate = () =>
 ⋮----
-save(snapshot: ViewSnapshot): Promise<void>;
-findById(id: string): Promise<ViewSnapshot | null>;
-findByDatabaseId(databaseId: string): Promise<ViewSnapshot[]>;
-delete(id: string): Promise<void>;
+href=
 ````
 
 ## File: src/modules/notion/README.md
@@ -1339,266 +1626,6 @@ src/modules/notion/
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notion/subdomains/block/application/use-cases/BlockUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Block, type CreateBlockInput, type BlockContent } from "../../domain/entities/Block";
-import type { BlockRepository } from "../../domain/repositories/BlockRepository";
-⋮----
-export class CreateBlockUseCase {
-⋮----
-constructor(private readonly repo: BlockRepository)
-⋮----
-async execute(input: CreateBlockInput): Promise<CommandResult>
-⋮----
-export class UpdateBlockUseCase {
-⋮----
-async execute(blockId: string, content: Partial<BlockContent>): Promise<CommandResult>
-⋮----
-export class GetPageBlocksUseCase {
-⋮----
-async execute(pageId: string)
-````
-
-## File: src/modules/notion/subdomains/block/domain/entities/Block.ts
-````typescript
-/**
- * Block — distilled from modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type BlockType =
-  | "paragraph"
-  | "heading_1"
-  | "heading_2"
-  | "heading_3"
-  | "bulleted_list"
-  | "numbered_list"
-  | "todo"
-  | "toggle"
-  | "code"
-  | "quote"
-  | "callout"
-  | "divider"
-  | "image"
-  | "file"
-  | "embed";
-⋮----
-export interface BlockContent {
-  readonly type: BlockType;
-  readonly text?: string;
-  readonly checked?: boolean;
-  readonly url?: string;
-  readonly language?: string;
-  readonly attributes?: Record<string, unknown>;
-}
-⋮----
-export interface BlockSnapshot {
-  readonly id: string;
-  readonly pageId: string;
-  readonly parentBlockId?: string;
-  readonly order: number;
-  readonly content: BlockContent;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateBlockInput {
-  readonly pageId: string;
-  readonly parentBlockId?: string;
-  readonly order: number;
-  readonly content: BlockContent;
-  readonly createdByUserId: string;
-}
-⋮----
-export class Block {
-⋮----
-private constructor(private _props: BlockSnapshot)
-⋮----
-static create(input: CreateBlockInput): Block
-⋮----
-static reconstitute(snapshot: BlockSnapshot): Block
-⋮----
-update(content: Partial<BlockContent>): void
-⋮----
-reorder(order: number): void
-⋮----
-get id(): string
-get pageId(): string
-get content(): BlockContent
-get order(): number
-⋮----
-getSnapshot(): Readonly<BlockSnapshot>
-````
-
-## File: src/modules/notion/subdomains/database/application/use-cases/DatabaseUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Database, type CreateDatabaseInput, type DatabaseProperty } from "../../domain/entities/Database";
-import type { DatabaseRepository } from "../../domain/repositories/DatabaseRepository";
-⋮----
-export class CreateDatabaseUseCase {
-⋮----
-constructor(private readonly repo: DatabaseRepository)
-⋮----
-async execute(input: CreateDatabaseInput): Promise<CommandResult>
-⋮----
-export class AddPropertyUseCase {
-⋮----
-async execute(databaseId: string, property: DatabaseProperty): Promise<CommandResult>
-````
-
-## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
-````typescript
-/**
- * Database — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
- * Represents a structured collection of pages with typed properties (Notion-style database).
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type PropertyType = "text" | "number" | "select" | "multi_select" | "date" | "checkbox" | "url" | "email" | "file" | "relation";
-⋮----
-export interface DatabaseProperty {
-  readonly id: string;
-  readonly name: string;
-  readonly type: PropertyType;
-  readonly options?: string[];
-}
-⋮----
-export type DatabaseStatus = "active" | "archived";
-⋮----
-export interface DatabaseSnapshot {
-  readonly id: string;
-  readonly pageId: string;
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly properties: DatabaseProperty[];
-  readonly status: DatabaseStatus;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateDatabaseInput {
-  readonly pageId: string;
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly properties?: DatabaseProperty[];
-  readonly createdByUserId: string;
-}
-⋮----
-export class Database {
-⋮----
-private constructor(private _props: DatabaseSnapshot)
-⋮----
-static create(input: CreateDatabaseInput): Database
-⋮----
-static reconstitute(snapshot: DatabaseSnapshot): Database
-⋮----
-addProperty(property: DatabaseProperty): void
-⋮----
-get id(): string
-get title(): string
-get pageId(): string
-get properties(): DatabaseProperty[]
-⋮----
-getSnapshot(): Readonly<DatabaseSnapshot>
-````
-
-## File: src/modules/notion/subdomains/page/application/use-cases/PageUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Page, type CreatePageInput } from "../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../domain/repositories/PageRepository";
-⋮----
-export class CreatePageUseCase {
-⋮----
-constructor(private readonly repo: PageRepository)
-⋮----
-async execute(input: CreatePageInput): Promise<CommandResult>
-⋮----
-export class RenamePageUseCase {
-⋮----
-async execute(pageId: string, title: string): Promise<CommandResult>
-⋮----
-export class ArchivePageUseCase {
-⋮----
-async execute(pageId: string): Promise<CommandResult>
-⋮----
-export class QueryPagesUseCase {
-⋮----
-async execute(params: PageQuery)
-````
-
-## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
-````typescript
-/**
- * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type PageStatus = "active" | "archived";
-⋮----
-export interface PageSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: PageStatus;
-  readonly ownerId?: string;
-  readonly iconUrl?: string;
-  readonly coverUrl?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly parentPageId?: string | null;
-  readonly createdByUserId: string;
-  readonly order?: number;
-}
-⋮----
-function slugify(title: string): string
-⋮----
-export class Page {
-⋮----
-private constructor(private _props: PageSnapshot)
-⋮----
-static create(input: CreatePageInput): Page
-⋮----
-static reconstitute(snapshot: PageSnapshot): Page
-⋮----
-rename(title: string): void
-⋮----
-appendBlock(blockId: string): void
-⋮----
-archive(): void
-⋮----
-get id(): string
-get title(): string
-get slug(): string
-get status(): PageStatus
-get blockIds(): readonly string[]
-get parentPageId(): string | null
-⋮----
-getSnapshot(): Readonly<PageSnapshot>
-⋮----
-pullDomainEvents()
 ````
 
 ## File: src/modules/notion/AGENT.md

@@ -1,5 +1,35 @@
 # Files
 
+## File: src/modules/iam/index.ts
+````typescript
+/**
+ * Iam Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// account
+⋮----
+// identity
+⋮----
+// access-control
+⋮----
+// organization
+⋮----
+// authorization — permission decision helpers
+⋮----
+// authentication
+⋮----
+// federation
+⋮----
+// security-policy
+⋮----
+// session
+⋮----
+// tenant
+⋮----
+// shared errors
+````
+
 ## File: src/modules/iam/orchestration/index.ts
 ````typescript
 // iam — orchestration layer
@@ -103,6 +133,114 @@ export interface PermissionEvaluationView {
 
 ````
 
+## File: src/modules/iam/subdomains/access-control/application/use-cases/AccessControlUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+⋮----
+// ─── Evaluate Permission ──────────────────────────────────────────────────────
+⋮----
+export class EvaluatePermissionUseCase {
+⋮----
+constructor(private readonly repo: AccessPolicyRepository)
+⋮----
+async execute(input: {
+    subjectId: string;
+    resourceType: string;
+    resourceId?: string;
+    action: string;
+}): Promise<CommandResult>
+⋮----
+// ─── Create Access Policy ─────────────────────────────────────────────────────
+⋮----
+export class CreateAccessPolicyUseCase {
+⋮----
+async execute(input: {
+    subjectRef: SubjectRef;
+    resourceRef: ResourceRef;
+    actions: string[];
+    effect: PolicyEffect;
+    conditions?: string[];
+}): Promise<CommandResult>
+⋮----
+// ─── Update Access Policy ─────────────────────────────────────────────────────
+⋮----
+export class UpdateAccessPolicyUseCase {
+⋮----
+async execute(
+    policyId: string,
+    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
+): Promise<CommandResult>
+⋮----
+// ─── Deactivate Access Policy ─────────────────────────────────────────────────
+⋮----
+export class DeactivateAccessPolicyUseCase {
+⋮----
+async execute(policyId: string): Promise<CommandResult>
+````
+
+## File: src/modules/iam/subdomains/access-control/domain/aggregates/AccessPolicy.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
+import type { SubjectRef } from "../value-objects/SubjectRef";
+import type { ResourceRef } from "../value-objects/ResourceRef";
+import type { PolicyEffect } from "../value-objects/PolicyEffect";
+⋮----
+export interface AccessPolicySnapshot {
+  readonly id: string;
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: readonly string[];
+  readonly effect: PolicyEffect;
+  readonly conditions: readonly string[];
+  readonly isActive: boolean;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateAccessPolicyInput {
+  readonly subjectRef: SubjectRef;
+  readonly resourceRef: ResourceRef;
+  readonly actions: string[];
+  readonly effect: PolicyEffect;
+  readonly conditions?: string[];
+}
+⋮----
+export class AccessPolicy {
+⋮----
+private constructor(private _props: AccessPolicySnapshot)
+⋮----
+static create(id: string, input: CreateAccessPolicyInput): AccessPolicy
+⋮----
+static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy
+⋮----
+update(input: {
+    actions?: string[];
+    effect?: PolicyEffect;
+    conditions?: string[];
+}): void
+⋮----
+deactivate(): void
+⋮----
+get id(): string
+get subjectRef(): SubjectRef
+get resourceRef(): ResourceRef
+get actions(): readonly string[]
+get effect(): PolicyEffect
+get conditions(): readonly string[]
+get isActive(): boolean
+⋮----
+getSnapshot(): Readonly<AccessPolicySnapshot>
+⋮----
+pullDomainEvents(): AccessPolicyDomainEventType[]
+````
+
 ## File: src/modules/iam/subdomains/access-control/domain/events/AccessPolicyDomainEvent.ts
 ````typescript
 import type { SubjectRef } from "../value-objects/SubjectRef";
@@ -182,6 +320,66 @@ export type PolicyEffect = "allow" | "deny";
 export function isAllow(effect: PolicyEffect): boolean
 ````
 
+## File: src/modules/iam/subdomains/access-control/domain/value-objects/ResourceRef.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type ResourceRef = z.infer<typeof ResourceRefSchema>;
+⋮----
+export function createResourceRef(
+  resourceType: string,
+  resourceId?: string,
+  workspaceId?: string,
+): ResourceRef
+````
+
+## File: src/modules/iam/subdomains/access-control/domain/value-objects/SubjectRef.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type SubjectRef = z.infer<typeof SubjectRefSchema>;
+⋮----
+export function createSubjectRef(
+  subjectId: string,
+  subjectType: SubjectRef["subjectType"],
+): SubjectRef
+````
+
+## File: src/modules/iam/subdomains/account/adapters/inbound/http/AccountController.ts
+````typescript
+import type { CreateUserAccountUseCase } from "../../../application/use-cases/AccountUseCases";
+import type { UpdateUserProfileUseCase } from "../../../application/use-cases/AccountUseCases";
+import type { UpdateAccountProfileUseCase } from "../../../application/use-cases/AccountUseCases";
+import type { CreditWalletUseCase } from "../../../application/use-cases/AccountUseCases";
+import type { DebitWalletUseCase } from "../../../application/use-cases/AccountUseCases";
+import type { AssignAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
+import type { RevokeAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
+⋮----
+/** HTTP inbound adapter stub — translates HTTP requests into application use-case calls. */
+export class AccountController {
+⋮----
+constructor(
+⋮----
+async createAccount(body:
+⋮----
+async updateProfile(body:
+⋮----
+async updateAccountProfile(body:
+⋮----
+async creditWallet(body:
+⋮----
+async debitWallet(body:
+⋮----
+async assignRole(body: {
+    accountId: string;
+    role: string;
+    grantedBy: string;
+    traceId?: string;
+})
+⋮----
+async revokeRole(body:
+````
+
 ## File: src/modules/iam/subdomains/account/adapters/inbound/index.ts
 ````typescript
 
@@ -192,7 +390,66 @@ export function isAllow(effect: PolicyEffect): boolean
 // account — adapters aggregate
 ````
 
+## File: src/modules/iam/subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { AccountRepository, OrganizationRole, UpdateProfileInput, WalletTransaction, AccountRoleRecord } from "../../../domain/repositories/AccountRepository";
+import type { UpdateAccountProfileInput } from "../../../domain/entities/AccountProfile";
+import type { AccountSnapshot } from "../../../domain/entities/Account";
+⋮----
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+⋮----
+export class FirestoreAccountRepository implements AccountRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(id: string): Promise<AccountSnapshot | null>
+⋮----
+async save(account: AccountSnapshot): Promise<void>
+⋮----
+async updateProfile(userId: string, data: UpdateProfileInput): Promise<void>
+⋮----
+async updateAccountProfile(userId: string, input: UpdateAccountProfileInput): Promise<void>
+⋮----
+async getWalletBalance(accountId: string): Promise<number>
+⋮----
+async creditWallet(
+    accountId: string,
+    amount: number,
+    description: string,
+): Promise<WalletTransaction>
+⋮----
+async debitWallet(
+    accountId: string,
+    amount: number,
+    description: string,
+): Promise<WalletTransaction>
+⋮----
+async assignRole(
+    accountId: string,
+    role: OrganizationRole,
+    grantedBy: string,
+): Promise<AccountRoleRecord>
+⋮----
+async revokeRole(accountId: string): Promise<void>
+⋮----
+async getRole(accountId: string): Promise<AccountRoleRecord | null>
+````
+
 ## File: src/modules/iam/subdomains/account/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/iam/subdomains/account/application/dto/AccountDTO.ts
 ````typescript
 
 ````
@@ -204,6 +461,219 @@ export function isAllow(effect: PolicyEffect): boolean
 // ── Use cases ─────────────────────────────────────────────────────────────────
 ⋮----
 // ── Outbound ports ────────────────────────────────────────────────────────────
+````
+
+## File: src/modules/iam/subdomains/account/application/ports/outbound/AccountRepositoryPort.ts
+````typescript
+import type { AccountRepository } from "../../../domain/repositories/AccountRepository";
+import type { AccountQueryRepository } from "../../../domain/repositories/AccountQueryRepository";
+import type { AccountPolicyRepository } from "../../../domain/repositories/AccountPolicyRepository";
+import type { TokenRefreshPort } from "../../../domain/ports/TokenRefreshPort";
+⋮----
+/** Outbound port contract for account persistence — mirrors AccountRepository. */
+⋮----
+/** Outbound port contract for account read queries. */
+⋮----
+/** Outbound port contract for account policy persistence. */
+⋮----
+/** Outbound port for token-refresh signaling. */
+````
+
+## File: src/modules/iam/subdomains/account/application/use-cases/AccountPolicyUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
+import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
+⋮----
+// ─── Create Account Policy ────────────────────────────────────────────────────
+⋮----
+export class CreateAccountPolicyUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: CreatePolicyInput): Promise<CommandResult>
+⋮----
+// ─── Update Account Policy ────────────────────────────────────────────────────
+⋮----
+export class UpdateAccountPolicyUseCase {
+⋮----
+async execute(
+    policyId: string,
+    accountId: string,
+    data: UpdatePolicyInput,
+    traceId?: string,
+): Promise<CommandResult>
+⋮----
+// ─── Delete Account Policy ────────────────────────────────────────────────────
+⋮----
+export class DeleteAccountPolicyUseCase {
+⋮----
+async execute(policyId: string, accountId: string): Promise<CommandResult>
+````
+
+## File: src/modules/iam/subdomains/account/application/use-cases/AccountUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { AccountRepository, OrganizationRole, UpdateProfileInput } from "../../domain/repositories/AccountRepository";
+import type { AccountQueryRepository, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
+import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
+import type { AccountProfile, UpdateAccountProfileInput } from "../../domain/entities/AccountProfile";
+import { createUpdateAccountProfileInput } from "../../domain/entities/AccountProfile";
+⋮----
+// ─── Create User Account ──────────────────────────────────────────────────────
+⋮----
+export class CreateUserAccountUseCase {
+⋮----
+constructor(private readonly accountRepo: AccountRepository)
+⋮----
+async execute(userId: string, name: string, email: string): Promise<CommandResult>
+⋮----
+// ─── Update User Profile ──────────────────────────────────────────────────────
+⋮----
+export class UpdateUserProfileUseCase {
+⋮----
+async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult>
+⋮----
+// ─── Credit Wallet ────────────────────────────────────────────────────────────
+⋮----
+export class CreditWalletUseCase {
+⋮----
+async execute(accountId: string, amount: number, description: string): Promise<CommandResult>
+⋮----
+// ─── Debit Wallet ─────────────────────────────────────────────────────────────
+⋮----
+export class DebitWalletUseCase {
+⋮----
+// ─── Assign Account Role ──────────────────────────────────────────────────────
+⋮----
+export class AssignAccountRoleUseCase {
+⋮----
+constructor(
+⋮----
+async execute(
+    accountId: string,
+    role: OrganizationRole,
+    grantedBy: string,
+    traceId?: string,
+): Promise<CommandResult>
+⋮----
+// ─── Revoke Account Role ──────────────────────────────────────────────────────
+⋮----
+export class RevokeAccountRoleUseCase {
+⋮----
+async execute(accountId: string): Promise<CommandResult>
+⋮----
+// ─── Get Account Profile ──────────────────────────────────────────────────────
+⋮----
+export class GetAccountProfileUseCase {
+⋮----
+constructor(private readonly repo: AccountQueryRepository)
+⋮----
+async execute(actorId: string): Promise<AccountProfile | null>
+⋮----
+// ─── Subscribe Account Profile ────────────────────────────────────────────────
+⋮----
+export class SubscribeAccountProfileUseCase {
+⋮----
+execute(actorId: string, onUpdate: (profile: AccountProfile | null) => void): Unsubscribe
+⋮----
+// ─── Update Account Profile ───────────────────────────────────────────────────
+⋮----
+export class UpdateAccountProfileUseCase {
+⋮----
+async execute(actorId: string, input: UpdateAccountProfileInput): Promise<CommandResult>
+````
+
+## File: src/modules/iam/subdomains/account/domain/entities/Account.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { AccountDomainEventType } from "../events/AccountDomainEvent";
+import {
+  canClose,
+  canReactivate,
+  canSuspend,
+  type AccountStatus,
+} from "../value-objects/AccountStatus";
+import {
+  createAccountId,
+  createAccountType,
+  createWalletAmount,
+} from "../value-objects";
+⋮----
+export interface AccountSnapshot {
+  readonly id: string;
+  readonly name: string;
+  readonly accountType: "user" | "organization";
+  readonly email: string | null;
+  readonly photoURL: string | null;
+  readonly bio: string | null;
+  readonly status: "active" | "suspended" | "closed";
+  readonly walletBalance: number;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateAccountInput {
+  readonly name: string;
+  readonly accountType: "user" | "organization";
+  readonly email?: string | null;
+  readonly photoURL?: string | null;
+  readonly bio?: string | null;
+}
+⋮----
+export class Account {
+⋮----
+private constructor(private _props: AccountSnapshot)
+⋮----
+static create(id: string, input: CreateAccountInput): Account
+⋮----
+static reconstitute(snapshot: AccountSnapshot): Account
+⋮----
+updateProfile(input: {
+    name?: string;
+    bio?: string | null;
+    photoURL?: string | null;
+}): void
+⋮----
+creditWallet(amount: number, description: string): void
+⋮----
+debitWallet(amount: number, description: string): void
+⋮----
+suspend(): void
+⋮----
+close(): void
+⋮----
+reactivate(): void
+⋮----
+get id(): string
+⋮----
+get name(): string
+⋮----
+get accountType(): "user" | "organization"
+⋮----
+get email(): string | null
+⋮----
+get photoURL(): string | null
+⋮----
+get bio(): string | null
+⋮----
+get status(): AccountStatus
+⋮----
+get walletBalance(): number
+⋮----
+get createdAtISO(): string
+⋮----
+get updatedAtISO(): string
+⋮----
+getSnapshot(): Readonly<AccountSnapshot>
+⋮----
+pullDomainEvents(): AccountDomainEventType[]
+⋮----
+private changeStatus(
+    status: AccountStatus,
+    eventType: "iam.account.suspended" | "iam.account.closed" | "iam.account.reactivated",
+): void
 ````
 
 ## File: src/modules/iam/subdomains/account/domain/entities/AccountPolicy.ts
@@ -246,6 +716,27 @@ export interface UpdatePolicyInput {
   readonly rules?: PolicyRule[];
   readonly isActive?: boolean;
 }
+````
+
+## File: src/modules/iam/subdomains/account/domain/entities/AccountProfile.ts
+````typescript
+import { z } from "zod";
+⋮----
+// ── Value objects ─────────────────────────────────────────────────────────────
+⋮----
+export type AccountProfileTheme = z.infer<typeof AccountProfileThemeSchema>;
+⋮----
+// ── Profile read-model ────────────────────────────────────────────────────────
+⋮----
+export type AccountProfile = z.infer<typeof AccountProfileSchema>;
+⋮----
+// ── Profile mutation command ──────────────────────────────────────────────────
+⋮----
+export type UpdateAccountProfileInput = z.infer<typeof UpdateAccountProfileInputSchema>;
+⋮----
+// ── Factories / mappers ───────────────────────────────────────────────────────
+⋮----
+export function createUpdateAccountProfileInput(raw: unknown): UpdateAccountProfileInput
 ````
 
 ## File: src/modules/iam/subdomains/account/domain/events/AccountDomainEvent.ts
@@ -515,6 +1006,15 @@ revokeRole(accountId: string): Promise<void>;
 getRole(accountId: string): Promise<AccountRoleRecord | null>;
 ````
 
+## File: src/modules/iam/subdomains/account/domain/value-objects/AccountId.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type AccountId = z.infer<typeof AccountIdSchema>;
+⋮----
+export function createAccountId(raw: string): AccountId
+````
+
 ## File: src/modules/iam/subdomains/account/domain/value-objects/AccountStatus.ts
 ````typescript
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
@@ -526,9 +1026,27 @@ export function canClose(status: AccountStatus): boolean
 export function canReactivate(status: AccountStatus): boolean
 ````
 
+## File: src/modules/iam/subdomains/account/domain/value-objects/AccountType.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type AccountTypeValue = (typeof ACCOUNT_TYPES)[number];
+⋮----
+export function createAccountType(raw: string): AccountTypeValue
+````
+
 ## File: src/modules/iam/subdomains/account/domain/value-objects/index.ts
 ````typescript
 
+````
+
+## File: src/modules/iam/subdomains/account/domain/value-objects/WalletAmount.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type WalletAmount = z.infer<typeof WalletAmountSchema>;
+⋮----
+export function createWalletAmount(raw: number): WalletAmount
 ````
 
 ## File: src/modules/iam/subdomains/authentication/adapters/inbound/index.ts
@@ -546,6 +1064,26 @@ export function canReactivate(status: AccountStatus): boolean
 ````typescript
 // authentication — outbound adapters placeholder
 // TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/iam/subdomains/authentication/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/iam/subdomains/authentication/application/use-cases/AuthenticationUseCases.ts
+````typescript
+import type { AuthCredential, AuthenticationPort } from "../../domain/index";
+⋮----
+export class SignInWithEmailUseCase {
+⋮----
+constructor(private readonly authPort: AuthenticationPort)
+⋮----
+async execute(input:
+⋮----
+export class SignOutUseCase {
+⋮----
+export class SendPasswordResetEmailUseCase {
 ````
 
 ## File: src/modules/iam/subdomains/authentication/domain/index.ts
@@ -596,6 +1134,32 @@ export interface AuthenticationDomainEvent {
 // TODO: export Firestore repositories, external clients
 ````
 
+## File: src/modules/iam/subdomains/authorization/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/iam/subdomains/authorization/application/use-cases/AuthorizationUseCases.ts
+````typescript
+import type { PermissionDecision, PermissionCheckPort } from "../../domain/index";
+⋮----
+export class CheckPermissionUseCase {
+⋮----
+constructor(private readonly permissionPort: PermissionCheckPort)
+⋮----
+async execute(input: {
+    actorId: string;
+    action: string;
+    resource: string;
+}): Promise<PermissionDecision>
+⋮----
+export class BatchCheckPermissionsUseCase {
+⋮----
+async execute(
+    checks: Array<{ actorId: string; action: string; resource: string }>,
+): Promise<PermissionDecision[]>
+````
+
 ## File: src/modules/iam/subdomains/authorization/domain/index.ts
 ````typescript
 // authorization — domain layer
@@ -634,6 +1198,30 @@ can(actorId: string, action: string, resource: string): Promise<PermissionDecisi
 // TODO: export Firestore repositories, external clients
 ````
 
+## File: src/modules/iam/subdomains/federation/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/iam/subdomains/federation/application/use-cases/FederationUseCases.ts
+````typescript
+import type { FederatedIdentity, FederationPort, FederationProvider } from "../../domain/index";
+⋮----
+export class LinkProviderUseCase {
+⋮----
+constructor(private readonly federationPort: FederationPort)
+⋮----
+async execute(input: {
+    uid: string;
+    provider: FederationProvider;
+    idToken: string;
+}): Promise<void>
+⋮----
+export class UnlinkProviderUseCase {
+⋮----
+export class GetLinkedProvidersUseCase {
+````
+
 ## File: src/modules/iam/subdomains/federation/domain/index.ts
 ````typescript
 // federation — domain layer
@@ -658,6 +1246,31 @@ export interface FederationPort {
 linkProvider(uid: string, provider: FederationProvider, idToken: string): Promise<void>;
 unlinkProvider(uid: string, provider: FederationProvider): Promise<void>;
 getLinkedProviders(uid: string): Promise<FederatedIdentity[]>;
+````
+
+## File: src/modules/iam/subdomains/identity/adapters/inbound/http/IdentityController.ts
+````typescript
+import type { SignInUseCase } from "../../../application/use-cases/IdentityUseCases";
+import type { SignInAnonymouslyUseCase } from "../../../application/use-cases/IdentityUseCases";
+import type { RegisterUseCase } from "../../../application/use-cases/IdentityUseCases";
+import type { SendPasswordResetEmailUseCase } from "../../../application/use-cases/IdentityUseCases";
+import type { SignOutUseCase } from "../../../application/use-cases/IdentityUseCases";
+import type { SignInCredentials, RegistrationInput } from "../../../domain/entities/Identity";
+⋮----
+/** HTTP inbound adapter stub — translates HTTP requests into identity use-case calls. */
+export class IdentityController {
+⋮----
+constructor(
+⋮----
+async signIn(body: SignInCredentials)
+⋮----
+async signInAnonymously()
+⋮----
+async register(body: RegistrationInput)
+⋮----
+async sendPasswordReset(body:
+⋮----
+async signOut()
 ````
 
 ## File: src/modules/iam/subdomains/identity/adapters/inbound/index.ts
@@ -714,11 +1327,58 @@ getCurrentUser(): IdentityEntity | null
 
 ````
 
+## File: src/modules/iam/subdomains/identity/application/dto/IdentityDTO.ts
+````typescript
+
+````
+
 ## File: src/modules/iam/subdomains/identity/application/index.ts
 ````typescript
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 ⋮----
 // ── Use cases ─────────────────────────────────────────────────────────────────
+````
+
+## File: src/modules/iam/subdomains/identity/application/use-cases/IdentityUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
+import type { SignInCredentials, RegistrationInput } from "../../domain/entities/Identity";
+⋮----
+function toIdentityErrorMessage(err: unknown, fallback: string): string
+⋮----
+export class SignInUseCase {
+⋮----
+constructor(private readonly identityRepo: IdentityRepository)
+⋮----
+async execute(credentials: SignInCredentials): Promise<CommandResult>
+⋮----
+export class SignInAnonymouslyUseCase {
+⋮----
+async execute(): Promise<CommandResult>
+⋮----
+export class RegisterUseCase {
+⋮----
+async execute(input: RegistrationInput): Promise<CommandResult>
+⋮----
+export class SendPasswordResetEmailUseCase {
+⋮----
+async execute(email: string): Promise<CommandResult>
+⋮----
+export class SignOutUseCase {
+````
+
+## File: src/modules/iam/subdomains/identity/application/use-cases/TokenRefreshUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
+import type { TokenRefreshReason } from "../../domain/entities/TokenRefreshSignal";
+⋮----
+export class EmitTokenRefreshSignalUseCase {
+⋮----
+constructor(private readonly tokenRefreshRepo: TokenRefreshRepository)
+⋮----
+async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): Promise<CommandResult>
 ````
 
 ## File: src/modules/iam/subdomains/identity/domain/entities/Identity.ts
@@ -758,6 +1418,69 @@ export interface TokenRefreshSignal {
 }
 ⋮----
 readonly issuedAt: string; // ISO-8601
+````
+
+## File: src/modules/iam/subdomains/identity/domain/entities/UserIdentity.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { IdentityDomainEventType } from "../events/IdentityDomainEvent";
+import { canReactivate, canSuspend, type IdentityStatus } from "../value-objects/IdentityStatus";
+import { createDisplayName, createEmail, createUserId } from "../value-objects";
+⋮----
+export interface UserIdentitySnapshot {
+  readonly uid: string;
+  readonly email: string | null;
+  readonly displayName: string | null;
+  readonly photoURL: string | null;
+  readonly isAnonymous: boolean;
+  readonly emailVerified: boolean;
+  readonly status: IdentityStatus;
+  readonly lastSignInAtISO: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateIdentityInput {
+  readonly email: string | null;
+  readonly displayName: string | null;
+  readonly photoURL: string | null;
+  readonly isAnonymous: boolean;
+  readonly emailVerified: boolean;
+}
+⋮----
+export class UserIdentity {
+⋮----
+private constructor(private _props: UserIdentitySnapshot)
+⋮----
+static create(uid: string, input: CreateIdentityInput): UserIdentity
+⋮----
+static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity
+⋮----
+signIn(): void
+⋮----
+updateDisplayName(name: string): void
+⋮----
+verifyEmail(): void
+⋮----
+suspend(): void
+⋮----
+reactivate(): void
+⋮----
+get uid(): string
+⋮----
+get email(): string | null
+⋮----
+get displayName(): string | null
+⋮----
+get isActive(): boolean
+⋮----
+get isAnonymous(): boolean
+⋮----
+get emailVerified(): boolean
+⋮----
+getSnapshot(): Readonly<UserIdentitySnapshot>
+⋮----
+pullDomainEvents(): IdentityDomainEventType[]
 ````
 
 ## File: src/modules/iam/subdomains/identity/domain/events/IdentityDomainEvent.ts
@@ -877,1402 +1600,6 @@ emit(signal: TokenRefreshSignal): Promise<void>;
 subscribe(accountId: string, onSignal: ()
 ````
 
-## File: src/modules/iam/subdomains/identity/domain/value-objects/IdentityStatus.ts
-````typescript
-export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
-⋮----
-export function canSuspend(status: IdentityStatus): boolean
-⋮----
-export function canReactivate(status: IdentityStatus): boolean
-````
-
-## File: src/modules/iam/subdomains/identity/domain/value-objects/index.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/organization/adapters/inbound/index.ts
-````typescript
-// organization — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/iam/subdomains/organization/adapters/index.ts
-````typescript
-// organization — adapters aggregate
-````
-
-## File: src/modules/iam/subdomains/organization/adapters/outbound/index.ts
-````typescript
-// organization — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/iam/subdomains/organization/application/dto/OrganizationDTO.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/organization/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/organization/domain/entities/Organization.ts
-````typescript
-export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";
-export type Presence = "active" | "away" | "offline";
-export type InviteState = "pending" | "accepted" | "expired";
-⋮----
-export interface MemberReference {
-  id: string;
-  name: string;
-  email: string;
-  role: OrganizationRole;
-  presence: Presence;
-  isExternal?: boolean;
-  expiryDate?: string;
-}
-⋮----
-export interface Team {
-  id: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-  memberIds: string[];
-}
-⋮----
-export interface PartnerInvite {
-  id: string;
-  email: string;
-  teamId: string;
-  role: OrganizationRole;
-  inviteState: InviteState;
-  invitedAt: string;
-  protocol: string;
-}
-⋮----
-export interface ThemeConfig {
-  primary: string;
-  background: string;
-  accent: string;
-}
-⋮----
-export type OrgPolicyEffect = "allow" | "deny";
-export type OrgPolicyScope = "workspace" | "member" | "global";
-⋮----
-export interface OrgPolicyRule {
-  resource: string;
-  actions: string[];
-  effect: OrgPolicyEffect;
-  conditions?: Record<string, string>;
-}
-⋮----
-export interface OrgPolicy {
-  readonly id: string;
-  readonly orgId: string;
-  readonly name: string;
-  readonly description: string;
-  readonly rules: OrgPolicyRule[];
-  readonly scope: OrgPolicyScope;
-  readonly isActive: boolean;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-⋮----
-export interface CreateOrganizationCommand {
-  readonly organizationName: string;
-  readonly ownerId: string;
-  readonly ownerName: string;
-  readonly ownerEmail: string;
-}
-⋮----
-export interface UpdateOrganizationSettingsCommand {
-  readonly organizationId: string;
-  readonly name?: string;
-  readonly description?: string;
-  readonly theme?: ThemeConfig | null;
-  readonly photoURL?: string;
-}
-⋮----
-export interface InviteMemberInput {
-  organizationId: string;
-  email: string;
-  teamId: string;
-  role: OrganizationRole;
-  protocol: string;
-}
-⋮----
-export interface UpdateMemberRoleInput {
-  organizationId: string;
-  memberId: string;
-  role: OrganizationRole;
-}
-⋮----
-export interface CreateTeamInput {
-  organizationId: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-}
-⋮----
-export interface CreateOrgPolicyInput {
-  orgId: string;
-  name: string;
-  description: string;
-  rules: OrgPolicyRule[];
-  scope: OrgPolicyScope;
-}
-⋮----
-export interface UpdateOrgPolicyInput {
-  name?: string;
-  description?: string;
-  rules?: OrgPolicyRule[];
-  scope?: OrgPolicyScope;
-  isActive?: boolean;
-}
-````
-
-## File: src/modules/iam/subdomains/organization/domain/events/OrganizationDomainEvent.ts
-````typescript
-export interface OrganizationDomainEventBase {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface OrganizationCreatedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.created";
-  readonly payload: { readonly organizationId: string; readonly name: string; readonly ownerId: string };
-}
-⋮----
-export interface OrganizationSettingsUpdatedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.settings_updated";
-  readonly payload: { readonly organizationId: string; readonly name?: string; readonly description?: string };
-}
-⋮----
-export interface OrganizationDeletedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.deleted";
-  readonly payload: { readonly organizationId: string };
-}
-⋮----
-export interface MemberRecruitedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.member_recruited";
-  readonly payload: { readonly organizationId: string; readonly memberId: string };
-}
-⋮----
-export interface MemberRemovedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.member_removed";
-  readonly payload: { readonly organizationId: string; readonly memberId: string };
-}
-⋮----
-export interface MemberRoleUpdatedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.member_role_updated";
-  readonly payload: { readonly organizationId: string; readonly memberId: string; readonly role: string };
-}
-⋮----
-export interface TeamCreatedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.team_created";
-  readonly payload: { readonly organizationId: string; readonly teamId: string; readonly name: string; readonly teamType: "internal" | "external" };
-}
-⋮----
-export interface TeamDeletedEvent extends OrganizationDomainEventBase {
-  readonly type: "iam.organization.team_deleted";
-  readonly payload: { readonly organizationId: string; readonly teamId: string };
-}
-⋮----
-export type OrganizationDomainEventType =
-  | OrganizationCreatedEvent
-  | OrganizationSettingsUpdatedEvent
-  | OrganizationDeletedEvent
-  | MemberRecruitedEvent
-  | MemberRemovedEvent
-  | MemberRoleUpdatedEvent
-  | TeamCreatedEvent
-  | TeamDeletedEvent;
-````
-
-## File: src/modules/iam/subdomains/organization/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/organization/domain/repositories/OrganizationRepository.ts
-````typescript
-import type {
-  MemberReference,
-  Team,
-  PartnerInvite,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../entities/Organization";
-import type { OrganizationSnapshot } from "../aggregates/Organization";
-⋮----
-export type Unsubscribe = () => void;
-⋮----
-export interface OrganizationRepository {
-  create(command: CreateOrganizationCommand): Promise<string>;
-  findById(id: string): Promise<OrganizationSnapshot | null>;
-  save(snapshot: OrganizationSnapshot): Promise<void>;
-  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
-  delete(organizationId: string): Promise<void>;
-  inviteMember(input: InviteMemberInput): Promise<string>;
-  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
-  removeMember(organizationId: string, memberId: string): Promise<void>;
-  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
-  getMembers(organizationId: string): Promise<MemberReference[]>;
-  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
-  createTeam(input: CreateTeamInput): Promise<string>;
-  deleteTeam(organizationId: string, teamId: string): Promise<void>;
-  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getTeams(organizationId: string): Promise<Team[]>;
-  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
-  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
-  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
-}
-⋮----
-create(command: CreateOrganizationCommand): Promise<string>;
-findById(id: string): Promise<OrganizationSnapshot | null>;
-save(snapshot: OrganizationSnapshot): Promise<void>;
-updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
-delete(organizationId: string): Promise<void>;
-inviteMember(input: InviteMemberInput): Promise<string>;
-recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
-removeMember(organizationId: string, memberId: string): Promise<void>;
-updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
-getMembers(organizationId: string): Promise<MemberReference[]>;
-subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[])
-createTeam(input: CreateTeamInput): Promise<string>;
-deleteTeam(organizationId: string, teamId: string): Promise<void>;
-addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-getTeams(organizationId: string): Promise<Team[]>;
-subscribeToTeams(organizationId: string, onUpdate: (teams: Team[])
-sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
-dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
-getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
-````
-
-## File: src/modules/iam/subdomains/organization/domain/repositories/OrgPolicyRepository.ts
-````typescript
-import type {
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../entities/Organization";
-⋮----
-export interface OrgPolicyRepository {
-  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
-  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
-  deletePolicy(policyId: string): Promise<void>;
-  getPolicies(orgId: string): Promise<OrgPolicy[]>;
-}
-⋮----
-createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
-updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
-deletePolicy(policyId: string): Promise<void>;
-getPolicies(orgId: string): Promise<OrgPolicy[]>;
-````
-
-## File: src/modules/iam/subdomains/organization/domain/value-objects/OrganizationStatus.ts
-````typescript
-export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
-⋮----
-export function canSuspend(status: OrganizationStatus): boolean
-export function canDissolve(status: OrganizationStatus): boolean
-export function canReactivate(status: OrganizationStatus): boolean
-````
-
-## File: src/modules/iam/subdomains/security-policy/adapters/inbound/index.ts
-````typescript
-// security-policy — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/iam/subdomains/security-policy/adapters/index.ts
-````typescript
-// security-policy — adapters aggregate
-````
-
-## File: src/modules/iam/subdomains/security-policy/domain/index.ts
-````typescript
-// security-policy — domain layer
-// Owns org-level security rules: password policy, MFA requirements, session limits.
-⋮----
-export type MfaRequirement = "none" | "optional" | "required";
-⋮----
-export interface SecurityPolicySnapshot {
-  readonly policyId: string;
-  readonly orgId: string;
-  readonly mfaRequirement: MfaRequirement;
-  readonly minPasswordLength: number;
-  readonly sessionTimeoutMinutes: number;
-  readonly allowedDomains: readonly string[];
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface SecurityPolicyRepository {
-  findByOrgId(orgId: string): Promise<SecurityPolicySnapshot | null>;
-  save(policy: SecurityPolicySnapshot): Promise<void>;
-}
-⋮----
-findByOrgId(orgId: string): Promise<SecurityPolicySnapshot | null>;
-save(policy: SecurityPolicySnapshot): Promise<void>;
-````
-
-## File: src/modules/iam/subdomains/session/adapters/inbound/index.ts
-````typescript
-// session — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/iam/subdomains/session/adapters/index.ts
-````typescript
-// session — adapters aggregate
-````
-
-## File: src/modules/iam/subdomains/session/domain/index.ts
-````typescript
-// session — domain layer
-// Owns actor session lifecycle: creation, refresh, expiry, revocation.
-⋮----
-export interface SessionSnapshot {
-  readonly sessionId: string;
-  readonly uid: string;
-  readonly idToken: string;
-  readonly refreshToken: string | null;
-  readonly expiresAtISO: string;
-  readonly createdAtISO: string;
-  readonly isRevoked: boolean;
-}
-⋮----
-export interface SessionRepository {
-  create(session: SessionSnapshot): Promise<void>;
-  findById(sessionId: string): Promise<SessionSnapshot | null>;
-  findByUid(uid: string): Promise<SessionSnapshot[]>;
-  revoke(sessionId: string): Promise<void>;
-  revokeAllByUid(uid: string): Promise<void>;
-}
-⋮----
-create(session: SessionSnapshot): Promise<void>;
-findById(sessionId: string): Promise<SessionSnapshot | null>;
-findByUid(uid: string): Promise<SessionSnapshot[]>;
-revoke(sessionId: string): Promise<void>;
-revokeAllByUid(uid: string): Promise<void>;
-````
-
-## File: src/modules/iam/subdomains/tenant/adapters/inbound/index.ts
-````typescript
-// tenant — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/iam/subdomains/tenant/adapters/index.ts
-````typescript
-// tenant — adapters aggregate
-````
-
-## File: docs/structure/contexts/iam/AGENT.md
-````markdown
-# IAM Context Agent Guide
-
-## Purpose
-
-The IAM context owns identity, access control, tenant isolation, and security policy.
-
-## Rules
-
-- Keep actor, identity, tenant, and access language here.
-- Do not move billing or AI policy into IAM unless the concern is truly governance.
-- Downstream contexts consume decisions and signals, not internal aggregates.
-````
-
-## File: docs/structure/contexts/iam/bounded-contexts.md
-````markdown
-# IAM
-
-## Domain Role
-
-iam 是 governance bounded context。它是身份、tenant 與 access decision 的 canonical owner。
-
-## Ownership Rules
-
-- 擁有 identity、access-control、tenant、security-policy。
-- 向下游輸出 actor reference、tenant scope、access decision。
-- 不擁有 workspace、knowledge、notebook 或 billing aggregate。
-````
-
-## File: docs/structure/contexts/iam/context-map.md
-````markdown
-# IAM
-
-## Relationships
-
-| Upstream | Downstream | Published Language |
-|---|---|---|
-| iam | billing | actor reference、tenant scope、access policy baseline |
-| iam | platform | actor reference、tenant scope、access decision |
-| iam | workspace | actor reference、tenant scope、access decision |
-| iam | notion | actor reference、tenant scope、access decision |
-| iam | notebooklm | actor reference、tenant scope、access decision |
-
-## Notes
-
-- iam 是治理上游，不擁有商業、內容或推理正典模型。
-````
-
-## File: docs/structure/contexts/iam/README.md
-````markdown
-# IAM Context
-
-本 README 在本次重切作業下，定義 identity and access management 的主域邊界。
-
-## Purpose
-
-iam 是身份、驗證、授權、federation、session、租戶與存取治理主域。它提供 actor、identity、tenant、access decision 與 security policy 語言，作為其他主域的治理上游。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 身份、租戶與 access governance |
-| Upstream Dependency | 無主域級上游 |
-| Downstream Consumers | billing、platform、workspace、notion、notebooklm |
-| Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
-````
-
-## File: docs/structure/contexts/iam/subdomains.md
-````markdown
-# IAM
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| session | session、token 與 identity lifecycle 收斂 |
-| consent | 同意與資料使用授權治理收斂 |
-| secret-governance | secret 與 credential access policy 收斂 |
-
-## Migration-Safe Operational Subdomains
-
-These subdomains exist in code but are not yet aligned to the strategic baseline above. They represent the current implementation layer and will converge into strategic subdomains over time.
-
-| Subdomain | Responsibility |
-|---|---|
-| authentication | sign-in、registration、credential recovery、provider bootstrap |
-| authorization | higher-level policy orchestration and decision semantics |
-| federation | external identity provider linking, SSO, and trust delegation |
-````
-
-## File: docs/structure/contexts/iam/ubiquitous-language.md
-````markdown
-# IAM
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| Actor | 被識別與治理的主體 |
-| Identity | 證明 Actor 是誰的訊號集合 |
-| Tenant | 租戶隔離與 tenant-scoped 規則邊界 |
-| AccessDecision | 對 actor 當下能否執行某行為的判定 |
-| SecurityPolicy | 可版本化的安全規則集合 |
-
-## Avoid
-
-- 不用 User 混稱 Actor。
-- 不用 Organization 取代 Tenant。
-- 不把 access decision 寫成 UI flag。
-````
-
-## File: src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts
-````typescript
-/**
- * FirebaseAccountQueryRepository — module-level outbound adapter (read side).
- *
- * Implements AccountQueryRepository using Firestore real-time listeners.
- * Lives at the iam module outbound boundary so that @integration-firebase
- * is allowed per ESLint boundary rules (src/modules/<context>/adapters/outbound/**).
- */
-⋮----
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  orderBy,
-  limit as firestoreLimit,
-  onSnapshot,
-  type Timestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type {
-  AccountQueryRepository,
-  WalletBalanceSnapshot,
-  Unsubscribe,
-} from "../../subdomains/account/domain/repositories/AccountQueryRepository";
-import type {
-  WalletTransaction,
-  AccountRoleRecord,
-} from "../../subdomains/account/domain/repositories/AccountRepository";
-import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
-import type { AccountProfile } from "../../subdomains/account/domain/entities/AccountProfile";
-⋮----
-// ─── Mapper helpers ───────────────────────────────────────────────────────────
-⋮----
-function toISO(v: unknown): string
-⋮----
-function toAccountSnapshot(id: string, data: Record<string, unknown>): AccountSnapshot
-⋮----
-function toAccountProfile(snapshot: AccountSnapshot): AccountProfile
-⋮----
-// ─── Repository ───────────────────────────────────────────────────────────────
-⋮----
-export class FirebaseAccountQueryRepository implements AccountQueryRepository {
-⋮----
-private get db()
-⋮----
-async getUserProfile(userId: string): Promise<AccountSnapshot | null>
-⋮----
-subscribeToUserProfile(
-    userId: string,
-    onUpdate: (profile: AccountSnapshot | null) => void,
-): Unsubscribe
-⋮----
-async getAccountProfile(actorId: string): Promise<AccountProfile | null>
-⋮----
-subscribeToAccountProfile(
-    actorId: string,
-    onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe
-⋮----
-async getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot>
-⋮----
-subscribeToWalletBalance(
-    accountId: string,
-    onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe
-⋮----
-subscribeToWalletTransactions(
-    accountId: string,
-    maxCount: number,
-    onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe
-⋮----
-async getAccountRole(accountId: string): Promise<AccountRoleRecord | null>
-⋮----
-subscribeToAccountRoles(
-    accountId: string,
-    onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe
-⋮----
-subscribeToAccountsForUser(
-    userId: string,
-    onUpdate: (accounts: Record<string, AccountSnapshot>) => void,
-): Unsubscribe
-⋮----
-const emit = () =>
-⋮----
-// Organisations owned by the user
-⋮----
-// Organisations where the user is a member
-````
-
-## File: src/modules/iam/adapters/outbound/FirebaseAuthIdentityRepository.ts
-````typescript
-/**
- * FirebaseAuthIdentityRepository — module-level outbound adapter.
- *
- * Implements IdentityRepository using Firebase Authentication SDK.
- * Lives at the iam module outbound boundary so that @integration-firebase
- * is allowed per ESLint boundary rules (src/modules/<context>/adapters/outbound/**).
- *
- * Domain and application layers are isolated from Firebase via this adapter.
- */
-⋮----
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signInAnonymously,
-  sendPasswordResetEmail,
-  signOut,
-  updateProfile,
-  type User,
-} from "firebase/auth";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { IdentityRepository } from "../../subdomains/identity/domain/repositories/IdentityRepository";
-import type {
-  IdentityEntity,
-  RegistrationInput,
-  SignInCredentials,
-} from "../../subdomains/identity/domain/entities/Identity";
-⋮----
-function toIdentityEntity(user: User): IdentityEntity
-⋮----
-export class FirebaseAuthIdentityRepository implements IdentityRepository {
-⋮----
-private get auth()
-⋮----
-async signInWithEmailAndPassword(
-    credentials: SignInCredentials,
-): Promise<IdentityEntity>
-⋮----
-async signInAnonymously(): Promise<IdentityEntity>
-⋮----
-async createUserWithEmailAndPassword(
-    input: RegistrationInput,
-): Promise<IdentityEntity>
-⋮----
-async updateDisplayName(uid: string, displayName: string): Promise<void>
-⋮----
-async sendPasswordResetEmail(email: string): Promise<void>
-⋮----
-async signOut(): Promise<void>
-⋮----
-getCurrentUser(): IdentityEntity | null
-````
-
-## File: src/modules/iam/index.ts
-````typescript
-/**
- * Iam Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// account
-⋮----
-// identity
-⋮----
-// access-control
-⋮----
-// organization
-⋮----
-// authorization — permission decision helpers
-⋮----
-// authentication
-⋮----
-// federation
-⋮----
-// security-policy
-⋮----
-// session
-⋮----
-// tenant
-⋮----
-// shared errors
-````
-
-## File: src/modules/iam/subdomains/access-control/application/use-cases/AccessControlUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
-⋮----
-// ─── Evaluate Permission ──────────────────────────────────────────────────────
-⋮----
-export class EvaluatePermissionUseCase {
-⋮----
-constructor(private readonly repo: AccessPolicyRepository)
-⋮----
-async execute(input: {
-    subjectId: string;
-    resourceType: string;
-    resourceId?: string;
-    action: string;
-}): Promise<CommandResult>
-⋮----
-// ─── Create Access Policy ─────────────────────────────────────────────────────
-⋮----
-export class CreateAccessPolicyUseCase {
-⋮----
-async execute(input: {
-    subjectRef: SubjectRef;
-    resourceRef: ResourceRef;
-    actions: string[];
-    effect: PolicyEffect;
-    conditions?: string[];
-}): Promise<CommandResult>
-⋮----
-// ─── Update Access Policy ─────────────────────────────────────────────────────
-⋮----
-export class UpdateAccessPolicyUseCase {
-⋮----
-async execute(
-    policyId: string,
-    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
-): Promise<CommandResult>
-⋮----
-// ─── Deactivate Access Policy ─────────────────────────────────────────────────
-⋮----
-export class DeactivateAccessPolicyUseCase {
-⋮----
-async execute(policyId: string): Promise<CommandResult>
-````
-
-## File: src/modules/iam/subdomains/access-control/domain/aggregates/AccessPolicy.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
-import type { SubjectRef } from "../value-objects/SubjectRef";
-import type { ResourceRef } from "../value-objects/ResourceRef";
-import type { PolicyEffect } from "../value-objects/PolicyEffect";
-⋮----
-export interface AccessPolicySnapshot {
-  readonly id: string;
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: readonly string[];
-  readonly effect: PolicyEffect;
-  readonly conditions: readonly string[];
-  readonly isActive: boolean;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateAccessPolicyInput {
-  readonly subjectRef: SubjectRef;
-  readonly resourceRef: ResourceRef;
-  readonly actions: string[];
-  readonly effect: PolicyEffect;
-  readonly conditions?: string[];
-}
-⋮----
-export class AccessPolicy {
-⋮----
-private constructor(private _props: AccessPolicySnapshot)
-⋮----
-static create(id: string, input: CreateAccessPolicyInput): AccessPolicy
-⋮----
-static reconstitute(snapshot: AccessPolicySnapshot): AccessPolicy
-⋮----
-update(input: {
-    actions?: string[];
-    effect?: PolicyEffect;
-    conditions?: string[];
-}): void
-⋮----
-deactivate(): void
-⋮----
-get id(): string
-get subjectRef(): SubjectRef
-get resourceRef(): ResourceRef
-get actions(): readonly string[]
-get effect(): PolicyEffect
-get conditions(): readonly string[]
-get isActive(): boolean
-⋮----
-getSnapshot(): Readonly<AccessPolicySnapshot>
-⋮----
-pullDomainEvents(): AccessPolicyDomainEventType[]
-````
-
-## File: src/modules/iam/subdomains/access-control/domain/value-objects/ResourceRef.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type ResourceRef = z.infer<typeof ResourceRefSchema>;
-⋮----
-export function createResourceRef(
-  resourceType: string,
-  resourceId?: string,
-  workspaceId?: string,
-): ResourceRef
-````
-
-## File: src/modules/iam/subdomains/access-control/domain/value-objects/SubjectRef.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type SubjectRef = z.infer<typeof SubjectRefSchema>;
-⋮----
-export function createSubjectRef(
-  subjectId: string,
-  subjectType: SubjectRef["subjectType"],
-): SubjectRef
-````
-
-## File: src/modules/iam/subdomains/account/adapters/inbound/http/AccountController.ts
-````typescript
-import type { CreateUserAccountUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { UpdateUserProfileUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { UpdateAccountProfileUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { CreditWalletUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { DebitWalletUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { AssignAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { RevokeAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
-⋮----
-/** HTTP inbound adapter stub — translates HTTP requests into application use-case calls. */
-export class AccountController {
-⋮----
-constructor(
-⋮----
-async createAccount(body:
-⋮----
-async updateProfile(body:
-⋮----
-async updateAccountProfile(body:
-⋮----
-async creditWallet(body:
-⋮----
-async debitWallet(body:
-⋮----
-async assignRole(body: {
-    accountId: string;
-    role: string;
-    grantedBy: string;
-    traceId?: string;
-})
-⋮----
-async revokeRole(body:
-````
-
-## File: src/modules/iam/subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { AccountRepository, OrganizationRole, UpdateProfileInput, WalletTransaction, AccountRoleRecord } from "../../../domain/repositories/AccountRepository";
-import type { UpdateAccountProfileInput } from "../../../domain/entities/AccountProfile";
-import type { AccountSnapshot } from "../../../domain/entities/Account";
-⋮----
-export interface FirestoreLike {
-  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-  delete(collection: string, id: string): Promise<void>;
-}
-⋮----
-get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-delete(collection: string, id: string): Promise<void>;
-⋮----
-export class FirestoreAccountRepository implements AccountRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(id: string): Promise<AccountSnapshot | null>
-⋮----
-async save(account: AccountSnapshot): Promise<void>
-⋮----
-async updateProfile(userId: string, data: UpdateProfileInput): Promise<void>
-⋮----
-async updateAccountProfile(userId: string, input: UpdateAccountProfileInput): Promise<void>
-⋮----
-async getWalletBalance(accountId: string): Promise<number>
-⋮----
-async creditWallet(
-    accountId: string,
-    amount: number,
-    description: string,
-): Promise<WalletTransaction>
-⋮----
-async debitWallet(
-    accountId: string,
-    amount: number,
-    description: string,
-): Promise<WalletTransaction>
-⋮----
-async assignRole(
-    accountId: string,
-    role: OrganizationRole,
-    grantedBy: string,
-): Promise<AccountRoleRecord>
-⋮----
-async revokeRole(accountId: string): Promise<void>
-⋮----
-async getRole(accountId: string): Promise<AccountRoleRecord | null>
-````
-
-## File: src/modules/iam/subdomains/account/application/dto/AccountDTO.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/account/application/ports/outbound/AccountRepositoryPort.ts
-````typescript
-import type { AccountRepository } from "../../../domain/repositories/AccountRepository";
-import type { AccountQueryRepository } from "../../../domain/repositories/AccountQueryRepository";
-import type { AccountPolicyRepository } from "../../../domain/repositories/AccountPolicyRepository";
-import type { TokenRefreshPort } from "../../../domain/ports/TokenRefreshPort";
-⋮----
-/** Outbound port contract for account persistence — mirrors AccountRepository. */
-⋮----
-/** Outbound port contract for account read queries. */
-⋮----
-/** Outbound port contract for account policy persistence. */
-⋮----
-/** Outbound port for token-refresh signaling. */
-````
-
-## File: src/modules/iam/subdomains/account/application/use-cases/AccountPolicyUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
-import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
-⋮----
-// ─── Create Account Policy ────────────────────────────────────────────────────
-⋮----
-export class CreateAccountPolicyUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: CreatePolicyInput): Promise<CommandResult>
-⋮----
-// ─── Update Account Policy ────────────────────────────────────────────────────
-⋮----
-export class UpdateAccountPolicyUseCase {
-⋮----
-async execute(
-    policyId: string,
-    accountId: string,
-    data: UpdatePolicyInput,
-    traceId?: string,
-): Promise<CommandResult>
-⋮----
-// ─── Delete Account Policy ────────────────────────────────────────────────────
-⋮----
-export class DeleteAccountPolicyUseCase {
-⋮----
-async execute(policyId: string, accountId: string): Promise<CommandResult>
-````
-
-## File: src/modules/iam/subdomains/account/application/use-cases/AccountUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { AccountRepository, OrganizationRole, UpdateProfileInput } from "../../domain/repositories/AccountRepository";
-import type { AccountQueryRepository, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
-import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
-import type { AccountProfile, UpdateAccountProfileInput } from "../../domain/entities/AccountProfile";
-import { createUpdateAccountProfileInput } from "../../domain/entities/AccountProfile";
-⋮----
-// ─── Create User Account ──────────────────────────────────────────────────────
-⋮----
-export class CreateUserAccountUseCase {
-⋮----
-constructor(private readonly accountRepo: AccountRepository)
-⋮----
-async execute(userId: string, name: string, email: string): Promise<CommandResult>
-⋮----
-// ─── Update User Profile ──────────────────────────────────────────────────────
-⋮----
-export class UpdateUserProfileUseCase {
-⋮----
-async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult>
-⋮----
-// ─── Credit Wallet ────────────────────────────────────────────────────────────
-⋮----
-export class CreditWalletUseCase {
-⋮----
-async execute(accountId: string, amount: number, description: string): Promise<CommandResult>
-⋮----
-// ─── Debit Wallet ─────────────────────────────────────────────────────────────
-⋮----
-export class DebitWalletUseCase {
-⋮----
-// ─── Assign Account Role ──────────────────────────────────────────────────────
-⋮----
-export class AssignAccountRoleUseCase {
-⋮----
-constructor(
-⋮----
-async execute(
-    accountId: string,
-    role: OrganizationRole,
-    grantedBy: string,
-    traceId?: string,
-): Promise<CommandResult>
-⋮----
-// ─── Revoke Account Role ──────────────────────────────────────────────────────
-⋮----
-export class RevokeAccountRoleUseCase {
-⋮----
-async execute(accountId: string): Promise<CommandResult>
-⋮----
-// ─── Get Account Profile ──────────────────────────────────────────────────────
-⋮----
-export class GetAccountProfileUseCase {
-⋮----
-constructor(private readonly repo: AccountQueryRepository)
-⋮----
-async execute(actorId: string): Promise<AccountProfile | null>
-⋮----
-// ─── Subscribe Account Profile ────────────────────────────────────────────────
-⋮----
-export class SubscribeAccountProfileUseCase {
-⋮----
-execute(actorId: string, onUpdate: (profile: AccountProfile | null) => void): Unsubscribe
-⋮----
-// ─── Update Account Profile ───────────────────────────────────────────────────
-⋮----
-export class UpdateAccountProfileUseCase {
-⋮----
-async execute(actorId: string, input: UpdateAccountProfileInput): Promise<CommandResult>
-````
-
-## File: src/modules/iam/subdomains/account/domain/entities/Account.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { AccountDomainEventType } from "../events/AccountDomainEvent";
-import {
-  canClose,
-  canReactivate,
-  canSuspend,
-  type AccountStatus,
-} from "../value-objects/AccountStatus";
-import {
-  createAccountId,
-  createAccountType,
-  createWalletAmount,
-} from "../value-objects";
-⋮----
-export interface AccountSnapshot {
-  readonly id: string;
-  readonly name: string;
-  readonly accountType: "user" | "organization";
-  readonly email: string | null;
-  readonly photoURL: string | null;
-  readonly bio: string | null;
-  readonly status: "active" | "suspended" | "closed";
-  readonly walletBalance: number;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateAccountInput {
-  readonly name: string;
-  readonly accountType: "user" | "organization";
-  readonly email?: string | null;
-  readonly photoURL?: string | null;
-  readonly bio?: string | null;
-}
-⋮----
-export class Account {
-⋮----
-private constructor(private _props: AccountSnapshot)
-⋮----
-static create(id: string, input: CreateAccountInput): Account
-⋮----
-static reconstitute(snapshot: AccountSnapshot): Account
-⋮----
-updateProfile(input: {
-    name?: string;
-    bio?: string | null;
-    photoURL?: string | null;
-}): void
-⋮----
-creditWallet(amount: number, description: string): void
-⋮----
-debitWallet(amount: number, description: string): void
-⋮----
-suspend(): void
-⋮----
-close(): void
-⋮----
-reactivate(): void
-⋮----
-get id(): string
-⋮----
-get name(): string
-⋮----
-get accountType(): "user" | "organization"
-⋮----
-get email(): string | null
-⋮----
-get photoURL(): string | null
-⋮----
-get bio(): string | null
-⋮----
-get status(): AccountStatus
-⋮----
-get walletBalance(): number
-⋮----
-get createdAtISO(): string
-⋮----
-get updatedAtISO(): string
-⋮----
-getSnapshot(): Readonly<AccountSnapshot>
-⋮----
-pullDomainEvents(): AccountDomainEventType[]
-⋮----
-private changeStatus(
-    status: AccountStatus,
-    eventType: "iam.account.suspended" | "iam.account.closed" | "iam.account.reactivated",
-): void
-````
-
-## File: src/modules/iam/subdomains/account/domain/entities/AccountProfile.ts
-````typescript
-import { z } from "zod";
-⋮----
-// ── Value objects ─────────────────────────────────────────────────────────────
-⋮----
-export type AccountProfileTheme = z.infer<typeof AccountProfileThemeSchema>;
-⋮----
-// ── Profile read-model ────────────────────────────────────────────────────────
-⋮----
-export type AccountProfile = z.infer<typeof AccountProfileSchema>;
-⋮----
-// ── Profile mutation command ──────────────────────────────────────────────────
-⋮----
-export type UpdateAccountProfileInput = z.infer<typeof UpdateAccountProfileInputSchema>;
-⋮----
-// ── Factories / mappers ───────────────────────────────────────────────────────
-⋮----
-export function createUpdateAccountProfileInput(raw: unknown): UpdateAccountProfileInput
-````
-
-## File: src/modules/iam/subdomains/account/domain/value-objects/AccountId.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type AccountId = z.infer<typeof AccountIdSchema>;
-⋮----
-export function createAccountId(raw: string): AccountId
-````
-
-## File: src/modules/iam/subdomains/account/domain/value-objects/AccountType.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type AccountTypeValue = (typeof ACCOUNT_TYPES)[number];
-⋮----
-export function createAccountType(raw: string): AccountTypeValue
-````
-
-## File: src/modules/iam/subdomains/account/domain/value-objects/WalletAmount.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type WalletAmount = z.infer<typeof WalletAmountSchema>;
-⋮----
-export function createWalletAmount(raw: number): WalletAmount
-````
-
-## File: src/modules/iam/subdomains/authentication/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/authentication/application/use-cases/AuthenticationUseCases.ts
-````typescript
-import type { AuthCredential, AuthenticationPort } from "../../domain/index";
-⋮----
-export class SignInWithEmailUseCase {
-⋮----
-constructor(private readonly authPort: AuthenticationPort)
-⋮----
-async execute(input:
-⋮----
-export class SignOutUseCase {
-⋮----
-export class SendPasswordResetEmailUseCase {
-````
-
-## File: src/modules/iam/subdomains/authorization/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/authorization/application/use-cases/AuthorizationUseCases.ts
-````typescript
-import type { PermissionDecision, PermissionCheckPort } from "../../domain/index";
-⋮----
-export class CheckPermissionUseCase {
-⋮----
-constructor(private readonly permissionPort: PermissionCheckPort)
-⋮----
-async execute(input: {
-    actorId: string;
-    action: string;
-    resource: string;
-}): Promise<PermissionDecision>
-⋮----
-export class BatchCheckPermissionsUseCase {
-⋮----
-async execute(
-    checks: Array<{ actorId: string; action: string; resource: string }>,
-): Promise<PermissionDecision[]>
-````
-
-## File: src/modules/iam/subdomains/federation/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/federation/application/use-cases/FederationUseCases.ts
-````typescript
-import type { FederatedIdentity, FederationPort, FederationProvider } from "../../domain/index";
-⋮----
-export class LinkProviderUseCase {
-⋮----
-constructor(private readonly federationPort: FederationPort)
-⋮----
-async execute(input: {
-    uid: string;
-    provider: FederationProvider;
-    idToken: string;
-}): Promise<void>
-⋮----
-export class UnlinkProviderUseCase {
-⋮----
-export class GetLinkedProvidersUseCase {
-````
-
-## File: src/modules/iam/subdomains/identity/adapters/inbound/http/IdentityController.ts
-````typescript
-import type { SignInUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignInAnonymouslyUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { RegisterUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SendPasswordResetEmailUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignOutUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignInCredentials, RegistrationInput } from "../../../domain/entities/Identity";
-⋮----
-/** HTTP inbound adapter stub — translates HTTP requests into identity use-case calls. */
-export class IdentityController {
-⋮----
-constructor(
-⋮----
-async signIn(body: SignInCredentials)
-⋮----
-async signInAnonymously()
-⋮----
-async register(body: RegistrationInput)
-⋮----
-async sendPasswordReset(body:
-⋮----
-async signOut()
-````
-
-## File: src/modules/iam/subdomains/identity/application/dto/IdentityDTO.ts
-````typescript
-
-````
-
-## File: src/modules/iam/subdomains/identity/application/use-cases/IdentityUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
-import type { SignInCredentials, RegistrationInput } from "../../domain/entities/Identity";
-⋮----
-function toIdentityErrorMessage(err: unknown, fallback: string): string
-⋮----
-export class SignInUseCase {
-⋮----
-constructor(private readonly identityRepo: IdentityRepository)
-⋮----
-async execute(credentials: SignInCredentials): Promise<CommandResult>
-⋮----
-export class SignInAnonymouslyUseCase {
-⋮----
-async execute(): Promise<CommandResult>
-⋮----
-export class RegisterUseCase {
-⋮----
-async execute(input: RegistrationInput): Promise<CommandResult>
-⋮----
-export class SendPasswordResetEmailUseCase {
-⋮----
-async execute(email: string): Promise<CommandResult>
-⋮----
-export class SignOutUseCase {
-````
-
-## File: src/modules/iam/subdomains/identity/application/use-cases/TokenRefreshUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
-import type { TokenRefreshReason } from "../../domain/entities/TokenRefreshSignal";
-⋮----
-export class EmitTokenRefreshSignalUseCase {
-⋮----
-constructor(private readonly tokenRefreshRepo: TokenRefreshRepository)
-⋮----
-async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): Promise<CommandResult>
-````
-
-## File: src/modules/iam/subdomains/identity/domain/entities/UserIdentity.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { IdentityDomainEventType } from "../events/IdentityDomainEvent";
-import { canReactivate, canSuspend, type IdentityStatus } from "../value-objects/IdentityStatus";
-import { createDisplayName, createEmail, createUserId } from "../value-objects";
-⋮----
-export interface UserIdentitySnapshot {
-  readonly uid: string;
-  readonly email: string | null;
-  readonly displayName: string | null;
-  readonly photoURL: string | null;
-  readonly isAnonymous: boolean;
-  readonly emailVerified: boolean;
-  readonly status: IdentityStatus;
-  readonly lastSignInAtISO: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateIdentityInput {
-  readonly email: string | null;
-  readonly displayName: string | null;
-  readonly photoURL: string | null;
-  readonly isAnonymous: boolean;
-  readonly emailVerified: boolean;
-}
-⋮----
-export class UserIdentity {
-⋮----
-private constructor(private _props: UserIdentitySnapshot)
-⋮----
-static create(uid: string, input: CreateIdentityInput): UserIdentity
-⋮----
-static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity
-⋮----
-signIn(): void
-⋮----
-updateDisplayName(name: string): void
-⋮----
-verifyEmail(): void
-⋮----
-suspend(): void
-⋮----
-reactivate(): void
-⋮----
-get uid(): string
-⋮----
-get email(): string | null
-⋮----
-get displayName(): string | null
-⋮----
-get isActive(): boolean
-⋮----
-get isAnonymous(): boolean
-⋮----
-get emailVerified(): boolean
-⋮----
-getSnapshot(): Readonly<UserIdentitySnapshot>
-⋮----
-pullDomainEvents(): IdentityDomainEventType[]
-````
-
 ## File: src/modules/iam/subdomains/identity/domain/value-objects/DisplayName.ts
 ````typescript
 import { z } from "zod";
@@ -2293,6 +1620,20 @@ export function createEmail(raw: string): Email
 export function unsafeEmail(raw: string): Email
 ````
 
+## File: src/modules/iam/subdomains/identity/domain/value-objects/IdentityStatus.ts
+````typescript
+export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
+⋮----
+export function canSuspend(status: IdentityStatus): boolean
+⋮----
+export function canReactivate(status: IdentityStatus): boolean
+````
+
+## File: src/modules/iam/subdomains/identity/domain/value-objects/index.ts
+````typescript
+
+````
+
 ## File: src/modules/iam/subdomains/identity/domain/value-objects/UserId.ts
 ````typescript
 import { z } from "zod";
@@ -2304,167 +1645,21 @@ export function createUserId(raw: string): UserId
 export function unsafeUserId(raw: string): UserId
 ````
 
-## File: src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts
+## File: src/modules/iam/subdomains/organization/adapters/inbound/index.ts
 ````typescript
-/**
- * FirestoreOrganizationRepository — iam/organization outbound adapter.
- *
- * Implements OrganizationRepository using Firebase Firestore.
- *
- * Firestore schema:
- *   accounts/{orgId}          — account-level record (queried by subscribeToAccountsForUser)
- *     accountType: "organization"
- *     ownerId: string          — owner's Firebase uid
- *     memberIds: string[]      — array-contains index for member queries
- *   organizations/{orgId}     — organisation domain document
- *   org_members/{orgId}/members/{memberId}
- *   org_teams/{orgId}/teams/{teamId}
- *   org_partner_invites/{orgId}/invites/{inviteId}
- *
- * The `accounts/{orgId}` document is maintained in sync so that the existing
- * subscribeToAccountsForUser query (which filters on `ownerId` and `memberIds`)
- * surfaces the new organisation to the creator immediately.
- *
- * This file is in adapters/outbound/firestore/ — @integration-firebase is NOT
- * directly imported; callers at module/adapters/outbound/ use @integration-firebase
- * and pass Firebase-specific helpers via the FirestoreLike port.
- */
-⋮----
-import { v4 as uuid } from "uuid";
-import type {
-  OrganizationRepository,
-} from "../../../domain/repositories/OrganizationRepository";
-import type {
-  MemberReference,
-  Team,
-  PartnerInvite,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../../domain/entities/Organization";
-import type { OrganizationSnapshot } from "../../../domain/aggregates/Organization";
-⋮----
-// ── Infrastructure port ───────────────────────────────────────────────────────
-// We keep this file Firebase-SDK-free by accepting a narrow persistence port.
-// The module-level composition root wires in the real Firebase implementation.
-⋮----
-export interface OrgFirestoreLike {
-  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-  delete(collection: string, id: string): Promise<void>;
-  getSubcollection(collection: string, parentId: string, sub: string): Promise<{ id: string; data: Record<string, unknown> }[]>;
-  setSubdoc(collection: string, parentId: string, sub: string, id: string, data: Record<string, unknown>): Promise<void>;
-  deleteSubdoc(collection: string, parentId: string, sub: string, id: string): Promise<void>;
-}
-⋮----
-get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-delete(collection: string, id: string): Promise<void>;
-getSubcollection(collection: string, parentId: string, sub: string): Promise<
-setSubdoc(collection: string, parentId: string, sub: string, id: string, data: Record<string, unknown>): Promise<void>;
-deleteSubdoc(collection: string, parentId: string, sub: string, id: string): Promise<void>;
-⋮----
-// ── Repository ────────────────────────────────────────────────────────────────
-⋮----
-export class FirestoreOrganizationRepository implements OrganizationRepository {
-⋮----
-constructor(private readonly db: OrgFirestoreLike)
-⋮----
-// ── Organisation lifecycle ─────────────────────────────────────────────────
-⋮----
-async create(command: CreateOrganizationCommand): Promise<string>
-⋮----
-// 1. Write organisation domain document
-⋮----
-// 2. Write account-level record so subscribeToAccountsForUser picks it up.
-//    The owner is listed in both `ownerId` (owner query) and `memberIds`
-//    (member query) to cover both Firestore subscription paths.
-⋮----
-// 3. Add owner as first member document
-⋮----
-async findById(id: string): Promise<OrganizationSnapshot | null>
-⋮----
-async save(snapshot: OrganizationSnapshot): Promise<void>
-⋮----
-// Keep the account document name in sync
-⋮----
-async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>
-⋮----
-// Sync account display name
-⋮----
-async delete(organizationId: string): Promise<void>
-⋮----
-// ── Members ────────────────────────────────────────────────────────────────
-⋮----
-async inviteMember(input: InviteMemberInput): Promise<string>
-⋮----
-async recruitMember(
-    organizationId: string,
-    memberId: string,
-    name: string,
-    email: string,
-): Promise<void>
-⋮----
-// Update memberIds array in the account document
-⋮----
-async removeMember(organizationId: string, memberId: string): Promise<void>
-⋮----
-async updateMemberRole(input: UpdateMemberRoleInput): Promise<void>
-⋮----
-async getMembers(organizationId: string): Promise<MemberReference[]>
-⋮----
-subscribeToMembers(
-    _organizationId: string,
-    _onUpdate: (members: MemberReference[]) => void,
-): () => void
-⋮----
-// Real-time members subscription — implement when member management UI is built.
-// For now, emit an empty list immediately and return a no-op unsubscribe.
-⋮----
-// ── Teams ──────────────────────────────────────────────────────────────────
-⋮----
-async createTeam(input: CreateTeamInput): Promise<string>
-⋮----
-async deleteTeam(organizationId: string, teamId: string): Promise<void>
-⋮----
-async addMemberToTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-): Promise<void>
-⋮----
-async removeMemberFromTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-): Promise<void>
-⋮----
-async getTeams(organizationId: string): Promise<Team[]>
-⋮----
-subscribeToTeams(
-    _organizationId: string,
-    _onUpdate: (teams: Team[]) => void,
-): () => void
-⋮----
-// Real-time teams subscription — implement when team management UI is built.
-⋮----
-// ── Partner invites ────────────────────────────────────────────────────────
-⋮----
-async sendPartnerInvite(
-    organizationId: string,
-    teamId: string,
-    email: string,
-): Promise<string>
-⋮----
-async dismissPartnerMember(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-): Promise<void>
-⋮----
-async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>
+// organization — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/iam/subdomains/organization/adapters/index.ts
+````typescript
+// organization — adapters aggregate
+````
+
+## File: src/modules/iam/subdomains/organization/adapters/outbound/index.ts
+````typescript
+// organization — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
 ````
 
 ## File: src/modules/iam/subdomains/organization/adapters/outbound/memory/InMemoryOrganizationRepository.ts
@@ -2517,6 +1712,16 @@ async sendPartnerInvite(organizationId: string, teamId: string, email: string): 
 async dismissPartnerMember(organizationId: string, _teamId: string, memberId: string): Promise<void>
 ⋮----
 async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>
+````
+
+## File: src/modules/iam/subdomains/organization/application/dto/OrganizationDTO.ts
+````typescript
+
+````
+
+## File: src/modules/iam/subdomains/organization/application/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/iam/subdomains/organization/application/use-cases/OrganizationLifecycleUseCases.ts
@@ -2716,6 +1921,181 @@ getSnapshot(): Readonly<OrganizationTeamSnapshot>
 pullDomainEvents(): OrganizationTeamDomainEvent[]
 ````
 
+## File: src/modules/iam/subdomains/organization/domain/entities/Organization.ts
+````typescript
+export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";
+export type Presence = "active" | "away" | "offline";
+export type InviteState = "pending" | "accepted" | "expired";
+⋮----
+export interface MemberReference {
+  id: string;
+  name: string;
+  email: string;
+  role: OrganizationRole;
+  presence: Presence;
+  isExternal?: boolean;
+  expiryDate?: string;
+}
+⋮----
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+  memberIds: string[];
+}
+⋮----
+export interface PartnerInvite {
+  id: string;
+  email: string;
+  teamId: string;
+  role: OrganizationRole;
+  inviteState: InviteState;
+  invitedAt: string;
+  protocol: string;
+}
+⋮----
+export interface ThemeConfig {
+  primary: string;
+  background: string;
+  accent: string;
+}
+⋮----
+export type OrgPolicyEffect = "allow" | "deny";
+export type OrgPolicyScope = "workspace" | "member" | "global";
+⋮----
+export interface OrgPolicyRule {
+  resource: string;
+  actions: string[];
+  effect: OrgPolicyEffect;
+  conditions?: Record<string, string>;
+}
+⋮----
+export interface OrgPolicy {
+  readonly id: string;
+  readonly orgId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly rules: OrgPolicyRule[];
+  readonly scope: OrgPolicyScope;
+  readonly isActive: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+⋮----
+export interface CreateOrganizationCommand {
+  readonly organizationName: string;
+  readonly ownerId: string;
+  readonly ownerName: string;
+  readonly ownerEmail: string;
+}
+⋮----
+export interface UpdateOrganizationSettingsCommand {
+  readonly organizationId: string;
+  readonly name?: string;
+  readonly description?: string;
+  readonly theme?: ThemeConfig | null;
+  readonly photoURL?: string;
+}
+⋮----
+export interface InviteMemberInput {
+  organizationId: string;
+  email: string;
+  teamId: string;
+  role: OrganizationRole;
+  protocol: string;
+}
+⋮----
+export interface UpdateMemberRoleInput {
+  organizationId: string;
+  memberId: string;
+  role: OrganizationRole;
+}
+⋮----
+export interface CreateTeamInput {
+  organizationId: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+}
+⋮----
+export interface CreateOrgPolicyInput {
+  orgId: string;
+  name: string;
+  description: string;
+  rules: OrgPolicyRule[];
+  scope: OrgPolicyScope;
+}
+⋮----
+export interface UpdateOrgPolicyInput {
+  name?: string;
+  description?: string;
+  rules?: OrgPolicyRule[];
+  scope?: OrgPolicyScope;
+  isActive?: boolean;
+}
+````
+
+## File: src/modules/iam/subdomains/organization/domain/events/OrganizationDomainEvent.ts
+````typescript
+export interface OrganizationDomainEventBase {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface OrganizationCreatedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.created";
+  readonly payload: { readonly organizationId: string; readonly name: string; readonly ownerId: string };
+}
+⋮----
+export interface OrganizationSettingsUpdatedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.settings_updated";
+  readonly payload: { readonly organizationId: string; readonly name?: string; readonly description?: string };
+}
+⋮----
+export interface OrganizationDeletedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.deleted";
+  readonly payload: { readonly organizationId: string };
+}
+⋮----
+export interface MemberRecruitedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.member_recruited";
+  readonly payload: { readonly organizationId: string; readonly memberId: string };
+}
+⋮----
+export interface MemberRemovedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.member_removed";
+  readonly payload: { readonly organizationId: string; readonly memberId: string };
+}
+⋮----
+export interface MemberRoleUpdatedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.member_role_updated";
+  readonly payload: { readonly organizationId: string; readonly memberId: string; readonly role: string };
+}
+⋮----
+export interface TeamCreatedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.team_created";
+  readonly payload: { readonly organizationId: string; readonly teamId: string; readonly name: string; readonly teamType: "internal" | "external" };
+}
+⋮----
+export interface TeamDeletedEvent extends OrganizationDomainEventBase {
+  readonly type: "iam.organization.team_deleted";
+  readonly payload: { readonly organizationId: string; readonly teamId: string };
+}
+⋮----
+export type OrganizationDomainEventType =
+  | OrganizationCreatedEvent
+  | OrganizationSettingsUpdatedEvent
+  | OrganizationDeletedEvent
+  | MemberRecruitedEvent
+  | MemberRemovedEvent
+  | MemberRoleUpdatedEvent
+  | TeamCreatedEvent
+  | TeamDeletedEvent;
+````
+
 ## File: src/modules/iam/subdomains/organization/domain/events/OrganizationTeamDomainEvent.ts
 ````typescript
 import { z } from "zod";
@@ -2733,6 +2113,93 @@ export type OrganizationTeamDomainEvent =
   | OrganizationTeamDeletedEvent
   | OrganizationTeamMemberAddedEvent
   | OrganizationTeamMemberRemovedEvent;
+````
+
+## File: src/modules/iam/subdomains/organization/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/iam/subdomains/organization/domain/repositories/OrganizationRepository.ts
+````typescript
+import type {
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../entities/Organization";
+import type { OrganizationSnapshot } from "../aggregates/Organization";
+⋮----
+export type Unsubscribe = () => void;
+⋮----
+export interface OrganizationRepository {
+  create(command: CreateOrganizationCommand): Promise<string>;
+  findById(id: string): Promise<OrganizationSnapshot | null>;
+  save(snapshot: OrganizationSnapshot): Promise<void>;
+  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
+  delete(organizationId: string): Promise<void>;
+  inviteMember(input: InviteMemberInput): Promise<string>;
+  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
+  removeMember(organizationId: string, memberId: string): Promise<void>;
+  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
+  getMembers(organizationId: string): Promise<MemberReference[]>;
+  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
+  createTeam(input: CreateTeamInput): Promise<string>;
+  deleteTeam(organizationId: string, teamId: string): Promise<void>;
+  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getTeams(organizationId: string): Promise<Team[]>;
+  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
+  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
+  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
+}
+⋮----
+create(command: CreateOrganizationCommand): Promise<string>;
+findById(id: string): Promise<OrganizationSnapshot | null>;
+save(snapshot: OrganizationSnapshot): Promise<void>;
+updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
+delete(organizationId: string): Promise<void>;
+inviteMember(input: InviteMemberInput): Promise<string>;
+recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
+removeMember(organizationId: string, memberId: string): Promise<void>;
+updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
+getMembers(organizationId: string): Promise<MemberReference[]>;
+subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[])
+createTeam(input: CreateTeamInput): Promise<string>;
+deleteTeam(organizationId: string, teamId: string): Promise<void>;
+addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+getTeams(organizationId: string): Promise<Team[]>;
+subscribeToTeams(organizationId: string, onUpdate: (teams: Team[])
+sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
+dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
+getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
+````
+
+## File: src/modules/iam/subdomains/organization/domain/repositories/OrgPolicyRepository.ts
+````typescript
+import type {
+  OrgPolicy,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../entities/Organization";
+⋮----
+export interface OrgPolicyRepository {
+  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
+  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
+  deletePolicy(policyId: string): Promise<void>;
+  getPolicies(orgId: string): Promise<OrgPolicy[]>;
+}
+⋮----
+createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
+updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
+deletePolicy(policyId: string): Promise<void>;
+getPolicies(orgId: string): Promise<OrgPolicy[]>;
 ````
 
 ## File: src/modules/iam/subdomains/organization/domain/value-objects/MemberRole.ts
@@ -2755,6 +2222,15 @@ export type OrganizationId = z.infer<typeof OrganizationIdSchema>;
 export function createOrganizationId(raw: string): OrganizationId
 ````
 
+## File: src/modules/iam/subdomains/organization/domain/value-objects/OrganizationStatus.ts
+````typescript
+export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
+⋮----
+export function canSuspend(status: OrganizationStatus): boolean
+export function canDissolve(status: OrganizationStatus): boolean
+export function canReactivate(status: OrganizationStatus): boolean
+````
+
 ## File: src/modules/iam/subdomains/organization/domain/value-objects/TeamId.ts
 ````typescript
 import { z } from "zod";
@@ -2769,6 +2245,17 @@ export function createTeamId(raw: string): TeamId
 import { z } from "zod";
 ⋮----
 export type TeamType = z.infer<typeof TeamTypeSchema>;
+````
+
+## File: src/modules/iam/subdomains/security-policy/adapters/inbound/index.ts
+````typescript
+// security-policy — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/iam/subdomains/security-policy/adapters/index.ts
+````typescript
+// security-policy — adapters aggregate
 ````
 
 ## File: src/modules/iam/subdomains/security-policy/adapters/outbound/index.ts
@@ -2807,6 +2294,43 @@ export class UpdateSecurityPolicyUseCase {
 async execute(
     input: Omit<SecurityPolicySnapshot, "updatedAtISO">,
 ): Promise<SecurityPolicySnapshot>
+````
+
+## File: src/modules/iam/subdomains/security-policy/domain/index.ts
+````typescript
+// security-policy — domain layer
+// Owns org-level security rules: password policy, MFA requirements, session limits.
+⋮----
+export type MfaRequirement = "none" | "optional" | "required";
+⋮----
+export interface SecurityPolicySnapshot {
+  readonly policyId: string;
+  readonly orgId: string;
+  readonly mfaRequirement: MfaRequirement;
+  readonly minPasswordLength: number;
+  readonly sessionTimeoutMinutes: number;
+  readonly allowedDomains: readonly string[];
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface SecurityPolicyRepository {
+  findByOrgId(orgId: string): Promise<SecurityPolicySnapshot | null>;
+  save(policy: SecurityPolicySnapshot): Promise<void>;
+}
+⋮----
+findByOrgId(orgId: string): Promise<SecurityPolicySnapshot | null>;
+save(policy: SecurityPolicySnapshot): Promise<void>;
+````
+
+## File: src/modules/iam/subdomains/session/adapters/inbound/index.ts
+````typescript
+// session — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/iam/subdomains/session/adapters/index.ts
+````typescript
+// session — adapters aggregate
 ````
 
 ## File: src/modules/iam/subdomains/session/adapters/outbound/index.ts
@@ -2857,6 +2381,47 @@ export class GetSessionUseCase {
 export class RevokeSessionUseCase {
 ⋮----
 export class RevokeAllSessionsUseCase {
+````
+
+## File: src/modules/iam/subdomains/session/domain/index.ts
+````typescript
+// session — domain layer
+// Owns actor session lifecycle: creation, refresh, expiry, revocation.
+⋮----
+export interface SessionSnapshot {
+  readonly sessionId: string;
+  readonly uid: string;
+  readonly idToken: string;
+  readonly refreshToken: string | null;
+  readonly expiresAtISO: string;
+  readonly createdAtISO: string;
+  readonly isRevoked: boolean;
+}
+⋮----
+export interface SessionRepository {
+  create(session: SessionSnapshot): Promise<void>;
+  findById(sessionId: string): Promise<SessionSnapshot | null>;
+  findByUid(uid: string): Promise<SessionSnapshot[]>;
+  revoke(sessionId: string): Promise<void>;
+  revokeAllByUid(uid: string): Promise<void>;
+}
+⋮----
+create(session: SessionSnapshot): Promise<void>;
+findById(sessionId: string): Promise<SessionSnapshot | null>;
+findByUid(uid: string): Promise<SessionSnapshot[]>;
+revoke(sessionId: string): Promise<void>;
+revokeAllByUid(uid: string): Promise<void>;
+````
+
+## File: src/modules/iam/subdomains/tenant/adapters/inbound/index.ts
+````typescript
+// tenant — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/iam/subdomains/tenant/adapters/index.ts
+````typescript
+// tenant — adapters aggregate
 ````
 
 ## File: src/modules/iam/subdomains/tenant/adapters/outbound/index.ts
@@ -2924,6 +2489,27 @@ findByOrgId(orgId: string): Promise<TenantSnapshot | null>;
 save(tenant: TenantSnapshot): Promise<void>;
 ````
 
+## File: docs/structure/contexts/iam/ubiquitous-language.md
+````markdown
+# IAM
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Actor | 被識別與治理的主體 |
+| Identity | 證明 Actor 是誰的訊號集合 |
+| Tenant | 租戶隔離與 tenant-scoped 規則邊界 |
+| AccessDecision | 對 actor 當下能否執行某行為的判定 |
+| SecurityPolicy | 可版本化的安全規則集合 |
+
+## Avoid
+
+- 不用 User 混稱 Actor。
+- 不用 Organization 取代 Tenant。
+- 不把 access decision 寫成 UI flag。
+````
+
 ## File: src/modules/iam/adapters/inbound/react/IamSessionProvider.tsx
 ````typescript
 /**
@@ -2979,6 +2565,496 @@ async function handlePasswordReset()
 setError(null);
 setResetSent(false);
 setIsAuthPanelOpen((prev)
+````
+
+## File: src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts
+````typescript
+/**
+ * FirebaseAccountQueryRepository — module-level outbound adapter (read side).
+ *
+ * Implements AccountQueryRepository using Firestore real-time listeners.
+ * Lives at the iam module outbound boundary so that @integration-firebase
+ * is allowed per ESLint boundary rules (src/modules/<context>/adapters/outbound/**).
+ */
+⋮----
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit as firestoreLimit,
+  onSnapshot,
+  type Timestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type {
+  AccountQueryRepository,
+  WalletBalanceSnapshot,
+  Unsubscribe,
+} from "../../subdomains/account/domain/repositories/AccountQueryRepository";
+import type {
+  WalletTransaction,
+  AccountRoleRecord,
+} from "../../subdomains/account/domain/repositories/AccountRepository";
+import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
+import type { AccountProfile } from "../../subdomains/account/domain/entities/AccountProfile";
+⋮----
+// ─── Mapper helpers ───────────────────────────────────────────────────────────
+⋮----
+function toISO(v: unknown): string
+⋮----
+function toAccountSnapshot(id: string, data: Record<string, unknown>): AccountSnapshot
+⋮----
+function toAccountProfile(snapshot: AccountSnapshot): AccountProfile
+⋮----
+// ─── Repository ───────────────────────────────────────────────────────────────
+⋮----
+export class FirebaseAccountQueryRepository implements AccountQueryRepository {
+⋮----
+private get db()
+⋮----
+async getUserProfile(userId: string): Promise<AccountSnapshot | null>
+⋮----
+subscribeToUserProfile(
+    userId: string,
+    onUpdate: (profile: AccountSnapshot | null) => void,
+): Unsubscribe
+⋮----
+async getAccountProfile(actorId: string): Promise<AccountProfile | null>
+⋮----
+subscribeToAccountProfile(
+    actorId: string,
+    onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe
+⋮----
+async getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot>
+⋮----
+subscribeToWalletBalance(
+    accountId: string,
+    onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe
+⋮----
+subscribeToWalletTransactions(
+    accountId: string,
+    maxCount: number,
+    onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe
+⋮----
+async getAccountRole(accountId: string): Promise<AccountRoleRecord | null>
+⋮----
+subscribeToAccountRoles(
+    accountId: string,
+    onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe
+⋮----
+subscribeToAccountsForUser(
+    userId: string,
+    onUpdate: (accounts: Record<string, AccountSnapshot>) => void,
+): Unsubscribe
+⋮----
+const emit = () =>
+⋮----
+// Organisations owned by the user
+⋮----
+// Organisations where the user is a member
+````
+
+## File: src/modules/iam/adapters/outbound/FirebaseAuthIdentityRepository.ts
+````typescript
+/**
+ * FirebaseAuthIdentityRepository — module-level outbound adapter.
+ *
+ * Implements IdentityRepository using Firebase Authentication SDK.
+ * Lives at the iam module outbound boundary so that @integration-firebase
+ * is allowed per ESLint boundary rules (src/modules/<context>/adapters/outbound/**).
+ *
+ * Domain and application layers are isolated from Firebase via this adapter.
+ */
+⋮----
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInAnonymously,
+  sendPasswordResetEmail,
+  signOut,
+  updateProfile,
+  type User,
+} from "firebase/auth";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { IdentityRepository } from "../../subdomains/identity/domain/repositories/IdentityRepository";
+import type {
+  IdentityEntity,
+  RegistrationInput,
+  SignInCredentials,
+} from "../../subdomains/identity/domain/entities/Identity";
+⋮----
+function toIdentityEntity(user: User): IdentityEntity
+⋮----
+export class FirebaseAuthIdentityRepository implements IdentityRepository {
+⋮----
+private get auth()
+⋮----
+async signInWithEmailAndPassword(
+    credentials: SignInCredentials,
+): Promise<IdentityEntity>
+⋮----
+async signInAnonymously(): Promise<IdentityEntity>
+⋮----
+async createUserWithEmailAndPassword(
+    input: RegistrationInput,
+): Promise<IdentityEntity>
+⋮----
+async updateDisplayName(uid: string, displayName: string): Promise<void>
+⋮----
+async sendPasswordResetEmail(email: string): Promise<void>
+⋮----
+async signOut(): Promise<void>
+⋮----
+getCurrentUser(): IdentityEntity | null
+````
+
+## File: src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts
+````typescript
+/**
+ * FirestoreOrganizationRepository — iam/organization outbound adapter.
+ *
+ * Implements OrganizationRepository using Firebase Firestore.
+ *
+ * Firestore schema:
+ *   accounts/{orgId}          — account-level record (queried by subscribeToAccountsForUser)
+ *     accountType: "organization"
+ *     ownerId: string          — owner's Firebase uid
+ *     memberIds: string[]      — array-contains index for member queries
+ *   organizations/{orgId}     — organisation domain document
+ *   org_members/{orgId}/members/{memberId}
+ *   org_teams/{orgId}/teams/{teamId}
+ *   org_partner_invites/{orgId}/invites/{inviteId}
+ *
+ * The `accounts/{orgId}` document is maintained in sync so that the existing
+ * subscribeToAccountsForUser query (which filters on `ownerId` and `memberIds`)
+ * surfaces the new organisation to the creator immediately.
+ *
+ * This file is in adapters/outbound/firestore/ — @integration-firebase is NOT
+ * directly imported; callers at module/adapters/outbound/ use @integration-firebase
+ * and pass Firebase-specific helpers via the FirestoreLike port.
+ */
+⋮----
+import { v4 as uuid } from "uuid";
+import type {
+  OrganizationRepository,
+} from "../../../domain/repositories/OrganizationRepository";
+import type {
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../../domain/entities/Organization";
+import type { OrganizationSnapshot } from "../../../domain/aggregates/Organization";
+⋮----
+// ── Infrastructure port ───────────────────────────────────────────────────────
+// We keep this file Firebase-SDK-free by accepting a narrow persistence port.
+// The module-level composition root wires in the real Firebase implementation.
+⋮----
+export interface OrgFirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+  getSubcollection(collection: string, parentId: string, sub: string): Promise<{ id: string; data: Record<string, unknown> }[]>;
+  setSubdoc(collection: string, parentId: string, sub: string, id: string, data: Record<string, unknown>): Promise<void>;
+  deleteSubdoc(collection: string, parentId: string, sub: string, id: string): Promise<void>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+getSubcollection(collection: string, parentId: string, sub: string): Promise<
+setSubdoc(collection: string, parentId: string, sub: string, id: string, data: Record<string, unknown>): Promise<void>;
+deleteSubdoc(collection: string, parentId: string, sub: string, id: string): Promise<void>;
+⋮----
+// ── Repository ────────────────────────────────────────────────────────────────
+⋮----
+export class FirestoreOrganizationRepository implements OrganizationRepository {
+⋮----
+constructor(private readonly db: OrgFirestoreLike)
+⋮----
+// ── Organisation lifecycle ─────────────────────────────────────────────────
+⋮----
+async create(command: CreateOrganizationCommand): Promise<string>
+⋮----
+// 1. Write organisation domain document
+⋮----
+// 2. Write account-level record so subscribeToAccountsForUser picks it up.
+//    The owner is listed in both `ownerId` (owner query) and `memberIds`
+//    (member query) to cover both Firestore subscription paths.
+⋮----
+// 3. Add owner as first member document
+⋮----
+async findById(id: string): Promise<OrganizationSnapshot | null>
+⋮----
+async save(snapshot: OrganizationSnapshot): Promise<void>
+⋮----
+// Keep the account document name in sync
+⋮----
+async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>
+⋮----
+// Sync account display name
+⋮----
+async delete(organizationId: string): Promise<void>
+⋮----
+// ── Members ────────────────────────────────────────────────────────────────
+⋮----
+async inviteMember(input: InviteMemberInput): Promise<string>
+⋮----
+async recruitMember(
+    organizationId: string,
+    memberId: string,
+    name: string,
+    email: string,
+): Promise<void>
+⋮----
+// Update memberIds array in the account document
+⋮----
+async removeMember(organizationId: string, memberId: string): Promise<void>
+⋮----
+async updateMemberRole(input: UpdateMemberRoleInput): Promise<void>
+⋮----
+async getMembers(organizationId: string): Promise<MemberReference[]>
+⋮----
+subscribeToMembers(
+    _organizationId: string,
+    _onUpdate: (members: MemberReference[]) => void,
+): () => void
+⋮----
+// Real-time members subscription — implement when member management UI is built.
+// For now, emit an empty list immediately and return a no-op unsubscribe.
+⋮----
+// ── Teams ──────────────────────────────────────────────────────────────────
+⋮----
+async createTeam(input: CreateTeamInput): Promise<string>
+⋮----
+async deleteTeam(organizationId: string, teamId: string): Promise<void>
+⋮----
+async addMemberToTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+): Promise<void>
+⋮----
+async removeMemberFromTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+): Promise<void>
+⋮----
+async getTeams(organizationId: string): Promise<Team[]>
+⋮----
+subscribeToTeams(
+    _organizationId: string,
+    _onUpdate: (teams: Team[]) => void,
+): () => void
+⋮----
+// Real-time teams subscription — implement when team management UI is built.
+⋮----
+// ── Partner invites ────────────────────────────────────────────────────────
+⋮----
+async sendPartnerInvite(
+    organizationId: string,
+    teamId: string,
+    email: string,
+): Promise<string>
+⋮----
+async dismissPartnerMember(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+): Promise<void>
+⋮----
+async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>
+````
+
+## File: docs/structure/contexts/iam/AGENT.md
+````markdown
+# IAM Context — Agent Guide
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 iam 主域作為身份、存取、帳號、組織的正典所有者。account 與 organization 已從 platform 遷入此主域；任何新功能都應先問：這是身份治理還是平台操作服務？
+
+## Canonical Ownership
+
+- identity（已驗證主體、身份信號）
+- access-control（授權判定）
+- tenant（多租戶隔離）
+- security-policy（安全規則定義）
+- account（帳號聚合根，原 platform/account，已遷入）
+- organization（組織邊界，原 platform/organization，已遷入）
+- session（session 與 token lifecycle，gap subdomain）
+- consent（同意與授權治理，gap subdomain）
+- secret-governance（secret access policy，gap subdomain）
+
+> **遷移備注：** `platform/account` 與 `platform/organization` 已完全遷入 `iam/subdomains/account/` 與 `iam/subdomains/organization/`。
+> 不應在 platform 新增 account / org 相關程式碼。
+
+## Route Here When
+
+- 問題核心是身份驗證、存取判定、多租戶隔離、帳號生命週期或組織管理。
+- 問題涉及 Actor、Identity、Tenant、AccessDecision、Account、Organization。
+
+## Route Elsewhere When
+
+- 平台設定、通知、搜尋 → platform。
+- 工作區參與關係（Membership）→ workspace。
+- 商業授權（Entitlement）→ billing。
+- AI 模型使用政策 → ai。
+
+## Guardrails
+
+- 下游主域只消費 `actor reference`、`tenant scope`、`access decision`，不持有 iam aggregate 完整模型。
+- account / org 相關寫入操作一律進 iam；platform 不得新增 account / org 邏輯。
+- 跨主域互動只經由 published language tokens。
+
+## Hard Prohibitions
+
+- ❌ 在 platform 新增 account / org 相關業務邏輯（已遷入 iam）。
+- ❌ 讓 iam 持有 billing Entitlement、AI Policy 或 Content 模型。
+- ❌ 在 domain/ 匯入 Firebase SDK、React 或任何框架。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於 identity / access / account / org / tenant / session 哪個邊界。
+- 帳號 / 組織相關需求一律落在 `src/modules/iam/subdomains/account/` 或 `src/modules/iam/subdomains/organization/`。
+- 奧卡姆剃刀：若能用 access decision 解決，不要暴露完整 identity aggregate。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	iam -->|actor reference| workspace
+	iam -->|actor reference| notion
+	iam -->|actor reference| notebooklm
+	iam -->|tenant scope| billing
+	iam -->|access decision| platform
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../system/architecture-overview.md](../../system/architecture-overview.md)
+- [../../domain/subdomains.md](../../domain/subdomains.md)
+- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+````
+
+## File: docs/structure/contexts/iam/bounded-contexts.md
+````markdown
+# IAM
+
+## Domain Role
+
+iam 是 governance bounded context。它是身份、tenant 與 access decision 的 canonical owner。account 與 organization 的聚合根也屬於 iam（從 platform 遷入）。
+
+## Ownership Rules
+
+- 擁有 identity、access-control、tenant、security-policy。
+- 擁有 account（帳號聚合根）與 organization（組織聚合根）— 已從 platform 遷入。
+- 向下游輸出 actor reference、tenant scope、access decision。
+- 不擁有 workspace、knowledge、notebook 或 billing aggregate。
+````
+
+## File: docs/structure/contexts/iam/context-map.md
+````markdown
+# IAM
+
+## Relationships
+
+| Upstream | Downstream | Published Language |
+|---|---|---|
+| iam | billing | actor reference、tenant scope、access policy baseline |
+| iam | platform | actor reference、tenant scope、access decision |
+| iam | workspace | actor reference、tenant scope、access decision |
+| iam | notion | actor reference、tenant scope、access decision |
+| iam | notebooklm | actor reference、tenant scope、access decision |
+| iam | analytics | access event、identity signal |
+
+## Notes
+
+- iam 是治理上游，不擁有商業、內容或推理正典模型。
+````
+
+## File: docs/structure/contexts/iam/README.md
+````markdown
+# IAM Context
+
+本 README 在本次重切作業下，定義 identity and access management 的主域邊界。
+
+## Purpose
+
+iam 是身份、驗證、授權、federation、session、租戶與存取治理主域。它提供 actor、identity、tenant、access decision 與 security policy 語言，作為其他主域的治理上游。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 身份、租戶與 access governance |
+| Upstream Dependency | 無主域級上游 |
+| Downstream Consumers | billing、platform、workspace、notion、notebooklm |
+| Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../system/architecture-overview.md](../../system/architecture-overview.md)
+- [../../system/context-map.md](../../system/context-map.md)
+- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+````
+
+## File: docs/structure/contexts/iam/subdomains.md
+````markdown
+# IAM
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+| account | 帳號聚合根與帳號生命週期（原 platform/account，已遷入）|
+| organization | 組織、成員與角色邊界（原 platform/organization，已遷入）|
+
+## Recommended Gap Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| session | session、token 與 identity lifecycle 收斂 |
+| consent | 同意與資料使用授權治理收斂 |
+| secret-governance | secret 與 credential access policy 收斂 |
+
+## Implementation Subdomains (Code Present, Not Yet Fully Aligned)
+
+| Subdomain | Responsibility |
+|---|---|
+| authentication | sign-in、registration、credential recovery、provider bootstrap |
+| authorization | higher-level policy orchestration and decision semantics |
+| federation | external identity provider linking, SSO, and trust delegation |
 ````
 
 ## File: src/modules/iam/adapters/outbound/firebase-composition.ts

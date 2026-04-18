@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-142 files | 2,781 lines
+142 files | 2,857 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 131 | 2,434 |
-| Markdown | 8 | 243 |
+| Markdown | 8 | 319 |
 | TypeScript (TSX) | 3 | 104 |
 
 **Largest files:**
@@ -58,6 +58,6 @@ This skill contains the following reference files:
 - `src/modules/iam/subdomains/account/domain/entities/Account.ts` (87 lines)
 - `src/modules/iam/README.md` (83 lines)
 - `src/modules/iam/subdomains/account/domain/events/AccountDomainEvent.ts` (78 lines)
+- `docs/structure/contexts/iam/AGENT.md` (74 lines)
 - `src/modules/iam/subdomains/organization/domain/aggregates/Organization.ts` (72 lines)
 - `src/modules/iam/subdomains/account/domain/repositories/AccountQueryRepository.ts` (71 lines)
-- `src/modules/iam/subdomains/account/application/use-cases/AccountUseCases.ts` (69 lines)

@@ -42,23 +42,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-875 files | 14,034 lines
+890 files | 15,119 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 811 | 10,812 |
-| TypeScript (TSX) | 39 | 1,497 |
-| Markdown | 24 | 1,678 |
+| TypeScript | 811 | 10,817 |
+| TypeScript (TSX) | 52 | 2,120 |
+| Markdown | 26 | 2,135 |
 | CSS | 1 | 47 |
 
 **Largest files:**
 - `src/modules/template/README.md` (266 lines)
+- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (190 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (175 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
+- `src/modules/workspace/subdomains/task-formation/AGENT.md` (166 lines)
 - `src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts` (159 lines)
-- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (151 lines)
 - `src/modules/iam/adapters/outbound/firebase-composition.ts` (140 lines)
 - `src/modules/iam/subdomains/organization/domain/entities/Organization.ts` (111 lines)
 - `src/modules/ai/README.md` (111 lines)
-- `src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts` (107 lines)
-- `src/modules/shared/index.ts` (107 lines)
-- `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
