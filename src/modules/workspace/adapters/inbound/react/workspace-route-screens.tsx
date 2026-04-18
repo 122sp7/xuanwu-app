@@ -35,8 +35,10 @@ import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
 import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
 import {
   WORKSPACE_TAB_ITEMS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
   resolveWorkspaceTabValue,
   type WorkspaceTabValue,
+  type WorkspaceDomainGroup,
 } from "./workspace-nav-model";
 
 // Cross-module: notion section components (via adapters/inbound/react boundary)
@@ -128,6 +130,8 @@ export function WorkspaceDetailRouteScreen({
   const tabHref = (tab: WorkspaceTabValue) =>
     `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=${encodeURIComponent(tab)}`;
 
+  const DOMAIN_ORDER: WorkspaceDomainGroup[] = ["workspace", "notion", "notebooklm"];
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -141,22 +145,35 @@ export function WorkspaceDetailRouteScreen({
         <p className="text-sm text-muted-foreground">Workspace ID: {workspace.id}</p>
       </div>
 
-      <nav className="flex flex-wrap gap-2" aria-label="Workspace tabs">
-        {WORKSPACE_TAB_ITEMS.map((tab) => {
-          const active = tab.value === activeTab;
+      <nav className="space-y-2" aria-label="Workspace tabs">
+        {DOMAIN_ORDER.map((group) => {
+          const groupTabs = WORKSPACE_TAB_ITEMS.filter((t) => t.domainGroup === group);
+          if (groupTabs.length === 0) return null;
           return (
-            <Link
-              key={tab.id}
-              href={tabHref(tab.value)}
-              aria-current={active ? "page" : undefined}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                active
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-border/60 text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {tab.label}
-            </Link>
+            <div key={group}>
+              <p className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                {WORKSPACE_DOMAIN_GROUP_LABELS[group]}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {groupTabs.map((tab) => {
+                  const active = tab.value === activeTab;
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={tabHref(tab.value)}
+                      aria-current={active ? "page" : undefined}
+                      className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "border-primary/30 bg-primary/10 text-primary"
+                          : "border-border/60 text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {tab.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
@@ -295,7 +312,7 @@ export function WorkspaceHubScreen({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Workspace Hub</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">工作區中心</h1>
           <p className="text-sm text-muted-foreground">
             {accountName ? `${accountName} 的工作區列表` : "目前帳號的工作區列表"}
           </p>
@@ -318,15 +335,15 @@ export function WorkspaceHubScreen({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-xs text-muted-foreground">Total Workspaces</p>
+          <p className="text-xs text-muted-foreground">工作區總數</p>
           <p className="mt-1 text-2xl font-semibold">{stats.total}</p>
         </div>
         <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-xs text-muted-foreground">Active</p>
+          <p className="text-xs text-muted-foreground">進行中</p>
           <p className="mt-1 text-2xl font-semibold">{stats.active}</p>
         </div>
         <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-xs text-muted-foreground">Preparatory</p>
+          <p className="text-xs text-muted-foreground">籌備中</p>
           <p className="mt-1 text-2xl font-semibold">{stats.preparatory}</p>
         </div>
       </div>

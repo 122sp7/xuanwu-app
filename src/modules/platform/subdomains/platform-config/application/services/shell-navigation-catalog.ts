@@ -214,13 +214,31 @@ const ROUTE_TITLES: Record<string, string> = {
   "/audit": "帳號 · 日誌",
   "/workspace": "工作區中心",
   "/dashboard": "儀表板",
-  // Workspace task-lifecycle tabs (query-param based, resolved in resolveShellPageTitle)
-  "workspace:TaskFormation": "工作區 · 任務形成",
-  "workspace:Tasks": "工作區 · 任務",
-  "workspace:Quality": "工作區 · 質檢",
-  "workspace:Approval": "工作區 · 驗收",
-  "workspace:Settlement": "工作區 · 結算",
-  "workspace:Issues": "工作區 · 問題單",
+  // Workspace tabs (query-param based, resolved via workspace:${tab} key in resolveShellPageTitle)
+  // workspace group
+  "workspace:Overview":          "工作區 · 首頁",
+  "workspace:Daily":             "工作區 · 每日",
+  "workspace:Schedule":          "工作區 · 排程",
+  "workspace:Audit":             "工作區 · 日誌",
+  "workspace:Files":             "工作區 · 檔案",
+  "workspace:Members":           "工作區 · 成員",
+  "workspace:WorkspaceSettings": "工作區 · 設定",
+  "workspace:TaskFormation":     "工作區 · 任務形成",
+  "workspace:Tasks":             "工作區 · 任務",
+  "workspace:Quality":           "工作區 · 質檢",
+  "workspace:Approval":          "工作區 · 驗收",
+  "workspace:Settlement":        "工作區 · 結算",
+  "workspace:Issues":            "工作區 · 問題單",
+  // notion group
+  "workspace:Knowledge":         "工作區 · 知識",
+  "workspace:Pages":             "工作區 · 頁面",
+  "workspace:Database":          "工作區 · 資料庫",
+  "workspace:Templates":         "工作區 · 範本",
+  // notebooklm group
+  "workspace:Notebook":          "工作區 · RAG 查詢",
+  "workspace:AiChat":            "工作區 · AI 對話",
+  "workspace:Sources":           "工作區 · 來源文件",
+  "workspace:Research":          "工作區 · 研究摘要",
 };
 
 const BREADCRUMB_LABELS: Record<string, string> = {
