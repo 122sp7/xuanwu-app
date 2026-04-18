@@ -1,83 +1,27 @@
 /**
  * firebase-composition — platform module outbound composition root.
  *
- * Provides:
- *   - FirestoreFileStorageRepository  (Firestore-backed FileStorageRepository)
- *   - uploadWorkspaceFile()           (Firebase Storage upload for workspace files)
- *   - getWorkspaceFileDownloadUrl()   (resolve download URL from GCS path)
- *   - createClientFileStorageUseCases() (factory for use-case instances)
+ * This file is a pure composition root. It:
+ *   - Assembles use-case instances against FirestoreFileStorageRepository
+ *   - Provides Firebase Storage upload/download helpers
  *
- * ESLint: @integration-firebase is allowed here — this file lives at
+ * Infrastructure logic lives in the subdomain adapter:
+ *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
+ *
+ * ESLint: @integration-firebase/storage is allowed here — this file lives at
  * src/modules/platform/adapters/outbound/ which matches the permitted glob.
  *
- * Firestore collection: storedFiles/{fileId}
  * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
 import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
-import type { StoredFile } from "../../subdomains/file-storage/domain/entities/StoredFile";
-import type { FileStorageRepository } from "../../subdomains/file-storage/domain/repositories/FileStorageRepository";
+import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
 import {
   CreateStoredFileUseCase,
   GetStoredFileUseCase,
   ListStoredFilesUseCase,
   DeleteStoredFileUseCase,
 } from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
-
-// ── Firestore repository ──────────────────────────────────────────────────────
-
-const FILES_COLLECTION = "storedFiles";
-
-/**
- * FirestoreFileStorageRepository — Firestore-backed implementation of FileStorageRepository.
- *
- * Document shape mirrors StoredFile (flat; no nesting required).
- * listByOwner queries by ownerId (= workspaceId) and excludes soft-deleted files.
- */
-class FirestoreFileStorageRepository implements FileStorageRepository {
-  private readonly db = getFirebaseFirestore();
-
-  async save(file: StoredFile): Promise<void> {
-    const { doc, setDoc } = firestoreApi;
-    const docRef = doc(this.db, FILES_COLLECTION, file.fileId);
-    await setDoc(docRef, {
-      fileId: file.fileId,
-      ownerId: file.ownerId,
-      fileName: file.fileName,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
-      url: file.url,
-      createdAtISO: file.createdAtISO,
-      deletedAtISO: file.deletedAtISO,
-    });
-  }
-
-  async findById(fileId: string): Promise<StoredFile | null> {
-    const { doc, getDoc } = firestoreApi;
-    const docRef = doc(this.db, FILES_COLLECTION, fileId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return snap.data() as StoredFile;
-  }
-
-  async listByOwner(ownerId: string): Promise<StoredFile[]> {
-    const { collection, query, where, getDocs } = firestoreApi;
-    const q = query(
-      collection(this.db, FILES_COLLECTION),
-      where("ownerId", "==", ownerId),
-      where("deletedAtISO", "==", null),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => d.data() as StoredFile);
-  }
-
-  async delete(fileId: string): Promise<void> {
-    const { doc, updateDoc } = firestoreApi;
-    const docRef = doc(this.db, FILES_COLLECTION, fileId);
-    await updateDoc(docRef, { deletedAtISO: new Date().toISOString() });
-  }
-}
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
 

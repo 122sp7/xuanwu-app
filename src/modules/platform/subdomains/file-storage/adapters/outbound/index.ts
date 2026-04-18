@@ -1,1 +1,1 @@
-export { InMemoryFileStorageRepository } from "./memory/InMemoryFileStorageRepository";
+export { FirestoreFileStorageRepository } from "./firestore/FirestoreFileStorageRepository";
