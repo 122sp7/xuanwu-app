@@ -4,9 +4,8 @@
  * WorkspaceQualitySection — workspace.quality tab — quality review queue.
  */
 
+import { Badge, Button } from "@packages";
 import { ShieldCheck, ClipboardCheck, ClipboardX } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 
 interface WorkspaceQualitySectionProps {
   workspaceId: string;

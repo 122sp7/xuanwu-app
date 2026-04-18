@@ -11,6 +11,7 @@
  *   4. Pipeline stages showing the formation workflow
  */
 
+import { Badge, Button } from "@packages";
 import {
   ListPlus,
   ArrowRight,
@@ -27,8 +28,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
+
 import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
 import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
 

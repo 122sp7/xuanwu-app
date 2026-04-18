@@ -10,10 +10,11 @@
  * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
  */
 
+import { Button } from "@packages";
 import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
+
 import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
 import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
 import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";

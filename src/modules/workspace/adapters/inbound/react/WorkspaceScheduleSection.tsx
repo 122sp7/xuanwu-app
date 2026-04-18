@@ -4,9 +4,8 @@
  * WorkspaceScheduleSection — workspace.schedule tab — project timeline / milestones.
  */
 
+import { Badge, Button } from "@packages";
 import { CalendarRange, Plus } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 
 interface WorkspaceScheduleSectionProps {
   workspaceId: string;

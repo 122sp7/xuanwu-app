@@ -11,7 +11,7 @@
  * which matches src/modules/<context>/adapters/outbound/**.
  */
 
-import { getFirebaseFunctions, httpsCallable } from "@integration-firebase/functions";
+import { getFirebaseFunctions, httpsCallable } from "@packages";
 
 // ── Input / output contracts ──────────────────────────────────────────────────
 

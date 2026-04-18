@@ -4,9 +4,8 @@
  * WorkspaceApprovalSection — workspace.approval tab — acceptance review queue.
  */
 
+import { Badge, Button } from "@packages";
 import { ClipboardList, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 
 interface WorkspaceApprovalSectionProps {
   workspaceId: string;

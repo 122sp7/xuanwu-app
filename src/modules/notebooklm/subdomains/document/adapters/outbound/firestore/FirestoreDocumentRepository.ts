@@ -10,10 +10,7 @@
  * which matches the extended outbound glob.
  */
 
-import {
-  getFirebaseFirestore,
-  firestoreApi,
-} from "@integration-firebase";
+import { getFirebaseFirestore, firestoreApi } from "@packages";
 import type {
   DocumentSnapshot as DocumentSnap,
   DocumentStatus,

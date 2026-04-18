@@ -24,10 +24,20 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
-      "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
-      "@integration-firebase": ["./packages/integration-firebase/index.ts"],
-      "@integration-firebase/*": ["./packages/integration-firebase/*"]
+      "@packages": ["./packages/index.ts"],
+      "@infra/client-state": ["./packages/infra/client-state/index.ts"],
+      "@infra/http": ["./packages/infra/http/index.ts"],
+      "@infra/serialization": ["./packages/infra/serialization/index.ts"],
+      "@infra/state": ["./packages/infra/state/index.ts"],
+      "@infra/trpc": ["./packages/infra/trpc/index.ts"],
+      "@infra/uuid": ["./packages/infra/uuid/index.ts"],
+      "@infra/zod": ["./packages/infra/zod/index.ts"],
+      "@integration-ai": ["./packages/integration-ai/index.ts"],
+      "@integration-queue": ["./packages/integration-queue/index.ts"],
+      "@ui-components": ["./packages/ui-components/index.ts"],
+      "@ui-editor": ["./packages/ui-editor/index.ts"],
+      "@ui-markdown": ["./packages/ui-markdown/index.tsx"],
+      "@ui-visualization": ["./packages/ui-visualization/index.ts"]
     }
   },
   "include": [

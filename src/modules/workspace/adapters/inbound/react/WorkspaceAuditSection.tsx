@@ -4,9 +4,8 @@
  * WorkspaceAuditSection — workspace.audit tab — activity / audit log.
  */
 
+import { Badge, Button } from "@packages";
 import { Activity, Filter } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 
 interface WorkspaceAuditSectionProps {
   workspaceId: string;

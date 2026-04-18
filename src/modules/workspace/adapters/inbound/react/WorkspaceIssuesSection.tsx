@@ -4,10 +4,10 @@
  * WorkspaceIssuesSection — workspace.issues tab — issue tracker.
  */
 
+import { Badge, Button } from "@packages";
 import { AlertCircle, Plus, AlertTriangle, Info, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
+
 import { listIssuesByTaskAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
 import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
 import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";

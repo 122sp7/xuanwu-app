@@ -12,15 +12,13 @@
  * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
  */
 
+import { getFirebaseFirestore, firestoreApi } from "@packages";
 import {
   FirebaseWorkspaceQueryRepository,
   type Unsubscribe,
 } from "./FirebaseWorkspaceQueryRepository";
 import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
-import {
-  getFirebaseFirestore,
-  firestoreApi,
-} from "@integration-firebase";
+
 import {
   FirestoreWorkspaceRepository,
   type FirestoreLike,

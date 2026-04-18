@@ -14,10 +14,10 @@
  *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
  */
 
+import { Badge, Button } from "@packages";
 import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
+
 import { uploadWorkspaceFile } from "@/src/modules/platform";
 import {
   listWorkspaceFilesAction,

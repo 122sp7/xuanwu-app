@@ -1,4 +1,5 @@
-import { getFirebaseFunctions, httpsCallable } from "@integration-firebase/functions";
+
+import { getFirebaseFunctions, httpsCallable } from "@packages";
 import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
 import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
 

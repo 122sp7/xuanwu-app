@@ -1,22 +1,30 @@
 /**
  * @module packages
- * Named exports for all package-layer public surfaces.
+ * Unique entry point for all package-layer public surfaces.
+ *
+ * Import everything from this barrel:
+ *   import { generateId, Button, firestoreApi } from '@packages'
+ *
+ * All named exports are flat — no namespace wrapping.
  */
 
-export * as infraClientState from "./infra/client-state";
-export * as infraHttp from "./infra/http";
-export * as infraSerialization from "./infra/serialization";
-export * as infraState from "./infra/state";
-export * as infraTrpc from "./infra/trpc";
-export * as infraUuid from "./infra/uuid";
-export * as infraZod from "./infra/zod";
+// ─── infra ────────────────────────────────────────────────────────────────────
+export * from "./infra/client-state";
+export * from "./infra/http";
+export * from "./infra/serialization";
+export * from "./infra/state";
+export * from "./infra/trpc";
+export * from "./infra/uuid";
+export * from "./infra/zod";
 
-export * as integrationAi from "./integration-ai";
-export * as integrationFirebase from "./integration-firebase";
-export * as integrationQueue from "./integration-queue";
+// ─── integration ──────────────────────────────────────────────────────────────
+export * from "./integration-ai";
+export * from "./integration-firebase";
+export * from "./integration-queue";
 
-export * as uiComponents from "./ui-components";
-export * as uiEditor from "./ui-editor";
-export * as uiMarkdown from "./ui-markdown";
-export * as uiShadcn from "./ui-shadcn";
-export * as uiVisualization from "./ui-visualization";
+// ─── ui ───────────────────────────────────────────────────────────────────────
+export * from "./ui-components";
+export * from "./ui-editor";
+export * from "./ui-markdown";
+export * from "./ui-shadcn";
+export * from "./ui-visualization";

@@ -16,18 +16,9 @@
  * Rendered by ShellHeaderControls in the top-right header area.
  */
 
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@packages";
 import { Languages } from "lucide-react";
 import { useState } from "react";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
 
 // ── Locale catalogue ──────────────────────────────────────────────────────────
 

@@ -12,6 +12,7 @@
  *   6. 即時狀態   — live feed
  */
 
+import { Badge } from "@packages";
 import {
   Activity,
   AlertCircle,
@@ -25,7 +26,7 @@ import {
   Radio,
   Users,
 } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
+
 import { type WorkspaceEntity } from "./WorkspaceContext";
 
 interface WorkspaceOverviewSectionProps {

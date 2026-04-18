@@ -13,6 +13,7 @@
  *   ③ Feed — chronological post cards
  */
 
+import { Badge, Button, Textarea } from "@packages";
 import { useState, useEffect, useRef, useTransition } from "react";
 import {
   CalendarDays,
@@ -23,9 +24,7 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
+
 import { createFeedPostAction, listFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
 import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
 

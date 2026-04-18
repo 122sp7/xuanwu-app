@@ -7,8 +7,7 @@
  * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
-import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
 import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
 import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
 import {

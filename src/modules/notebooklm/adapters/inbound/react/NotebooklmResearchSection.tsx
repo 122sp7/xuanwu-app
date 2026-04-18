@@ -8,10 +8,11 @@
  * workspace.task-formation as the AI research source for task generation.
  */
 
+import { Button } from "@packages";
 import { BookOpen, FlaskConical, ListPlus } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
+
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
 import { synthesizeWorkspaceAction } from "../server-actions/notebook-actions";
 
