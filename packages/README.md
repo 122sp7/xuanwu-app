@@ -93,6 +93,15 @@ import { generateId } from '@infra/uuid'
 - 直接 import `src/modules/*`
 - 對特定功能或模組有感知
 
+### 4. packages/index.ts 必須維持具名匯出
+
+`packages/index.ts` 是 packages 層總入口，必須具名匯出以下三類套件：
+- `infra*`（基礎設施原語）
+- `integration*`（外部服務整合）
+- `ui*`（共享 UI 套件）
+
+新增/刪除套件時需同步更新 `packages/index.ts`。
+
 ---
 
 ## 判斷原則
@@ -104,4 +113,3 @@ import { generateId } from '@infra/uuid'
 | 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
 | 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
 | 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
-

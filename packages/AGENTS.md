@@ -67,6 +67,12 @@ import { getFirestore } from 'firebase/firestore'
 - 每個套件的 `index.ts` 是唯一公開入口
 - 不得洩漏第三方 SDK 型別至消費端（能 wrap 就 wrap）
 
+## 公開匯出規則
+
+- 所有子套件需維持各自 `index.ts` 作為公開入口
+- `packages/index.ts` 必須具名匯出所有套件（`infra-*`、`integration-*`、`ui-*`）
+- 新增套件時，需同步更新本檔、`packages/README.md`、`packages/index.ts`
+
 ---
 
 ## 每個套件都有自己的 AGENTS.md

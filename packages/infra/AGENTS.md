@@ -26,6 +26,18 @@
 - 每個子套件的 `index.ts` 是唯一公開入口
 - 新增套件前，先確認它是「本地原語」而非「外部服務整合」
 
+## 公開入口檢查
+
+- `infra/client-state/index.ts`
+- `infra/http/index.ts`
+- `infra/serialization/index.ts`
+- `infra/state/index.ts`
+- `infra/trpc/index.ts`
+- `infra/uuid/index.ts`
+- `infra/zod/index.ts`
+
+若新增或刪除 `infra/*` 子套件，需同步更新 `packages/index.ts` 的具名匯出。
+
 ## Route Elsewhere
 
 | 類型 | 正確位置 |
