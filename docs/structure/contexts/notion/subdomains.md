@@ -6,10 +6,10 @@
 
 | Subdomain | Responsibility |
 |---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
+| knowledge | 頁面建立、組織、版本化與交付（實作層以 `page` + `block` 對應）|
+| authoring | 知識庫文章建立、驗證與分類（實作層整合至 `page` 子域）|
 | collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
+| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
 | knowledge-engagement | 知識使用行為量測 |
 | attachments | 附件與媒體關聯儲存 |
 | automation | 知識事件觸發自動化動作 |
@@ -17,20 +17,17 @@
 | notes | 個人輕量筆記與正式知識協作 |
 | templates | 頁面範本管理與套用 |
 | knowledge-versioning | 全域版本快照策略管理 |
+| taxonomy | 分類法與語義組織邊界 |
+| relations | 內容之間關聯與 backlink 邊界 |
+| publishing | 正式發布與對外交付邊界 |
+
+> **實作層命名備注：** `src/modules/notion/` 以 `page`、`block`、`database`、`view`、`collaboration`、`template` 作為子域目錄名稱。
+> `view` 子域承接 `database` 的多視圖能力；`block` 是 `page` 的內容區塊子結構。
+> `knowledge-database` 已正式重命名為 `database`；戰略文件中的舊名視為 deprecated。
 
 ## Recommended Gap Subdomains
 
-| Subdomain | Why Needed |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-## Recommended Order
-
-1. taxonomy
-2. relations
-3. publishing
+無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
 
 ## Anti-Patterns
 
