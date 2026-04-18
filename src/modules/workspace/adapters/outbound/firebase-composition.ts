@@ -217,7 +217,7 @@ export function createClientIssueUseCases() {
     transitionIssueStatus: new TransitionIssueStatusUseCase(issueRepo),
     resolveIssue: new ResolveIssueUseCase(issueRepo),
     listIssuesByTask: (taskId: string) => issueRepo.findByTaskId(taskId),
-    listIssuesByWorkspace: (_workspaceId: string) => issueRepo.findByTaskId(""), // workspace-level query via tasks
+    listIssuesByWorkspace: (workspaceId: string) => issueRepo.findByWorkspaceId(workspaceId),
   };
 }
 

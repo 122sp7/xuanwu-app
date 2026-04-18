@@ -6,6 +6,7 @@ import { createClientIssueUseCases } from "../../outbound/firebase-composition";
 import type { IssueSnapshot } from "../../../subdomains/issue/domain/entities/Issue";
 
 const OpenIssueSchema = z.object({
+  workspaceId: z.string().min(1),
   taskId: z.string().min(1),
   stage: z.enum(["task", "qa", "acceptance"]),
   title: z.string().min(1).max(200),
