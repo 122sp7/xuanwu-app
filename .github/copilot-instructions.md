@@ -4,9 +4,10 @@ description: Xuanwu Copilot Workspace Instructions
 name: Xuanwu Copilot Workspace Instructions
 ---
 
-#use skill xuanwu-skill
 #use skill serena-mcp
+#use skill repomix
 #use skill context7
+#use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-app-markdown-skill
 #use skill occams-razor
@@ -18,7 +19,18 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 ## Session Contract
 
-- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
+### Mandatory Skills (Load Every Session, No Exceptions)
+
+These three skills **must be loaded at the start of every conversation** before any other action:
+
+| Order | Skill | Purpose |
+|---|---|---|
+| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
+| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
+| 3 | `context7` | Library/framework API verification gate |
+
+- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
+- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
 - If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
 - Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
 - Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
