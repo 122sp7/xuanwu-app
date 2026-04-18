@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .github/copilot-instructions.md, .github/agents/**, .github/instructions/**/*.md, .github/prompts/**, docs/**, src/app/**, src/modules/ai/**, src/modules/analytics/**, src/modules/billing/**, src/modules/notebooklm/**, src/modules/notion/**, src/modules/platform/**, src/modules/shared/**, src/modules/template/**, src/modules/workspace/**, src/modules/iam/index.ts, packages/**, py_fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, firestore.rules, llms.txt, next.config.ts, package.json, postcss.config.mjs, storage.rules, tailwind.config.ts, tsconfig.json, vitest.config.ts, repomix*.config.json
+- Only files matching these patterns are included: .github/copilot-instructions.md, docs/**, src/app/**, src/modules/ai/**, src/modules/analytics/**, src/modules/billing/**, src/modules/notebooklm/**, src/modules/notion/**, src/modules/platform/**, src/modules/shared/**, src/modules/template/**, src/modules/workspace/**, src/modules/iam/index.ts, packages/**, py_fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, llms.txt, next.config.ts, package.json, postcss.config.mjs, tailwind.config.ts, tsconfig.json
 - Files matching these patterns are excluded: *.md, .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1202 files | 31,987 lines
+1115 files | 28,630 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 736 | 9,779 |
-| Markdown | 218 | 15,537 |
-| TypeScript (TSX) | 106 | 2,847 |
+| TypeScript | 735 | 10,026 |
+| Markdown | 146 | 13,270 |
+| TypeScript (TSX) | 107 | 2,857 |
 | Python | 63 | 1,459 |
 | No Extension | 50 | 55 |
-| JSON | 19 | 2,045 |
+| JSON | 6 | 716 |
 | Text | 3 | 107 |
 | JavaScript (ESM) | 2 | 10 |
-| RULES | 2 | 18 |
-| PROMPT | 1 | 19 |
-| Other | 2 | 111 |
+| YAML | 1 | 64 |
+| CSS | 1 | 47 |
+| Other | 1 | 19 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
@@ -68,4 +68,4 @@ This skill contains the following reference files:
 - `py_fn/README.md` (265 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
-- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
+- `docs/decisions/architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md` (221 lines)

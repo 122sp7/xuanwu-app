@@ -36,9 +36,6 @@
   },
   "include": [
     ".github/copilot-instructions.md",
-    ".github/agents/**",
-    ".github/instructions/**/*.md",
-    ".github/prompts/**",
     "docs/**",
     "src/app/**",
     "src/modules/ai/**",
@@ -61,16 +58,12 @@
     "firebase.apphosting.json",
     "firebase.json",
     "firestore.indexes.json",
-    "firestore.rules",
     "llms.txt",
     "next.config.ts",
     "package.json",
     "postcss.config.mjs",
-    "storage.rules",
     "tailwind.config.ts",
-    "tsconfig.json",
-    "vitest.config.ts",
-    "repomix*.config.json"
+    "tsconfig.json"
   ],
   "ignore": {
     "useGitignore": true,
