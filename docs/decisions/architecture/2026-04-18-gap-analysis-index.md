@@ -76,6 +76,19 @@ Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
 
 ---
 
+## Context7 驗證錨點
+
+> 矩陣中所有準則對應的修補指引，其函式庫 API 已透過 Context7 逐一查閱確認（confidence ≥ 99.99%）。
+
+| 函式庫 | Context7 ID | 在缺口修補中的用途 |
+|---|---|---|
+| Zod | `/colinhacks/zod` | Rule 4（Contract/Schema）：server action 邊界 `Schema.parse(rawInput)` 不穿透 `unknown`；Rule 5（Breaking Change）：`z.literal('v1')` schema 版本化；Rule 6 brand type：`z.string().uuid().brand(...)` 防 ID 混用 |
+| XState | `/statelyai/xstate` | Rule 7（State Model/FSM）：`setup({ guards: {...} }).createMachine(...)` 外置 guard 定義；Rule 10（Failure Strategy）：`type: 'final'` 的 `failed` state 防止 silent swallow；`retrying` state 含 `retryCount` assign |
+| Stately Docs | `/statelyai/docs` | 狀態命名規範（業務語意）：`idle / creating / succeeded / failed / retrying`；`invoke.src` actor + `onDone` / `onError` 映射 |
+| ESLint | `/eslint/eslint` | Rule 20（Lint/Policy as Code）：flat-config custom rules — `server-action-missing-auth`（GAP-05）、`no-stub-return-in-adapter`（GAP-03/04）、`no-empty-catch`（GAP-04） |
+
+---
+
 ## 相關文件
 
 - [歷史版本 overview（v1）](../2026-04-18-workspace-notion-notebooklm-gap-analysis.md)

@@ -216,3 +216,25 @@ export async function createTaskAction(rawInput: unknown): Promise<CommandResult
 6. 補 action-level audit log（Rule 15）。
 7. 補 unit tests（Rule 14）。
 8. 補 lint rule（Rule 20）。
+
+---
+
+## Context7 驗證錨點
+
+> 本節所有 API 建議均已透過 Context7 查閱官方文件確認（confidence ≥ 99.99%）。
+
+| 函式庫 | Context7 ID | 用途 |
+|---|---|---|
+| Zod | `/colinhacks/zod` | action schema 邊界 `parse()` + `actorId` 移除的 staged migration（先 optional，再移除）|
+| XState | `/statelyai/xstate` | auth gate 流程建模（可選）：`unauthenticated → authenticating → authorized / forbidden` FSM |
+| Stately Docs | `/statelyai/docs` | guard 設計：`can(actorId, 'task:create', workspaceId)` 作為顯式 guard condition |
+| ESLint | `/eslint/eslint` | flat-config custom rule：`src/modules/*/adapters/inbound/server-actions/**` 下 async function 必須含 auth helper 呼叫 |
+
+**Zod 關鍵模式（Context7 確認）**：
+- auth gate 在 schema parse 之後執行，不在 schema 內作 permission check（Rule 4, 11 職責分離）；
+- `actorId` staged removal：Phase 1 設為 `z.string().optional()`（保持 backward compat），Phase 2 完全移除，每個 Phase 為獨立 PR（Rule 5）；
+- server action 新版 schema：`ActorId` 由 `requireAuth()` 取得，不從 client input 取得（Rule 11）。
+
+**ESLint 關鍵模式（Context7 確認）**：
+- flat-config custom rule selector：`FunctionDeclaration[id.name=/Action$/]` 或 `ArrowFunctionExpression` 的 parent `VariableDeclarator[id.name=/Action$/]`，需在函式體中找到 `requireAuth` 呼叫；
+- 未找到時回報 `error: "server-action-missing-auth"` 阻塞 CI（Rule 20）。

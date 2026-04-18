@@ -202,3 +202,26 @@ Domain 層（`WorkDemand` / `AuditEntry` / `Invoice`）、application use cases 
 6. 接 saga wiring（Rule 8）。
 7. 補 unit tests（Rule 14）。
 8. 補 server action 入口結構化 log（Rule 15）。
+
+---
+
+## Context7 驗證錨點
+
+> 本節所有 API 建議均已透過 Context7 查閱官方文件確認（confidence ≥ 99.99%）。
+
+| 函式庫 | Context7 ID | 用途 |
+|---|---|---|
+| Zod | `/colinhacks/zod` | server action 邊界 `parse()` / `safeParse()` + Zod brand type 用於 `WorkDemandId` / `InvoiceId` |
+| XState | `/statelyai/xstate` | `setup().createMachine()` + `guard` 組合（`and` / `or` / `not`）用於 `InvoiceStatus` FSM 與 `TaskLifecycleSaga` 狀態 |
+| Stately Docs | `/statelyai/docs` | 狀態命名規範（業務語意：`idle → creating → succeeded / failed`，禁用 `loading / success`） |
+| ESLint | `/eslint/eslint` | flat-config custom rule：`src/modules/workspace/subdomains/*/adapters/inbound/server-actions/` 下的 action 函式必須包含 auth helper 呼叫 |
+
+**Zod 關鍵模式（Context7 確認）**：
+- server action 邊界使用 `Schema.parse(rawInput)` 不作 `unknown` 穿透；
+- `safeParse()` 用於需要自訂錯誤回應（不 throw）的場景（Rule 4）；
+- 品牌型別 `z.string().uuid().brand('WorkDemandId')` 用於防止 ID 混用（Rule 6）。
+
+**XState 關鍵模式（Context7 確認）**：
+- `setup({ guards: { canTransition: ... } }).createMachine(...)` — guard 在 setup 外置定義，機器宣告中只引用名稱（Rule 7）；
+- `retrying` 狀態以 `on: { RETRY: 'running' }` 顯式定義，不允許隱式重試（Rule 7）；
+- `entry: assign({ retryCount: ({ context }) => context.retryCount + 1 })` 於 `retrying` 狀態計數（Rule 10）。

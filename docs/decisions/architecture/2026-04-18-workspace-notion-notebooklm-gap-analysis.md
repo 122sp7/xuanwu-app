@@ -1,5 +1,18 @@
 # 2026-04-18 Workspace / Notion / NotebookLM 功能缺口與業務缺口盤點
 
+> ⚠️ **版本說明（v1，歷史版本）**
+>
+> 本文件為初版盤點（v1），**已被以下文件取代為詳細分析**：
+>
+> - [缺口分析索引 v2（20 準則完整矩陣）](./2026-04-18-gap-analysis-index.md) ← **主要入口**
+> - [GAP-01 詳細分析](./gaps/GAP-01-schedule-audit-settlement-ui-only.md)
+> - [GAP-02 詳細分析](./gaps/GAP-02-notion-templates-placeholder.md)
+> - [GAP-03 詳細分析](./gaps/GAP-03-notebooklm-task-materialization-stub.md)
+> - [GAP-04 詳細分析](./gaps/GAP-04-task-formation-extractor-weak-fallback.md)
+> - [GAP-05 詳細分析](./gaps/GAP-05-authorization-boundary-missing.md)
+>
+> v1 保留作歷史參考。若有出入，以上述詳細分析文件為準。
+
 ## 背景
 
 本文件以 `npm run repomix:skill` 掃描結果為起點，並交叉檢視目前 `workspace` / `notion` / `notebooklm` 的實作，整理「功能缺口 / 業務缺口」與可落地修補方向。
@@ -71,7 +84,7 @@
 - `src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx`
 - 三者皆為 UI empty state 與 disabled CTA，未觸發 application use cases。
 
-### 架構對齊（14 準則）
+### 架構對齊（20 準則）
 
 1. **Proper Domain Segmentation**：將 schedule/audit/settlement 視為各自子域能力，不再由 UI 直出假資料。
 2. **Complete Aggregate Design**：補齊 `WorkDemand` / `AuditEntry` / `Invoice` 聚合不變條件與命令入口。
@@ -87,6 +100,12 @@
 12. **Design Activation Rules**：僅在流程複雜時啟用 FSM/事件化；簡單查詢不過度設計。
 13. **Single Responsibility / No Redundancy**：避免在三個頁籤重複資料模型與狀態判斷。
 14. **Minimum Necessary Design / YAGNI**：先交付最小可用 CRUD + 狀態遷移，不先做推測性擴充。
+15. **AI Operational Scope**：修補作業限定為「補 server actions + Saga wiring」，不新建模組或修改跨域介面定義。
+16. **Ubiquitous Language Governance**：`WorkDemand` / `AuditEntry` / `Invoice` 術語已定義；命名不得自行引入 `Milestone` / `Log` / `Bill` 等同義詞替換。
+17. **Breaking Change Policy**：server actions 公開後 input schema 需版本化（`v1`）；破壞性欄位移除需 staged migration，不可直接覆寫。
+18. **Event Ordering / Causality Model**：domain events 需含 `eventId` 作冪等鍵；Saga handler 以 `eventId` 去重，避免相同事件重複觸發狀態轉換。
+19. **Dependency Rule Enforcement**：`TaskLifecycleSaga` 不得深入 `subdomains/issue/domain/events/`，只能透過 `workspace/index.ts` 公開事件型別。
+20. **ADR / Design Rationale**：Saga wiring 方式（Firestore trigger vs. in-process hook）需 ADR 選定後方可實作；不得擅自選定。
 
 ---
 
@@ -99,7 +118,7 @@
 - `src/modules/notion/subdomains/view/*`、`collaboration/*`、`block/*` 多處 placeholder index 檔
 - `src/modules/notion/adapters/outbound/notion-page-stub.ts`（`not yet implemented`）
 
-### 架構對齊（14 準則）
+### 架構對齊（20 準則）
 
 1. **Proper Domain Segmentation**：明確切開 page/block/database/view/template/collaboration 的責任邊界。
 2. **Complete Aggregate Design**：每個子域至少有可操作聚合根，不以裸資料結構替代。
@@ -115,6 +134,12 @@
 12. **Design Activation Rules**：view/collaboration 僅在有確定業務需求時擴張到完整子域。
 13. **Single Responsibility / No Redundancy**：避免 page/database/template 重複持有相同建模責任。
 14. **Minimum Necessary Design / YAGNI**：先補齊 templates 主鏈路，再逐步擴到 collaboration/view 深水區。
+15. **AI Operational Scope**：每次 PR 只針對一個子域的 stub 填充，不批次修改多個子域邊界。
+16. **Ubiquitous Language Governance**：`scope` 枚舉值需依 glossary 定義為 `WorkspaceScope / OrganizationScope / GlobalScope`；術語未入 glossary 前不得自行命名。
+17. **Breaking Change Policy**：`Template.content` 欄位結構一旦公開需版本化（`contentV1`），不可直接覆寫修改。
+18. **Event Ordering / Causality Model**：補 `template.created / published / applied` domain events，含 `eventId + occurredAt`；消費端以 `eventId` 去重。
+19. **Dependency Rule Enforcement**：template / page / block 子域間不直接 import，跨子域呼叫只能透過 `notion/index.ts`。
+20. **ADR / Design Rationale**：`Template.content` 儲存格式（JSON string vs. block array schema）需 ADR 選定後實作。
 
 ---
 
@@ -125,7 +150,7 @@
 - `src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts`
 - 目前 `materializeTasks()` 回傳固定 `{ ok: true, taskCount }`，尚未真正呼叫 workspace 公開邊界。
 
-### 架構對齊（14 準則）
+### 架構對齊（20 準則）
 
 1. **Proper Domain Segmentation**：notebooklm 只負責候選與語意；task 建立由 workspace 擁有。
 2. **Complete Aggregate Design**：task 建立/關聯來源需由 workspace aggregate enforce invariant。
@@ -141,6 +166,12 @@
 12. **Design Activation Rules**：先做同步 handoff；高量或跨服務再升級事件驅動。
 13. **Single Responsibility / No Redundancy**：候選語意與任務聚合不重複建模。
 14. **Minimum Necessary Design / YAGNI**：先完成單一路徑 materialize，再擴充批次策略。
+15. **AI Operational Scope**：修補範圍只修改 adapter 實作，不修改 `TaskMaterializationWorkflowPort` 介面（需修改時獨立 PR）。
+16. **Ubiquitous Language Governance**：`TaskCandidateToken` 作為 published language token 需在 glossary 定義；`toCreateTaskInput()` mapper 命名需沿用術語。
+17. **Breaking Change Policy**：`MaterializeTasksInput` schema 欄位新增或移除為破壞性變更，需版本化審查。
+18. **Event Ordering / Causality Model**：補 `idempotencyKey`（`${notebookId}:${sourceDocumentId}:${version}`）；workspace 建立 task 前查詢 idempotency key 是否已存在。
+19. **Dependency Rule Enforcement**：adapter 只能 import `workspace/index.ts` 公開的 API 或 server actions，不得 import workspace 子域內部路徑。
+20. **ADR / Design Rationale**：handoff 方式（同步 server action call vs. 非同步 event + saga）需 ADR 選定後實作。
 
 ---
 
@@ -151,7 +182,7 @@
 - `src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts`
 - callable 失敗時固定回傳「待部署」假候選，缺少失敗分類、重試決策與追蹤資訊。
 
-### 架構對齊（14 準則）
+### 架構對齊（20 準則）
 
 1. **Proper Domain Segmentation**：抽取器屬於 task-formation outbound port，不滲透到 domain。
 2. **Complete Aggregate Design**：`TaskFormationJob` 需完整記錄失敗原因與重試次數。
@@ -167,6 +198,12 @@
 12. **Design Activation Rules**：未部署階段可保留 fallback，但需受 feature flag 控制。
 13. **Single Responsibility / No Redundancy**：UI 不自行判斷 callable 細節，集中在 adapter。
 14. **Minimum Necessary Design / YAGNI**：先補錯誤可見性與重試，再引入更重流程編排。
+15. **AI Operational Scope**：修補範圍鎖定 adapter 實作，不修改 `TaskCandidateExtractorPort` 介面本身。
+16. **Ubiquitous Language Governance**：`TaskCandidate` value object 欄位（`confidence / source`）需與 glossary 術語對齊；不得自行引入 `score / origin` 等替換詞。
+17. **Breaking Change Policy**：callable 協議需含 `version` 欄位版本化；舊版本在客戶端遷移前需保持可用，不可直接覆寫。
+18. **Event Ordering / Causality Model**：callable 失敗必須觸發 `job.failed` domain event（非 `job.completed`），含 `errorCode`；消費端以 `correlationId` 去重。
+19. **Dependency Rule Enforcement**：`FirebaseCallableTaskCandidateExtractor` 只引用 port interface，不新增 domain 層直接依賴。
+20. **ADR / Design Rationale**：過渡期策略（feature flag vs. callable stub）需 ADR 選定後記錄，不繼續使用假資料 catch 作為長期方案。
 
 ---
 
@@ -177,7 +214,7 @@
 - `src/modules/notion/adapters/inbound/server-actions/template-actions.ts`
 - 目前僅驗證 `workspaceId/accountId/scope/category` 格式，未見 actor/session 驗證與 permission gate。
 
-### 架構對齊（14 準則）
+### 架構對齊（20 準則）
 
 1. **Proper Domain Segmentation**：授權決策歸屬 iam/platform permission API，不內嵌在 UI。
 2. **Complete Aggregate Design**：受保護操作應由聚合命令方法 + actor context 驅動。
@@ -193,6 +230,12 @@
 12. **Design Activation Rules**：先套用高風險寫操作，再擴至查詢與衍生能力。
 13. **Single Responsibility / No Redundancy**：授權邏輯集中於平台服務，不在各 action 重複實作。
 14. **Minimum Necessary Design / YAGNI**：先實作必要最小權限矩陣，不提前抽象過度 ACL。
+15. **AI Operational Scope**：修補範圍限定「為現有 server actions 加入 auth + permission gate」，不修改 use case 或 domain 層業務邏輯。
+16. **Ubiquitous Language Governance**：操作者欄位統一改為 `actorId`（禁用 `createdBy / requesterId`）；更新相關 schema 的 glossary 定義。
+17. **Breaking Change Policy**：schema 中移除 `actorId` 輸入欄位為破壞性變更，需 staged migration — Phase 1 設為 optional，Phase 2 移除；不可直接覆寫。
+18. **Event Ordering / Causality Model**：所有寫操作 domain events 的 payload 加入 `actorId`（從 session 取得），不從 client input 信任取得。
+19. **Dependency Rule Enforcement**：auth 能力必須透過 `@/modules/platform` 提供的 API 抽象，不在 action 層直接 import Firebase Auth SDK。
+20. **ADR / Design Rationale**：auth gate 實作模式（每個 action 顯式呼叫 vs. HOF wrapper）需 ADR 選定後統一套用。
 
 ---
 
