@@ -44,13 +44,13 @@
 
 ## 缺口總覽
 
-| Gap ID | 類型 | 描述 |
-|---|---|---|
-| GAP-01 | 功能缺口 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` 仍為 UI empty-state，未接 use case 與 repository |
-| GAP-02 | 業務缺口 | `notion.templates` 與 notion 子域（template/view/collaboration 等）仍大量 placeholder/stub，缺少可執行業務能力 |
-| GAP-03 | 業務缺口 | `notebooklm` 到 `workspace` 的任務實體化僅 stub，跨邊界交易未真正落地 |
-| GAP-04 | 功能缺口 | `workspace.task-formation` 的 AI extractor 依賴未部署 callable，現行使用 fallback stub，失敗策略與可觀測性不足 |
-| GAP-05 | 業務缺口 | 目前部分 Action 僅做輸入驗證，缺少顯式授權與 actor scope 驗證鏈路 |
+| Gap ID | 類型 | 優先級 | 描述 |
+|---|---|---|---|
+| GAP-01 | 功能缺口 | P0 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` 仍為 UI empty-state，未接 use case 與 repository |
+| GAP-02 | 業務缺口 | P2 | `notion.templates` 與 notion 子域（template/view/collaboration 等）仍大量 placeholder/stub，缺少可執行業務能力 |
+| GAP-03 | 業務缺口 | P0 | `notebooklm` 到 `workspace` 的任務實體化僅 stub，跨邊界交易未真正落地 |
+| GAP-04 | 功能缺口 | P1 | `workspace.task-formation` 的 AI extractor 依賴未部署 callable，現行使用 fallback stub，失敗策略與可觀測性不足 |
+| GAP-05 | 業務缺口 | P0 | 目前部分 Action 僅做輸入驗證，缺少顯式授權與 actor scope 驗證鏈路 |
 
 ---
 
