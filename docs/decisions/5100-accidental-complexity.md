@@ -1,8 +1,10 @@
 # 5100 Accidental Complexity
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-13
 - Category: Complexity Smells > Accidental Complexity
+
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。workspace/api 相關問題已徝 ADR 0015 採用 api/ 移除方案。
 
 ## Context
 

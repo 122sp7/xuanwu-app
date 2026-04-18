@@ -54,7 +54,7 @@ handoffs:
 
 ### Module Shape（模組形狀）
 - [ ] Bounded context root 包含 `index.ts`, `domain/`, `application/`, `infrastructure/`, `interfaces/`？
-- [ ] Subdomain 採 core-first 形狀（`api/`, `domain/`, `application/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
+- [ ] Subdomain 採 core-first 形狀（`domain/`, `application/`, optional `ports/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
 
 ### Layer Coupling Smells（層耦合怪味道）
 - [ ] 無 God Use Case（包含 business rule 與 infrastructure logic 混合）？

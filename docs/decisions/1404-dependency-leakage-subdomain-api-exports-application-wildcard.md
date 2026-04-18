@@ -1,9 +1,11 @@
 # 1404 Dependency Leakage — 11 個 subdomain `api/index.ts` 使用 `export * from "../application"` 洩漏 use-case classes
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-14
 - Category: Architectural Smells > Dependency Leakage
 - Extends: ADR 1403 (subdomain api exports interfaces wildcard)
+
+> **路徑說明**：此 ADR 中的 `api/index.ts` 路徑使用舊版 `module/api/` 結構。ADR 0015 已整體移除 `api/` 層；本 ADR 描述的違規路徑不再存在。
 
 ## Context
 

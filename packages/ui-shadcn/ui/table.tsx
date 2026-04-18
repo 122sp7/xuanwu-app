@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (

@@ -12,13 +12,50 @@
 | [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
 | [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
 | [0006-domain-event-discriminant-format.md](./0006-domain-event-discriminant-format.md) | Domain Event Discriminant Format | Accepted | 83 snake_case + 4 missing prefix + 25 wrong module prefix violations |
-| [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md) | Infrastructure Wiring in api/ Layer | Accepted | workspace & platform api/ 層直接實例化 Firebase 適配器（10 檔、28 處）|
+| [0007-infrastructure-in-api-layer.md](./0007-infrastructure-in-api-layer.md) | Infrastructure Wiring in api/ Layer | ~~Accepted~~ → **Superseded by [0015](./0015-api-layer-removal.md)** | workspace & platform api/ 層直接實例化 Firebase 適配器（10 檔、28 處）— api/ 層已移除 |
 | [0008-repository-interface-placement.md](./0008-repository-interface-placement.md) | Repository Interface Placement | Accepted | domain/repositories/ vs domain/ports/ 混用（23+24 個子域）|
 | [0009-anemic-aggregates.md](./0009-anemic-aggregates.md) | Anemic Aggregates | Accepted | 11 個 domain/aggregates/ 文件只含 interface/type，無 class 與業務行為 |
 | [0010-aggregate-domain-event-emission.md](./0010-aggregate-domain-event-emission.md) | Aggregate Domain Event Emission | Accepted | 2 個 class 聚合根缺少 pullDomainEvents；Workspace 事件在 use-case 中手動組裝 |
 | [0011-use-case-bundling.md](./0011-use-case-bundling.md) | Use Case Bundling and Query-Command Mixing | Accepted | 30 個多類別 use-case 捆綁文件；8 處命令文件 re-export 查詢類別 |
 | [0012-source-to-task-orchestration.md](./0012-source-to-task-orchestration.md) | Source-To-Task Orchestration | Accepted | upload → parse → Knowledge Page → task 的跨 context 邊界與 orchestration 決策 |
 | [0014-main-domain-resplit.md](./0014-main-domain-resplit.md) | Main Domain Resplit | Accepted | 八主域重切與 ownership baseline 更新 |
+| [0015-api-layer-removal.md](./0015-api-layer-removal.md) | Module `api/` Layer Removal | Accepted | `api/` 層移除；`index.ts` 為唯一公開邊界 |
+
+## Migration Gap Registry (6100–6121)
+
+`modules/` → `src/modules/` 蒸餾過程中，以 `xuanwu-app-skill`（舊）對比 `xuanwu-skill`（新）後發現的缺口與新增項目。
+完整索引與損失統計見 [6100-migration-gap-registry.md](./6100-migration-gap-registry.md)。
+
+### LOST — 舊有但新技能缺失
+
+| ADR | 缺口描述 | Status |
+|---|---|---|
+| [6101](./6101-lost-notebooklm-source-subdomain.md) | notebooklm `source` 子域：10 use cases、8 ports、6 DTOs | Pending |
+| [6102](./6102-lost-notebooklm-synthesis-subdomain.md) | notebooklm `synthesis` 子域：RAG domain、VectorStore port、CitationBuilder | Pending |
+| [6103](./6103-lost-notebooklm-interfaces-layer.md) | notebooklm interfaces 層：ConversationPanel、Server Actions、hooks | Pending |
+| [6104](./6104-lost-notion-authoring-subdomain.md) | notion `authoring` 子域：Article/Category aggregates + events + repos + UI | Pending |
+| [6105](./6105-lost-notion-knowledge-database-subdomain.md) | notion `knowledge-database` 子域：Database/View/Automation + UI panels | Pending |
+| [6106](./6106-lost-notion-knowledge-subdomain.md) | notion `knowledge` 子域：KnowledgePage aggregate + BlockEditorPanel + Zustand store | Pending |
+| [6107](./6107-lost-platform-domain-model.md) | platform domain model：4 aggregates、20+ ports、25+ value objects、9 services | Pending |
+| [6108](./6108-lost-platform-api-contracts.md) | platform API contracts：contracts.ts (218 lines)、infrastructure-api.ts、service-api.ts | Pending |
+| [6109](./6109-lost-workspace-interfaces-layer.md) | workspace interfaces 層：screens、tabs、dialogs、facades、hooks | Pending |
+| [6110](./6110-lost-ai-prompt-pipeline-subdomain.md) | ai `prompt-pipeline` 子域：PromptTemplate domain (224 lines) + pipeline use cases | Pending |
+| [6111](./6111-lost-ai-missing-subdomains.md) | ai 5 個缺失子域：conversations、datasets、personas、safety-guardrail、model-observability | Pending |
+| [6112](./6112-lost-ai-governance-docs.md) | ai `subdomains.instructions.md`（313 lines governance spec）已刪除 | Pending |
+| [6113](./6113-lost-packages.md) | 消失 packages：ui-vis (205 lines)、shared-events (139 lines)、shared-types (107 lines) | Pending |
+| [6114](./6114-lost-docs-semantic-model.md) | docs/semantic-model.md（344 lines 跨域語意模型）已刪除 | Pending |
+| [6115](./6115-lost-docs-discussions.md) | docs/discussions/ 8 份架構設計討論文件（~1,300 lines）已刪除 | Pending |
+
+### GAINED — 新技能有但舊技能沒有
+
+| ADR | 新增描述 | Status |
+|---|---|---|
+| [6116](./6116-gained-shell-ui-components.md) | Shell UI 元件：ShellRootLayout、ShellAppRail、AccountSwitcher、ShellGuard 等 13 個 | Recorded |
+| [6117](./6117-gained-packages-ui-shadcn.md) | packages/ui-shadcn：70+ shadcn/ui 元件 | Recorded |
+| [6118](./6118-gained-modules-template.md) | src/modules/template：新模組骨架模板 + AGENT.md 格式 | Recorded |
+| [6119](./6119-gained-workspace-new-subdomains.md) | workspace 新子域骨架：activity、api-key、invitation、resource、schedule | Recorded |
+| [6120](./6120-gained-platform-new-subdomains.md) | platform 新子域骨架：cache、file-storage | Recorded |
+| [6121](./6121-gained-ai-restructured-subdomains.md) | ai 重組後 10 個子域：chunk、citation、context、embedding、evaluation、generation、memory、pipeline、retrieval、tool-calling | Recorded |
 
 ## Design Smell Taxonomy (1000–5200)
 
@@ -26,20 +63,21 @@
 
 | ID | Title | Category | Status |
 |----|-------|----------|--------|
-| [1100](./1100-layer-violation.md) | Layer Violation | Architectural | Accepted |
+| [1100](./1100-layer-violation.md) | Layer Violation | Architectural | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [1200](./1200-boundary-violation.md) | Boundary Violation | Architectural | Accepted |
-| [1300](./1300-cyclic-dependency.md) | Cyclic Dependency | Architectural | Accepted |
-| [1400](./1400-dependency-leakage.md) | Dependency Leakage | Architectural | Accepted |
-| [2100](./2100-tight-coupling.md) | Tight Coupling | Coupling | Accepted |
+| [1300](./1300-cyclic-dependency.md) | Cyclic Dependency | Architectural | Partial |
+| [1400](./1400-dependency-leakage.md) | Dependency Leakage | Architectural | **Superseded by [0015](./0015-api-layer-removal.md)** |
+| [2100](./2100-tight-coupling.md) | Tight Coupling | Coupling | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [2200](./2200-hidden-coupling.md) | Hidden Coupling | Coupling | Accepted |
 | [2300](./2300-temporal-coupling.md) | Temporal Coupling | Coupling | Accepted |
-| [3100](./3100-low-cohesion.md) | Low Cohesion | Modularity | Accepted |
+| [3100](./3100-low-cohesion.md) | Low Cohesion | Modularity | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [3200](./3200-duplication.md) | Duplication | Modularity | Accepted |
-| [4100](./4100-change-amplification.md) | Change Amplification | Maintainability | Accepted |
+| [4100](./4100-change-amplification.md) | Change Amplification | Maintainability | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [4200](./4200-inconsistency.md) | Inconsistency | Maintainability | Accepted |
 | [4300](./4300-semantic-drift.md) | Semantic Drift | Maintainability | Accepted |
-| [5100](./5100-accidental-complexity.md) | Accidental Complexity | Complexity | Accepted |
+| [5100](./5100-accidental-complexity.md) | Accidental Complexity | Complexity | **Superseded by [0015](./0015-api-layer-removal.md)** |
 | [5200](./5200-cognitive-load.md) | Cognitive Load | Complexity | Accepted |
+| [5203](./5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md) | Cognitive Load — Subdomain api/ Wildcard Exports | Complexity | **Superseded by [0015](./0015-api-layer-removal.md)** |
 
 ## How To Use This Directory
 
@@ -55,8 +93,8 @@
 | Smell ADR | Lint Signal | Enforcement Target |
 |---|---|---|
 | 1300 Cyclic Dependency | `no-restricted-syntax` 禁止 `require()` | `modules/**/*.{ts,tsx,js,jsx}` |
-| 1400 Dependency Leakage | `no-restricted-syntax` 禁止 `api/index.ts` wildcard re-export `../application` / `../interfaces` | `modules/**/api/**/*.ts` |
-| 3100 Low Cohesion | `max-lines` 預警 API surface 過胖 | `modules/*/api/**/*.{ts,tsx,js,jsx}` |
+| 1400 Dependency Leakage | `no-restricted-syntax` 禁止 `api/index.ts` wildcard re-export `../application` / `../interfaces` | ~~`modules/**/api/**/*.ts`~~ — api/ 已移除，見 ADR 0015 |
+| 3100 Low Cohesion | `max-lines` 預警 API surface 過胖 | ~~`modules/*/api/**/*.{ts,tsx,js,jsx}`~~ — api/ 已移除，見 ADR 0015 |
 | 5200 Cognitive Load | `max-lines` 預警 fat screen | `modules/*/**/interfaces/**/components/screens/**/*.{ts,tsx}` |
 
 - 若 lint warning 指向上述 smell，先回到對應 smell ADR 看 decision 與 conflict resolution，再決定是拆分、降 surface、還是保留臨時例外。
@@ -70,25 +108,26 @@
 - 0004 禁止語言污染與同詞多義。
 - 0005 禁止錯置 ACL / Conformist 的責任位置。
 - 0006 禁止 domain event discriminant 使用 snake_case、缺少主域前綴、或使用縮寫模組名稱。
-- 0007 禁止在 api/ 層持有 infrastructure singleton 或 Firebase 適配器實例化。
+- 0007 禁止在 api/ 層持有 infrastructure singleton 或 Firebase 適配器實例化。**（已由 0015 取代：api/ 層整體移除）**
 - 0008 禁止在 api/ 或 application/ 定義 inline port interface；repository 與 non-repository port 應分別放入 domain/repositories/ 與 domain/ports/。
 - 0009 禁止在 domain/aggregates/ 放只含 interface/type 的文件；aggregates/ 只放 class，純資料快照移至 entities/ 或與 class 共置。
 - 0010 禁止在 use-case 中手動組裝 aggregate 領域事件；聚合根必須實作 _domainEvents 陣列與 pullDomainEvents()，use-case 只在持久化後提取。
 - 0011 禁止在一個 use-case 文件中捆綁多個 class；禁止命令 use-case 文件 re-export 查詢類別（GetXxx/ListXxx 屬 application/queries/）。
-- 1100 禁止 interfaces/ 下建立 api/ 子目錄；api/ 層禁止直接 import Firebase SDK（應透過 @integration-firebase adapter）。
-- 1200 禁止 api/ 邊界暴露 UI 元件或 React hooks；跨模組能力合約只含 use-case、service interface、DTO types。
+- 1100 禁止 interfaces/ 下建立 api/ 子目錄；api/ 層禁止直接 import Firebase SDK（應透過 @integration-firebase adapter）。**（api/ 子目錄禁止部分已由 0015 取代；Firebase SDK 限制仍有效）**
+- 1200 禁止 api/ 邊界暴露 UI 元件或 React hooks；跨模組能力合約只含 use-case、service interface、DTO types。**（已由 0015 取代：api/ 層整體移除）**
 - 1300 禁止主域間直接循環依賴；intra-subdomain 循環必須透過 Port + DI 解決，`require()` 延遲載入只作臨時補丁並標注 TODO。
-- 1400 禁止 `export * from "../application"` 或 `export * from "../interfaces"` 在 api/index.ts 中使用；只精確 export 公開能力合約符號。
-- 2100 禁止消費者無差別 import `platform/api` 整體；應從精確子域路徑或分離的 api/ui.ts 取用。
+- 1400 禁止 `export * from "../application"` 或 `export * from "../interfaces"` 在 api/index.ts 中使用；只精確 export 公開能力合約符號。**（已由 0015 取代：api/index.ts 不再存在）**
+- 2100 禁止消費者無差別 import `platform/api` 整體；應從精確子域路徑或分離的 api/ui.ts 取用。**（已由 0015 取代：改用 `@/modules/platform`）**
 - 2200 禁止在 application/ 層或 server action 文件中持有 module-level `let _xxx` singleton；singleton 只允許在 interfaces/composition/ 中。
 - 2300 禁止隱式初始化順序依賴；延遲初始化前提條件必須在型別（Promise、factory）中顯式表達。
-- 3100 禁止 api/index.ts 混合基礎設施 API、服務 API、UI 元件、hooks；各職責應分離至獨立文件。
+- 3100 禁止 api/index.ts 混合基礎設施 API、服務 API、UI 元件、hooks；各職責應分離至獨立文件。**（已由 0015 取代：api/index.ts 不再存在）**
 - 3200 禁止混用 dto/dtos 目錄命名；統一使用 dto（單數）；use-case 文件統一放入 use-cases/ 子目錄。
-- 4100 禁止 platform/api 作為單一 monolithic 依賴點；精確子域 import 降低變更放大範圍。
+- 4100 禁止 platform/api 作為單一 monolithic 依賴點；精確子域 import 降低變更放大範圍。**（已由 0015 取代：以 `@/modules/platform` 精確 import 取代）**
 - 4200 禁止不一致的目錄命名（dto/dtos）和 queries/ 歸屬；統一規則記錄於模組 instructions 中。
-- 4300 禁止 interfaces/ 內嵌 api/ 子目錄；禁止 application/ 持有 event-mappers/（屬 infrastructure）；handlers/ 必須有明確語意名稱。
-- 5100 禁止在 api/ 層製造超過必要數量的文件；workspace/api contracts.ts 與 facade.ts 應合併；infrastructure-api.ts 長期移至 infrastructure/。
-- 5200 路徑深度上限 10 層；platform/application/ 子目錄控制在 4 個以內；platform/api/ 文件精簡至 3 個。
+- 4300 禁止 interfaces/ 內嵌 api/ 子目錄；禁止 application/ 持有 event-mappers/（屬 infrastructure）；handlers/ 必須有明確語意名稱。**（api/ 子目錄部分已由 0015 取代）**
+- 5100 禁止在 api/ 層製造超過必要數量的文件；workspace/api contracts.ts 與 facade.ts 應合併；infrastructure-api.ts 長期移至 infrastructure/。**（已由 0015 取代：api/ 層整體移除）**
+- 5200 路徑深度上限 10 層；platform/application/ 子目錄控制在 4 個以內。
+- 0015 `api/` 層已移除；跨模組 import 一律使用 `@/modules/<target>`（不再加 `/api`）；ESLint glob `modules/**/api/**` 已应更新或移除。
 
 ## Copilot Generation Rules
 
@@ -143,6 +182,28 @@ flowchart LR
 - [4300-semantic-drift.md](./4300-semantic-drift.md)
 - [5100-accidental-complexity.md](./5100-accidental-complexity.md)
 - [5200-cognitive-load.md](./5200-cognitive-load.md)
+- [6100-migration-gap-registry.md](./6100-migration-gap-registry.md) ← Migration Gap Registry Index
+- [6101-lost-notebooklm-source-subdomain.md](./6101-lost-notebooklm-source-subdomain.md)
+- [6102-lost-notebooklm-synthesis-subdomain.md](./6102-lost-notebooklm-synthesis-subdomain.md)
+- [6103-lost-notebooklm-interfaces-layer.md](./6103-lost-notebooklm-interfaces-layer.md)
+- [6104-lost-notion-authoring-subdomain.md](./6104-lost-notion-authoring-subdomain.md)
+- [6105-lost-notion-knowledge-database-subdomain.md](./6105-lost-notion-knowledge-database-subdomain.md)
+- [6106-lost-notion-knowledge-subdomain.md](./6106-lost-notion-knowledge-subdomain.md)
+- [6107-lost-platform-domain-model.md](./6107-lost-platform-domain-model.md)
+- [6108-lost-platform-api-contracts.md](./6108-lost-platform-api-contracts.md)
+- [6109-lost-workspace-interfaces-layer.md](./6109-lost-workspace-interfaces-layer.md)
+- [6110-lost-ai-prompt-pipeline-subdomain.md](./6110-lost-ai-prompt-pipeline-subdomain.md)
+- [6111-lost-ai-missing-subdomains.md](./6111-lost-ai-missing-subdomains.md)
+- [6112-lost-ai-governance-docs.md](./6112-lost-ai-governance-docs.md)
+- [6113-lost-packages.md](./6113-lost-packages.md)
+- [6114-lost-docs-semantic-model.md](./6114-lost-docs-semantic-model.md)
+- [6115-lost-docs-discussions.md](./6115-lost-docs-discussions.md)
+- [6116-gained-shell-ui-components.md](./6116-gained-shell-ui-components.md)
+- [6117-gained-packages-ui-shadcn.md](./6117-gained-packages-ui-shadcn.md)
+- [6118-gained-modules-template.md](./6118-gained-modules-template.md)
+- [6119-gained-workspace-new-subdomains.md](./6119-gained-workspace-new-subdomains.md)
+- [6120-gained-platform-new-subdomains.md](./6120-gained-platform-new-subdomains.md)
+- [6121-gained-ai-restructured-subdomains.md](./6121-gained-ai-restructured-subdomains.md)
 - [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
 - [../project-delivery-milestones.md](../project-delivery-milestones.md)
 - [../README.md](../README.md)

@@ -2,7 +2,7 @@
 
 import * as ResizablePrimitive from "react-resizable-panels"
 
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 
 function ResizablePanelGroup({
   className,

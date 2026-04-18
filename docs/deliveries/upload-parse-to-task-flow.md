@@ -35,9 +35,9 @@ flowchart LR
 | Parse | `notebooklm.source.application` + pipeline port | 呼叫解析流程並等待結果 | parsed JSON + page count |
 | RAG | `notebooklm.source.application` | 選擇性建立索引 | chunks / vectors |
 | Draft page | `notion.knowledge` | 建立正典 Knowledge Page 草稿 | `pageId` |
-| Candidate extraction | `workspace-workflow` public API | 從 parsed blocks 抽取候選任務 | extracted tasks |
+| Candidate extraction | `workspace.task-formation` public API | 從 parsed blocks 抽取候選任務 | extracted tasks |
 | Approval / publish | `notion` + `platform` event infra | 透過公開能力與事件 transport 交接 | approved page event |
-| Materialization | `workspace-workflow` listener | 將 extracted tasks 落地為 workspace tasks | workflow tasks |
+| Materialization | `workspace.task-formation` listener | 將 extracted tasks 落地為 workspace tasks | workflow tasks |
 
 ## Compliance Rules Applied
 
@@ -48,7 +48,7 @@ flowchart LR
 3. **Notion remains canonical content owner**
    - 任務流程先經過 Knowledge Page，不跳過正典內容邊界。
 4. **Workspace owns task materialization**
-   - 真正的 task 落地仍由 workspace-workflow 處理。
+   - 真正的 task 落地由 workspace.task-formation 處理。
 5. **Cross-context collaboration uses public API or events only**
    - 不直接 import 他域的 `domain/` 或 `application/` internals。
 

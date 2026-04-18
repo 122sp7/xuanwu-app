@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 
-import { cn } from "@shared-utils"
+import { cn } from "@/packages/ui-shadcn"
 import { Button } from "@/packages/ui-shadcn/ui/button"
 import {
   InputGroup,

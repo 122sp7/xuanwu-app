@@ -39,7 +39,7 @@ RootLayout (layout.tsx)           ← html / body / global metadata
 ## 設計原則
 
 - `app/` 只做路由組合（Route Composition）與 Layout 組裝，不寫業務規則。
-- 業務邏輯統一來自 `src/modules/<context>/` 或 `modules/<context>/api/`。
+- 業務邏輯統一來自 `src/modules/<context>/`（模組 `index.ts` 公開入口）。
 - Server Action 呼叫来自 `modules/<context>/interfaces/_actions/`。
 - 不在 page / layout 內直接呼叫 Firestore、Firebase Auth SDK 或 domain repository。
 - 路由 props 只傳 scope identifier（`accountId`、`workspaceId`），不傳 upstream aggregate 物件。

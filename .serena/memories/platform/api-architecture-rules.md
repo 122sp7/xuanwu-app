@@ -32,11 +32,11 @@
 
 ## Governance Invariants
 
-1. platform is unique infra gateway
-2. notion/notebooklm: Infrastructure APIs for local persistence only
-3. workspace: NEVER direct Infrastructure API access
-4. cross-domain: ALL operations route through Platform Service APIs
-5. ubiquitous language: upstream-owned (Actor, Tenant, Entitlement, fileId)
+1. Each module owns its domain-local adapters (iam, billing, ai, platform, workspace, notion, notebooklm)
+2. notion/notebooklm: Use Infrastructure APIs for local persistence; use Platform Service APIs for cross-domain operations (file ownership, auth, permission)
+3. workspace: NEVER direct Infrastructure API access — always via Platform Service APIs
+4. cross-domain: ALL operations route through Platform Service APIs or published language
+5. ubiquitous language: upstream-owned (Actor, Tenant ← iam; Entitlement ← billing; fileId ← platform)
 
 ## Cockburn Principle
 

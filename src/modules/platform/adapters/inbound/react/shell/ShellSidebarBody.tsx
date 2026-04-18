@@ -110,7 +110,9 @@ export function DashboardSidebarBody({
   currentSearchWorkspaceId,
 }: ShellSidebarBodyProps) {
   const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
-  const _scopedWorkspacePathId = workspacePathId ?? currentSearchWorkspaceId ?? activeWorkspaceId;
+  const scopedWorkspaceId = workspacePathId ?? currentSearchWorkspaceId ?? activeWorkspaceId;
+  // Show the context section only when a workspace is actually in scope.
+  const showContextSection = Boolean(contextSection) && Boolean(scopedWorkspaceId);
 
   return (
     <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
@@ -128,6 +130,120 @@ export function DashboardSidebarBody({
           {!showAccountManagement && (
             <p className="px-2 py-4 text-[11px] text-muted-foreground">
               請切換到組織帳號以查看帳號選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "schedule" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="排程"
+              ariaLabel="排程導覽"
+              items={visibleAccountItems.filter((i) => i.id === "schedule" || i.id === "dispatcher")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看排程選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "daily" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="每日"
+              ariaLabel="每日導覽"
+              items={visibleAccountItems.filter((i) => i.id === "daily")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看每日選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "audit" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="稽核"
+              ariaLabel="稽核導覽"
+              items={visibleAccountItems.filter((i) => i.id === "audit")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看稽核選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "members" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="成員"
+              ariaLabel="成員導覽"
+              items={visibleOrganizationManagementItems.filter((i) => i.id === "members")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看成員選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "teams" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="團隊"
+              ariaLabel="團隊導覽"
+              items={visibleOrganizationManagementItems.filter((i) => i.id === "teams")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看團隊選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "permissions" && (
+        <div className="space-y-2">
+          {showAccountManagement && (
+            <ManagedNavGroup
+              title="權限"
+              ariaLabel="權限導覽"
+              items={visibleOrganizationManagementItems.filter((i) => i.id === "permissions")}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看權限選項。
             </p>
           )}
         </div>
@@ -183,10 +299,10 @@ export function DashboardSidebarBody({
         </div>
       )}
 
-      {contextSection && (
+      {showContextSection && (
         <ShellContextNavSection
-          title={contextSection.title}
-          items={contextSection.items}
+          title={contextSection!.title}
+          items={contextSection!.items}
           isActiveRoute={isActiveRoute}
           activeAccountId={activeAccountId}
           activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}

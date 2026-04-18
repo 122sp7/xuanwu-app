@@ -78,7 +78,9 @@ export interface AIAPI {
 
 ## API Call Rules
 
-| Caller | Firestore | Storage | Genkit | Auth | Permission | File | AI |
+> Columns refer to **platform-provided cross-domain service APIs**. `iam`, `billing`, `ai` are upstream service providers, not consumers of these APIs. Each module separately owns its own domain-local Firestore/infrastructure adapters (see Governance Rules).
+
+| Caller | Firestore (infra) | Storage (infra) | Genkit (infra) | Auth | Permission | File | AI |
 |--------|-----------|---------|--------|------|------------|------|-----|
 | workspace | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | notion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅* | ✅ |
@@ -111,11 +113,11 @@ Firebase Storage
 
 ## Governance Rules
 
-1. **platform is the unique infra gateway** — all Firebase, Genkit, external AI routing flows through platform adapters.
+1. **Each module owns its domain adapters** — iam, billing, ai, platform, workspace, notion, notebooklm each maintain their own Firestore/infrastructure adapters for domain-local data. Cross-domain operations go through published language or platform Service APIs.
 2. **notion、notebooklm use Infrastructure APIs for local concerns only** — persistence, embedding, synthesis.
 3. **workspace never touches Infrastructure APIs** — always goes through Platform Service APIs.
 4. **All cross-domain behavior routes through Platform Service APIs** — auth, permission, entitlement, file ownership, AI safety.
-5. **Published Language is upstream boundary** — concepts like `Actor`, `Tenant`, `Entitlement`, `fileId` are defined in platform ubiquitous language; downstream contexts translate as needed.
+5. **Published Language is upstream boundary** — `Actor`, `Tenant` are owned by `iam`; `Entitlement` is owned by `billing`; `fileId` is a platform file lifecycle token. Each downstream context translates via ACL or Conformist.
 
 ---
 
@@ -142,13 +144,19 @@ Use `docs/README.md`, `docs/bounded-contexts.md`, and `docs/ubiquitous-language.
 ### Fixed Upstream → Downstream Flow
 
 ```
-platform
-  ↓
-workspace, notion, notebooklm (all consume platform governance APIs)
-  ↓
-workspace ↓ notion ↓ notebooklm
-(sequential consumption allowed; never reverse upstream)
+iam     → billing · platform · workspace · notion · notebooklm
+billing → workspace · notion · notebooklm
+ai      → notion · notebooklm
+platform → workspace
+workspace → notion · notebooklm
+notion  → notebooklm
+(all above) → analytics  ← event / projection sink only
 ```
+
+✅ Allowed: upstream → downstream  
+❌ Forbidden: downstream → upstream (never invert)
+
+Full context map authority: `docs/context-map.md` and `docs/module-graph.system-wide.md`.
 
 ### Anti-Patterns
 
@@ -180,10 +188,11 @@ workspace ↓ notion ↓ notebooklm
 
 ## Strategic Ownership Rules (Non-Negotiable)
 
-### Rule 1: Platform is Unique Infrastructure Gateway
-- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
-- ❌ notion, notebooklm NEVER own infra (except local read-only access)
-- ❌ workspace NEVER touches Firebase/Storage/Genkit directly
+### Rule 1: Each Module Owns Its Domain Adapters
+- ✅ Each module (iam, billing, ai, platform, workspace, notion, notebooklm) maintains its own Firestore/infrastructure adapters for domain-local data
+- ✅ Cross-domain operations go through published language or platform Service APIs
+- ❌ notion, notebooklm NEVER bypass platform Service APIs for cross-domain operations (file ownership, permission, auth)
+- ❌ workspace NEVER touches Firebase/Storage/Genkit directly — always via platform Service APIs
 
 ### Rule 5: Workspace is Orchestration Only
 - ✅ workspace composes module APIs and next.js routing
@@ -191,23 +200,23 @@ workspace ↓ notion ↓ notebooklm
 - ❌ workspace NEVER makes direct DB/permission decisions
 
 ### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/api`
+- ✅ module A imports module B only via `@/modules/b/index.ts`
 - ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
 - ✅ ALL data sharing via events or published language tokens
 
-### Rule 7: Mandatory Single Entry Point (API Boundary)
-- ✅ Every module must export `api/index.ts`
-- ✅ `api/` exposes only public surface; hides internals
+### Rule 7: Mandatory Single Entry Point (Public Boundary)
+- ✅ Every module must export through `index.ts` at module root
+- ✅ `index.ts` exposes only public surface; hides internals
 - ❌ NO imports from internal module paths outside module
 
-### Rule 8: Platform is Only Infrastructure Layer
-- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
+### Rule 8: Platform Provides Shared Infrastructure Services
+- ✅ Firebase Auth, File Storage, Genkit AI routing, Permission API: platform coordinates and governs
 - ✅ Cross-domain coordination, routing, governance: platform owns
-- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
-- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
+- ❌ notion and notebooklm NEVER bypass FileAPI for operations involving file ownership, entitlement, or multi-tenant isolation
+- ❌ notion and notebooklm DO own domain-local persistence adapters (Firestore reads/writes for their own domain data)
 
 ### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
+- ✅ When module A needs data from module B: A calls `@/modules/b` (index.ts public boundary) or subscribes to B.event
 - ❌ NO shared in-memory state
 - ❌ NO direct repository access across module boundaries
 - ✅ All state mutations via transaction-protected API calls
@@ -218,20 +227,20 @@ workspace ↓ notion ↓ notebooklm
 - ❌ domain/ NEVER depends on other modules (even platform)
 - ✅ All external deps injected via ports/adapters
 
-### Rule 28: Platform Cannot Depend on Downstream
-- ✅ platform → workspace | notion | notebooklm (one direction only)
-- ❌ platform NEVER imports from workspace, notion, notebooklm
-- ✅ If platform needs semantic data from notion/notebooklm: notion/notebooklm emit event to platform
+### Rule 28: Upstream Contexts Cannot Depend on Their Downstreams
+- ✅ iam / billing / ai / platform each keep one-way dependency direction toward their downstream consumers
+- ❌ Upstream contexts NEVER import downstream domain internals directly
+- ✅ If an upstream context needs semantic data from a downstream: the downstream emits an event or exposes a public API for the upstream to consume
 
 ## Anti-Patterns (Will Require Refactors)
 
 ### Rule 46: ❌ workspace directly calls Firestore
 - **Wrong**: `firestore.collection('documents').get()`
-- **Correct**: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+- **Correct**: Use `@/modules/platform` (FileAPI, PermissionAPI, etc.)
 
 ### Rule 47: ❌ notebooklm implements its own permission logic
 - **Wrong**: notebooklm checking `user.role === 'admin'`
-- **Correct**: Call `@/modules/platform/api → PermissionAPI.can()`
+- **Correct**: Call `@/modules/platform` → PermissionAPI.can()`
 
 ### Rule 48: ❌ notion directly invokes AI/Genkit
 - **Wrong**: `notion/application/ imports Genkit`
@@ -239,7 +248,7 @@ workspace ↓ notion ↓ notebooklm
 
 ### Rule 49: ❌ Module imports another module's internal
 - **Wrong**: `import { SomeEntity } from '@/modules/notion/domain/entities'`
-- **Correct**: Use `import { api } from '@/modules/notion/api'` only
+- **Correct**: Use `import { ... } from '@/modules/notion'` (module root `index.ts`) only
 
 ### Rule 50: ❌ Business logic written in React component (workspace UI)
 - **Wrong**: `if (user.role === 'admin') { ... }` in .tsx
@@ -247,7 +256,7 @@ workspace ↓ notion ↓ notebooklm
 
 ### Rule 51: ❌ Cross-module route components read foreign context providers
 - **Wrong**: notion/notebooklm route components call workspace providers directly (e.g. `useWorkspaceContext()`)
-- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `api/` boundaries
+- **Correct**: workspace is the composition owner and must pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
 
 ---
 

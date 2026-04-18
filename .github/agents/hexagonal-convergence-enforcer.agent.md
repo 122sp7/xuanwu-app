@@ -72,7 +72,7 @@ handoffs:
 - 若 `violations_before=0` 且 `smells_before=0`，必須進入第二階段語意審計後才能結案。
 - 第二階段至少覆蓋四大主域：`platform`、`workspace`、`notion`、`notebooklm`。
 - 每個主域至少抽查一條完整鏈路：`domain -> application -> infrastructure -> interfaces`。
-- 每個主域至少抽查一個 `api/` 邊界與一個跨模組依賴點。
+- 每個主域至少抽查一個 `index.ts` 公開邊界與一個跨模組依賴點。
 
 ## No Early Exit Rule
 

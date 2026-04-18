@@ -39,3 +39,23 @@ export class TransitionIssueStatusUseCase {
     }
   }
 }
+
+export class ResolveIssueUseCase {
+  constructor(private readonly issueRepo: IssueRepository) {}
+
+  async execute(issueId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.issueRepo.findById(issueId);
+      if (!snapshot) return commandFailureFrom("ISSUE_NOT_FOUND", "Issue not found.");
+      if (!canTransitionIssueStatus(snapshot.status, "resolved")) {
+        return commandFailureFrom("ISSUE_INVALID_TRANSITION", `Cannot resolve issue from '${snapshot.status}'.`);
+      }
+      const issue = Issue.reconstitute(snapshot);
+      issue.transition("resolved");
+      await this.issueRepo.save(issue.getSnapshot());
+      return commandSuccess(issueId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Failed to resolve issue.");
+    }
+  }
+}

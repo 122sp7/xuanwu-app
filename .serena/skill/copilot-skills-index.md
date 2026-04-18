@@ -61,7 +61,7 @@
 | Skill | 路徑 | 觸發時機 |
 |---|---|---|
 | `xuanwu-skill` | `.github/skills/xuanwu-skill/SKILL.md` | 了解 Xuanwu 結構、實作模式、程式碼細節（快速掃描首選） |
-| `xuanwu-app-skill` | `.github/skills/xuanwu-app-skill/SKILL.md` | Xuanwu App codebase 參考（結構 + 技術棧） |
+| `xuanwu-skill` | `.github/skills/xuanwu-skill/SKILL.md` | Xuanwu App codebase 參考（結構 + 技術棧） |
 | `xuanwu-markdown-skill` | `.github/skills/xuanwu-markdown-skill/SKILL.md` | Xuanwu App markdown skill 參考 |
 | `repomix` | `.github/skills/repomix/SKILL.md` | 透過 repomix output 分析 repo（搭配 xuanwu-skill） |
 | `repomix-explorer` | `.github/skills/repomix-explorer/SKILL.md` | 分析或探索 codebase（本地或遠端 repo）結構 |

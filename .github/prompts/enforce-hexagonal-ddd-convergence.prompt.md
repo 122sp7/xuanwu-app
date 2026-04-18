@@ -72,7 +72,7 @@ Skill declarations are centralized in:
 - 若第一階段結論為 `violations_before=0` 與 `smells_before=0`，不可直接結束。
 - 必須執行語意審計第二階段，最少覆蓋：`platform`、`workspace`、`notion`、`notebooklm`。
 - 每個主域至少一條鏈路抽查：`domain -> application -> infrastructure -> interfaces`。
-- 每個主域至少一個 `api/` 邊界與一個跨模組依賴點檢查。
+- 每個主域至少一個 `index.ts` 公開邊界與一個跨模組依賴點檢查。
 - 若工具不足，必須走 fallback（read/search/grep）完成等價證據。
 
 ### 1.5) Smell Detection

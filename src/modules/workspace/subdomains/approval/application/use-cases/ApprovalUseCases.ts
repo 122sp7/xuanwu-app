@@ -36,8 +36,8 @@ export class ApproveTaskAcceptanceUseCase {
       const task = await this.taskRepo.findById(taskId);
       if (!task) return commandFailureFrom("APPROVAL_TASK_NOT_FOUND", "Task not found.");
       if (!canTransitionTask(task.status, "accepted")) return commandFailureFrom("APPROVAL_INVALID_TRANSITION", `Cannot approve from '${task.status}'.`);
-      const openIssues = await this.issueRepo.countOpenByTaskId(taskId);
-      if (openIssues > 0) return commandFailureFrom("APPROVAL_HAS_OPEN_ISSUES", "Task has open issues.");
+      const openIssues = await this.issueRepo.countOpenByTaskIdAndStage(taskId, "acceptance");
+      if (openIssues > 0) return commandFailureFrom("APPROVAL_HAS_OPEN_ISSUES", "Task has open acceptance-stage issues.");
       await this.taskRepo.updateStatus(taskId, "accepted", new Date().toISOString());
       return commandSuccess(taskId, Date.now());
     } catch (err) {

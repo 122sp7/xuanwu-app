@@ -20,7 +20,7 @@
 |---|---|
 | 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
 | Repository 實作（Firestore CRUD 業務查詢） | `src/modules/<context>/adapters/outbound/` |
-| 跨模組資料協調 | `src/modules/<context>/api/` |
+| 跨模組資料協調 | `src/modules/<context>/index.ts` |
 | UI 組件 | `packages/ui-shadcn/ui-custom/` |
 
 ---

@@ -1,13 +1,15 @@
 # 1200 Boundary Violation
 
-- Status: Partially Resolved
+- Status: ~~Partially Resolved~~ → Accepted (§3 Superseded by [ADR 0015](./0015-api-layer-removal.md))
 - Date: 2026-04-13
 - Resolution Date: 2026-04-14
 - Category: Architectural Smells > Boundary Violation
 
+> **路徑說明**：此 ADR 描述的違規一（`platform/api/index.ts` 暴露 UI 元件）和違規二使用舊版 `module/api/` 結構。ADR 0015 已移除 `api/` 層，違規三（§3）隨之超彺。跨模組協作現在必須經就 `src/modules/<context>/index.ts`。路徑使用舊版 `modules/` 前綴（架構遷移前）。
+
 ## Context
 
-模組邊界規則要求：跨模組協作必須透過目標模組的 `api/index.ts` 進行；任何模組不得直接 import 另一模組的 `domain/`、`application/`、`infrastructure/`、`interfaces/` 內部。
+模組鈂界規則要求：跨模組協作必須透過目標模組的 `index.ts`（公開遇入面）進行；任何模組不得直接 import 另一模組的 `domain/`、`application/`、`infrastructure/`、`interfaces/` 內部。
 
 掃描後沒有發現跨模組的直接 internal import 違規（`grep` 零結果）。但發現三類**隱性邊界侵蝕**：
 

@@ -8,14 +8,20 @@
 
 ## Canonical Ownership
 
+- audit
+- feed
+- scheduling
+- approve
+- issue
+- orchestration
+- quality
+- settlement
+- task
+- task-formation
 - lifecycle
 - membership
 - sharing
 - presence
-- audit
-- feed
-- scheduling
-- workspace-workflow
 
 ## Route Here When
 

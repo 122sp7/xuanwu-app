@@ -1,8 +1,11 @@
 # 3100 Low Cohesion
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-13
+- Superseded by: [ADR 0015 – api/ Layer Removal](./0015-api-layer-removal.md)
 - Category: Modularity Smells > Low Cohesion
+
+> **路徑說明**：此 ADR 描述的 `platform/api/index.ts` 混合四種職責問題使用舊版 `module/api/` 結構。ADR 0015 已整體移除 `api/` 層；本 ADR 描述的違規路徑不再存在。路徑使用舊版 `modules/` 前綴（架構遷移前）。
 
 ## Context
 

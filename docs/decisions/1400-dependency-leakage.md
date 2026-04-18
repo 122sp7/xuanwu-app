@@ -1,8 +1,11 @@
 # 1400 Dependency Leakage
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-13
+- Superseded by: [ADR 0015 – api/ Layer Removal](./0015-api-layer-removal.md)
 - Category: Architectural Smells > Dependency Leakage
+
+> **路徑說明**：此 ADR 描述的 `api/index.ts` wildcard re-export 問題使用舊版 `module/api/` 結構。ADR 0015 已整體移除 `api/` 層；本 ADR 描述的違規路徑不再存在。路徑使用舊版 `modules/` 前綴（架構遷移前）。
 
 ## Context
 

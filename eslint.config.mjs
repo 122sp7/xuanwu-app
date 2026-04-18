@@ -38,12 +38,12 @@ const restrictedImportsRule = (patterns, extraOptions = {}) => [WARN, { patterns
 
 // ─── Restricted import patterns ───────────────────────────────────────────────
 const legacyAliases = [
-  { group: ["@/shared/*"], message: "Use @shared-types / @shared-utils / … instead." },
-  { group: ["@/infrastructure/*"], message: "Use @integration-firebase / @integration-upstash / … instead." },
-  { group: ["@/libs/*"], message: "Use the corresponding @lib-* or @integration-* alias." },
+  { group: ["@/shared/*"], message: "Use @ui-shadcn/* for UI or direct relative imports from src/modules/shared/ instead." },
+  { group: ["@/infrastructure/*"], message: "Use @integration-firebase/* instead." },
+  { group: ["@/libs/*"], message: "Use @integration-firebase/* or standard npm package imports instead." },
   { group: ["@/ui/shadcn/*"], message: "Use @ui-shadcn/* instead." },
-  { group: ["@/ui/vis", "@/ui/vis/*"], message: "Use @ui-vis instead." },
-  { group: ["@/interfaces/*"], message: "Use @api-contracts instead." },
+  { group: ["@/ui/vis", "@/ui/vis/*"], message: "Use @ui-shadcn/* instead. There is no @ui-vis package in this project." },
+  { group: ["@/interfaces/*"], message: "Import from module boundaries (src/modules/<context>/index.ts) instead." },
 ];
 
 // ─── Config ───────────────────────────────────────────────────────────────────

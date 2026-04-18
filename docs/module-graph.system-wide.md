@@ -31,14 +31,18 @@ T0  IAM                     BILLING                 AI
     身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
 ─────────────────────────────────────────────────────────────────────────────
 
-    identity                billing                 content-generation
-    access-control          subscription            content-distillation
-    tenant                  entitlement             context-assembly
-    security-policy         referral                evaluation-policy
-                                                     memory-context
-                                                     model-observability
-                                                     prompt-pipeline
-                                                     safety-guardrail
+    identity                billing                 generation
+    access-control          subscription            orchestration
+    tenant                  entitlement             distillation
+    security-policy         referral                retrieval
+                                                     memory
+                                                     context
+                                                     safety
+                                                     tool-calling
+                                                     reasoning
+                                                     conversation
+                                                     evaluation
+                                                     tracing
 
     [session]               [pricing]               [provider-routing]
     [consent]               [invoice]               [model-policy]
@@ -64,10 +68,10 @@ T2  WORKSPACE
     協作容器與工作區範疇
 ─────────────────────────────────────────────────────────────────────────────
 
-    audit
-    feed
-    scheduling
-    workspace-workflow
+    audit                   issue                   settlement
+    feed                    orchestration           task
+    scheduling              quality                 task-formation
+    approve
 
     [lifecycle]             [membership]
     [sharing]               [presence]

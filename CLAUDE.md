@@ -85,13 +85,18 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ### Main Domain Relationships (upstream → downstream)
 
 ```
-platform → workspace → notion → notebooklm
-platform → notion
-platform → notebooklm
-workspace → notebooklm
+iam     → billing · platform · workspace · notion · notebooklm
+billing → workspace · notion · notebooklm
+ai      → notion · notebooklm
+platform → workspace
+workspace → notion · notebooklm
+notion  → notebooklm
+(all above) → analytics  ← event/projection sink only
 ```
 
-platform is governance upstream. Do not invert this.
+`iam`, `billing`, `ai` are governance upstreams. `platform` is operational support. `analytics` is downstream sink only. Do not invert any direction.
+
+Full context map authority: `docs/context-map.md` and `docs/module-graph.system-wide.md`.
 
 ### Layer Ownership
 
@@ -153,9 +158,10 @@ Cross-domain tokens use published language: `actor reference`, `workspaceId`, `e
 - Sharing internal models across module boundaries instead of using published language
 - Adding `GetXxxUseCase` — pure reads without business logic belong in query handlers
 - Calling repositories directly from `interfaces/`
-- Creating a new top-level main domain (system has exactly 4: platform, workspace, notion, notebooklm)
-- Using `Shared Kernel` or `Partnership` patterns at main-domain level
+- Creating a new top-level main domain (system has exactly 8: iam, billing, ai, analytics, platform, workspace, notion, notebooklm; governed by ADR 0014)
+- Using `Shared Kernel` or `Partnership` patterns at main-domain level (directed upstream-downstream only)
 - Mixing ACL and Conformist in the same integration
+- Treating `billing` or `iam` owned concepts (Entitlement, Actor, Tenant) as owned by `platform`
 
 ## Cross-Module Integration Checklist
 

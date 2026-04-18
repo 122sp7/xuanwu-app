@@ -20,5 +20,6 @@ export interface ApprovalTaskRepository {
 export interface ApprovalIssueRepository {
   findById(issueId: string): Promise<ApprovalIssueLike | null>;
   countOpenByTaskId(taskId: string): Promise<number>;
+  countOpenByTaskIdAndStage(taskId: string, stage: string): Promise<number>;
   updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
 }

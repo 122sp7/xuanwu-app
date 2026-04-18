@@ -1,4 +1,4 @@
-# 50 Hard Rules — Consolidated Architecture Guardrails
+# 51 Hard Rules — Consolidated Architecture Guardrails
 
 **Status**: Consolidated from user request (2026-04-12)  
 **Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
@@ -31,10 +31,11 @@
 ```markdown
 ## Strategic Ownership Rules (Hard Constraints)
 
-### Rule 1: Platform is Unique Infrastructure Gateway
-- ✅ platform owns Firebase, Genkit, external AI routing, cross-domain auth
-- ❌ notion, notebooklm NEVER own infra (except local read-only access)
-- ✅ workspace NEVER touches Firebase/Storage/Genkit directly
+### Rule 1: Each Module Owns Its Domain Adapters
+- ✅ Each module (iam, billing, ai, platform, workspace, notion, notebooklm) maintains its own Firestore/infrastructure adapters for domain-local data
+- ✅ Cross-domain operations go through published language or platform Service APIs
+- ❌ notion, notebooklm NEVER bypass platform Service APIs for cross-domain operations (file ownership, permission, auth)
+- ❌ workspace NEVER touches Firebase/Storage/Genkit directly — always via platform Service APIs
 
 ### Rule 5: Workspace is Orchestration Only
 - ✅ workspace composes module APIs and next.js routing
@@ -51,14 +52,14 @@
 - ✅ `index.ts` exposes only public surface; hides internals
 - ❌ NO imports from internal module paths outside module
 
-### Rule 8: Platform is Only Infrastructure Layer
-- ✅ Firebase, Genkit, Auth, File Storage, Queue: platform owns
+### Rule 8: Platform Provides Shared Infrastructure Services
+- ✅ Firebase Auth, File Storage, Genkit AI routing, Permission API: platform coordinates and governs
 - ✅ Cross-domain coordination, routing, governance: platform owns
-- ❌ Notion NEVER owns persistence (uses platform.infrastructure APIs)
-- ❌ Notebooklm NEVER owns embedding infra (uses platform.infrastructure APIs)
+- ❌ notion and notebooklm NEVER bypass FileAPI for operations involving file ownership, entitlement, or multi-tenant isolation
+- ❌ notion and notebooklm DO own domain-local persistence adapters (Firestore reads/writes for their own domain data)
 
 ### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls B.api or subscribes to B.event
+- ✅ When module A needs data from module B: A calls `@/modules/b` (index.ts public boundary) or subscribes to B.event
 - ❌ NO shared in-memory state
 - ❌ NO direct repository access across module boundaries
 - ✅ All state mutations via transaction-protected API calls
@@ -81,19 +82,22 @@
 ### Hard Anti-Patterns (Will Cause Refactors)
 
 - ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
-  - Fix: Use `@/modules/platform/api` (FileAPI, PermissionAPI, etc.)
+  - Fix: Use `@/modules/platform` (FileAPI, PermissionAPI, etc. via module `index.ts`)
 
 - ❌ **Rule 47**: notebooklm implements its own permission logic
-  - Fix: Call `@/modules/platform/api → PermissionAPI.can()`
+  - Fix: Call `@/modules/platform` → `PermissionAPI.can()`
 
 - ❌ **Rule 48**: notion directly invokes AI/Genkit
   - Fix: Notion emits event; platform routes to notebooklm via AI API
 
 - ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
-  - Fix: Use `@/modules/<target>/api` only
+  - Fix: Use `@/modules/<target>` (`index.ts` public boundary) only
 
 - ❌ **Rule 50**: Business logic written in React component (workspace UI)
   - Fix: Move to application/ use-case; UI only composes and calls
+
+- ❌ **Rule 51**: Cross-module route components read foreign context providers
+  - Fix: workspace is the composition owner; pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
 ```
 
 ---
@@ -275,12 +279,12 @@
 ## Cross-Module Data Flow Rules (Hard Constraints)
 
 ### Rule 24: Notebooklm Cannot Direct-Read Firestore
-- ✅ notebooklm reads knowledge artifacts via `@/modules/notion/api`
+- ✅ notebooklm reads knowledge artifacts via `@/modules/notion` (`index.ts` public boundary)
 - ❌ NEVER: `firestore.collection('notion_pages').get()`
 - ✅ Decouples notebooklm from notion's persistence model
 
 ### Rule 25: Notebooklm Data Requests = Via Notion API
-- ✅ If notebooklm.retrieval needs knowledge: calls `notion.api.getKnowledgeArtifacts()`
+- ✅ If notebooklm.retrieval needs knowledge: calls exported capability from `@/modules/notion`
 - ✅ Notion controls schema; notebooklm consumes contract only
 - ❌ NEVER notebooklm queries notion's Firestore directly
 

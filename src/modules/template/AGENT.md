@@ -79,28 +79,21 @@ subdomains/
 
 ## 衝突防護（src/modules vs modules/）
 
-`src/modules/template` 屬於**蒸餾層（`src/modules/`）**。本層與 `modules/<context>/`（完整 HEX+DDD 實作層）**職責不同，不可混用**。
+`src/modules/template` 屬於**模組實作層（`src/modules/`）**。
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `modules/<context>/AGENT.md`、`modules/<context>/api/` |
-| 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製） |
-| 跨模組 API boundary | `modules/<context>/api/index.ts`（仍是權威） |
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
+| 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
+| 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
 
 **嚴禁事項：**
-- ❌ 把 `modules/<context>/infrastructure/` 的實作直接搬到 `src/modules/<context>/domain/`
-- ❌ 把 `src/modules/` 當成 `modules/` 的別名
 - ❌ 在 `domain/` 匯入 React、Firebase SDK、HTTP client、ORM
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟、蒸餾說明）
-- [src/modules/README.md](../README.md) — 蒸餾層狀態總覽（模組清單與進度）
-- [modules/](../../../modules/) — 完整 HEX+DDD 實作層（邊界規則權威）
+- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
+- [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-- `shared/` 各子目錄同理：確認有跨子域共用壓力才填入內容。
-- cron、rpc、cache、external-api adapter 為**可選**，若無對應業務需要就不建或直接刪除。
-- 新增符號時同步更新對應 barrel index，不留 `export *` 殘留。
-- 舊平坦層 `domain/ application/ adapters/` 過渡期保留；完全確認無依賴後，整批刪除。

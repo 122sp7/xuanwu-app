@@ -1,8 +1,10 @@
 # 1403 Dependency Leakage — Platform Subdomain api Barrels Export UI via `export * from "../interfaces"`
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [ADR 0015](./0015-api-layer-removal.md)**
 - Date: 2026-04-14
 - Category: Architectural Smells > Dependency Leakage
+
+> **路徑說明**：此 ADR 中的 `api/index.ts` 路徑使用舊版 `module/api/` 結構。ADR 0015 已整體移除 `api/` 層；本 ADR 描述的違規路徑不再存在。
 
 ## Context
 

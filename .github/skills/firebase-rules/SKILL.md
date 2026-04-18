@@ -107,7 +107,7 @@ Collections are named with a bounded-context prefix to make ownership visible:
 | `notion_*` | notion |
 | `notebooklm_*` | notebooklm |
 
-A bounded context may only write to its own collections. To access another context's data, call that context's `api/` or subscribe to its domain events.
+A bounded context may only write to its own collections. To access another context's data, call that context's `index.ts` boundary or subscribe to its domain events.
 
 ### Query Scope (Mandatory Filter)
 

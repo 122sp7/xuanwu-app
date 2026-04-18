@@ -8,7 +8,7 @@
 
 ## Core Principle
 
-**UI composition in `app/` must remain thin, follow one-way data flow, and consume modules ONLY through public `api/` boundaries.**
+**UI composition in `app/` must remain thin, follow one-way data flow, and consume modules ONLY through module `index.ts` public boundary.**
 
 Route layers exist to **orchestrate, not to contain business logic.**
 
@@ -22,7 +22,7 @@ Route layers exist to **orchestrate, not to contain business logic.**
    - Answer: "This route exists to [verb] the [noun]"
 
 2. **List the module APIs the slice may consume**
-   - Only `@/modules/<name>/api` imports allowed
+   - Only `@/modules/<name>` (root `index.ts`) imports allowed
    - No imports from `domain/`, `application/`, `infrastructure/`
    - Document which API each interaction calls
 
@@ -38,7 +38,7 @@ Route layers exist to **orchestrate, not to contain business logic.**
 
 5. **Validate imports so no module internals are pulled into `app/`**
    - grep for imports in route segment
-   - Verify all `@/modules/*` imports end with `/api`
+   - Verify all `@/modules/*` imports use the module root (no `/domain`, `/application`, etc.)
    - Verify no Firebase, external SDK, or framework-specific adapters leak into routes
 
 ---
@@ -47,8 +47,8 @@ Route layers exist to **orchestrate, not to contain business logic.**
 
 | Forbidden | Why | Fix |
 |-----------|-----|-----|
-| `from "@/modules/*/domain"` | Business rules belong in module, not route | Import from `/api` instead; call use-case |
-| `from "@/modules/*/application"` | Orchestration hidden in route | Delegate to module's `api/`, let module own the orchestration |
+| `from "@/modules/*/domain"` | Business rules belong in module, not route | Import from module root `index.ts`; call use-case |
+| `from "@/modules/*/application"` | Orchestration hidden in route | Delegate to module's `index.ts`, let module own the orchestration |
 | `from "@/modules/*/infrastructure"` | Technical details pollute composition layer | Route should not know about persistence, adapters, or external SDKs |
 | Business logic in `.tsx` file | Routes are for flow, not rules | Move rules to module domain; route calls module API |
 | Hidden state coupling between blocks | Parallel routes should be independent | Use context or module-level state management; avoid shared route state |
@@ -85,7 +85,7 @@ Route Re-render (Next.js ISR or revalidateTag)
 UI reflects new state
 ```
 
-**Key**: Route does NOT directly call infrastructure, repository, or domain logic. Route delegates to module's `api/`.
+**Key**: Route does NOT directly call infrastructure, repository, or domain logic. Route delegates to module's `index.ts`.
 
 ---
 
@@ -121,7 +121,7 @@ When modifying route composition, report:
 | Rule | Why |
 |------|-----|
 | Route segment = one module responsibility | Keeps ownership clear; parallel routes stay independent |
-| `api/` import only | Enforces hexagonal DDD boundary at composition level |
+| `index.ts` import only | Enforces hexagonal DDD boundary at composition level |
 | No Firebase SDK in routes | Keep Next.js layers ignorant of persistence details |
 | Server Actions in `_actions/` subdir | Centralizes form handling; easier to audit |
 | RSC by default, Client only when needed | Reduces payload, improves performance |
@@ -132,4 +132,4 @@ When modifying route composition, report:
 
 - Vercel Next.js App Router (v16+)
 - Xuanwu: nextjs-app-router.instructions.md, nextjs-parallel-routes.instructions.md, nextjs-server-actions.instructions.md
-- Hexagonal DDD skill: api/ boundary as composition entry point
+- Hexagonal DDD skill: index.ts boundary as composition entry point

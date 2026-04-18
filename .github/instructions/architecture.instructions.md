@@ -85,13 +85,16 @@ Internal composition helpers belong under module-local `interfaces/` or `infrast
 ## 2.4 Main Domain Relationships (Upstream → Downstream)
 
 ```
-platform → workspace → notion → notebooklm
-platform → notion
-platform → notebooklm
-workspace → notebooklm
+iam     → billing · platform · workspace · notion · notebooklm
+billing → workspace · notion · notebooklm
+ai      → notion · notebooklm
+platform → workspace
+workspace → notion · notebooklm
+notion  → notebooklm
+(all above) → analytics  ← event / projection sink only
 ```
 
-`platform` is governance upstream. Never invert this direction.
+`iam`, `billing`, `ai` are governance upstreams. `platform` is operational support. `analytics` is downstream sink only. Never invert any direction.
 
 ## 2.5 Use Case Decision Rules
 
@@ -159,7 +162,7 @@ Firebase is the only backend runtime platform.
 - Firestore accessed only via `infrastructure/` repository implementations.
 - Cloud Functions must not contain domain logic.
 - Authentication state must be mapped into domain identity before crossing into `domain/`.
-- `workspace` must not call Firestore directly; it must use `platform/api` Service APIs (FileAPI, PermissionAPI, etc.).
+- `workspace` must not call Firestore directly; it must use `src/modules/platform/index.ts` Service APIs (FileAPI, PermissionAPI, etc.).
 
 ---
 

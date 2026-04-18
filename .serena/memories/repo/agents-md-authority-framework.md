@@ -19,42 +19,41 @@
 Rule: workspace ❌ Infrastructure APIs; workspace ✅ Service APIs  
 Enforcement: AGENTS.md § "API Architecture Rules"
 
-### 2. Four Main Domains + Ubiquitous Language
+### 2. Eight Main Domains + Ubiquitous Language
 
-**Strategic Inventory** (38 subdomains total):
-- platform (23 baseline + 4 gap) 
-- workspace (4 baseline + 4 gap)
-- notion (6 baseline + 3 gap)
-- notebooklm (5 baseline + 4 gap)
+**Strategic Inventory** (8 bounded contexts, governed by ADR 0014):
+- iam — identity, authentication, authorization, tenant isolation (T0 upstream)
+- billing — subscription and entitlement governance (T0 upstream)
+- ai — shared AI capability, routing, policy, safety (T0 upstream)
+- analytics — metrics, dashboards, projections (downstream sink only)
+- platform — account, organization, shared operational services (T1)
+- workspace — collaboration scope and lifecycle (T2)
+- notion — canonical knowledge content (T3)
+- notebooklm — retrieval, grounding, synthesis, evaluation (T3)
 
-**Published Language Tokens** (11 total):
-- actor reference → platform.Actor (never mix with Membership)
-- entitlement signal → platform.entitlement (never mix with feature-flag)
-- ai capability signal → platform.ai ONLY (notion/notebooklm CONSUME, never OWN)
-- knowledge artifact reference → notion (reference only, no transfer)
-- workspaceId → workspace (never replaces local keys)
-- + 6 more tokens with canonical domains and constraints
+**Key Ownership Corrections (2026-04-17)**:
+- Actor, Tenant: owned by iam (NOT platform)
+- Entitlement: owned by billing (NOT platform)
+- AI capability: owned by ai (notion/notebooklm CONSUME only)
 
-**Module Ownership Guardrails** (8 concerns):
-- AI routing: platform OWNS; notion/notebooklm NEVER OWN
-- Knowledge artifacts: notion OWNS; others REFERENCE ONLY
-- Conversation/synthesis: notebooklm OWNS; others CONSUME
-- + 5 more ownership constraints
-
-Enforcement: AGENTS.md § "Four Main Domains"
+Enforcement: AGENTS.md § "Strategic Domain Overview"
 
 ### 3. Dependency Direction (Fixed)
 
 ```
-platform → workspace → notion → notebooklm
-platform → notion
-platform → notebooklm
-workspace → notebooklm
+iam     → billing · platform · workspace · notion · notebooklm
+billing → workspace · notion · notebooklm
+ai      → notion · notebooklm
+platform → workspace
+workspace → notion · notebooklm
+notion  → notebooklm
+(all above) → analytics  ← event / projection sink only
 ```
 
 ✅ Allowed: upstream → downstream  
-❌ Forbidden: downstream → upstream (circular dependencies)
+❌ Forbidden: downstream → upstream (never invert)
 
+Full context map authority: docs/context-map.md and docs/module-graph.system-wide.md
 Enforcement: AGENTS.md § "Dependency Direction Rules"
 
 ---

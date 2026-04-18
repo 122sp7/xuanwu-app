@@ -7,7 +7,7 @@
 ## Boundary Rules
 
 - `app/` 只組合路由、layout 與 UI 入口，不寫業務規則、不呼叫 repository、不直接存取 Firebase SDK。
-- 業務行為透過 Server Action 或 module `api/` boundary 取得。
+- 業務行為透過 Server Action 或模組 `index.ts` 公開邊界取得。
 - 不在 layout / page 中引用另一個模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部路徑。
 - Route 組件只接受 scope props（`accountId`、`workspaceId`），不直接消費跨模組的 context provider。
 

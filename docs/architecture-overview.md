@@ -33,7 +33,7 @@
 |---|---|---|
 | iam | 治理上游 | actor、identity、tenant、access decision、security policy |
 | billing | 商業上游 | subscription、entitlement、billing event、referral |
-| ai | 共享能力上游 | content-generation、content-distillation、context-assembly、evaluation-policy、memory-context、model-observability、prompt-pipeline、safety-guardrail；provider-routing / model-policy 為後續治理延伸 |
+| ai | 共享能力上游 | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing；provider-routing / model-policy 為後續治理延伸 |
 | analytics | 分析下游 | reporting、metrics、dashboard、projection read model |
 | platform | 平台營運支撐 | account、organization、team、notification、search、audit-log、observability、operational workflow |
 | workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、task、issue、settlement、approve、quality、orchestration |

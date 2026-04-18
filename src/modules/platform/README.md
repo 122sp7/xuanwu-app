@@ -1,34 +1,28 @@
-# Platform Module — 精簡蒸餾骨架
+# Platform Module
 
-> **⚠ 蒸餾作業進行中**：`src/modules/platform/` 正在從 `modules/platform/`（完整 HEX+DDD 實作層）蒸餾而來。兩層職責不同，不可互換。
->
-> **account / organization 子域已遷入 `modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
+> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
 
-**蒸餾狀態：** ✅ 完成（platform 子域已蒸餾至 `src/modules/platform/`）
+## 子域清單
 
----
-
-## 子域對照表（modules → src/modules）
-
-| 子域 | 蒸餾來源 | 狀態 | 說明 |
-|---|---|---|---|
-| `background-job` | `modules/platform/subdomains/background-job/` | ✅ 已蒸餾 | 背景工作排程 |
-| `cache` | 新增（快取管理）| ✅ 已蒸餾 | 鍵值快取、TTL 設定 |
-| `file-storage` | 新增（檔案儲存服務）| ✅ 已蒸餾 | 上傳、下載、檔案生命週期 |
-| `notification` | `modules/platform/subdomains/notification/` | ✅ 已蒸餾 | 通知發送 |
-| `platform-config` | `modules/platform/subdomains/platform-config/` | ✅ 已蒸餾 | 平台設定 |
-| `search` | `modules/platform/subdomains/search/` | ✅ 已蒸餾 | 跨域搜尋 |
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
+| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
+| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
+| `notification` | ✅ 完成 | 通知發送 |
+| `platform-config` | ✅ 完成 | 平台設定 |
+| `search` | ✅ 完成 | 跨域搜尋 |
 
 **已遷移（不在 platform）：**
 
 | 子域 | 遷移目標 |
 |---|---|
-| `account` | `modules/iam/subdomains/account/` |
-| `organization` | `modules/iam/subdomains/organization/` |
+| `account` | `src/modules/iam/subdomains/account/` |
+| `organization` | `src/modules/iam/subdomains/organization/` |
 
 ---
 
-## 預期目錄結構（蒸餾後）
+## 目錄結構
 
 ```
 src/modules/platform/
@@ -42,7 +36,7 @@ src/modules/platform/
     events/index.ts             ← Platform Published Language Events
     types/index.ts
   subdomains/
-    notification/               ← 優先蒸餾
+    notification/
       domain/
       application/
       adapters/outbound/
@@ -60,15 +54,16 @@ src/modules/platform/
 
 ## 依賴方向
 
-Platform 是治理上游，方向固定：
+Platform 是 T1 operational support，依賴方向固定：
 
 ```
-platform → workspace → notion → notebooklm
-platform → notion
-platform → notebooklm
+iam     → platform
+billing → platform (entitlement governance)
+platform → workspace
+(platform 也被 notion, notebooklm 以 Service API 形式消費)
 ```
 
-Platform 不可依賴下游模組。
+Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
 
 ---
 
@@ -85,6 +80,5 @@ Platform 不可依賴下游模組。
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 蒸餾層總覽
-- [modules/platform/](../../../modules/platform/) — 完整 HEX+DDD 實作層
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖

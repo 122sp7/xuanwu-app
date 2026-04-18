@@ -7,9 +7,11 @@
 | Subdomain | Responsibility |
 |---|---|
 | conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
 | notebook | Notebook 組合與管理 |
 | source | 來源文件追蹤、引用與 ingestion 編排 |
 | synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback |
+| conversation-versioning | 對話版本與快照策略 |
 
 ## Future Split Triggers
 

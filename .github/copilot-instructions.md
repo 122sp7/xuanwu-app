@@ -5,8 +5,8 @@ name: Xuanwu Copilot Workspace Instructions
 ---
 
 #use skill xuanwu-skill
-#use skill context7
 #use skill serena-mcp
+#use skill context7
 #use skill hexagonal-ddd
 #use skill xuanwu-app-markdown-skill
 #use skill occams-razor

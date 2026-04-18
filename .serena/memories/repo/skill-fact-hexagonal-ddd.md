@@ -16,8 +16,8 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 **Xuanwu Enforcement**:
 - ESLint boundary rules: no infrastructure/domain imports; no main-domain-api imports from infrastructure
-- Public API entry: `api/index.ts` only
-- Cross-module: use target module's `api/` boundary or events
+- Public API entry: `index.ts` at module root only
+- Cross-module: use target module's `index.ts` boundary or events
 
 ---
 
@@ -27,7 +27,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 2. **Keep business rules in domain objects and domain services**, not in routes, UI, or persistence code
 3. **Use application for orchestration, transactions, command/query flow, and DTO translation**
 4. **Place infrastructure and interfaces outside the core, depending inward**
-5. **Expose cross-module collaboration only through the target module `api/` boundary or published events**
+5. **Expose cross-module collaboration only through the target module `index.ts` boundary or published events**
 6. **Add abstractions only when they protect a real boundary**
 
 ---
@@ -60,7 +60,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 | **application/** | Use-case orchestration, command/query contracts, DTO | Business rules, infrastructure details, UI logic |
 | **infrastructure/** | Repository implementations, adapters, external APIs, persistence | Business rules, orchestration logic |
 | **interfaces/** | Route handlers, UI components, Server Actions, input/output translation | Business decisions, domain logic |
-| **api/** | Cross-module entry surface (exports only) | Internal implementation details |
+| **index.ts** | Cross-module entry surface (exports only) | Internal implementation details |
 
 ---
 
@@ -84,7 +84,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Cross-Module Collaboration
 
-**Rule**: Only through target module's `api/` boundary or published events.
+**Rule**: Only through target module's `index.ts` boundary or published events.
 
 **Forbidden**:
 - ❌ Importing peer `domain/`, `application/`, `infrastructure/`, or `interfaces/`
@@ -92,7 +92,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - ❌ Inverting dependency direction (downstream → upstream)
 
 **Allowed**:
-- ✅ `@/modules/<target>/api` imports
+- ✅ `@/modules/<target>` (root `index.ts`) imports
 - ✅ Domain events (async decoupling)
 - ✅ Published language tokens (validated by AGENTS.md)
 
@@ -101,8 +101,8 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Module Structure Template
 
 ```
-modules/<bounded-context>/
-  api/                        # Cross-module entry (only exports, no implementation)
+src/modules/<bounded-context>/
+  index.ts                    # Cross-module entry (only exports, no implementation)
   domain/                     # Business rules, entities, aggregates, ports
   application/                # Use cases, orchestration, DTO
   infrastructure/             # Repository & adapter implementations
@@ -117,8 +117,8 @@ modules/<bounded-context>/
 
 | Pattern | Rule | Why |
 |---------|------|-----|
-| subdomain API | Always delegate through `api/` | Prevents interface leakage |
-| factory functions | Place in `api/server.ts` (or similar) | Separates DI from core |
+| subdomain API | Always delegate through `index.ts` boundary | Prevents interface leakage |
+| factory functions | Place in `interfaces/composition/` (not module root) | Separates DI from core |
 | bounded context naming | Must align with module folder | Consistency + grep-ability |
 | usage logs | Require AGENTS.md + module AGENT.md conformance | Ensure ownership clarity |
 
