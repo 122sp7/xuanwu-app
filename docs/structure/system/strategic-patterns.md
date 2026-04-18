@@ -1,7 +1,5 @@
 # Strategic Patterns
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD strategic design 與 context map 原則重建，不主張反映現況實作。
-
 ## Selected Patterns
 
 | Pattern | Usage In This Architecture |

@@ -1,7 +1,5 @@
 # Bounded Contexts
 
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
-
 ## Strategic Bounded Context Model
 
 系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。

@@ -1,7 +1,5 @@
 # Integration Guidelines
 
-本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
-
 ## Boundary Contract
 
 跨主域整合只能使用：

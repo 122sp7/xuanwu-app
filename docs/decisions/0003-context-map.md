@@ -1,6 +1,6 @@
 # 0003 Context Map
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [0014](./0014-main-domain-resplit.md)**
 - Date: 2026-04-11
 
 ## Context
