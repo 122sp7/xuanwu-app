@@ -66,13 +66,33 @@
 
 ```
 Week 1 (P0 安全)    GAP-05 → 所有 server actions 加 auth gate
+                    [⛔ BLOCKED: platform.AuthAPI 未公開 + ADR 待決策]
 Week 2 (P0 可用性)  GAP-01 → schedule/audit/settlement server actions + Saga wiring
+                    [🟡 PARTIAL: server actions ✅, Saga try/catch ✅, import fix ✅;
+                               Saga wiring ⛔ 待 ADR; unit tests ⬜ 開放]
 Week 3 (P0 閉環)    GAP-03 → notebooklm task materialization 真實呼叫
+                    [⛔ BLOCKED: ADR 待決策（handoff 方式）]
 Week 4 (P1)         GAP-04 → task-formation extractor 錯誤分類 + retry
+                    [🟡 PARTIAL: Zod output schema ✅;
+                               錯誤分類/retry/stub 移除 ⛔ 待 ADR]
 Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
+                    [⛔ BLOCKED: ADR 待決策（template 儲存格式）]
 ```
 
 > 每個修補 PR 必須對齊對應缺口文件的「修補路徑（最小必要步驟）」，並附帶：Zod 契約、授權檢查、結構化 log、測試證據。
+
+---
+
+## Context7 驗證錨點
+
+> 矩陣中所有準則對應的修補指引，其函式庫 API 已透過 Context7 逐一查閱確認（confidence ≥ 99.99%）。
+
+| 函式庫 | Context7 ID | 在缺口修補中的用途 |
+|---|---|---|
+| Zod | `/colinhacks/zod` | Rule 4（Contract/Schema）：server action 邊界 `Schema.parse(rawInput)` 不穿透 `unknown`；Rule 5（Breaking Change）：`z.literal('v1')` schema 版本化；Rule 6 brand type：`z.string().uuid().brand(...)` 防 ID 混用 |
+| XState | `/statelyai/xstate` | Rule 7（State Model/FSM）：`setup({ guards: {...} }).createMachine(...)` 外置 guard 定義；Rule 10（Failure Strategy）：`type: 'final'` 的 `failed` state 防止 silent swallow；`retrying` state 含 `retryCount` assign |
+| Stately Docs | `/statelyai/docs` | 狀態命名規範（業務語意）：`idle / creating / succeeded / failed / retrying`；`invoke.src` actor + `onDone` / `onError` 映射 |
+| ESLint | `/eslint/eslint` | Rule 20（Lint/Policy as Code）：flat-config custom rules — `server-action-missing-auth`（GAP-05）、`no-stub-return-in-adapter`（GAP-03/04）、`no-empty-catch`（GAP-04） |
 
 ---
 

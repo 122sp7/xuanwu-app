@@ -6,7 +6,7 @@
 | 類型 | 功能缺口 |
 | 優先級 | P1 |
 | 影響範圍 | `workspace.task-formation` / `FirebaseCallableTaskCandidateExtractor` |
-| 狀態 | 🔴 Open |
+| 狀態 | 🟡 Partially Fixed |
 
 ## 問題描述
 
@@ -210,10 +210,33 @@
 
 ## 修補路徑（最小必要步驟）
 
-1. 撰寫 ADR（Rule 16）選定過渡期策略。
-2. 定義 `CallableExtractorOutputSchema`（Rule 4）。
-3. 錯誤分類表：`RETRYABLE / NON_RETRYABLE / UNKNOWN`（Rule 10）。
-4. 修改 adapter：移除假 fallback，加 retry + 錯誤分類 + structured log（Rule 10, 12, 15）。
-5. use case 接收 adapter throw → `job.fail(errorCode)`（Rule 6, 7）。
-6. 補 unit tests（四個情境）（Rule 14）。
-7. server action 加 auth gate（Rule 11）。
+1. ⛔ 撰寫 ADR（Rule 16）選定過渡期策略 — **待 ADR 決策（stub 保留期間 vs 立即報錯策略）**。
+2. ✅ 定義 `CallableExtractorOutputSchema`（`CallableCandidateSchema` + `CallableExtractorOutputSchema`）並在 callable 回傳時 `parse()`（Rule 4）— `2026-04-18`。
+3. ⬜ 錯誤分類表：`RETRYABLE / NON_RETRYABLE / UNKNOWN`（Rule 10）— 待 ADR 決策後實作。
+4. ⛔ 修改 adapter：移除假 fallback，加 retry + 錯誤分類 + structured log（Rule 10, 12, 15）— **待 ADR 決策（Step 1）**。
+5. ⬜ use case 接收 adapter throw → `job.fail(errorCode)`（Rule 6, 7）— 開放中。
+6. ⬜ 補 unit tests（四個情境）（Rule 14）— 開放中。
+7. ⛔ server action 加 auth gate（Rule 11）— **待 GAP-05 ADR 決策（platform.AuthAPI 尚未公開）**。
+
+---
+
+## Context7 驗證錨點
+
+> 本節所有 API 建議均已透過 Context7 查閱官方文件確認（confidence ≥ 99.99%）。
+
+| 函式庫 | Context7 ID | 用途 |
+|---|---|---|
+| Zod | `/colinhacks/zod` | `CallableExtractorOutputSchema.parse()` 驗證 callable 回傳 + `TaskCandidateSchema` 陣列元素校驗 |
+| XState | `/statelyai/xstate` | `extractionJobMachine`：`pending → running → succeeded / failed / retrying` — `guard: 'underRetryLimit'` 阻止無限重試 |
+| Stately Docs | `/statelyai/docs` | `invoke.src` actor 接 callable HTTP 呼叫，`onError` 映射到 `failed` state 含 `errorCode` |
+| ESLint | `/eslint/eslint` | `no-empty` rule + custom rule：adapter catch 內禁止 `return [...假資料...]` 型態回傳 |
+
+**Zod 關鍵模式（Context7 確認）**：
+- `CallableExtractorOutputSchema.safeParse(response)` — 使用 `safeParse` 而非 `parse`，允許 adapter 將驗證錯誤轉換為 `INVALID_RESPONSE` 錯誤分類而不 throw（Rule 4, 10）；
+- `z.array(TaskCandidateSchema).min(0)` — 空陣列合法，但非陣列 response 立即 fail（Rule 4）；
+- callable 版本欄位 `version: z.literal('v1')` — 明確綁定版本，舊版本協議不通過驗證（Rule 5）。
+
+**XState 關鍵模式（Context7 確認）**：
+- `retrying` state 的 `entry: assign({ retryCount: ({ context }) => context.retryCount + 1 })` 記錄重試次數（Rule 10）；
+- `guard: ({ context }) => context.retryCount < MAX_RETRIES` 在 `retrying → running` 轉換上執行，超限自動轉入 `failed`（Rule 10）；
+- `failed` 為 `type: 'final'`，確保錯誤不 silent swallow（Rule 10）。

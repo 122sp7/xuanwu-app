@@ -219,3 +219,26 @@ return {
 6. 補 workspace `Task` aggregate 的 `sourceRef` 欄位（Rule 6）。
 7. 補 `materializeTasks` 結構化 log（Rule 15）。
 8. 補 unit tests（Rule 14）。
+
+---
+
+## Context7 驗證錨點
+
+> 本節所有 API 建議均已透過 Context7 查閱官方文件確認（confidence ≥ 99.99%）。
+
+| 函式庫 | Context7 ID | 用途 |
+|---|---|---|
+| Zod | `/colinhacks/zod` | `MaterializeTasksInputSchema.parse()` + `idempotencyKey: z.string().min(1)` 必要欄位驗證 |
+| XState | `/statelyai/xstate` | `materializationMachine`：`pending → in_progress → succeeded / failed / retrying` FSM，`invoke.src` 呼叫 workspace server action |
+| Stately Docs | `/statelyai/docs` | `invoke.src` actor 模式：Promise 回傳後 `onDone` 映射 taskCount，`onError` 映射 errorCode |
+| ESLint | `/eslint/eslint` | CI grep / custom rule：notebooklm outbound adapter 不得 import `@/modules/workspace/subdomains/**` 路徑 |
+
+**Zod 關鍵模式（Context7 確認）**：
+- `MaterializeTasksInputSchema.parse(rawInput)` 於 adapter entry 最前端執行（Rule 4）；
+- `idempotencyKey: z.string().min(1)` 為 required 欄位，schema 缺失即 throw（Rule 9）；
+- `toCreateTaskInput(candidate)` 內部對每個 candidate 再次 `TaskCandidateSchema.parse(candidate)` — 防止陣列中的 malformed item 穿透到 workspace（Rule 4）。
+
+**XState 關鍵模式（Context7 確認）**：
+- `on: { RETRY: { target: 'in_progress', guard: 'underRetryLimit' } }` — guard 防止無限重試（Rule 10）；
+- `failed` state 設為 terminal（無外出轉換），確保失敗可見且不 silent swallow（Rule 10）；
+- `createActor(materializationMachine).start()` — actor 模型使 machine 可獨立測試（Rule 14）。

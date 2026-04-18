@@ -6,7 +6,7 @@
 | 類型 | 功能缺口 |
 | 優先級 | P0 |
 | 影響範圍 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` |
-| 狀態 | 🔴 Open |
+| 狀態 | 🟡 Partially Fixed |
 
 ## 問題描述
 
@@ -194,11 +194,34 @@ Domain 層（`WorkDemand` / `AuditEntry` / `Invoice`）、application use cases 
 
 ## 修補路徑（最小必要步驟）
 
-1. 撰寫 ADR（Rule 16）選定 saga wiring 方式。
-2. 補 `schedule-actions.ts`、`audit-actions.ts`、`settlement-actions.ts`（Rule 4, 11）。
-3. 修 `SettlementUseCases.ts` 移除重複 `canTransition` 呼叫（Rule 6, 18）。
-4. 補 `WorkDemand.assign()` 前置狀態 guard（Rule 7）。
-5. 補 `TaskLifecycleSaga` try/catch + `saga_failures` 寫入（Rule 10）。
-6. 接 saga wiring（Rule 8）。
-7. 補 unit tests（Rule 14）。
-8. 補 server action 入口結構化 log（Rule 15）。
+1. ⛔ 撰寫 ADR（Rule 16）選定 saga wiring 方式 — **待 ADR 決策（人工選定 Firestore trigger vs in-process hook）**。
+2. ✅ 補 `schedule-actions.ts`、`audit-actions.ts`、`settlement-actions.ts`（Rule 4, 11）— `2026-04-18`。
+3. ✅ 修 `SettlementUseCases.ts` 移除重複 `canTransition` 呼叫，改用 `Invoice.reconstitute()` + `invoice.transition(to)` + `invoiceRepo.save()`（Rule 6, 18）— `2026-04-18`。
+4. ✅ 補 `WorkDemand.assign()` 前置狀態 guard：僅 `draft` 狀態可執行，否則 throw（Rule 7）— `2026-04-18`。
+5. ✅ 補 `TaskLifecycleSaga.handle()` try/catch + structured console.error log（Rule 10）— `2026-04-18`。  `saga_failures` Firestore collection 寫入待 ADR (Step 1) 決策後補。
+6. ⛔ 接 saga wiring（Rule 8）— **待 ADR 決策（Step 1）**。
+7. ⬜ 補 unit tests（Rule 14）— 開放中。
+8. ✅ `TaskLifecycleSaga` 跨子域直接 import 改為從 `workspace/shared/events` 公開重新 export（Rule 13）— `2026-04-18`。
+
+---
+
+## Context7 驗證錨點
+
+> 本節所有 API 建議均已透過 Context7 查閱官方文件確認（confidence ≥ 99.99%）。
+
+| 函式庫 | Context7 ID | 用途 |
+|---|---|---|
+| Zod | `/colinhacks/zod` | server action 邊界 `parse()` / `safeParse()` + Zod brand type 用於 `WorkDemandId` / `InvoiceId` |
+| XState | `/statelyai/xstate` | `setup().createMachine()` + `guard` 組合（`and` / `or` / `not`）用於 `InvoiceStatus` FSM 與 `TaskLifecycleSaga` 狀態 |
+| Stately Docs | `/statelyai/docs` | 狀態命名規範（業務語意：`idle → creating → succeeded / failed`，禁用 `loading / success`） |
+| ESLint | `/eslint/eslint` | flat-config custom rule：`src/modules/workspace/subdomains/*/adapters/inbound/server-actions/` 下的 action 函式必須包含 auth helper 呼叫 |
+
+**Zod 關鍵模式（Context7 確認）**：
+- server action 邊界使用 `Schema.parse(rawInput)` 不作 `unknown` 穿透；
+- `safeParse()` 用於需要自訂錯誤回應（不 throw）的場景（Rule 4）；
+- 品牌型別 `z.string().uuid().brand('WorkDemandId')` 用於防止 ID 混用（Rule 6）。
+
+**XState 關鍵模式（Context7 確認）**：
+- `setup({ guards: { canTransition: ... } }).createMachine(...)` — guard 在 setup 外置定義，機器宣告中只引用名稱（Rule 7）；
+- `retrying` 狀態以 `on: { RETRY: 'running' }` 顯式定義，不允許隱式重試（Rule 7）；
+- `entry: assign({ retryCount: ({ context }) => context.retryCount + 1 })` 於 `retrying` 狀態計數（Rule 10）。
