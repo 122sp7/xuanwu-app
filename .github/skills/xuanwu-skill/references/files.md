@@ -31666,6 +31666,28 @@ reset();
 onOpenChange(false);
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
+````typescript
+/**
+ * workspace-ui-stubs — re-export barrel (backward-compatible surface).
+ *
+ * This file was previously a monolithic stubs file.  It is now a thin barrel
+ * that re-exports from three focused modules:
+ *
+ *   workspace-nav-model.ts        — pure tab/group/URL model (no JSX)
+ *   workspace-shell-interop.tsx   — shell integration components & hooks
+ *   workspace-route-screens.tsx   — workspace-scoped route screens
+ *
+ * Account / organization route screens (AccountDashboard, OrganizationTeams,
+ * OrganizationSchedule, OrganizationDaily, OrganizationAudit,
+ * OrganizationWorkspaces) now live in platform-ui-stubs because they are owned
+ * by the platform bounded context, not the workspace bounded context.
+ *
+ * Direct consumers of those screens must import from platform-ui-stubs instead.
+ * AccountRouteDispatcher has already been updated accordingly.
+ */
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx
 ````typescript
 /**
@@ -31727,6 +31749,137 @@ const handleRefresh = () =>
 {/* Status filter */}
 ⋮----
 {/* Task list */}
+````
+
+## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — workspace module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the workspace module.
+ * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives at
+ * src/modules/workspace/adapters/outbound/ which matches the permitted glob
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
+ * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import {
+  FirebaseWorkspaceQueryRepository,
+  type Unsubscribe,
+} from "./FirebaseWorkspaceQueryRepository";
+import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
+⋮----
+import {
+  FirestoreWorkspaceRepository,
+  type FirestoreLike,
+} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
+import {
+  CreateWorkspaceUseCase,
+  ActivateWorkspaceUseCase,
+  StopWorkspaceUseCase,
+} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  TransitionTaskStatusUseCase,
+  DeleteTaskUseCase,
+} from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
+import {
+  OpenIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ResolveIssueUseCase,
+} from "../../subdomains/issue/application/use-cases/IssueUseCases";
+import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
+import {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "../../subdomains/quality/application/use-cases/QualityUseCases";
+import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
+import {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
+import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
+import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
+⋮----
+type FirestoreWhereOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "in"
+  | "array-contains-any"
+  | "not-in";
+⋮----
+// ── Singleton repository ───────────────────────────────────────────────────────
+⋮----
+function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+⋮----
+function createFirestoreLikeAdapter()
+⋮----
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+async query(
+      collectionName: string,
+      filters: Array<{ field: string; op: string; value: unknown }>,
+): Promise<Record<string, unknown>[]>
+async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
+⋮----
+function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+⋮----
+// ── Public subscriptions ───────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time workspace updates for the given account.
+ * Calls `onUpdate` immediately with the current dataset and again on every
+ * subsequent Firestore change.
+ *
+ * Returns an unsubscribe function — call it when the subscriber unmounts to
+ * avoid memory leaks and unnecessary Firestore reads.
+ */
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
+⋮----
+export function createClientWorkspaceLifecycleUseCases()
+⋮----
+export function createClientTaskFormationUseCases()
+⋮----
+export function createClientTaskUseCases()
+⋮----
+export function createClientIssueUseCases()
+⋮----
+export function createClientQualityUseCases()
+⋮----
+export function createClientApprovalUseCases()
+⋮----
+export function createClientFeedUseCases()
 ````
 
 ## File: src/modules/workspace/README.md
@@ -32573,159 +32726,6 @@ const closePreview = () =>
 {/* Body */}
 ⋮----
 src=
-````
-
-## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
-````typescript
-/**
- * workspace-ui-stubs — re-export barrel (backward-compatible surface).
- *
- * This file was previously a monolithic stubs file.  It is now a thin barrel
- * that re-exports from three focused modules:
- *
- *   workspace-nav-model.ts        — pure tab/group/URL model (no JSX)
- *   workspace-shell-interop.tsx   — shell integration components & hooks
- *   workspace-route-screens.tsx   — workspace-scoped route screens
- *
- * Account / organization route screens (AccountDashboard, OrganizationTeams,
- * OrganizationSchedule, OrganizationDaily, OrganizationAudit,
- * OrganizationWorkspaces) now live in platform-ui-stubs because they are owned
- * by the platform bounded context, not the workspace bounded context.
- *
- * Direct consumers of those screens must import from platform-ui-stubs instead.
- * AccountRouteDispatcher has already been updated accordingly.
- */
-````
-
-## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — workspace module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the workspace module.
- * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
- *
- * ESLint: @integration-firebase is allowed here because this file lives at
- * src/modules/workspace/adapters/outbound/ which matches the permitted glob
- * (src/modules/<context>/adapters/outbound/**).
- *
- * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
- * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import {
-  FirebaseWorkspaceQueryRepository,
-  type Unsubscribe,
-} from "./FirebaseWorkspaceQueryRepository";
-import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
-⋮----
-import {
-  FirestoreWorkspaceRepository,
-  type FirestoreLike,
-} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
-import {
-  CreateWorkspaceUseCase,
-  ActivateWorkspaceUseCase,
-  StopWorkspaceUseCase,
-} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
-import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
-import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
-import {
-  ExtractTaskCandidatesUseCase,
-  ConfirmCandidatesUseCase,
-} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
-import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
-import {
-  CreateTaskUseCase,
-  UpdateTaskUseCase,
-  TransitionTaskStatusUseCase,
-  DeleteTaskUseCase,
-} from "../../subdomains/task/application/use-cases/TaskUseCases";
-import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
-import {
-  OpenIssueUseCase,
-  TransitionIssueStatusUseCase,
-  ResolveIssueUseCase,
-} from "../../subdomains/issue/application/use-cases/IssueUseCases";
-import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
-import {
-  StartQualityReviewUseCase,
-  PassQualityReviewUseCase,
-  FailQualityReviewUseCase,
-  ListQualityReviewsUseCase,
-} from "../../subdomains/quality/application/use-cases/QualityUseCases";
-import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
-import {
-  CreateApprovalDecisionUseCase,
-  ApproveTaskUseCase,
-  RejectApprovalUseCase,
-  ListApprovalDecisionsUseCase,
-} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
-import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
-import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
-⋮----
-type FirestoreWhereOperator =
-  | "<"
-  | "<="
-  | "=="
-  | "!="
-  | ">="
-  | ">"
-  | "array-contains"
-  | "in"
-  | "array-contains-any"
-  | "not-in";
-⋮----
-// ── Singleton repository ───────────────────────────────────────────────────────
-⋮----
-function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
-⋮----
-function createFirestoreLikeAdapter()
-⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-async query(
-      collectionName: string,
-      filters: Array<{ field: string; op: string; value: unknown }>,
-): Promise<Record<string, unknown>[]>
-async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
-⋮----
-function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
-⋮----
-// ── Public subscriptions ───────────────────────────────────────────────────────
-⋮----
-/**
- * Subscribes to real-time workspace updates for the given account.
- * Calls `onUpdate` immediately with the current dataset and again on every
- * subsequent Firestore change.
- *
- * Returns an unsubscribe function — call it when the subscriber unmounts to
- * avoid memory leaks and unnecessary Firestore reads.
- */
-export function subscribeToWorkspacesForAccount(
-  accountId: string,
-  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
-): Unsubscribe
-⋮----
-export function createClientWorkspaceLifecycleUseCases()
-⋮----
-export function createClientTaskFormationUseCases()
-⋮----
-export function createClientTaskUseCases()
-⋮----
-export function createClientIssueUseCases()
-⋮----
-export function createClientQualityUseCases()
-⋮----
-export function createClientApprovalUseCases()
-⋮----
-export function createClientFeedUseCases()
 ````
 
 ## File: .github/copilot-instructions.md
