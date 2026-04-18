@@ -46,9 +46,9 @@ This skill contains the following reference files:
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 830 | 11,317 |
+| TypeScript | 830 | 11,311 |
 | Markdown | 287 | 22,721 |
-| TypeScript (TSX) | 108 | 2,878 |
+| TypeScript (TSX) | 108 | 2,884 |
 | Python | 63 | 1,459 |
 | No Extension | 52 | 57 |
 | JSON | 19 | 2,025 |

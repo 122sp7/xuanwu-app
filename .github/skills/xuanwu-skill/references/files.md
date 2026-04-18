@@ -12761,27 +12761,6 @@ delete(key: string): Promise<void>;
 // file-storage — adapters aggregate
 ````
 
-## File: src/modules/platform/subdomains/file-storage/adapters/outbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/platform/subdomains/file-storage/adapters/outbound/memory/InMemoryFileStorageRepository.ts
-````typescript
-import type { StoredFile } from "../../../domain/entities/StoredFile";
-import type { FileStorageRepository } from "../../../domain/repositories/FileStorageRepository";
-⋮----
-export class InMemoryFileStorageRepository implements FileStorageRepository {
-⋮----
-async save(file: StoredFile): Promise<void>
-⋮----
-async findById(fileId: string): Promise<StoredFile | null>
-⋮----
-async listByOwner(ownerId: string): Promise<StoredFile[]>
-⋮----
-async delete(fileId: string): Promise<void>
-````
-
 ## File: src/modules/platform/subdomains/file-storage/application/index.ts
 ````typescript
 
@@ -25613,44 +25592,26 @@ export async function registerUploadedFileAction(rawInput: unknown)
 export async function deleteWorkspaceFileAction(rawInput: unknown)
 ````
 
-## File: src/modules/platform/adapters/outbound/firebase-composition.ts
+## File: src/modules/platform/subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
 ````typescript
 /**
- * firebase-composition — platform module outbound composition root.
+ * FirestoreFileStorageRepository — Firestore-backed FileStorageRepository.
  *
- * Provides:
- *   - FirestoreFileStorageRepository  (Firestore-backed FileStorageRepository)
- *   - uploadWorkspaceFile()           (Firebase Storage upload for workspace files)
- *   - getWorkspaceFileDownloadUrl()   (resolve download URL from GCS path)
- *   - createClientFileStorageUseCases() (factory for use-case instances)
+ * Collection: storedFiles/{fileId}
+ * Schema: mirrors StoredFile (flat document, no nesting).
+ * Soft-delete: deletedAtISO is set on deletion; listByOwner excludes soft-deleted files.
  *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/platform/adapters/outbound/ which matches the permitted glob.
- *
- * Firestore collection: storedFiles/{fileId}
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Composite index required:
+ *   collection: storedFiles
+ *   fields: ownerId ASC, deletedAtISO ASC
+ *   mode: COLLECTION
  */
 ⋮----
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
-import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
-import type { StoredFile } from "../../subdomains/file-storage/domain/entities/StoredFile";
-import type { FileStorageRepository } from "../../subdomains/file-storage/domain/repositories/FileStorageRepository";
-import {
-  CreateStoredFileUseCase,
-  GetStoredFileUseCase,
-  ListStoredFilesUseCase,
-  DeleteStoredFileUseCase,
-} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
+import type { StoredFile } from "../../../domain/entities/StoredFile";
+import type { FileStorageRepository } from "../../../domain/repositories/FileStorageRepository";
 ⋮----
-// ── Firestore repository ──────────────────────────────────────────────────────
-⋮----
-/**
- * FirestoreFileStorageRepository — Firestore-backed implementation of FileStorageRepository.
- *
- * Document shape mirrors StoredFile (flat; no nesting required).
- * listByOwner queries by ownerId (= workspaceId) and excludes soft-deleted files.
- */
-class FirestoreFileStorageRepository implements FileStorageRepository {
+export class FirestoreFileStorageRepository implements FileStorageRepository {
 ⋮----
 async save(file: StoredFile): Promise<void>
 ⋮----
@@ -25659,43 +25620,11 @@ async findById(fileId: string): Promise<StoredFile | null>
 async listByOwner(ownerId: string): Promise<StoredFile[]>
 ⋮----
 async delete(fileId: string): Promise<void>
-⋮----
-// ── Singleton ─────────────────────────────────────────────────────────────────
-⋮----
-function getFileRepo(): FirestoreFileStorageRepository
-⋮----
-// ── Factory ───────────────────────────────────────────────────────────────────
-⋮----
-export function createClientFileStorageUseCases()
-⋮----
-// ── Storage helpers ───────────────────────────────────────────────────────────
-⋮----
-/**
- * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
- *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
- * Returns the GCS storage path (used as StoredFile.url).
- */
-export async function uploadWorkspaceFile(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
- *
- * Accepts both gs://bucket/path and relative paths like workspace-files/...
- */
-export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
 ````
 
-## File: src/modules/platform/index.ts
+## File: src/modules/platform/subdomains/file-storage/adapters/outbound/index.ts
 ````typescript
-/**
- * Platform Module — public API surface.
- * All cross-module consumers must import from here only.
- */
+
 ````
 
 ## File: src/modules/platform/subdomains/search/application/services/shell-command-catalog.ts
@@ -35011,6 +34940,71 @@ async function handleLogout()
 void handleLogout();
 ````
 
+## File: src/modules/platform/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — platform module outbound composition root.
+ *
+ * This file is a pure composition root. It:
+ *   - Assembles use-case instances against FirestoreFileStorageRepository
+ *   - Provides Firebase Storage upload/download helpers
+ *
+ * Infrastructure logic lives in the subdomain adapter:
+ *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
+ *
+ * ESLint: @integration-firebase/storage is allowed here — this file lives at
+ * src/modules/platform/adapters/outbound/ which matches the permitted glob.
+ *
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ */
+⋮----
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
+import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
+import {
+  CreateStoredFileUseCase,
+  GetStoredFileUseCase,
+  ListStoredFilesUseCase,
+  DeleteStoredFileUseCase,
+} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
+⋮----
+// ── Singleton ─────────────────────────────────────────────────────────────────
+⋮----
+function getFileRepo(): FirestoreFileStorageRepository
+⋮----
+// ── Factory ───────────────────────────────────────────────────────────────────
+⋮----
+export function createClientFileStorageUseCases()
+⋮----
+// ── Storage helpers ───────────────────────────────────────────────────────────
+⋮----
+/**
+ * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
+ *
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Returns the GCS storage path (used as StoredFile.url).
+ */
+export async function uploadWorkspaceFile(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspace-files/...
+ */
+export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
+````
+
+## File: src/modules/platform/index.ts
+````typescript
+/**
+ * Platform Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx
 ````typescript
 /**
@@ -35091,72 +35085,6 @@ onClick=
 {/* ③ Standup blocks */}
 ⋮----
 {/* ④ Today's task timeline */}
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
-````typescript
-/**
- * WorkspaceFilesSection — workspace.files tab — file management.
- *
- * Upload flow:
- *   1. Browser picks a file via hidden <input type="file">.
- *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
- *   3. registerUploadedFileAction() saves metadata to Firestore (server action).
- *   4. listWorkspaceFilesAction() loads the list on mount / after upload.
- *
- * Delete flow:
- *   1. deleteWorkspaceFileAction() soft-deletes the Firestore record (sets deletedAtISO).
- *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
- */
-⋮----
-import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { uploadWorkspaceFile } from "@/src/modules/platform";
-import {
-  listWorkspaceFilesAction,
-  registerUploadedFileAction,
-  deleteWorkspaceFileAction,
-} from "@/src/modules/platform/adapters/inbound/server-actions/file-actions";
-import type { StoredFile } from "@/src/modules/platform";
-⋮----
-interface WorkspaceFilesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function fileCategoryIcon(mimeType: string)
-⋮----
-function categoryCounts(files: StoredFile[])
-⋮----
-function formatBytes(bytes: number): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-const load = () =>
-⋮----
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-⋮----
-const handleDelete = async (fileId: string) =>
-⋮----
-{/* Header */}
-⋮----
-{/* Hidden file input */}
-⋮----
-{/* Error banner */}
-⋮----
-{/* Storage summary */}
-⋮----
-{/* Not yet loaded hint */}
-⋮----
-{/* Empty state */}
-⋮----
-{/* File list */}
-⋮----
-{/* File grid */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceOverviewSection.tsx
@@ -40670,73 +40598,6 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 - [docs/structure/domain/bounded-context-subdomain-template.md](../../../docs/structure/domain/bounded-context-subdomain-template.md) — 設計藍圖
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
-````typescript
-/**
- * AccountRouteDispatcher — workspace inbound adapter (React).
- *
- * Receives accountId + slug props from the Server Component shim and
- * dispatches to the appropriate route screen.
- *
- * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
- */
-⋮----
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
-import {
-  useAccountRouteContext,
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-  AccountDashboardRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  OrganizationTeamsRouteScreen,
-  OrganizationScheduleRouteScreen,
-  OrganizationDispatcherRouteScreen,
-  OrganizationDailyRouteScreen,
-  OrganizationAuditRouteScreen,
-  SettingsNotificationsRouteScreen,
-} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
-import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
-import {
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "./workspace-ui-stubs";
-⋮----
-export interface AccountRouteDispatcherProps {
-  accountId: string;
-  slug: string[];
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-export function AccountRouteDispatcher({
-  accountId: accountIdFromParams,
-  slug,
-}: AccountRouteDispatcherProps)
-⋮----
-// Legacy redirect: /organization/... → /<accountId>/...
-⋮----
-// Legacy redirect: /workspace/... → /<accountId>/...
-⋮----
-// Root: /<accountId>
-⋮----
-if (accountType === "organization")
-⋮----
-// Single-segment routes: /<accountId>/<segment>
-⋮----
-// Two-segment routes
-⋮----
-// Fallback
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts
 ````typescript
 /**
@@ -40913,6 +40774,75 @@ export function appendWorkspaceContextQuery(
   href: string,
   context: { accountId: string | null; workspaceId: string | null },
 ): string
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
+````typescript
+/**
+ * WorkspaceFilesSection — workspace.files tab — file management.
+ *
+ * Upload flow:
+ *   1. Browser picks a file via hidden <input type="file">.
+ *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
+ *   3. registerUploadedFileAction() saves metadata to Firestore (server action).
+ *   4. listWorkspaceFilesAction() loads the list on mount / after upload.
+ *
+ * Delete flow:
+ *   1. deleteWorkspaceFileAction() soft-deletes the Firestore record (sets deletedAtISO).
+ *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
+ */
+⋮----
+import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { uploadWorkspaceFile } from "@/src/modules/platform";
+import {
+  listWorkspaceFilesAction,
+  registerUploadedFileAction,
+  deleteWorkspaceFileAction,
+} from "@/src/modules/platform/adapters/inbound/server-actions/file-actions";
+import type { StoredFile } from "@/src/modules/platform";
+⋮----
+interface WorkspaceFilesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function fileCategoryIcon(mimeType: string)
+⋮----
+function categoryCounts(files: StoredFile[])
+⋮----
+function formatBytes(bytes: number): string
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+const load = () =>
+⋮----
+// Auto-load on mount so files are visible without a manual click.
+useEffect(() => { load(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const handleDelete = async (fileId: string) =>
+⋮----
+{/* Header */}
+⋮----
+{/* Hidden file input */}
+⋮----
+{/* Error banner */}
+⋮----
+{/* Storage summary */}
+⋮----
+{/* Loading indicator before first load */}
+⋮----
+{/* Empty state */}
+⋮----
+{/* File list */}
+⋮----
+{/* File grid */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx
@@ -42523,6 +42453,19 @@ flowchart LR
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
+## File: eslint.config.mjs
+````javascript
+const normalizeWarnSeverity = (ruleConfig) =>
+⋮----
+const mapRulesToWarn = (rules =
+⋮----
+const restrictedImportsRule = (patterns, extraOptions =
+⋮----
+// Used by boundaries/no-unknown-files and reserved for future boundaries/dependencies migration.
+⋮----
+// TypeScript + Next path aliases are resolved by TS/Next; keep import plugin checks that are resolver-agnostic.
+````
+
 ## File: packages/README.md
 ````markdown
 # Packages Layer
@@ -43065,62 +43008,6 @@ className=
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
-````typescript
-/**
- * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
- * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
- *
- * Closed-loop design: uploaded documents are the entry point of the data loop.
- * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
- *
- * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
- */
-⋮----
-import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
-import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
-import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";
-⋮----
-interface NotebooklmSourcesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-/** MIME types renderable via Google Doc Viewer */
-⋮----
-function googleDocViewerUrl(downloadUrl: string): string
-⋮----
-// Preview state
-⋮----
-const load = () =>
-⋮----
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-⋮----
-// reload list after upload
-⋮----
-const handlePreview = async (doc: DocumentSnapshot) =>
-⋮----
-const closePreview = () =>
-⋮----
-{/* hidden file input */}
-⋮----
-{/* Processing chain banner — always visible once loaded */}
-⋮----
-{/* Downstream CTAs when documents are ready */}
-⋮----
-{/* PDF / image preview overlay — Google Doc Viewer */}
-⋮----
-{/* Header */}
-⋮----
-{/* Body */}
-⋮----
-src=
-````
-
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
 ````typescript
 /**
@@ -43332,6 +43219,73 @@ export function isActiveRoute(pathname: string, href: string)
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
+````typescript
+/**
+ * AccountRouteDispatcher — workspace inbound adapter (React).
+ *
+ * Receives accountId + slug props from the Server Component shim and
+ * dispatches to the appropriate route screen.
+ *
+ * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+ */
+⋮----
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  useAccountRouteContext,
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  OrganizationTeamsRouteScreen,
+  OrganizationScheduleRouteScreen,
+  OrganizationDispatcherRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationAuditRouteScreen,
+  SettingsNotificationsRouteScreen,
+} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import {
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "./workspace-ui-stubs";
+⋮----
+export interface AccountRouteDispatcherProps {
+  accountId: string;
+  slug: string[];
+}
+⋮----
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
+⋮----
+function RedirectingRoute(
+⋮----
+export function AccountRouteDispatcher({
+  accountId: accountIdFromParams,
+  slug,
+}: AccountRouteDispatcherProps)
+⋮----
+// Legacy redirect: /organization/... → /<accountId>/...
+⋮----
+// Legacy redirect: /workspace/... → /<accountId>/...
+⋮----
+// Root: /<accountId>
+⋮----
+if (accountType === "organization")
+⋮----
+// Single-segment routes: /<accountId>/<segment>
+⋮----
+// Two-segment routes
+⋮----
+// Fallback
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
@@ -45055,19 +45009,6 @@ flowchart LR
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
-## File: eslint.config.mjs
-````javascript
-const normalizeWarnSeverity = (ruleConfig) =>
-⋮----
-const mapRulesToWarn = (rules =
-⋮----
-const restrictedImportsRule = (patterns, extraOptions =
-⋮----
-// Used by boundaries/no-unknown-files and reserved for future boundaries/dependencies migration.
-⋮----
-// TypeScript + Next path aliases are resolved by TS/Next; keep import plugin checks that are resolver-agnostic.
-````
-
 ## File: packages/ui-shadcn/ui/sidebar.tsx
 ````typescript
 import { mergeProps } from "@base-ui/react/merge-props"
@@ -45143,6 +45084,65 @@ function SidebarMenuAction({
 })
 ⋮----
 // Random width between 50 to 90%.
+````
+
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
+````typescript
+/**
+ * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
+ * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
+ *
+ * Closed-loop design: uploaded documents are the entry point of the data loop.
+ * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
+ *
+ * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
+ */
+⋮----
+import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
+import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";
+⋮----
+interface NotebooklmSourcesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+/** MIME types renderable via Google Doc Viewer */
+⋮----
+function googleDocViewerUrl(downloadUrl: string): string
+⋮----
+// Preview state
+⋮----
+const load = () =>
+⋮----
+// Auto-load on mount so sources are visible without a manual click.
+useEffect(() => { load(); }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+// reload list after upload
+⋮----
+const handlePreview = async (doc: DocumentSnapshot) =>
+⋮----
+const closePreview = () =>
+⋮----
+{/* hidden file input */}
+⋮----
+{/* Processing chain banner — always visible once loaded */}
+⋮----
+{/* Downstream CTAs when documents are ready */}
+⋮----
+{/* PDF / image preview overlay — Google Doc Viewer */}
+⋮----
+{/* Header */}
+⋮----
+{/* Body */}
+⋮----
+src=
 ````
 
 ## File: .github/agents/domain-architect.agent.md
