@@ -113,3 +113,23 @@ import { generateId } from '@infra/uuid'
 | 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
 | 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
 | 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
+
+---
+
+## Context7 官方文件基線（repomix:packages）
+
+以下為 packages 層「各包」在實作與維護時需對齊的官方文件基線（已透過 Context7 查核）。
+
+| 套件 | Context7 文件 | 實作基線 |
+|---|---|---|
+| `infra/state` | `/pmndrs/zustand`、`/statelyai/xstate` | Zustand `createStore` 僅做不可變狀態更新；XState 使用 `createMachine`/actor 模型，不在 machine 放 I/O 業務規則。 |
+| `infra/trpc` | `/trpc/trpc` | 優先使用 v11 `createTRPCClient`；link 組合以 `httpBatchLink` + `splitLink` 為主。 |
+| `infra/uuid` | `/uuidjs/uuid` | 以 `v4` 產生 ID，驗證時使用 `validate()`（必要時加 `version()===4`）。 |
+| `infra/zod` | `/colinhacks/zod` | boundary 驗證採 `parse`/`safeParse`；錯誤統一回傳 `ZodError.issues` 結構。 |
+| `integration-ai` | `/genkit-ai/genkit` | flow/tool 必須有 schema（輸入/輸出）；避免回傳未驗證的模型結果。 |
+| `integration-firebase` | `/firebase/firebase-js-sdk` | 採 modular API；App 初始化維持 singleton（`getApps/getApp/initializeApp`）。 |
+| `integration-queue` | `/websites/upstash_qstash` | 佇列發布需支援 retry、delay、callback/failureCallback。 |
+| `ui-markdown` | `/remarkjs/react-markdown`、`/remarkjs/remark-gfm` | 預設維持安全渲染（不開 raw HTML）；GFM 功能透過 `remark-gfm` 啟用。 |
+| `ui-shadcn` | `/shadcn-ui/ui` | 元件來源透過 `npx shadcn@latest add`；官方檔案不手改，以 wrapper 擴充。 |
+
+> `infra/client-state`、`infra/http`、`infra/serialization`、`ui-components`、`ui-editor`、`ui-visualization` 目前未綁定單一第三方 SDK 官方文件，維持本專案既有封裝規則即可。

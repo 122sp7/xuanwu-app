@@ -9,6 +9,8 @@ packages/integration-firebase/
   client.ts     ← Firebase App singleton 初始化
   auth.ts       ← Auth 操作（getAuth、onAuthStateChanged、signOut）
   firestore.ts  ← Firestore 操作原語（firestoreApi）
+  functions.ts  ← Functions 操作（getFunctions、httpsCallable）
+  storage.ts    ← Storage 操作（ref、uploadBytes、getDownloadURL）
   index.ts      ← 統一 re-export
   AGENTS.md     ← Agent 使用規則
 ```
@@ -33,6 +35,23 @@ import {
   firestoreApi,
   type Firestore,
 } from '@integration-firebase'
+
+// Functions
+import {
+  getFirebaseFunctions,
+  httpsCallable,
+  type Functions,
+} from '@integration-firebase'
+
+// Storage
+import {
+  getFirebaseStorage,
+  ref,
+  uploadBytes,
+  uploadBytesResumable,
+  getDownloadURL,
+  type FirebaseStorage,
+} from '@integration-firebase'
 ```
 
 ## 使用限制
@@ -46,3 +65,11 @@ import {
 ## 設定來源
 
 所有 Firebase 設定從 `NEXT_PUBLIC_FIREBASE_*` 環境變數讀取，詳見 `client.ts`。
+
+## Context7 官方基線
+
+- 文件來源：`/firebase/firebase-js-sdk`
+- 實作原則：
+  - 維持 modular import（`firebase/app`, `firebase/auth`, `firebase/firestore`, `firebase/storage`, `firebase/functions`）。
+  - App 初始化維持 singleton（`getApps().length === 0 ? initializeApp(...) : getApp()`）。
+  - 僅封裝 SDK 能力，不在此層加入業務規則。
