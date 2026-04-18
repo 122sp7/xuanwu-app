@@ -20,6 +20,18 @@ import { Button } from "@ui-shadcn/ui/button";
 
 import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
 import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
+import { WorkspaceDailySection } from "./WorkspaceDailySection";
+import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
+import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
+import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
+import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
+import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
+import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
+import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
+import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
+import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
 import {
   WORKSPACE_TAB_ITEMS,
   resolveWorkspaceTabValue,
@@ -212,13 +224,45 @@ export function WorkspaceDetailRouteScreen({
         )}
 
         {/* ── workspace group — work execution tabs ── */}
-        {activeTab !== "Overview" &&
-          !["Knowledge", "Pages", "Database", "Templates",
-            "Notebook", "AiChat", "Sources", "Research"].includes(activeTab) && (
-          <p className="text-sm text-muted-foreground">
-            {WORKSPACE_TAB_ITEMS.find((tab) => tab.value === activeTab)?.label ?? activeTab}{" "}
-            分頁內容仍在整合中，已恢復 tab 導航與 URL 狀態。
-          </p>
+        {activeTab === "Daily" && (
+          <WorkspaceDailySection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Schedule" && (
+          <WorkspaceScheduleSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Audit" && (
+          <WorkspaceAuditSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Files" && (
+          <WorkspaceFilesSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Members" && (
+          <WorkspaceMembersSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "WorkspaceSettings" && (
+          <WorkspaceSettingsSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            workspace={workspace}
+          />
+        )}
+        {activeTab === "TaskFormation" && (
+          <WorkspaceTaskFormationSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Tasks" && (
+          <WorkspaceTasksSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Quality" && (
+          <WorkspaceQualitySection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Approval" && (
+          <WorkspaceApprovalSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Settlement" && (
+          <WorkspaceSettlementSection workspaceId={workspaceId} accountId={accountId} />
+        )}
+        {activeTab === "Issues" && (
+          <WorkspaceIssuesSection workspaceId={workspaceId} accountId={accountId} />
         )}
       </section>
     </div>
