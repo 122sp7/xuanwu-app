@@ -4,7 +4,7 @@
     "maxFileSize": 52428800
   },
   "output": {
-    "filePath": "repomix-output.json",
+    "filePath": "repomix-output-analytics.json",
     "style": "json",
     "parsableStyle": true,
 
@@ -35,7 +35,8 @@
     }
   },
   "include": [
-    "src/modules/analytics/**"
+    "src/modules/analytics/**",
+    "docs/contexts/analytics/**"
   ],
     "ignore": {
     "useGitignore": true,

@@ -1,3 +1,21 @@
+---
+name: Commands Reference
+description: A reference for build, lint, development, deployment, and AI skill generation commands in this repository. Use this as a quick lookup for available npm scripts and their purposes.
+argument-hint: >- 
+  This file is meant to be a quick reference for available commands. For detailed
+  explanations of each command, their configurations, and environment setup, refer
+  to the "Build, Lint & Development Commands" section below.
+tools: [read, search]
+model: GPT-5.4 mini
+handoffs:
+  - label: Update Commands Reference
+    agent: agent
+    prompt: Update the commands reference with any new scripts added to package.json or changes to existing ones.
+    send: true
+    model: GPT-5.4 mini
+
+---
+
 # Build, Lint & Development Commands
 
 ## Development

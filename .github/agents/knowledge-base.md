@@ -1,3 +1,22 @@
+---
+name: KB Architect
+description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
+argument-hint: Provide doc scope or target area, restructuring goal, and deduplication constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refine Prompt Contracts
+    agent: Prompt Engineer
+    prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
+  - label: Align Support Playbooks
+    agent: Support Architect
+    prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
+    
+---
+
 # Knowledge Base — Implementation Navigation
 
 This file is an implementation-oriented supplement for repository navigation. Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here.

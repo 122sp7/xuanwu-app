@@ -4,7 +4,7 @@
     "maxFileSize": 52428800
   },
   "output": {
-    "filePath": "repomix-output.json",
+    "filePath": "repomix-output-billing.json",
     "style": "json",
     "parsableStyle": true,
 
@@ -35,7 +35,8 @@
     }
   },
   "include": [
-    "src/modules/billing/**"
+    "src/modules/billing/**",
+    "docs/contexts/billing/**"
   ],
     "ignore": {
     "useGitignore": true,
