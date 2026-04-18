@@ -90,5 +90,4 @@ flowchart LR
 - [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../domain/ubiquitous-language.md)
-- ../../decisions/0004-ubiquitous-language.md
+- [ubiquitous-language.md](../domain/ubiquitous-language.md)

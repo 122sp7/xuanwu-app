@@ -140,5 +140,4 @@ flowchart LR
 - [../context-map.md](../system/context-map.md)
 - [../integration-guidelines.md](../system/integration-guidelines.md)
 - [../subdomains.md](../domain/subdomains.md)
-- [../ubiquitous-language.md](../domain/ubiquitous-language.md)
-- ../decisions/README.md
+- [../ubiquitous-language.md](../domain/ubiquitous-language.md)

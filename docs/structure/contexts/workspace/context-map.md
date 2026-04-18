@@ -72,8 +72,6 @@ flowchart LR
 - [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
-- [../../context-map.md](../system/context-map.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- [../../strategic-patterns.md](../system/strategic-patterns.md)
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)

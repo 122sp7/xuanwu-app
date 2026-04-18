@@ -77,7 +77,5 @@ flowchart LR
 - [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0002-bounded-contexts.md
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)

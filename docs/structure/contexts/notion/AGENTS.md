@@ -105,8 +105,5 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
