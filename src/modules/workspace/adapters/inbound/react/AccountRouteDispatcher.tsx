@@ -18,48 +18,19 @@ import {
   OrganizationMembersRouteScreen,
   OrganizationOverviewRouteScreen,
   OrganizationPermissionsRouteScreen,
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  OrganizationTeamsRouteScreen,
+  OrganizationScheduleRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationAuditRouteScreen,
+  SettingsNotificationsRouteScreen,
 } from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
 import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
 import {
-  AccountDashboardRouteScreen,
-  OrganizationWorkspacesRouteScreen,
   WorkspaceDetailRouteScreen,
   WorkspaceHubScreen,
 } from "./workspace-ui-stubs";
-
-// Lazy imports to avoid hard-coupling modules that may not yet be available
-let OrganizationTeamsRouteScreen: React.ComponentType | null = null;
-let OrganizationScheduleRouteScreen: React.ComponentType | null = null;
-let OrganizationDailyRouteScreen: React.ComponentType | null = null;
-let OrganizationAuditRouteScreen: React.ComponentType | null = null;
-let SettingsNotificationsRouteScreen: React.ComponentType | null = null;
-
-try {
-  // These screens live in workspace/platform stubs — import dynamically to
-  // allow partial availability during incremental migration.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const wsUi = require("./workspace-ui-stubs") as Record<
-    string,
-    React.ComponentType
-  >;
-  OrganizationTeamsRouteScreen =
-    wsUi["OrganizationTeamsRouteScreen"] ?? null;
-  OrganizationScheduleRouteScreen =
-    wsUi["OrganizationScheduleRouteScreen"] ?? null;
-  OrganizationDailyRouteScreen =
-    wsUi["OrganizationDailyRouteScreen"] ?? null;
-  OrganizationAuditRouteScreen =
-    wsUi["OrganizationAuditRouteScreen"] ?? null;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const platformUi = require("../../../../platform/adapters/inbound/react/platform-ui-stubs") as Record<
-    string,
-    React.ComponentType
-  >;
-  SettingsNotificationsRouteScreen =
-    platformUi["SettingsNotificationsRouteScreen"] ?? null;
-} catch {
-  // Gracefully degrade if screens are not yet available
-}
 
 export interface AccountRouteDispatcherProps {
   accountId: string;
@@ -77,10 +48,6 @@ function RedirectingRoute({ href, message }: RedirectingRouteProps) {
     router.replace(href);
   }, [href, router]);
   return <div className="px-4 py-6 text-sm text-muted-foreground">{message}</div>;
-}
-
-function NotFound() {
-  return <div className="px-4 py-6 text-sm text-muted-foreground">頁面不存在</div>;
 }
 
 export function AccountRouteDispatcher({
@@ -190,31 +157,15 @@ export function AccountRouteDispatcher({
       case "permissions":
         return <OrganizationPermissionsRouteScreen />;
       case "teams":
-        return OrganizationTeamsRouteScreen ? (
-          <OrganizationTeamsRouteScreen />
-        ) : (
-          <NotFound />
-        );
+        return <OrganizationTeamsRouteScreen />;
       case "workspaces":
         return <OrganizationWorkspacesRouteScreen />;
       case "schedule":
-        return OrganizationScheduleRouteScreen ? (
-          <OrganizationScheduleRouteScreen />
-        ) : (
-          <NotFound />
-        );
+        return <OrganizationScheduleRouteScreen />;
       case "daily":
-        return OrganizationDailyRouteScreen ? (
-          <OrganizationDailyRouteScreen />
-        ) : (
-          <NotFound />
-        );
+        return <OrganizationDailyRouteScreen />;
       case "audit":
-        return OrganizationAuditRouteScreen ? (
-          <OrganizationAuditRouteScreen />
-        ) : (
-          <NotFound />
-        );
+        return <OrganizationAuditRouteScreen />;
       case "settings":
         return (
           <RedirectingRoute
@@ -237,11 +188,7 @@ export function AccountRouteDispatcher({
 
   // Two-segment routes
   if (slug.length === 2 && slug[0] === "settings" && slug[1] === "notifications") {
-    return SettingsNotificationsRouteScreen ? (
-      <SettingsNotificationsRouteScreen />
-    ) : (
-      <NotFound />
-    );
+    return <SettingsNotificationsRouteScreen />;
   }
 
   if (
