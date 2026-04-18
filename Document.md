@@ -67,6 +67,8 @@
   instructions/
   prompts/
   skills/
+  workflows/
+  copilot-instructions.md
 
 docs/
   structure/
