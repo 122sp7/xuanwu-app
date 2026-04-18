@@ -10,7 +10,7 @@ handoffs:
     prompt: 根據此次 domain 純度問題重構模組邊界、層依賴方向與公開 API 形狀。
   - label: Update Ubiquitous Language
     agent: KB Architect
-    prompt: 將此次 domain 建模新增或變更的術語同步更新至 docs/ubiquitous-language.md。
+    prompt: 將此次 domain 建模新增或變更的術語同步更新至 docs/structure/domain/ubiquitous-language.md。
   - label: Run Quality Review
     agent: Quality Lead
     prompt: 審查 domain 修正的行為風險、邊界回歸，確認符合 Hexagonal DDD 規範後才可合入。
@@ -34,7 +34,7 @@ handoffs:
 - `.github/instructions/domain-modeling.instructions.md`
 - `.github/instructions/domain-layer-rules.instructions.md`
 - `.github/instructions/event-driven-state.instructions.md`
-- `docs/ubiquitous-language.md`
+- `docs/structure/domain/ubiquitous-language.md`
 - `docs/contexts/<context>/README.md`
 
 ## 禁止事項（Hard Violations）

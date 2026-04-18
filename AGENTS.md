@@ -1,4 +1,4 @@
-# API Architecture Rules
+﻿# API Architecture Rules
 
 ## NotionAPI & NotebookLMAPI
 
@@ -135,7 +135,7 @@ This repo now follows the eight-context baseline defined in the root docs:
 - `notion` — canonical knowledge content
 - `notebooklm` — retrieval, grounding, synthesis, evaluation
 
-Use `docs/README.md`, `docs/bounded-contexts.md`, and `docs/ubiquitous-language.md` as the strategic authority when ownership is ambiguous.
+Use `docs/README.md`, `docs/structure/domain/bounded-contexts.md`, and `docs/structure/domain/ubiquitous-language.md` as the strategic authority when ownership is ambiguous.
 
 ---
 
@@ -156,7 +156,7 @@ notion  → notebooklm
 ✅ Allowed: upstream → downstream  
 ❌ Forbidden: downstream → upstream (never invert)
 
-Full context map authority: `docs/context-map.md` and `docs/module-graph.system-wide.md`.
+Full context map authority: `docs/structure/system/context-map.md` and `docs/structure/system/module-graph.system-wide.md`.
 
 ### Anti-Patterns
 
@@ -262,7 +262,7 @@ Full context map authority: `docs/context-map.md` and `docs/module-graph.system-
 
 ## Full Enforcement & Reference
 
-See `docs/hard-rules-consolidated.md` for:
+See `docs/structure/system/hard-rules-consolidated.md` for:
 - All 51 rules with detailed explanations
 - Document placement strategy (7 homes)
 - Enforcement checklist

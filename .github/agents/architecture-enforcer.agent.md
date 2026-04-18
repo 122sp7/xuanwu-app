@@ -37,8 +37,8 @@ handoffs:
 - `.github/instructions/architecture-runtime.instructions.md`
 - `.github/instructions/hexagonal-rules.instructions.md`
 - `.github/instructions/bounded-context-rules.instructions.md`
-- `docs/bounded-contexts.md`
-- `docs/subdomains.md`
+- `docs/structure/domain/bounded-contexts.md`
+- `docs/structure/domain/subdomains.md`
 
 ## 審查清單
 

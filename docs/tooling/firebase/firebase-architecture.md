@@ -1,4 +1,4 @@
-# Firebase Architecture
+﻿# Firebase Architecture
 
 Firebase 是本系統的 backend runtime 基線。所有 Firebase 服務（Auth、Firestore、Storage、Cloud Functions）視為外部基礎設施，統一由 `platform` 主域的 infrastructure 層治理。任何 `domain/` 核心不直接依賴 Firebase SDK。
 
@@ -194,4 +194,4 @@ match /workspace_workspaces/{workspaceId} {
 - [event-driven-design.md](./event-driven-design.md)
 - [`../.github/instructions/firestore-schema.instructions.md`](../../.github/instructions/firestore-schema.instructions.md)
 - [`../.github/instructions/security-rules.instructions.md`](../../.github/instructions/security-rules.instructions.md)
-- [`docs/hard-rules-consolidated.md`](../hard-rules-consolidated.md)
+- [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md)

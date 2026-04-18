@@ -96,4 +96,4 @@ subdomains/
 
 - [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
 - [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖

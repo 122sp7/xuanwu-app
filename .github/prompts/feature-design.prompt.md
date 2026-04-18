@@ -32,8 +32,8 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 
 ## 工作流程
 
-1. 讀取 `docs/README.md` → `docs/bounded-contexts.md` → `docs/subdomains.md`，定位所屬 bounded context。
-2. 讀取 `docs/ubiquitous-language.md`，確認功能用語是否有既有術語映射。
+1. 讀取 `docs/README.md` → `docs/structure/domain/bounded-contexts.md` → `docs/structure/domain/subdomains.md`，定位所屬 bounded context。
+2. 讀取 `docs/structure/domain/ubiquitous-language.md`，確認功能用語是否有既有術語映射。
 3. 讀取 `docs/contexts/<context>/context-map.md`，確認上下游依賴關係。
 4. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `architecture-runtime.instructions.md`，確認 runtime 邊界。
 5. 輸出 feature blueprint（見下方格式）。

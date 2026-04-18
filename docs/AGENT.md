@@ -1,4 +1,4 @@
-# docs — Agent Guide
+﻿# docs — Agent Guide
 
 ## Purpose
 
@@ -9,10 +9,10 @@
 ## Reading Order（架構決策）
 
 1. `docs/README.md` — 文件索引與路由規則
-2. `docs/architecture-overview.md` — 全域架構與主域關係
-3. `docs/bounded-contexts.md` — 主域與子域所有權
-4. `docs/ubiquitous-language.md` — 戰略術語權威
-5. `docs/context-map.md` — 主域間關係方向
+2. `docs/structure/system/architecture-overview.md` — 全域架構與主域關係
+3. `docs/structure/domain/bounded-contexts.md` — 主域與子域所有權
+4. `docs/structure/domain/ubiquitous-language.md` — 戰略術語權威
+5. `docs/structure/system/context-map.md` — 主域間關係方向
 6. `docs/decisions/README.md` — ADR 決策日誌
 
 ## Context Folders
@@ -26,7 +26,7 @@
 
 - 不得在 `docs/` 外複製架構決策內容（指向，不複製）。
 - ADR 只記錄有持續影響的架構決策；不把每個實作細節都升格為 ADR。
-- `docs/contexts/<context>/` 的術語命名衝突，以 `docs/ubiquitous-language.md` 為準。
+- `docs/contexts/<context>/` 的術語命名衝突，以 `docs/structure/domain/ubiquitous-language.md` 為準。
 - 不得把 `.github/instructions/` 的行為規則寫成 `docs/` 的策略文件。
 
 ## 文件網絡

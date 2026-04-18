@@ -1,4 +1,4 @@
-# Workspace Module
+﻿# Workspace Module
 
 > `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
 
@@ -82,4 +82,4 @@ src/modules/workspace/
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖

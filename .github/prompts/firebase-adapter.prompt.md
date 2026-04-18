@@ -33,7 +33,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認命名一致。
+1. 讀取 `docs/structure/domain/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認命名一致。
 2. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `.github/instructions/firestore-schema.instructions.md`，確認層級規則。
 3. 確認 Port 介面定義（在 `domain/repositories/` 或 `domain/ports/`）。
 4. 在 `src/modules/<context>/[subdomains/<sub>/]infrastructure/` 建立實作檔案：

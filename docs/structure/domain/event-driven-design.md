@@ -1,4 +1,4 @@
-# Event-Driven Design
+﻿# Event-Driven Design
 
 系統的狀態變更以 **domain event** 作為事實記錄，跨主域的非同步流以 **event bus（QStash）** 傳遞。事件描述「已發生的事實」，不是命令。
 
@@ -186,4 +186,4 @@ occurredAt: Timestamp.now()            // Firestore Timestamp（domain 不能有
 - [firebase-architecture.md](./firebase-architecture.md)
 - [state-machine-model.md](./state-machine-model.md)
 - [`../.github/instructions/event-driven-state.instructions.md`](../../.github/instructions/event-driven-state.instructions.md)
-- [`docs/hard-rules-consolidated.md`](../hard-rules-consolidated.md)
+- [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md)

@@ -1,4 +1,4 @@
-# src — Agent Guide
+﻿# src — Agent Guide
 
 ## Purpose
 
@@ -26,5 +26,5 @@
 
 - [src/app/AGENT.md](app/AGENT.md) — App Router 路由規則
 - [src/modules/README.md](modules/README.md) — 模組清單與子域狀態
-- [docs/bounded-contexts.md](../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 - [docs/README.md](../docs/README.md) — 架構文件索引

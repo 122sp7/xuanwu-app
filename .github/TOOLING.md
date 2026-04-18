@@ -1,4 +1,4 @@
-# Tooling Documentation + AI Agent Instruction Design
+﻿# Tooling Documentation + AI Agent Instruction Design
 
 ## Goal
 
@@ -33,7 +33,7 @@
 | module boundaries / layering | `instructions/architecture-core.instructions.md` | owning module `AGENT.md` |
 | runtime split (Next.js vs `py_fn`) | `instructions/architecture-runtime.instructions.md` | context docs |
 | process/decision weight | `instructions/process-framework.instructions.md` | matching prompt |
-| docs naming/authority | `instructions/docs-authority-and-language.instructions.md` | `docs/ubiquitous-language.md` |
+| docs naming/authority | `instructions/docs-authority-and-language.instructions.md` | `docs/structure/domain/ubiquitous-language.md` |
 | implementation workflow | `prompts/README.md` | selected `*.prompt.md` |
 
 ## Prompt Quality Contract

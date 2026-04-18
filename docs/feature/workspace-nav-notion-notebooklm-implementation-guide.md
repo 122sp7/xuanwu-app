@@ -1,4 +1,4 @@
-# Workspace Nav — Notion & NotebookLM Tab Implementation Guide
+﻿# Workspace Nav — Notion & NotebookLM Tab Implementation Guide
 
 ## Purpose
 
@@ -238,4 +238,4 @@ Research                   →  notebooklm     →  notebooklm/conversation (syn
 - [`docs/contexts/notion/subdomains.md`](../contexts/notion/subdomains.md) — notion 子域策略
 - [`docs/contexts/notebooklm/subdomains.md`](../contexts/notebooklm/subdomains.md) — notebooklm 子域策略
 - [`docs/feature/notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — notebooklm/source 文件處理 use case
-- [`docs/hard-rules-consolidated.md`](../hard-rules-consolidated.md) — 全域邊界規則
+- [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md) — 全域邊界規則

@@ -1,4 +1,4 @@
-# 6114 Migration Gap — `docs/semantic-model.md`
+﻿# 6114 Migration Gap — `docs/semantic-model.md`
 
 
 > ⚠️ **本文件為「僅記錄」文件 — 不執行實施**
@@ -78,7 +78,7 @@ INVARIANT-06: FileId 生命週期由 platform FileAPI 管理，不由 notion/not
 
 #### 4. Context Map Alignment（~50 lines）
 
-與 `docs/context-map.md` 的主域關係圖對齊，說明哪些跨域關係是 Conformist（消費者遵從 upstream 模型）、哪些是 ACL（消費者建立轉換層）。
+與 `docs/structure/system/context-map.md` 的主域關係圖對齊，說明哪些跨域關係是 Conformist（消費者遵從 upstream 模型）、哪些是 ACL（消費者建立轉換層）。
 
 #### 5. Naming Disambiguation（~54 lines）
 
@@ -104,7 +104,7 @@ INVARIANT-06: FileId 生命週期由 platform FileAPI 管理，不由 notion/not
 
 ## Consequences
 
-- 跨域概念關係（如 KnowledgeArtifact ↔ SourceDocument）只能靠 `docs/bounded-contexts.md` 推斷，缺乏明確的物件圖視角。
+- 跨域概念關係（如 KnowledgeArtifact ↔ SourceDocument）只能靠 `docs/structure/domain/bounded-contexts.md` 推斷，缺乏明確的物件圖視角。
 - Published Language token 型別缺乏集中的文件定義來源，開發者需查閱多份文件才能理解跨域傳遞規範。
 
 ## 關聯 ADR

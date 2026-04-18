@@ -77,7 +77,7 @@ export type Address = z.infer<typeof AddressSchema>;
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
+1. 讀取 `docs/structure/domain/ubiquitous-language.md` 與對應 `docs/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
 2. 讀取 `.github/instructions/domain-modeling.instructions.md`，確認設計規則。
 3. 確認放置路徑：`src/modules/<context>/domain/value-objects/<Name>.ts`
 4. 依照上方模式建立值對象檔案。

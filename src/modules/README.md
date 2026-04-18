@@ -1,4 +1,4 @@
-# src/modules — 模組實作層
+﻿# src/modules — 模組實作層
 
 ## 模組清單與子域對照
 
@@ -71,6 +71,6 @@ cp -r src/modules/template src/modules/<your-context>
 
 - [src/modules/template/README.md](template/README.md) — 多子域骨架說明
 - [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
-- [docs/bounded-contexts.md](../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/subdomains.md](../../docs/subdomains.md) — 子域清單
-- [docs/ubiquitous-language.md](../../docs/ubiquitous-language.md) — 術語權威
+- [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單
+- [docs/structure/domain/ubiquitous-language.md](../../docs/structure/domain/ubiquitous-language.md) — 術語權威

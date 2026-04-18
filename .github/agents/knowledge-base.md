@@ -1,4 +1,4 @@
----
+﻿---
 name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
 argument-hint: Provide doc scope or target area, restructuring goal, and deduplication constraints.
@@ -29,8 +29,8 @@ This file is an implementation-oriented supplement for repository navigation. St
 
 ## Docs Authority
 
-- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
-- Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/structure/domain/subdomains.md`, `docs/structure/domain/bounded-contexts.md`, `docs/structure/domain/ubiquitous-language.md`, `docs/contexts/<context>/*`
+- Bounded-context scaffolding and root-layer rules: `docs/structure/domain/bounded-context-subdomain-template.md`
 - Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
 
 ## Boundary Summary

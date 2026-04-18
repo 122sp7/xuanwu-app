@@ -1,4 +1,4 @@
-# 51 Hard Rules — Consolidated Architecture Guardrails
+﻿# 51 Hard Rules — Consolidated Architecture Guardrails
 
 **Status**: Consolidated from user request (2026-04-12)  
 **Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
@@ -16,7 +16,7 @@
 | **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
 | **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
 | **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** (24-27) | 4 | `docs/context-map.md` | Module AGENT.md |
+| **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENT.md |
 | **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
 | **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
 
@@ -271,7 +271,7 @@
 
 ---
 
-## 📍 LOCATION 5: `docs/context-map.md`
+## 📍 LOCATION 5: `docs/structure/system/context-map.md`
 
 ### Add or Extend Section: "Cross-Module Data Contracts"
 
@@ -452,7 +452,7 @@ Each module should have its own constraints section, such as:
 - [.github/instructions/architecture-core.instructions.md](../.github/instructions/architecture-core.instructions.md) — Layer responsibility
 - [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
 - [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
-- [docs/context-map.md](./context-map.md) — Cross-module contracts
+- [docs/structure/system/context-map.md](./context-map.md) — Cross-module contracts
 - [src/modules/platform/AGENT.md](../src/modules/platform/AGENT.md) — Platform constraints
 - [src/modules/workspace/AGENT.md](../src/modules/workspace/AGENT.md) — Workspace constraints
 - [src/modules/notion/AGENT.md](../src/modules/notion/AGENT.md) — Notion constraints

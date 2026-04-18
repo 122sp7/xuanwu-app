@@ -1,4 +1,4 @@
-# IAM Module — Agent Guide
+﻿# IAM Module — Agent Guide
 
 ## Purpose
 
@@ -59,4 +59,4 @@
 
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖

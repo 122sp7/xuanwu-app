@@ -10,7 +10,7 @@ handoffs:
     prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
   - label: Glossary Update 更新通用語言術語
     agent: KB Architect
-    prompt: 將本次領域建模新增或變更的術語同步更新至 docs/ubiquitous-language.md 與對應 context 文件。
+    prompt: 將本次領域建模新增或變更的術語同步更新至 docs/structure/domain/ubiquitous-language.md 與對應 context 文件。
   - label: Quality Review 品質審查
     agent: Quality Lead
     prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 Hexagonal DDD 規範。
@@ -24,7 +24,7 @@ handoffs:
 - `src/modules/**/domain/**`
 - `src/modules/**/application/use-cases/**`
 - `src/modules/**/application/machines/**`
-- `docs/ubiquitous-language.md`
+- `docs/structure/domain/ubiquitous-language.md`
 - `docs/contexts/*/**`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
@@ -38,9 +38,9 @@ handoffs:
 ## 必讀來源
 
 - `docs/README.md`
-- `docs/ubiquitous-language.md`
-- `docs/subdomains.md`
-- `docs/bounded-contexts.md`
+- `docs/structure/domain/ubiquitous-language.md`
+- `docs/structure/domain/subdomains.md`
+- `docs/structure/domain/bounded-contexts.md`
 - `docs/contexts/<context>/*`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
@@ -49,7 +49,7 @@ handoffs:
 
 ## 審查清單
 
-- [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
+- [ ] 命名是否已先對齊 `docs/structure/domain/ubiquitous-language.md` 與對應 context 文件？
 - [ ] 程式碼是否位於正確的 bounded context / subdomain？
 - [ ] 跨模組互動是否只透過 `index.ts` 公開邊界或領域事件？
 - [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？

@@ -1,4 +1,4 @@
-# Template Module
+﻿# Template Module
 
 `src/modules/template` 是一個可複製的 **Hexagonal Architecture + DDD 多子域骨架**，示範多 subdomain 分層結構、具名匯出規範與跨子域協調模式。
 
@@ -262,5 +262,5 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 
 - [src/modules/README.md](../README.md) — 模組層狀態總覽
 - [src/modules/template/AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 設計藍圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-context-subdomain-template.md](../../../docs/structure/domain/bounded-context-subdomain-template.md) — 設計藍圖
