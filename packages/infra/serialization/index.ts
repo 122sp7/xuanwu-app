@@ -3,17 +3,17 @@
  * Serialization and conversion primitives.
  */
 
-export interface JsonParseResult<T> {
+export interface JsonParseResult {
   ok: boolean;
-  value: T | null;
+  value: unknown;
   error: Error | null;
 }
 
-export const safeJsonParse = <T>(input: string): JsonParseResult<T> => {
+export const safeJsonParse = (input: string): JsonParseResult => {
   try {
     return {
       ok: true,
-      value: JSON.parse(input) as T,
+      value: JSON.parse(input),
       error: null,
     };
   } catch (error) {

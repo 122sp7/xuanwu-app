@@ -29,7 +29,10 @@ export interface ReadOnlyEditorProps {
 }
 
 export const ReadOnlyEditor = ({ value }: ReadOnlyEditorProps) =>
-  createElement("div", {
-    className: "prose max-w-none rounded-md border p-3",
-    dangerouslySetInnerHTML: { __html: value },
-  });
+  createElement(
+    "div",
+    {
+      className: "prose max-w-none whitespace-pre-wrap break-words rounded-md border p-3",
+    },
+    value,
+  );

@@ -24,5 +24,5 @@ export const cloneClientState = <T>(state: T): T => {
     return globalThis.structuredClone(state);
   }
 
-  return JSON.parse(JSON.stringify(state)) as T;
+  throw new Error("structuredClone is required to safely clone client state");
 };
