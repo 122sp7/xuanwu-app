@@ -100,10 +100,10 @@ export function WorkspaceSettlementSection({
                 <span>單價 NT$ {item.unitPrice.toLocaleString()}</span><span>已收 {item.paidUnits}/{item.totalUnits} 次</span><span>剩餘 {remaining} 次</span>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-xs">
                   <Checkbox checked={Boolean(selected[item.id])} disabled={!selectable} onCheckedChange={(checked) => setSelected((prev) => ({ ...prev, [item.id]: Boolean(checked) }))} />
                   多選可請款
-                </label>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="outline" className="size-8" disabled={!selectable || !selected[item.id]} onClick={() => changeUnits(item, -1)}><Minus className="size-3.5" /></Button>
                   <span className="min-w-10 text-center text-sm font-medium">{selectedUnits}</span>
