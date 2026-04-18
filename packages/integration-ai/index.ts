@@ -30,6 +30,26 @@ export class IntegrationAiConfigurationError extends Error {
   }
 }
 
+export const createGenkitAiClient = (): AiTextClient => ({
+  generateText: async (input) => {
+    const { GENKIT_DEFAULT_MODEL_ID, generateTextWithGenkit } = await import("./genkit");
+    const response = await generateTextWithGenkit(input);
+
+    if (!response.text) {
+      throw new IntegrationAiConfigurationError("AI provider returned an empty response");
+    }
+
+    return {
+      text: response.text,
+      model: input.model ?? GENKIT_DEFAULT_MODEL_ID,
+      usage: {
+        inputTokens: response.usage?.inputTokens ?? undefined,
+        outputTokens: response.usage?.outputTokens ?? undefined,
+      },
+    };
+  },
+});
+
 export const createUnconfiguredAiClient = (): AiTextClient => ({
   generateText: async () => {
     throw new IntegrationAiConfigurationError(

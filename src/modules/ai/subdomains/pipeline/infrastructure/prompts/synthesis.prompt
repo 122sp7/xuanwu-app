@@ -1,0 +1,19 @@
+---
+model: googleai/gemini-2.5-flash
+input:
+  schema:
+    type: object
+    properties:
+      prompt:
+        type: string
+    required: [prompt]
+output:
+  format: json
+  schema:
+    type: object
+    properties:
+      text:
+        type: string
+    required: [text]
+---
+{{prompt}}
