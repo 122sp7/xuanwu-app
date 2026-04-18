@@ -42,23 +42,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-106 files | 2,024 lines
+102 files | 2,182 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript (TSX) | 57 | 689 |
-| TypeScript | 22 | 328 |
-| Markdown | 20 | 1,000 |
-| No Extension | 7 | 7 |
+| TypeScript (TSX) | 57 | 780 |
+| TypeScript | 22 | 335 |
+| Markdown | 20 | 1,064 |
+| No Extension | 3 | 3 |
 
 **Largest files:**
-- `packages/README.md` (115 lines)
-- `packages/AGENTS.md` (101 lines)
+- `packages/README.md` (135 lines)
+- `packages/AGENTS.md` (107 lines)
 - `packages/ui-shadcn/README.md` (86 lines)
+- `packages/integration-firebase/README.md` (75 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (73 lines)
 - `packages/ui-shadcn/AGENTS.md` (69 lines)
-- `packages/integration-firebase/AGENTS.md` (53 lines)
-- `packages/integration-firebase/README.md` (48 lines)
+- `packages/integration-firebase/AGENTS.md` (64 lines)
+- `packages/ui-shadcn/ui/carousel.tsx` (49 lines)
 - `packages/infra/AGENTS.md` (47 lines)
 - `packages/integration-ai/AGENTS.md` (45 lines)
-- `packages/infra/uuid/AGENTS.md` (43 lines)

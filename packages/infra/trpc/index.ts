@@ -4,7 +4,8 @@
  */
 
 export {
-  createTRPCProxyClient,
+  createTRPCClient,
+  createTRPCClient as createTRPCProxyClient,
   httpBatchLink,
   httpLink,
   splitLink,
