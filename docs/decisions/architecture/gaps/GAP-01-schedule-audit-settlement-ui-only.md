@@ -6,7 +6,7 @@
 | 類型 | 功能缺口 |
 | 優先級 | P0 |
 | 影響範圍 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` |
-| 狀態 | 🔴 Open |
+| 狀態 | 🟡 Partially Fixed |
 
 ## 問題描述
 
@@ -194,14 +194,14 @@ Domain 層（`WorkDemand` / `AuditEntry` / `Invoice`）、application use cases 
 
 ## 修補路徑（最小必要步驟）
 
-1. 撰寫 ADR（Rule 16）選定 saga wiring 方式。
-2. 補 `schedule-actions.ts`、`audit-actions.ts`、`settlement-actions.ts`（Rule 4, 11）。
-3. 修 `SettlementUseCases.ts` 移除重複 `canTransition` 呼叫（Rule 6, 18）。
-4. 補 `WorkDemand.assign()` 前置狀態 guard（Rule 7）。
-5. 補 `TaskLifecycleSaga` try/catch + `saga_failures` 寫入（Rule 10）。
-6. 接 saga wiring（Rule 8）。
-7. 補 unit tests（Rule 14）。
-8. 補 server action 入口結構化 log（Rule 15）。
+1. ⛔ 撰寫 ADR（Rule 16）選定 saga wiring 方式 — **待 ADR 決策（人工選定 Firestore trigger vs in-process hook）**。
+2. ✅ 補 `schedule-actions.ts`、`audit-actions.ts`、`settlement-actions.ts`（Rule 4, 11）— `2026-04-18`。
+3. ✅ 修 `SettlementUseCases.ts` 移除重複 `canTransition` 呼叫，改用 `Invoice.reconstitute()` + `invoice.transition(to)` + `invoiceRepo.save()`（Rule 6, 18）— `2026-04-18`。
+4. ✅ 補 `WorkDemand.assign()` 前置狀態 guard：僅 `draft` 狀態可執行，否則 throw（Rule 7）— `2026-04-18`。
+5. ✅ 補 `TaskLifecycleSaga.handle()` try/catch + structured console.error log（Rule 10）— `2026-04-18`。  `saga_failures` Firestore collection 寫入待 ADR (Step 1) 決策後補。
+6. ⛔ 接 saga wiring（Rule 8）— **待 ADR 決策（Step 1）**。
+7. ⬜ 補 unit tests（Rule 14）— 開放中。
+8. ✅ `TaskLifecycleSaga` 跨子域直接 import 改為從 `workspace/shared/events` 公開重新 export（Rule 13）— `2026-04-18`。
 
 ---
 

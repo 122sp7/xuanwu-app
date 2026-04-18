@@ -208,14 +208,14 @@ export async function createTaskAction(rawInput: unknown): Promise<CommandResult
 
 ## 修補路徑（最小必要步驟）
 
-1. 撰寫 ADR（Rule 16）選定 auth gate 實作模式。
-2. 確認 `platform.AuthAPI.requireAuth()` 與 `platform.PermissionAPI.can()` 的公開介面（Rule 2）。
-3. 更新所有 action 的 Zod schema：移除 `actorId` / `createdBy` 欄位（Rule 4, 5）。
-4. 為所有寫操作 action 加入 `requireAuth()` + `permission.can()` 呼叫（Rule 11）。
-5. 更新 `Task.create()` 等 aggregate input 加入 `actorId`（Rule 6, 9）。
-6. 補 action-level audit log（Rule 15）。
-7. 補 unit tests（Rule 14）。
-8. 補 lint rule（Rule 20）。
+1. ⛔ 撰寫 ADR（Rule 16）選定 auth gate 實作模式（Option A: explicit per-action vs Option B: HOF wrapper）— **待 ADR 決策**。
+2. ⛔ 確認 `platform.AuthAPI.requireAuth()` 與 `platform.PermissionAPI.can()` 的公開介面（Rule 2）— **platform 模組目前未公開這些 API，為必要前提**。
+3. ⬜ 更新所有 action 的 Zod schema：移除 `actorId` / `createdBy` 欄位（Rule 4, 5）— 待 Step 2 完成後執行，須遵守 Breaking Change Policy（先 optional 再移除）。
+4. ⬜ 為所有寫操作 action 加入 `requireAuth()` + `permission.can()` 呼叫（Rule 11）— 待 Step 1-2 完成。
+5. ⬜ 更新 `Task.create()` 等 aggregate input 加入 `actorId`（Rule 6, 9）— 待 Step 4 完成。
+6. ⬜ 補 action-level audit log（Rule 15）— 待 Step 4 完成。
+7. ⬜ 補 unit tests（Rule 14）— 開放中。
+8. ⬜ 補 lint rule（Rule 20）— 開放中。
 
 ---
 

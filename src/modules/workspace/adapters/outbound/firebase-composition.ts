@@ -63,6 +63,12 @@ import {
 } from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
 import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
 import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
+import { FirestoreDemandRepository } from "../../subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository";
+import { CreateWorkDemandUseCase, AssignWorkDemandUseCase } from "../../subdomains/schedule/application/use-cases/ScheduleUseCases";
+import { FirestoreAuditRepository } from "../../subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository";
+import { RecordAuditEntryUseCase } from "../../subdomains/audit/application/use-cases/AuditUseCases";
+import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
+import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
 
 type FirestoreWhereOperator =
   | "<"
@@ -250,6 +256,35 @@ export function createClientFeedUseCases() {
   return {
     createFeedPost: new CreateFeedPostUseCase(feedRepo),
     listFeedPosts: new ListFeedPostsUseCase(feedRepo),
+  };
+}
+
+export function createClientScheduleUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const demandRepo = new FirestoreDemandRepository(db);
+  return {
+    createWorkDemand: new CreateWorkDemandUseCase(demandRepo),
+    assignWorkDemand: new AssignWorkDemandUseCase(demandRepo),
+    listWorkDemandsByWorkspace: (workspaceId: string) => demandRepo.listByWorkspace(workspaceId),
+  };
+}
+
+export function createClientAuditUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const auditRepo = new FirestoreAuditRepository(db);
+  return {
+    recordAuditEntry: new RecordAuditEntryUseCase(auditRepo),
+    listAuditEntriesByWorkspace: (workspaceId: string) => auditRepo.findByWorkspaceId(workspaceId),
+  };
+}
+
+export function createClientSettlementUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const invoiceRepo = new FirestoreInvoiceRepository(db);
+  return {
+    createInvoice: new CreateInvoiceUseCase(invoiceRepo),
+    transitionInvoiceStatus: new TransitionInvoiceStatusUseCase(invoiceRepo),
+    listInvoicesByWorkspace: (workspaceId: string) => invoiceRepo.findByWorkspaceId(workspaceId),
   };
 }
 

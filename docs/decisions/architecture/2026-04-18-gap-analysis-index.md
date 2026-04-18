@@ -66,10 +66,17 @@
 
 ```
 Week 1 (P0 安全)    GAP-05 → 所有 server actions 加 auth gate
+                    [⛔ BLOCKED: platform.AuthAPI 未公開 + ADR 待決策]
 Week 2 (P0 可用性)  GAP-01 → schedule/audit/settlement server actions + Saga wiring
+                    [🟡 PARTIAL: server actions ✅, Saga try/catch ✅, import fix ✅;
+                               Saga wiring ⛔ 待 ADR; unit tests ⬜ 開放]
 Week 3 (P0 閉環)    GAP-03 → notebooklm task materialization 真實呼叫
+                    [⛔ BLOCKED: ADR 待決策（handoff 方式）]
 Week 4 (P1)         GAP-04 → task-formation extractor 錯誤分類 + retry
+                    [🟡 PARTIAL: Zod output schema ✅;
+                               錯誤分類/retry/stub 移除 ⛔ 待 ADR]
 Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
+                    [⛔ BLOCKED: ADR 待決策（template 儲存格式）]
 ```
 
 > 每個修補 PR 必須對齊對應缺口文件的「修補路徑（最小必要步驟）」，並附帶：Zod 契約、授權檢查、結構化 log、測試證據。

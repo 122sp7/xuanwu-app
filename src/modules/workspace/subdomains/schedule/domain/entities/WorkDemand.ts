@@ -67,6 +67,10 @@ export class WorkDemand {
   }
 
   assign(userId: string): void {
+    // FSM guard: assignment is only valid from the 'draft' state (Rule 7)
+    if (this._props.status !== "draft") {
+      throw new Error(`Cannot assign work demand: expected status 'draft', got '${this._props.status}'.`);
+    }
     const now = new Date().toISOString();
     this._props = { ...this._props, assignedUserId: userId, status: "open", updatedAtISO: now };
   }

@@ -6,7 +6,7 @@
 | 類型 | 功能缺口 |
 | 優先級 | P1 |
 | 影響範圍 | `workspace.task-formation` / `FirebaseCallableTaskCandidateExtractor` |
-| 狀態 | 🔴 Open |
+| 狀態 | 🟡 Partially Fixed |
 
 ## 問題描述
 
@@ -210,13 +210,13 @@
 
 ## 修補路徑（最小必要步驟）
 
-1. 撰寫 ADR（Rule 16）選定過渡期策略。
-2. 定義 `CallableExtractorOutputSchema`（Rule 4）。
-3. 錯誤分類表：`RETRYABLE / NON_RETRYABLE / UNKNOWN`（Rule 10）。
-4. 修改 adapter：移除假 fallback，加 retry + 錯誤分類 + structured log（Rule 10, 12, 15）。
-5. use case 接收 adapter throw → `job.fail(errorCode)`（Rule 6, 7）。
-6. 補 unit tests（四個情境）（Rule 14）。
-7. server action 加 auth gate（Rule 11）。
+1. ⛔ 撰寫 ADR（Rule 16）選定過渡期策略 — **待 ADR 決策（stub 保留期間 vs 立即報錯策略）**。
+2. ✅ 定義 `CallableExtractorOutputSchema`（`CallableCandidateSchema` + `CallableExtractorOutputSchema`）並在 callable 回傳時 `parse()`（Rule 4）— `2026-04-18`。
+3. ⬜ 錯誤分類表：`RETRYABLE / NON_RETRYABLE / UNKNOWN`（Rule 10）— 待 ADR 決策後實作。
+4. ⛔ 修改 adapter：移除假 fallback，加 retry + 錯誤分類 + structured log（Rule 10, 12, 15）— **待 ADR 決策（Step 1）**。
+5. ⬜ use case 接收 adapter throw → `job.fail(errorCode)`（Rule 6, 7）— 開放中。
+6. ⬜ 補 unit tests（四個情境）（Rule 14）— 開放中。
+7. ⛔ server action 加 auth gate（Rule 11）— **待 GAP-05 ADR 決策（platform.AuthAPI 尚未公開）**。
 
 ---
 

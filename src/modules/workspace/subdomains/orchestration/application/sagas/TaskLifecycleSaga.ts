@@ -1,5 +1,4 @@
-import type { IssueResolvedEvent, IssueOpenedEvent } from "../../../issue/domain/events/IssueDomainEvent";
-import type { TaskStatusChangedEvent } from "../../../task/domain/events/TaskDomainEvent";
+import type { IssueResolvedEvent, IssueOpenedEvent, TaskStatusChangedEvent } from "../../../../shared/events";
 import type { ResumeTaskFlowUseCase } from "../use-cases/ResumeTaskFlowUseCase";
 import type { CreateInvoiceFromAcceptedTasksUseCase } from "../../../settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
 
@@ -33,15 +32,27 @@ export class TaskLifecycleSaga {
   ) {}
 
   async handle(event: SagaTriggerEvent): Promise<void> {
-    switch (event.type) {
-      case "workspace.task.status-changed":
-        await this.onTaskStatusChanged(event);
-        break;
-      case "workspace.issue.resolved":
-        await this.onIssueResolved(event);
-        break;
-      default:
-        break;
+    try {
+      switch (event.type) {
+        case "workspace.task.status-changed":
+          await this.onTaskStatusChanged(event);
+          break;
+        case "workspace.issue.resolved":
+          await this.onIssueResolved(event);
+          break;
+        default:
+          break;
+      }
+    } catch (err) {
+      // Structured error log (Rule 10, 15).
+      // saga_failures Firestore persistence is pending ADR on saga wiring strategy.
+      console.error(JSON.stringify({
+        source: "TaskLifecycleSaga",
+        eventType: event.type,
+        eventId: event.eventId,
+        error: err instanceof Error ? err.message : String(err),
+        occurredAt: new Date().toISOString(),
+      }));
     }
   }
 
