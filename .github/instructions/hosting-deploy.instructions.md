@@ -1,6 +1,6 @@
 ﻿---
 description: 'Hosting deploy guardrails for Firebase App Hosting and release safety.'
-applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
+applyTo: '{apphosting.yaml,firebase.json}'
 ---
 
 # Hosting Deploy

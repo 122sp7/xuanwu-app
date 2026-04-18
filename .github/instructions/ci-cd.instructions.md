@@ -1,6 +1,6 @@
 ﻿---
 description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
-applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt,firebase.json,apphosting.yaml}'
+applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt}'
 ---
 
 # CI CD
