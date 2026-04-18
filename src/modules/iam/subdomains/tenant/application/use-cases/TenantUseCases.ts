@@ -1,20 +1,15 @@
-import type { TenantId, TenantSnapshot, TenantRepository, TenantStatus } from "../../domain/index";
-import { createTenantId } from "../../domain/index";
+import { Tenant, createTenantId } from "../../domain/index";
+import type { TenantId, TenantSnapshot, TenantRepository } from "../../domain/index";
 
 export class ProvisionTenantUseCase {
   constructor(private readonly repo: TenantRepository) {}
 
   async execute(input: { orgId: string }): Promise<TenantSnapshot> {
     const tenantId: TenantId = createTenantId(`tenant-${input.orgId}`);
-    const tenant: TenantSnapshot = {
-      tenantId,
-      orgId: input.orgId,
-      status: "active",
-      createdAtISO: new Date().toISOString(),
-      updatedAtISO: new Date().toISOString(),
-    };
-    await this.repo.save(tenant);
-    return tenant;
+    const tenant = Tenant.create({ tenantId, orgId: input.orgId });
+    const snapshot = tenant.getSnapshot();
+    await this.repo.save(snapshot);
+    return snapshot;
   }
 }
 
@@ -26,13 +21,11 @@ export class SuspendTenantUseCase {
     if (!existing) {
       throw new Error(`Tenant not found for org ${input.orgId}`);
     }
-    const updated: TenantSnapshot = {
-      ...existing,
-      status: "suspended" as TenantStatus,
-      updatedAtISO: new Date().toISOString(),
-    };
-    await this.repo.save(updated);
-    return updated;
+    const aggregate = Tenant.reconstitute(existing);
+    aggregate.suspend();
+    const snapshot = aggregate.getSnapshot();
+    await this.repo.save(snapshot);
+    return snapshot;
   }
 }
 
