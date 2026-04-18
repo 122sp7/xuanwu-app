@@ -180,6 +180,7 @@ export function AccountRouteDispatcher({
             workspaceId={slug[0]}
             accountId={effectiveAccountId}
             accountsHydrated={accountsHydrated}
+            currentUserId={currentUserId ?? undefined}
             initialTab={searchParams.get("tab") ?? undefined}
             initialOverviewPanel={searchParams.get("panel") ?? undefined}
           />

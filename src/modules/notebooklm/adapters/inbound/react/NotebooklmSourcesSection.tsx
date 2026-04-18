@@ -12,7 +12,7 @@
 
 import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@ui-shadcn/ui/button";
 import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
 import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
@@ -68,6 +68,9 @@ export function NotebooklmSourcesSection({
       setLoaded(true);
     });
   };
+
+  // Auto-load on mount so sources are visible without a manual click.
+  useEffect(() => { load(); }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -151,7 +154,7 @@ export function NotebooklmSourcesSection({
             disabled={isPending}
           >
             <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            {loaded ? "重新整理" : "載入"}
+            重新整理
           </Button>
         </div>
       </div>
@@ -171,9 +174,10 @@ export function NotebooklmSourcesSection({
         </p>
       )}
 
-      {!loaded && (
-        <p className="text-sm text-muted-foreground">
-          點擊「載入」查看已上傳的來源文件。上傳後 py_fn 會自動執行解析與向量索引。
+      {!loaded && isRefreshing && (
+        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="size-3.5 animate-spin" />
+          載入中…
         </p>
       )}
 

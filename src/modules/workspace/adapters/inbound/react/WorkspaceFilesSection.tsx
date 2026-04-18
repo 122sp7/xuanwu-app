@@ -15,7 +15,7 @@
  */
 
 import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { uploadWorkspaceFile } from "@/src/modules/platform";
@@ -87,6 +87,9 @@ export function WorkspaceFilesSection({
       setLoaded(true);
     });
   };
+
+  // Auto-load on mount so files are visible without a manual click.
+  useEffect(() => { load(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -171,7 +174,7 @@ export function WorkspaceFilesSection({
           </Button>
           <Button size="sm" variant="ghost" onClick={load} disabled={isPending}>
             <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            {loaded ? "重新整理" : "載入"}
+            重新整理
           </Button>
         </div>
       </div>
@@ -207,10 +210,11 @@ export function WorkspaceFilesSection({
         </div>
       )}
 
-      {/* Not yet loaded hint */}
-      {!loaded && (
-        <p className="text-sm text-muted-foreground">
-          點擊「載入」查看已上傳的檔案，或直接點擊「上傳」加入新檔案。
+      {/* Loading indicator before first load */}
+      {!loaded && isRefreshing && (
+        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="size-3.5 animate-spin" />
+          載入中…
         </p>
       )}
 
