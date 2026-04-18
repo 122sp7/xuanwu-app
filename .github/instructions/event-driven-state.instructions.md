@@ -1,4 +1,4 @@
----
+﻿---
 description: 'XState 狀態機與領域事件互動規範，包含 SuperJSON 序列化處理，遵循 Hexagonal Architecture with Domain-Driven Design 的事件驅動原則。'
 applyTo: 'src/modules/**/*.{ts,tsx}'
 ---
@@ -103,5 +103,5 @@ export class CreateWorkspaceUseCase {
 - `occurredAt` 必須使用 ISO string，不得使用 `Date` 物件（與 `shared/domain/events.ts` 一致）。
 - 事件 Schema 使用 Zod 驗證，確保 Payload 型別安全。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

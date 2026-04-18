@@ -1,4 +1,4 @@
----
+﻿---
 name: Genkit Orchestrator
 description: AI Flow 控制器（Genkit 專屬）：管理 AI flow 設計、tool calling / prompt pipeline，驗證 AI output 安全性，控制 AI 與 domain interaction 邊界。
 argument-hint: 提供 AI flow 名稱、業務目標、inputs/outputs、目標 runtime（Next.js / py_fn），以及是否涉及 retrieval / grounding。
@@ -77,7 +77,7 @@ handoffs:
 3. **Flow 設計建議**（如需新建）：含 input/output contract、tool list、fallback 路徑
 4. **驗證結果**：`npm run lint` + `npm run build`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill genkit-ai
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp

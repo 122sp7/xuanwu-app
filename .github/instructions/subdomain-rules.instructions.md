@@ -1,4 +1,4 @@
----
+﻿---
 description: '子域（Subdomain）戰略設計規則：業務能力切分、邊界穩定性、契約溝通、可替換性。'
 applyTo: 'src/modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 ---
@@ -82,5 +82,5 @@ domain 層必須：
 
 Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

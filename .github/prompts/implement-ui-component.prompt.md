@@ -1,4 +1,4 @@
----
+﻿---
 name: implement-ui-component
 description: Build or refactor UI components with shadcn patterns and boundary-safe composition.
 applyTo: 'src/app/**/*.{ts,tsx}'
@@ -15,7 +15,7 @@ argument-hint: Provide component goal, route scope, and interaction states.
 3. Implement states: loading, empty, error, success.
 4. Validate accessibility and interaction behavior.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill shadcn
 #use skill web-design-guidelines
 #use skill vercel-react-best-practices

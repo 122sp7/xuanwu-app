@@ -1,4 +1,4 @@
----
+﻿---
 description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 Hexagonal Architecture with Domain-Driven Design 戰術設計原則。'
 applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 ---
@@ -120,5 +120,5 @@ src/modules/<context>/domain/
 └── services/          # 領域服務（無狀態業務邏輯）
 ```
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

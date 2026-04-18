@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
 applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 ---
@@ -133,5 +133,5 @@ return raw as WorkspaceSnapshot;
 - Re-check changed imports under `@/modules/` for API-only access.
 - Keep dependency flow acyclic unless an explicit event contract documents an exception.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

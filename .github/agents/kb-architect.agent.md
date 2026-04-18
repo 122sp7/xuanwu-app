@@ -1,4 +1,4 @@
----
+﻿---
 name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
 argument-hint: Provide doc scope or target area, restructuring goal, and deduplication constraints.
@@ -42,4 +42,4 @@ handoffs:
 - Do not change technical meaning while restructuring docs.
 - Keep docs aligned with current module boundaries and contracts.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

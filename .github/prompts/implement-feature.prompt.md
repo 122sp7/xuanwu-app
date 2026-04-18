@@ -1,4 +1,4 @@
----
+﻿---
 name: implement-feature
 description: Execute an approved feature plan with bounded scope, required validation, and doc updates.
 agent: Domain Lead
@@ -21,7 +21,7 @@ argument-hint: Provide approved plan reference and tasks to execute.
 - Documentation updated
 - Deviations or blockers
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

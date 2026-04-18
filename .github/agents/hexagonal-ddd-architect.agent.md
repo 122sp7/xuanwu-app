@@ -1,4 +1,4 @@
----
+﻿---
 name: Hexagonal DDD Architect
 description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
 argument-hint: Provide module name, operation type (create/refactor/split/merge), and migration constraints.
@@ -49,4 +49,4 @@ Shape module structures without breaking bounded contexts.
 - Files changed
 - Validation evidence
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

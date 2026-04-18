@@ -1,4 +1,4 @@
----
+﻿---
 name: feature-design
 description: 整體功能架構設計總控模板：統整 Domain + Use Case + Adapter + UI State，拆解 feature 至各架構層，決定 Genkit 是否介入，輸出 layered blueprint。
 agent: Domain Lead
@@ -93,7 +93,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 4. `implement-server-action` — 實作 Interface Layer
 5. `implement-uiomponent` — 實作 UI
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill alistair-cockburn
 #use skill occams-razor

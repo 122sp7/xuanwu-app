@@ -1,4 +1,4 @@
----
+﻿---
 description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
 applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt,firebase.json,apphosting.yaml}'
 ---
@@ -17,4 +17,4 @@ applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt
 - Do not skip failing mandatory checks.
 - Report unrelated baseline failures separately.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill

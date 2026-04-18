@@ -1,4 +1,4 @@
----
+﻿---
 description: 'RAG architecture boundaries for conversion, chunking, embedding, and retrieval workflows.'
 applyTo: '{src/modules/notebooklm/**/*.{ts,tsx,js,jsx},src/modules/notion/**/*.{ts,tsx,js,jsx},py_fn/**/*.py,docs/**/*.md}'
 ---
@@ -13,7 +13,7 @@ applyTo: '{src/modules/notebooklm/**/*.{ts,tsx,js,jsx},src/modules/notion/**/*.{
 - Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval / grounding / evaluation semantics.
 - Consume shared model and provider capability from `platform.ai`; do not reintroduce a generic `ai` owner inside downstream RAG flows.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse
 #use skill liteparse

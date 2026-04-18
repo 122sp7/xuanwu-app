@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Next.js App Router composition rules for route slices and ownership boundaries.'
 applyTo: 'src/app/**/*.{ts,tsx}'
 ---
@@ -13,7 +13,7 @@ applyTo: 'src/app/**/*.{ts,tsx}'
 - Use package aliases and avoid legacy import families.
 - Keep `src/app/` as composition ownership, not domain-rule ownership.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
 #use skill vercel-composition-patterns

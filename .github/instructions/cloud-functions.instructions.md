@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Rules for Python Cloud Functions worker responsibilities and boundaries.'
 applyTo: 'py_fn/**/*.py'
 ---
@@ -25,5 +25,5 @@ applyTo: 'py_fn/**/*.py'
 - Before changing worker ownership, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
 - Update `py_fn/README.md` when responsibilities or runtime contracts change.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill xuanwu-rag-runtime-boundary

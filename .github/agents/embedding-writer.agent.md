@@ -1,4 +1,4 @@
----
+﻿---
 name: Embedding Writer
 description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
 argument-hint: Provide chunk source, embedding model, storage target, and retrieval compatibility requirements.
@@ -33,4 +33,4 @@ handoffs:
 - Validate write path and retrieval compatibility.
 - Keep ownership aligned: `notebooklm` owns retrieval-facing semantics, while shared provider capability is consumed from `platform.ai`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

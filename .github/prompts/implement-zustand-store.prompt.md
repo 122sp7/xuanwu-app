@@ -1,4 +1,4 @@
----
+﻿---
 name: implement-zustand-store
 description: 實作 Zustand client state store，採用 State/Actions slice 模式，正確命名與放置，並確保不存放 server state 或 domain 資料。
 applyTo: 'src/modules/**/interfaces/stores/**/*.{ts,tsx}'
@@ -68,5 +68,5 @@ export const use<Name>Store = create<<Name>State & <Name>Actions>((set) => ({
 - `npm run lint` — 確認無 layer 違規（store 不得出現在 `domain/` 或 `application/`）
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill zustand-xstate

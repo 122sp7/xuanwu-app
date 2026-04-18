@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Bounded Context（界限上下文）戰略設計規則：語意一致性邊界、模型隔離、顯式轉換、獨立演化。'
 applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 ---
@@ -30,5 +30,5 @@ applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 - 確認跨 Context 通訊使用 API boundary 或 event contract。
 - 確認不存在跨 Context 的 Domain Model 重用。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

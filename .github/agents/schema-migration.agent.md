@@ -1,4 +1,4 @@
----
+﻿---
 name: Schema Migration Agent
 description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
 argument-hint: Provide source schema, target schema, rollout timeline, and rollback constraints.
@@ -31,4 +31,4 @@ handoffs:
 2. Plan compatibility and cutover phases.
 3. Validate reads and writes before and after migration.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

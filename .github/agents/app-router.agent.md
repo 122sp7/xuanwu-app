@@ -1,4 +1,4 @@
----
+﻿---
 name: App Router Agent
 description: Diagnose and implement Next.js App Router behavior using runtime evidence and boundary-safe edits.
 argument-hint: Provide route segment, expected behavior, and failing symptoms.
@@ -45,4 +45,4 @@ handoffs:
 - Evidence checked
 - Residual route risk
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

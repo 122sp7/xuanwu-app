@@ -1,4 +1,4 @@
----
+﻿---
 name: Genkit Flow Agent
 description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
 argument-hint: Provide flow name, runtime target (Next.js/py_fn), inputs/outputs, and orchestration concern.
@@ -39,5 +39,5 @@ handoffs:
 - Avoid leaking worker-only logic into app orchestration.
 - Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill genkit-ai

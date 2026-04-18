@@ -1,4 +1,4 @@
----
+﻿---
 name: Doc Ingest Agent
 description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
 argument-hint: Provide source format, file paths or collection, and normalization quality constraints.
@@ -34,4 +34,4 @@ handoffs:
 - Flag notable format-loss risk when source conversion may affect downstream retrieval.
 - Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval pipeline semantics.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

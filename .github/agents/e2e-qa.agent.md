@@ -1,4 +1,4 @@
----
+﻿---
 name: E2E QA Agent
 description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
 argument-hint: Provide target URL or route, user flow, and acceptance criteria.
@@ -44,4 +44,4 @@ handoffs:
 - Confirmed failures
 - Release recommendation: ready | ready-with-risk | blocked
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

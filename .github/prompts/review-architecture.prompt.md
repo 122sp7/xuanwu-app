@@ -1,4 +1,4 @@
----
+﻿---
 name: review-architecture
 description: Review ownership boundaries, dependency direction, and contract alignment of implemented changes.
 agent: Quality Lead
@@ -14,5 +14,5 @@ Require checks against:
 - `instructions/architecture-core.instructions.md`
 - target module `context-map.md`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

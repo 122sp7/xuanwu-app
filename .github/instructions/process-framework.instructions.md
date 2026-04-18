@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Consolidated process framework for branch scope, commit quality, Cockburn delivery loop, and Occam parsimony decisions.'
 applyTo: '**/*'
 ---
@@ -44,6 +44,6 @@ applyTo: '**/*'
 - State what complexity remains and why.
 - State validation proving the chosen path still works.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill alistair-cockburn
 #use skill occams-razor

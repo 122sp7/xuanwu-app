@@ -1,4 +1,4 @@
----
+﻿---
 name: use-case-generation
 description: 將業務流程轉成 Application Layer Use Case，定義 orchestration logic、input/output DTO，並串連 domain entities 與 ports。
 applyTo: 'src/modules/**/application/**/*.{ts,tsx}'
@@ -60,5 +60,5 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無 layer 違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

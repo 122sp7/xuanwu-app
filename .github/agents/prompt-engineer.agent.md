@@ -1,4 +1,4 @@
----
+﻿---
 name: Prompt Engineer
 description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
 argument-hint: Provide prompt goal, target agent or workflow, and required input/output contract.
@@ -36,4 +36,4 @@ handoffs:
 - Keep prompts task-focused and testable.
 - Avoid broad ambiguous directives.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

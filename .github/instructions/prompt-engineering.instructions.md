@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Prompt authoring rules for deterministic, low-noise, reusable workflow prompts.'
 applyTo: '.github/prompts/**/*.prompt.md'
 ---
@@ -27,4 +27,4 @@ applyTo: '.github/prompts/**/*.prompt.md'
 - Avoid copying repository-global policy into each prompt.
 - Prefer short executable steps over long background text.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill

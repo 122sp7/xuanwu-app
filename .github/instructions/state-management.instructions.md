@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Zustand client state and XState finite-state workflow rules: placement, slice pattern, naming, decision boundary, and TanStack Query separation.'
 applyTo: '{src/modules/**/interfaces/stores/**,src/modules/**/application/machines/**,src/app/**/*.{ts,tsx}}'
 ---
@@ -162,5 +162,5 @@ const { data } = useQuery(...);
 useEffect(() => { setWorkspaceData(data); }, [data]);
 ```
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill zustand-xstate

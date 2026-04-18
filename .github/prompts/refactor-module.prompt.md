@@ -1,4 +1,4 @@
----
+﻿---
 name: refactor-module
 description: Refactor existing module internals while preserving Hexagonal Architecture with Domain-Driven Design layers and public boundaries.
 agent: Hexagonal DDD Architect
@@ -14,5 +14,5 @@ argument-hint: Provide module name, refactor goal, and boundary risks.
 3. Remove forbidden internal cross-module imports.
 4. Update tests/docs alongside code changes.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

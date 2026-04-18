@@ -1,4 +1,4 @@
----
+﻿---
 name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
 argument-hint: Provide interface or DTO name, owning module, field changes, and consumer compatibility requirements.
@@ -37,4 +37,4 @@ handoffs:
 - Do not leak private infrastructure/entity internals into public API contracts.
 - Coordinate contract changes with consumer updates in the same change.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

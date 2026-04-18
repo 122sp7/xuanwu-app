@@ -1,4 +1,4 @@
----
+﻿---
 name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
 argument-hint: Provide source document format, target chunk policy (size/overlap/metadata), and downstream retrieval constraints.
@@ -33,4 +33,4 @@ handoffs:
 - Domain-specific segmentation rules
 - Ownership alignment across `notion` source contracts, `notebooklm` retrieval semantics, and shared `platform.ai` constraints
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

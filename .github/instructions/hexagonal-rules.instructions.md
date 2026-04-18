@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Hexagonal Architecture（端口與適配器）戰略設計規則：Core 獨立性、Port 需求導向、Adapter 邊界、子域交叉約束。'
 applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 ---
@@ -40,5 +40,5 @@ applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 
 子域定義「業務邊界」，Bounded Context 定義「語意邊界」，Hexagonal 定義「依賴方向」，Domain 則是唯一不能被任何外部污染的純業務核心。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

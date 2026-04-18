@@ -1,4 +1,4 @@
----
+﻿---
 name: Domain Enforcer
 description: DDD 純度守門員：保護 domain layer 純淨性，檢查 business logic 外洩，驗證 aggregate / entity 設計正確性，強制 domain 不依賴任何外部框架。
 argument-hint: 提供需審查的 module / subdomain 路徑，或特定 domain 問題描述。
@@ -81,5 +81,5 @@ handoffs:
 3. **修正後的程式碼**：提供完整修正實作
 4. **驗證結果**：`npm run lint` + `npm run build`
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

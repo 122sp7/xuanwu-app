@@ -1,4 +1,4 @@
----
+﻿---
 name: generate-domain-event
 description: 根據業務操作生成符合 Hexagonal Architecture with Domain-Driven Design 規範的 TypeScript 領域事件定義，包含 Zod Schema、型別推導與聚合整合。
 applyTo: 'src/modules/**/domain/events/**/*.{ts,tsx}'
@@ -55,5 +55,5 @@ export type {EventName} = z.infer<typeof {EventName}Schema>;
 - 確認事件 `type` discriminant 格式為 `<module>.<action>`，與模組命名一致。
 - `npm run lint` — 確認無邊界違規。
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

@@ -1,4 +1,4 @@
----
+﻿---
 name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
 argument-hint: Provide violation source (file path or npm run lint output), root cause hypothesis, and scope boundary.
@@ -36,4 +36,4 @@ Keep rule compliance high while minimizing churn.
 - Fix root causes, not symptoms.
 - Preserve existing architecture boundaries.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

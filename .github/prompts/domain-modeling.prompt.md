@@ -1,4 +1,4 @@
----
+﻿---
 name: domain-modeling
 description: 純 Domain 模型建構器（DDD 核心）：設計 Entity / Value Object / Aggregate Root，建立或擴展 bounded context，將業務語言映射至 domain model。
 applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
@@ -65,5 +65,5 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無 framework 依賴與邊界違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

@@ -1,4 +1,4 @@
----
+﻿---
 name: Architecture Enforcer
 description: 架構總裁／規則審核器：全域掃描 Hexagonal + DDD 規則是否被破壞，驗證 dependency direction、import boundary，防止 domain 污染與層級跳越。
 argument-hint: 提供審查範圍（預設全 repo）、已知風險點、或特定 PR diff 路徑。
@@ -72,6 +72,6 @@ handoffs:
 3. **修正建議**：具體檔案移動 / 重構步驟
 4. **修正後驗證**：`npm run lint` + `npm run build` 結果
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill occams-razor

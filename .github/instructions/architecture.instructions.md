@@ -28,3 +28,5 @@ applyTo: "**"
 - 降低重複與衝突風險
 - 讓規則維護集中在專責文件
 - 維持舊入口可用，同時導向新權威文件
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill

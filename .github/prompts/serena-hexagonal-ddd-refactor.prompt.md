@@ -44,6 +44,7 @@ argument-hint: Provide target scope (path/module), refactor goal, and constraint
 - 交付流程：`../instructions/process-framework.instructions.md`
 
 Tags: #use skill serena-mcp
+#use skill repomix
 #use skill context7
 #use skill hexagonal-ddd
 #use skill occams-razor

@@ -1,4 +1,4 @@
----
+﻿---
 name: Domain Lead
 description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
 argument-hint: Provide module scope, ownership question or file to place, and any known boundary risks.
@@ -44,4 +44,4 @@ handoffs:
 - Run lint for boundary and import changes.
 - Run build when public types or exports are touched.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 
