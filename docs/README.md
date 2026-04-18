@@ -35,18 +35,18 @@
 | [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md) | 從零到交付的專案里程碑 |
 | [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
 | [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) | Design Smell taxonomy 與對應決策索引 |
-| [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
+| [contexts/_template.md](./structure/contexts/_template.md) | 新主域或新 context 文件樣板 |
 
 ## Context Folders
 
-- [contexts/ai/README.md](./contexts/ai/README.md)
-- [contexts/analytics/README.md](./contexts/analytics/README.md)
-- [contexts/billing/README.md](./contexts/billing/README.md)
-- [contexts/iam/README.md](./contexts/iam/README.md)
-- [contexts/platform/README.md](./contexts/platform/README.md)
-- [contexts/workspace/README.md](./contexts/workspace/README.md)
-- [contexts/notion/README.md](./contexts/notion/README.md)
-- [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
+- [contexts/ai/README.md](./structure/contexts/ai/README.md)
+- [contexts/analytics/README.md](./structure/contexts/analytics/README.md)
+- [contexts/billing/README.md](./structure/contexts/billing/README.md)
+- [contexts/iam/README.md](./structure/contexts/iam/README.md)
+- [contexts/platform/README.md](./structure/contexts/platform/README.md)
+- [contexts/workspace/README.md](./structure/contexts/workspace/README.md)
+- [contexts/notion/README.md](./structure/contexts/notion/README.md)
+- [contexts/notebooklm/README.md](./structure/contexts/notebooklm/README.md)
 
 ## Focused Implementation Docs
 
@@ -58,8 +58,8 @@
 ## Route Contract Authority
 
 - shell composition 與 canonical account / workspace URL 以 [architecture-overview.md](./structure/system/architecture-overview.md) 為全域權威。
-- account scope、`AccountType = "user" | "organization"` 的字串契約，以及 flattened governance route 以 [contexts/platform/README.md](./contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md) 為權威。
-- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md) 為權威。
+- account scope、`AccountType = "user" | "organization"` 的字串契約，以及 flattened governance route 以 [contexts/platform/README.md](./structure/contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./structure/contexts/platform/ubiquitous-language.md) 為權威。
+- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./structure/contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./structure/contexts/workspace/ubiquitous-language.md) 為權威。
 - `/{accountId}/workspace/{workspaceId}` 與 `/{accountId}/organization/*` 只作為 legacy redirect surface，不是新文件或新 UI 應引用的 canonical contract。
 
 ## Document Network
@@ -76,7 +76,7 @@
 - [ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
 - [decisions/README.md](./decisions/README.md)
 - [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
-- [contexts/_template.md](./contexts/_template.md)
+- [contexts/_template.md](./structure/contexts/_template.md)
 
 ## Module Layer Map（src 結構）
 
