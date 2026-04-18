@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * NotebooklmSourcesSection — notebooklm.sources tab — document source list.
- * Shows all documents ingested via py_fn Storage Trigger.
+ * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
+ * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
  */
 
-import { Upload, RefreshCw } from "lucide-react";
-import { useState, useTransition } from "react";
+import { Upload, RefreshCw, FileUp } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
 import { Button } from "@ui-shadcn/ui/button";
 import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
-import { queryDocumentsAction } from "../server-actions/document-actions";
+import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
+import { uploadDocumentToStorage } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -29,15 +30,50 @@ export function NotebooklmSourcesSection({
 }: NotebooklmSourcesSectionProps): React.ReactElement {
   const [documents, setDocuments] = useState<DocumentSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [isRefreshing, startRefresh] = useTransition();
+  const [isUploading, startUpload] = useTransition();
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
-    startTransition(async () => {
+    startRefresh(async () => {
       const result = await queryDocumentsAction({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
       setLoaded(true);
     });
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+
+    startUpload(async () => {
+      try {
+        const path = await uploadDocumentToStorage(file, accountId, workspaceId);
+        await registerUploadedDocumentAction({
+          accountId,
+          workspaceId,
+          gcsPath: path,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        });
+        // reload list after upload
+        const result = await queryDocumentsAction({ accountId, workspaceId });
+        setDocuments(Array.isArray(result) ? result : []);
+        setLoaded(true);
+      } catch (err) {
+        setUploadError(
+          err instanceof Error ? err.message : "上傳失敗，請稍後再試。",
+        );
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    });
+  };
+
+  const isPending = isRefreshing || isUploading;
 
   return (
     <div className="space-y-4">
@@ -46,16 +82,42 @@ export function NotebooklmSourcesSection({
           <Upload className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">來源文件</h2>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={load}
-          disabled={isPending}
-        >
-          <RefreshCw className={`size-3.5 ${isPending ? "animate-spin" : ""}`} />
-          {loaded ? "重新整理" : "載入"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isPending}
+          >
+            <FileUp className={`size-3.5 ${isUploading ? "animate-pulse" : ""}`} />
+            {isUploading ? "上傳中…" : "上傳文件"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={load}
+            disabled={isPending}
+          >
+            <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            {loaded ? "重新整理" : "載入"}
+          </Button>
+        </div>
       </div>
+
+      {/* hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.png,.jpg,.jpeg,.tiff"
+        onChange={handleFileChange}
+      />
+
+      {uploadError && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {uploadError}
+        </p>
+      )}
 
       {!loaded && (
         <p className="text-sm text-muted-foreground">
@@ -65,7 +127,7 @@ export function NotebooklmSourcesSection({
 
       {loaded && documents.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          尚無來源文件。請透過 Firebase Storage 上傳至
+          尚無來源文件。請點擊「上傳文件」，或直接上傳至
           <code className="mx-1 rounded bg-muted px-1 text-xs">
             uploads/{"{accountId}"}/{"{workspaceId}"}/
           </code>
