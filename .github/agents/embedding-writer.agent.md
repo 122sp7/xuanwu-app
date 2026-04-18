@@ -9,7 +9,7 @@ handoffs:
     agent: Chunk Strategist
     prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
   - label: Refine Flow Integration
-    agent: Genkit Flow Agent
+    agent: AI Genkit Lead
     prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
   - label: Run Quality Review
     agent: Quality Lead

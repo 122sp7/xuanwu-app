@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Check Domain Boundary
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
   - label: Review Frontend Impact
     agent: Frontend Lead

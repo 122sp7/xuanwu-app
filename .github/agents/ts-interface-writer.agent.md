@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Review Domain Ownership
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm the owning bounded context and public API boundary for these contract changes.
   - label: Write Server Action
     agent: Server Action Writer

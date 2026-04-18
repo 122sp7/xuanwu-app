@@ -9,7 +9,7 @@ handoffs:
     agent: TS Interface Writer
     prompt: Update or review the DTO and command-result contracts used by this server action.
   - label: Review Domain Boundary
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
   - label: Run Quality Review
     agent: Quality Lead

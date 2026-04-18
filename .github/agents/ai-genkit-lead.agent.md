@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Refine Genkit Flow
-    agent: Genkit Flow Agent
+    agent: Hexagonal DDD Architect
     prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
   - label: Review RAG Boundary
     agent: RAG Lead

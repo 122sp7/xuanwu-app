@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Fix Domain Model
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Update or review domain value object and aggregate schema definitions to align with the corrected Zod validation boundary.
   - label: Fix Infrastructure Adapter
     agent: Hexagonal DDD Architect

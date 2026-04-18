@@ -9,7 +9,7 @@ handoffs:
     agent: Server Action Writer
     prompt: Wire the state machine or store to the corresponding server action and return stable command results.
   - label: Confirm Domain Boundary
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm that the state transition logic stays in XState machines and does not leak business rules into the store or component.
   - label: Run Quality Review
     agent: Quality Lead

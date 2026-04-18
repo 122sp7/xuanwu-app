@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'repomix/
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Confirm Domain Ownership
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
   - label: Update Contracts
     agent: TS Interface Writer
