@@ -48,15 +48,24 @@ export class IngestionJob {
   }
 
   markProcessing(): void {
+    if (this.props.status !== 'pending') {
+      throw new Error(`Invalid ingestion transition: ${this.props.status} -> processing`);
+    }
     this.props.status = 'processing';
   }
 
   markCompleted(): void {
+    if (this.props.status !== 'processing') {
+      throw new Error(`Invalid ingestion transition: ${this.props.status} -> completed`);
+    }
     this.props.status = 'completed';
     this.props.completedAt = new Date();
   }
 
   markFailed(): void {
+    if (this.props.status !== 'processing') {
+      throw new Error(`Invalid ingestion transition: ${this.props.status} -> failed`);
+    }
     this.props.status = 'failed';
     this.props.completedAt = new Date();
   }
