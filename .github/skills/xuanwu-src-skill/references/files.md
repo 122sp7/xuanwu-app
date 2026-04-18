@@ -7593,7 +7593,7 @@ export function isTerminalTaskStatus(status: TaskStatus): boolean
  * Both sides must stay semantically aligned. Changes here require
  * corresponding updates to the py_fn Pydantic model.
  *
- * @see docs/contexts/ai/cross-runtime-contracts.md
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
  */
 ⋮----
 import { z } from "zod";
@@ -7783,7 +7783,7 @@ getSnapshot(): Readonly<ContextSessionSnapshot>
  * Both sides must stay semantically aligned. Changes here require
  * corresponding updates to the py_fn Pydantic model.
  *
- * @see docs/contexts/ai/cross-runtime-contracts.md
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
  */
 ⋮----
 import { z } from "zod";

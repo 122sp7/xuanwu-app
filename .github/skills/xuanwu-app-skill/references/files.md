@@ -149,7 +149,7 @@ handoffs:
 - `.github/instructions/domain-layer-rules.instructions.md`
 - `.github/instructions/event-driven-state.instructions.md`
 - `docs/ubiquitous-language.md`
-- `docs/contexts/<context>/README.md`
+- `docs/structure/contexts/<context>/README.md`
 
 ## 禁止事項（Hard Violations）
 
@@ -385,7 +385,7 @@ This file is an implementation-oriented supplement for repository navigation. St
 
 ## Docs Authority
 
-- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/structure/contexts/<context>/*`
 - Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
 - Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
 
@@ -883,7 +883,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 # Bounded Context（界限上下文）設計規則
 
-> 完整邊界參考：**先查 `docs/bounded-contexts.md`、`docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 完整邊界參考：**先查 `docs/bounded-contexts.md`、`docs/ubiquitous-language.md`、`docs/structure/contexts/<context>/README.md`**
 > 此文件只包含 Bounded Context 層級的**戰略設計約束**，不複製領域知識或程式碼範例。
 
 ## 戰略設計規則
@@ -1022,7 +1022,7 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 
 # Domain Layer（領域層）設計規則
 
-> 完整邊界參考：**先查 `docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 完整邊界參考：**先查 `docs/ubiquitous-language.md`、`docs/structure/contexts/<context>/README.md`**
 > 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
 > 此文件只包含 Domain Layer 層級的**戰略設計約束**。
 
@@ -1064,7 +1064,7 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 
 # 領域模型設計規範 (Domain Modeling)
 
-> 完整邊界參考：**先查 `docs/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 完整邊界參考：**先查 `docs/structure/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 聚合根 (Aggregate Root)
@@ -1219,7 +1219,7 @@ applyTo: 'modules/**/*.{ts,tsx}'
 
 # 事件驅動狀態規範 (Event-Driven State)
 
-> 完整邊界參考：**先查 `docs/contexts/<context>/context-map.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 完整邊界參考：**先查 `docs/structure/contexts/<context>/context-map.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 領域事件 (Domain Events)
@@ -2518,7 +2518,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 
 1. 讀取 `docs/README.md` → `docs/bounded-contexts.md` → `docs/subdomains.md`，定位所屬 bounded context。
 2. 讀取 `docs/ubiquitous-language.md`，確認功能用語是否有既有術語映射。
-3. 讀取 `docs/contexts/<context>/context-map.md`，確認上下游依賴關係。
+3. 讀取 `docs/structure/contexts/<context>/context-map.md`，確認上下游依賴關係。
 4. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `architecture-runtime.instructions.md`，確認 runtime 邊界。
 5. 輸出 feature blueprint（見下方格式）。
 6. 若功能涉及 AI capability，標注 `platform.ai` 消費路徑；不允許 notion/notebooklm 自擁 `ai` subdomain。
@@ -3456,7 +3456,7 @@ flowchart LR
 - [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/_template.md
+## File: docs/structure/contexts/_template.md
 ````markdown
 # Context Template
 
@@ -3604,7 +3604,7 @@ flowchart LR
 - [../decisions/README.md](../decisions/README.md)
 ````
 
-## File: docs/contexts/analytics/AGENT.md
+## File: docs/structure/contexts/analytics/AGENT.md
 ````markdown
 # Analytics Context Agent Guide
 
@@ -3619,7 +3619,7 @@ The Analytics context owns reporting, metrics, dashboards, and downstream projec
 - Prefer event projection and query models over write-side ownership.
 ````
 
-## File: docs/contexts/analytics/bounded-contexts.md
+## File: docs/structure/contexts/analytics/bounded-contexts.md
 ````markdown
 # Analytics
 
@@ -3634,7 +3634,7 @@ analytics 是下游 bounded context。它以 projection、metric 與 report 為�
 - 只在需要查詢與分析時建立 local read model。
 ````
 
-## File: docs/contexts/analytics/context-map.md
+## File: docs/structure/contexts/analytics/context-map.md
 ````markdown
 # Analytics
 
@@ -3654,7 +3654,7 @@ analytics 是下游 bounded context。它以 projection、metric 與 report 為�
 - analytics consumes events and projections only.
 ````
 
-## File: docs/contexts/analytics/README.md
+## File: docs/structure/contexts/analytics/README.md
 ````markdown
 # Analytics Context
 
@@ -3674,7 +3674,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 | Core Principle | analytics 是下游投影，不反向成為 canonical owner |
 ````
 
-## File: docs/contexts/analytics/subdomains.md
+## File: docs/structure/contexts/analytics/subdomains.md
 ````markdown
 # Analytics
 
@@ -3695,7 +3695,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 | decision-support | 決策輔助與洞察輸出 |
 ````
 
-## File: docs/contexts/analytics/ubiquitous-language.md
+## File: docs/structure/contexts/analytics/ubiquitous-language.md
 ````markdown
 # Analytics
 
@@ -3714,7 +3714,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 - 不把 projection 當成原始 aggregate。
 ````
 
-## File: docs/contexts/billing/AGENT.md
+## File: docs/structure/contexts/billing/AGENT.md
 ````markdown
 # Billing Context Agent Guide
 
@@ -3729,7 +3729,7 @@ The Billing context owns commercial lifecycle concerns, including subscription a
 - Downstream consumers receive capability signals, not internal billing aggregates.
 ````
 
-## File: docs/contexts/billing/bounded-contexts.md
+## File: docs/structure/contexts/billing/bounded-contexts.md
 ````markdown
 # Billing
 
@@ -3744,7 +3744,7 @@ billing 是 commercial bounded context。它擁有 subscription 與 entitlement 
 - 不擁有 workspace、knowledge 或 notebook aggregate。
 ````
 
-## File: docs/contexts/billing/context-map.md
+## File: docs/structure/contexts/billing/context-map.md
 ````markdown
 # Billing
 
@@ -3762,7 +3762,7 @@ billing 是 commercial bounded context。它擁有 subscription 與 entitlement 
 - billing 向下游提供 capability signal，不暴露內部商業 aggregate。
 ````
 
-## File: docs/contexts/billing/README.md
+## File: docs/structure/contexts/billing/README.md
 ````markdown
 # Billing Context
 
@@ -3782,7 +3782,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 | Core Principle | 提供商業能力訊號，不接管內容或協作正典 |
 ````
 
-## File: docs/contexts/billing/subdomains.md
+## File: docs/structure/contexts/billing/subdomains.md
 ````markdown
 # Billing
 
@@ -3804,7 +3804,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 | quota-policy | 可量化配額與商業限制規則 |
 ````
 
-## File: docs/contexts/billing/ubiquitous-language.md
+## File: docs/structure/contexts/billing/ubiquitous-language.md
 ````markdown
 # Billing
 
@@ -3823,7 +3823,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 - 不把 feature flag 當成 entitlement 正典語義。
 ````
 
-## File: docs/contexts/iam/AGENT.md
+## File: docs/structure/contexts/iam/AGENT.md
 ````markdown
 # IAM Context Agent Guide
 
@@ -3838,7 +3838,7 @@ The IAM context owns identity, access control, tenant isolation, and security po
 - Downstream contexts consume decisions and signals, not internal aggregates.
 ````
 
-## File: docs/contexts/iam/bounded-contexts.md
+## File: docs/structure/contexts/iam/bounded-contexts.md
 ````markdown
 # IAM
 
@@ -3853,7 +3853,7 @@ iam 是 governance bounded context。它是身份、tenant 與 access decision �
 - 不擁有 workspace、knowledge、notebook 或 billing aggregate。
 ````
 
-## File: docs/contexts/iam/context-map.md
+## File: docs/structure/contexts/iam/context-map.md
 ````markdown
 # IAM
 
@@ -3872,7 +3872,7 @@ iam 是 governance bounded context。它是身份、tenant 與 access decision �
 - iam 是治理上游，不擁有商業、內容或推理正典模型。
 ````
 
-## File: docs/contexts/iam/README.md
+## File: docs/structure/contexts/iam/README.md
 ````markdown
 # IAM Context
 
@@ -3892,7 +3892,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 | Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
 ````
 
-## File: docs/contexts/iam/subdomains.md
+## File: docs/structure/contexts/iam/subdomains.md
 ````markdown
 # IAM
 
@@ -3923,7 +3923,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 | session | token refresh, revocation, and server-side session lifecycle |
 ````
 
-## File: docs/contexts/iam/ubiquitous-language.md
+## File: docs/structure/contexts/iam/ubiquitous-language.md
 ````markdown
 # IAM
 
@@ -3944,7 +3944,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 - 不把 access decision 寫成 UI flag。
 ````
 
-## File: docs/contexts/notebooklm/AGENT.md
+## File: docs/structure/contexts/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Agent
 
@@ -4040,7 +4040,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notebooklm/bounded-contexts.md
+## File: docs/structure/contexts/notebooklm/bounded-contexts.md
 ````markdown
 # NotebookLM
 
@@ -4127,7 +4127,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/notebooklm/context-map.md
+## File: docs/structure/contexts/notebooklm/context-map.md
 ````markdown
 # NotebookLM
 
@@ -4210,7 +4210,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notebooklm/README.md
+## File: docs/structure/contexts/notebooklm/README.md
 ````markdown
 # NotebookLM Context
 
@@ -4327,7 +4327,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/notebooklm/subdomains.md
+## File: docs/structure/contexts/notebooklm/subdomains.md
 ````markdown
 # NotebookLM
 
@@ -4397,7 +4397,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/notebooklm/ubiquitous-language.md
+## File: docs/structure/contexts/notebooklm/ubiquitous-language.md
 ````markdown
 # NotebookLM
 
@@ -4495,7 +4495,7 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/contexts/notion/context-map.md
+## File: docs/structure/contexts/notion/context-map.md
 ````markdown
 # Notion
 
@@ -4579,7 +4579,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notion/ubiquitous-language.md
+## File: docs/structure/contexts/notion/ubiquitous-language.md
 ````markdown
 # Notion
 
@@ -4677,7 +4677,7 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/contexts/platform/AGENT.md
+## File: docs/structure/contexts/platform/AGENT.md
 ````markdown
 # Platform Agent
 
@@ -4788,7 +4788,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/platform/bounded-contexts.md
+## File: docs/structure/contexts/platform/bounded-contexts.md
 ````markdown
 # Platform
 
@@ -4876,7 +4876,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/platform/context-map.md
+## File: docs/structure/contexts/platform/context-map.md
 ````markdown
 # Platform
 
@@ -4960,7 +4960,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/platform/README.md
+## File: docs/structure/contexts/platform/README.md
 ````markdown
 # Platform Context
 
@@ -5103,7 +5103,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/platform/subdomains.md
+## File: docs/structure/contexts/platform/subdomains.md
 ````markdown
 # Platform
 
@@ -5191,7 +5191,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/workspace/AGENT.md
+## File: docs/structure/contexts/workspace/AGENT.md
 ````markdown
 # Workspace Agent
 
@@ -5289,7 +5289,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/workspace/bounded-contexts.md
+## File: docs/structure/contexts/workspace/bounded-contexts.md
 ````markdown
 # Workspace
 
@@ -5376,7 +5376,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/workspace/context-map.md
+## File: docs/structure/contexts/workspace/context-map.md
 ````markdown
 # Workspace
 
@@ -5459,7 +5459,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/workspace/README.md
+## File: docs/structure/contexts/workspace/README.md
 ````markdown
 # Workspace Context
 
@@ -5583,7 +5583,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/workspace/subdomains.md
+## File: docs/structure/contexts/workspace/subdomains.md
 ````markdown
 # Workspace
 
@@ -5658,7 +5658,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/workspace/ubiquitous-language.md
+## File: docs/structure/contexts/workspace/ubiquitous-language.md
 ````markdown
 # Workspace
 
@@ -6351,7 +6351,7 @@ platform 子域已正確遵守此規則：每個子域的 composition root 位�
 - [0002-bounded-contexts.md](./0002-bounded-contexts.md)
 - [0003-context-map.md](./0003-context-map.md)
 - [../architecture/source-to-task-flow.md](../architecture/source-to-task-flow.md)
-- [../deliveries/upload-parse-to-task-flow.md](../deliveries/upload-parse-to-task-flow.md)
+- [../examples/end-to-end/deliveries/upload-parse-to-task-flow.md](../examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
 ````
 
 ## File: docs/decisions/0014-main-domain-resplit.md
@@ -10451,7 +10451,7 @@ flowchart LR
 4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
-## File: docs/deliveries/AGENT.md
+## File: docs/examples/end-to-end/deliveries/AGENT.md
 ````markdown
 # Deliveries Agent Guide
 
@@ -10463,7 +10463,7 @@ flowchart LR
 - 保持流程導向，不展開底層架構細節。
 ````
 
-## File: docs/deliveries/README.md
+## File: docs/examples/end-to-end/deliveries/README.md
 ````markdown
 # Deliveries Docs
 
@@ -10477,7 +10477,7 @@ flowchart LR
 - [upload-parse-to-task-flow.md](./upload-parse-to-task-flow.md) — upload → parse → Knowledge Page → task flow 的跨 context handoff 與交付證據。
 ````
 
-## File: docs/deliveries/upload-parse-to-task-flow.md
+## File: docs/examples/end-to-end/deliveries/upload-parse-to-task-flow.md
 ````markdown
 # Upload → Parse → Knowledge Page → Task Flow Delivery
 
@@ -10558,7 +10558,7 @@ flowchart LR
 這次交付不是新增一條繞路流程，而是把既有的知識頁流程，**向下安全延伸到 workspace 任務流程**，並保留事件驅動與 public API 的合規結構。
 ````
 
-## File: docs/feature/AGENT.md
+## File: docs/examples/modules/feature/AGENT.md
 ````markdown
 # Feature Docs Agent Guide
 
@@ -10570,7 +10570,7 @@ flowchart LR
 - 不展開跨 context 串接流程。
 ````
 
-## File: docs/feature/notebooklm-source-processing-task-flow.md
+## File: docs/examples/modules/feature/notebooklm-source-processing-task-flow.md
 ````markdown
 # NotebookLM Source Processing Task Flow
 
@@ -10660,7 +10660,7 @@ flowchart LR
 這個 feature 的核心不是「直接建任務」，而是把**同一份 source document**安全地推進到多個下游消費能力，同時維持 `notebooklm → notion / workspace` 的邊界清楚。
 ````
 
-## File: docs/feature/README.md
+## File: docs/examples/modules/feature/README.md
 ````markdown
 # Feature Docs
 
@@ -12539,7 +12539,7 @@ applyTo: 'modules/iam/subdomains/**/*.{ts,tsx}'
 # IAM Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/iam/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/iam/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/iam/subdomains.md`.
 
 ## Core Rules
 
@@ -12566,7 +12566,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````markdown
 # NotebookLM Agent
 
-> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/notebooklm/AGENT.md](../../docs/structure/contexts/notebooklm/AGENT.md)
 
 ## Mission
 
@@ -12734,13 +12734,13 @@ Implementation-level documentation for the notebooklm bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
+Strategic architecture documentation lives in `docs/structure/contexts/notebooklm/`:
 
-- [README.md](../../../docs/contexts/notebooklm/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/notebooklm/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/notebooklm/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/notebooklm/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/notebooklm/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/notebooklm/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/notebooklm/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/notebooklm/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/notebooklm/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/notebooklm/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -12757,7 +12757,7 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/notebooklm/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/notebooklm/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -14206,11 +14206,11 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/notebooklm/README.md)
-- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
-- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notebooklm/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/notebooklm/README.md)
+- [Subdomains](../../docs/structure/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/structure/contexts/notebooklm/bounded-contexts.md)
+- [Context Map](../../docs/structure/contexts/notebooklm/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/notebooklm/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -15849,7 +15849,7 @@ applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
 # NotebookLM Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/notebooklm/subdomains.md`.
 
 ## Core Rules
 
@@ -17012,7 +17012,7 @@ When implementing, follow inside-out:
 ````markdown
 # Notion Agent
 
-> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/notion/AGENT.md](../../docs/structure/contexts/notion/AGENT.md)
 
 ## Mission
 
@@ -17182,13 +17182,13 @@ Implementation-level documentation for the notion bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/notion/`:
+Strategic architecture documentation lives in `docs/structure/contexts/notion/`:
 
-- [README.md](../../../docs/contexts/notion/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/notion/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/notion/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/notion/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/notion/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/notion/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/notion/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/notion/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/notion/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/notion/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -17205,7 +17205,7 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/notion/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/notion/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -18900,11 +18900,11 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/notion/README.md)
-- [Subdomains](../../docs/contexts/notion/subdomains.md)
-- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notion/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/notion/README.md)
+- [Subdomains](../../docs/structure/contexts/notion/subdomains.md)
+- [Bounded Context](../../docs/structure/contexts/notion/bounded-contexts.md)
+- [Context Map](../../docs/structure/contexts/notion/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/notion/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -21543,7 +21543,7 @@ applyTo: 'modules/notion/subdomains/**/*.{ts,tsx}'
 # Notion Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/notion/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notion/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/notion/subdomains.md`.
 
 ## Core Rules
 
@@ -21791,7 +21791,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ````markdown
 # Platform Agent
 
-> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/platform/AGENT.md](../../docs/structure/contexts/platform/AGENT.md)
 
 ## Mission
 
@@ -22118,7 +22118,7 @@ applyTo: 'modules/platform/application/**/*.{ts,tsx}'
 # Platform Application Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -23130,15 +23130,15 @@ applyTo: 'modules/platform/docs/**/*.md'
 # Platform Docs Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
-- `modules/platform/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/platform/`.
+- `modules/platform/docs/` holds **links and local summaries only** — authoritative content lives in `docs/structure/contexts/platform/`.
 - Do not duplicate strategic knowledge here; point to the canonical source instead.
 - Any new architectural decision affecting platform must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`; do not introduce synonyms or aliases.
-- Keep this directory in sync with `docs/contexts/platform/README.md` whenever the subdomain list changes.
+- Use ubiquitous language from `docs/structure/contexts/platform/ubiquitous-language.md`; do not introduce synonyms or aliases.
+- Keep this directory in sync with `docs/structure/contexts/platform/README.md` whenever the subdomain list changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -23152,13 +23152,13 @@ Implementation-level documentation for the platform bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/platform/`:
+Strategic architecture documentation lives in `docs/structure/contexts/platform/`:
 
-- [README.md](../../../docs/contexts/platform/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/platform/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/platform/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/platform/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/platform/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/platform/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/platform/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/platform/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/platform/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -23168,14 +23168,14 @@ Strategic architecture documentation lives in `docs/contexts/platform/`:
 
 ## Current Sync Points
 
-- Canonical governance route authority stays in [../../../docs/contexts/platform/README.md](../../../docs/contexts/platform/README.md): use flattened account-scoped routes under `/{accountId}/...`; do not treat `/{accountId}/organization/*` as canonical.
-- Account scope string contract authority stays in [../../../docs/contexts/platform/ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md): local implementation docs must use `"user" | "organization"`, not `"personal" | "organization"`.
+- Canonical governance route authority stays in [../../../docs/structure/contexts/platform/README.md](../../../docs/structure/contexts/platform/README.md): use flattened account-scoped routes under `/{accountId}/...`; do not treat `/{accountId}/organization/*` as canonical.
+- Account scope string contract authority stays in [../../../docs/structure/contexts/platform/ubiquitous-language.md](../../../docs/structure/contexts/platform/ubiquitous-language.md): local implementation docs must use `"user" | "organization"`, not `"personal" | "organization"`.
 - Identifier authority also stays in the platform root docs: `accountId` is shell account scope, `organizationId` is organization-scoped domain input, `userId` is a concrete user, `actorId` is acting principal metadata, and `tenantId` is the isolation key.
 - System-wide baseline remains the root architecture set: Hexagonal + DDD, Firebase serverless backend, Genkit orchestration, Zustand/XState frontend state, and Zod runtime validation.
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/platform/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/platform/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -23421,7 +23421,7 @@ applyTo: '*.{ts,tsx}'
 # Domain Modeling (Platform Local)
 
 Use this local file as execution guardrails for `modules/platform/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -26370,7 +26370,7 @@ applyTo: 'modules/platform/infrastructure/**/*.{ts,tsx}'
 # Platform Infrastructure Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -26790,7 +26790,7 @@ applyTo: 'modules/platform/interfaces/**/*.{ts,tsx}'
 # Platform Interfaces Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -27008,10 +27008,10 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/platform/README.md)
-- [Subdomains](../../docs/contexts/platform/subdomains.md)
-- [Context Map](../../docs/contexts/platform/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/platform/README.md)
+- [Subdomains](../../docs/structure/contexts/platform/subdomains.md)
+- [Context Map](../../docs/structure/contexts/platform/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/platform/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -27564,7 +27564,7 @@ applyTo: 'modules/platform/subdomains/**/*.{ts,tsx}'
 # Platform Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/platform/subdomains.md`.
 
 ## Core Rules
 
@@ -27584,7 +27584,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````markdown
 # Workspace Agent
 
-> Strategic agent documentation: [docs/contexts/workspace/AGENT.md](../../docs/contexts/workspace/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/workspace/AGENT.md](../../docs/structure/contexts/workspace/AGENT.md)
 
 ## Mission
 
@@ -27687,7 +27687,7 @@ applyTo: 'modules/workspace/application/**/*.{ts,tsx}'
 # Workspace Application Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -27977,15 +27977,15 @@ applyTo: 'modules/workspace/docs/**/*.md'
 # Workspace Docs Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
-- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/workspace/`.
+- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/structure/contexts/workspace/`.
 - Do not duplicate strategic knowledge here; point to the canonical source instead.
 - Any new architectural decision affecting workspace must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
-- Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
+- Use ubiquitous language from `docs/structure/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
+- Keep this directory in sync with `docs/structure/contexts/workspace/README.md` whenever the subdomain list changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -27999,13 +27999,13 @@ Implementation-level documentation for the workspace bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/workspace/`:
+Strategic architecture documentation lives in `docs/structure/contexts/workspace/`:
 
-- [README.md](../../../docs/contexts/workspace/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/workspace/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/workspace/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/workspace/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/workspace/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/workspace/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/workspace/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/workspace/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/workspace/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -28015,14 +28015,14 @@ Strategic architecture documentation lives in `docs/contexts/workspace/`:
 
 ## Current Sync Points
 
-- Canonical workspace route authority stays in [../../../docs/contexts/workspace/README.md](../../../docs/contexts/workspace/README.md): use `/{accountId}/{workspaceId}`, not the legacy `/{accountId}/workspace/{workspaceId}` form.
-- Account scope string contract authority stays in [../../../docs/contexts/workspace/ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md): local implementation docs and read models must use `"user" | "organization"`, not `"personal" | "organization"`.
+- Canonical workspace route authority stays in [../../../docs/structure/contexts/workspace/README.md](../../../docs/structure/contexts/workspace/README.md): use `/{accountId}/{workspaceId}`, not the legacy `/{accountId}/workspace/{workspaceId}` form.
+- Account scope string contract authority stays in [../../../docs/structure/contexts/workspace/ubiquitous-language.md](../../../docs/structure/contexts/workspace/ubiquitous-language.md): local implementation docs and read models must use `"user" | "organization"`, not `"personal" | "organization"`.
 - If workspace wiki/content-tree behavior changes, keep local implementation notes aligned with the root query projection while leaving strategic naming and route ownership in the root docs.
 - System-wide baseline remains the root architecture set: Hexagonal + DDD, Firebase serverless backend, Genkit orchestration, Zustand/XState frontend state, and Zod runtime validation.
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/workspace/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/workspace/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -28036,7 +28036,7 @@ applyTo: '*.{ts,tsx}'
 # Domain Modeling (Workspace Local)
 
 Use this local file as execution guardrails for `modules/workspace/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -28770,7 +28770,7 @@ applyTo: 'modules/workspace/infrastructure/**/*.{ts,tsx}'
 # Workspace Infrastructure Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -28871,7 +28871,7 @@ applyTo: 'modules/workspace/interfaces/**/*.{ts,tsx}'
 # Workspace Interfaces Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -30090,10 +30090,10 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/workspace/README.md)
-- [Subdomains](../../docs/contexts/workspace/subdomains.md)
-- [Context Map](../../docs/contexts/workspace/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/workspace/README.md)
+- [Subdomains](../../docs/structure/contexts/workspace/subdomains.md)
+- [Context Map](../../docs/structure/contexts/workspace/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/workspace/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -32213,7 +32213,7 @@ applyTo: 'modules/workspace/subdomains/**/*.{ts,tsx}'
 # Workspace Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/workspace/subdomains.md`.
 
 ## Core Rules
 
@@ -32241,7 +32241,7 @@ applyTo: 'modules/workspace/**/*.{ts,tsx,md}'
 # Workspace Bounded Context (Local)
 
 Use this file as execution guardrails for `modules/workspace/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/structure/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
 
 ## Core Rules
 
@@ -36782,7 +36782,7 @@ handoffs:
 - `modules/**/application/use-cases/**`
 - `modules/**/application/machines/**`
 - `docs/ubiquitous-language.md`
-- `docs/contexts/*/**`
+- `docs/structure/contexts/*/**`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
@@ -36798,7 +36798,7 @@ handoffs:
 - `docs/ubiquitous-language.md`
 - `docs/subdomains.md`
 - `docs/bounded-contexts.md`
-- `docs/contexts/<context>/*`
+- `docs/structure/contexts/<context>/*`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
@@ -36809,7 +36809,7 @@ handoffs:
 - [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
 - [ ] 程式碼是否位於正確的 bounded context / subdomain？
 - [ ] 跨模組互動是否只透過 `api/` 邊界或領域事件？
-- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
+- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/structure/contexts/<context>/context-map.md` 一致？
 - [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
 - [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
 - [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？
@@ -37861,7 +37861,7 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 1. Start with [docs/README.md](../docs/README.md).
 2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
 3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
 5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
 6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
 
@@ -37989,7 +37989,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 1. 讀取 `docs/ubiquitous-language.md` — 確認命名符合通用語言，若術語不存在，先在 docs 新增再繼續。
 2. 讀取 `docs/bounded-contexts.md` 與 `docs/subdomains.md` — 確認所屬 bounded context 與子域正確。
-3. 讀取 `docs/contexts/<context>/README.md` — 了解 context-local 語言規則。
+3. 讀取 `docs/structure/contexts/<context>/README.md` — 了解 context-local 語言規則。
 4. 讀取 `.github/instructions/domain-modeling.instructions.md` — 確認 Aggregate / Value Object / Event 設計模式。
 5. 讀取 `.github/instructions/domain-layer-rules.instructions.md` — 確認技術純度規則。
 6. 在 `modules/<context>/[subdomains/<sub>/]domain/` 建立以下結構（視需要）：
@@ -38082,7 +38082,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認命名一致。
+1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/README.md`，確認命名一致。
 2. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `.github/instructions/firestore-schema.instructions.md`，確認層級規則。
 3. 確認 Port 介面定義（在 `domain/repositories/` 或 `domain/ports/`）。
 4. 在 `modules/<context>/[subdomains/<sub>/]infrastructure/` 建立實作檔案：
@@ -38311,7 +38311,7 @@ export type Address = z.infer<typeof AddressSchema>;
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
+1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
 2. 讀取 `.github/instructions/domain-modeling.instructions.md`，確認設計規則。
 3. 確認放置路徑：`modules/<context>/domain/value-objects/<Name>.ts`
 4. 依照上方模式建立值對象檔案。
@@ -38979,7 +38979,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認語言與邊界。
+1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/README.md`，確認語言與邊界。
 2. 讀取 `.github/instructions/architecture-core.instructions.md`，確認 use case 決策規則。
 3. 在 `modules/<context>/[subdomains/<sub>/]application/use-cases/` 建立：
    - 檔案命名：`verb-noun.use-case.ts`（例如 `create-work-demand.use-case.ts`）
@@ -39080,7 +39080,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: docs/contexts/ai/AGENT.md
+## File: docs/structure/contexts/ai/AGENT.md
 ````markdown
 # AI Context Agent Guide
 
@@ -39179,7 +39179,7 @@ flowchart LR
 - [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 ````
 
-## File: docs/contexts/ai/context-map.md
+## File: docs/structure/contexts/ai/context-map.md
 ````markdown
 # AI Context Map
 
@@ -39233,7 +39233,7 @@ flowchart LR
 ```
 ````
 
-## File: docs/contexts/ai/cross-runtime-contracts.md
+## File: docs/structure/contexts/ai/cross-runtime-contracts.md
 ````markdown
 # AI Context — Cross-Runtime Contracts
 
@@ -39336,7 +39336,7 @@ These are separate from QStash and are defined by Firestore document structure:
 Firestore document schema for these is owned by `src/modules/platform/subdomains/file-storage/` (TypeScript) and mirrored in `py_fn/src/infrastructure/persistence/firestore/`.
 ````
 
-## File: docs/contexts/ai/ddd-strategic-design.md
+## File: docs/structure/contexts/ai/ddd-strategic-design.md
 ````markdown
 # DDD 戰略設計規則 — AI Context
 
@@ -39459,7 +39459,7 @@ Generic Domain（可外包／第三方替換）
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md) — ADR：界限上下文決策
 ````
 
-## File: docs/contexts/ai/ubiquitous-language.md
+## File: docs/structure/contexts/ai/ubiquitous-language.md
 ````markdown
 # AI Ubiquitous Language
 
@@ -39512,7 +39512,7 @@ Generic Domain（可外包／第三方替換）
 - 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
 ````
 
-## File: docs/contexts/notion/AGENT.md
+## File: docs/structure/contexts/notion/AGENT.md
 ````markdown
 # Notion Agent
 
@@ -39619,7 +39619,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notion/bounded-contexts.md
+## File: docs/structure/contexts/notion/bounded-contexts.md
 ````markdown
 # Notion
 
@@ -39706,7 +39706,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/notion/README.md
+## File: docs/structure/contexts/notion/README.md
 ````markdown
 # Notion Context
 
@@ -39827,7 +39827,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/notion/subdomains.md
+## File: docs/structure/contexts/notion/subdomains.md
 ````markdown
 # Notion
 
@@ -39906,7 +39906,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/platform/ubiquitous-language.md
+## File: docs/structure/contexts/platform/ubiquitous-language.md
 ````markdown
 # Platform
 
@@ -41382,7 +41382,7 @@ export type { GenerateEmbeddingInput } from './subdomains/embedding/application/
 | P0 | 定義 `ChunkJobPayload` schema | `src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts` |
 | P0 | QStash dispatcher adapter | `src/modules/ai/subdomains/embedding/adapters/outbound/qstash-embedding-dispatcher.ts` |
 | P1 | py_fn 鏡像驗證 | `py_fn/src/application/dto/embedding_job.py`（Pydantic） |
-| P1 | published language 文件 | `docs/contexts/ai/cross-runtime-contracts.md` |
+| P1 | published language 文件 | `docs/structure/contexts/ai/cross-runtime-contracts.md` |
 
 ---
 
@@ -41446,8 +41446,8 @@ export type { GenerateEmbeddingInput } from './subdomains/embedding/application/
 ## Focused Implementation Docs
 
 - [architecture/source-to-task-flow.md](./architecture/source-to-task-flow.md)
-- [feature/notebooklm-source-processing-task-flow.md](./feature/notebooklm-source-processing-task-flow.md)
-- [deliveries/upload-parse-to-task-flow.md](./deliveries/upload-parse-to-task-flow.md)
+- [feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
+- [deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
 - [decisions/0012-source-to-task-orchestration.md](./decisions/0012-source-to-task-orchestration.md)
 
 ## Route Contract Authority
@@ -48568,7 +48568,7 @@ applyTo: 'modules/platform/api/**/*.{ts,tsx}'
 # Platform 主域互動規範
 
 本文件取代舊制「api 作為跨模組進入點」的概念。
-完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/contexts/platform/context-map.md`。
+完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/structure/contexts/platform/context-map.md`。
 
 ## 主域與子域互動規則
 
@@ -49545,7 +49545,7 @@ applyTo: 'modules/workspace/api/**/*.{ts,tsx}'
 # Workspace 主域互動規範
 
 本文件取代舊制「api 作為跨模組進入點」的概念。
-完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/contexts/workspace/context-map.md`。
+完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/structure/contexts/workspace/context-map.md`。
 
 ## 主域與子域互動規則
 
@@ -54338,7 +54338,7 @@ Defined in: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payl
 Both sides must stay semantically aligned. Changes to the TypeScript schema
 require corresponding updates here, and vice versa.
 
-See: docs/contexts/ai/cross-runtime-contracts.md
+See: docs/structure/contexts/ai/cross-runtime-contracts.md
 """
 ⋮----
 class ChunkingStrategy(str, Enum)
@@ -54373,7 +54373,7 @@ Defined in: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-
 Both sides must stay semantically aligned. Changes to the TypeScript schema
 require corresponding updates here, and vice versa.
 
-See: docs/contexts/ai/cross-runtime-contracts.md
+See: docs/structure/contexts/ai/cross-runtime-contracts.md
 """
 ⋮----
 class EmbeddingJobPayload(BaseModel)
@@ -55130,7 +55130,7 @@ flowchart LR
 7. [decisions/README.md](./decisions/README.md)
 ````
 
-## File: docs/contexts/ai/bounded-contexts.md
+## File: docs/structure/contexts/ai/bounded-contexts.md
 ````markdown
 # AI Bounded Contexts
 
@@ -55195,7 +55195,7 @@ flowchart LR
 ```
 ````
 
-## File: docs/contexts/ai/README.md
+## File: docs/structure/contexts/ai/README.md
 ````markdown
 # AI Context
 
@@ -55272,7 +55272,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 - [../../integration-guidelines.md](../../integration-guidelines.md)
 ````
 
-## File: docs/contexts/ai/subdomains.md
+## File: docs/structure/contexts/ai/subdomains.md
 ````markdown
 # AI Subdomains
 
@@ -56844,7 +56844,7 @@ applyTo: 'modules/platform/**/*.{ts,tsx,md}'
 # Platform Bounded Context (Local)
 
 Use this file as execution guardrails for `modules/platform/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/structure/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
 
 ## Core Rules
 
@@ -56852,7 +56852,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Cross-module consumers must import from `modules/platform/api` only — never from `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
 - Route work to the correct subdomain first; do not place subdomain-specific logic in the context-wide `application/` or `domain/` layers.
 - New top-level main domains are forbidden — follow the repo strategic docs for the canonical eight-context model and do not re-centralize IAM or AI back into platform.
-- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
+- Use ubiquitous language from `docs/structure/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
 - Shell account scope uses `accountId`; `organizationId` remains an organization-scoped downstream identifier, not a shell route param.
 - Code-level account scope values remain `"user" | "organization"`; keep personal account / organization account as display language only.
 - Canonical governance URLs are flattened account-scoped routes, not legacy `/{accountId}/organization/*` paths.
@@ -58953,9 +58953,9 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 ## References
 
 - [modules/ai/README.md](modules/ai/README.md)
-- [docs/contexts/ai/README.md](docs/contexts/ai/README.md)
-- [docs/contexts/ai/subdomains.md](docs/contexts/ai/subdomains.md)
-- [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
+- [docs/structure/contexts/ai/README.md](docs/structure/contexts/ai/README.md)
+- [docs/structure/contexts/ai/subdomains.md](docs/structure/contexts/ai/subdomains.md)
+- [docs/structure/contexts/ai/ubiquitous-language.md](docs/structure/contexts/ai/ubiquitous-language.md)
 ````
 
 ## File: modules/workspace/interfaces/facades/workspace-file.facade.ts

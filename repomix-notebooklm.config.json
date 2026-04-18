@@ -36,7 +36,7 @@
   },
   "include": [
     "src/modules/notebooklm/**",
-    "docs/contexts/notebooklm/**"
+    "docs/structure/contexts/notebooklm/**"
   ],
     "ignore": {
     "useGitignore": true,

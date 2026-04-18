@@ -36,7 +36,7 @@
   },
   "include": [
     "src/modules/billing/**",
-    "docs/contexts/billing/**"
+    "docs/structure/contexts/billing/**"
   ],
     "ignore": {
     "useGitignore": true,

@@ -235,7 +235,7 @@ Research                   →  notebooklm     →  notebooklm/conversation (syn
 - [`workspace-nav-model.ts`](../../src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts) — tab 資料模型
 - [`workspace-route-screens.tsx`](../../src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx) — route section composition
 - [`workspace-shell-interop.tsx`](../../src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx) — shell quick access + nav preferences
-- [`docs/contexts/notion/subdomains.md`](../contexts/notion/subdomains.md) — notion 子域策略
-- [`docs/contexts/notebooklm/subdomains.md`](../contexts/notebooklm/subdomains.md) — notebooklm 子域策略
-- [`docs/feature/notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — notebooklm/source 文件處理 use case
+- [`docs/structure/contexts/notion/subdomains.md`](../contexts/notion/subdomains.md) — notion 子域策略
+- [`docs/structure/contexts/notebooklm/subdomains.md`](../contexts/notebooklm/subdomains.md) — notebooklm 子域策略
+- [`docs/examples/modules/feature/notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — notebooklm/source 文件處理 use case
 - [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md) — 全域邊界規則

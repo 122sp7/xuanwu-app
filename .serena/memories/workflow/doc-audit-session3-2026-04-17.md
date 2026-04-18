@@ -11,7 +11,7 @@ Three-session documentation audit (session 3). Completed review and fixes for re
 ### 2. docs/AGENT.md — Was empty, now filled
 - Content: Authority statement, reading order, context folder guide, governance rules
 
-### 3. docs/contexts/platform/README.md — Baseline Subdomains fixed
+### 3. docs/structure/contexts/platform/README.md — Baseline Subdomains fixed
 - REMOVED: identity, tenant, access-control, security-policy (→ iam)
 - REMOVED: entitlement, billing, subscription, referral (→ billing)
 - REMOVED: ai (→ ai), analytics (→ analytics)
@@ -19,12 +19,12 @@ Three-session documentation audit (session 3). Completed review and fixes for re
 - KEPT: account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support
 - Gap subdomains: consent, secret-management, operational-catalog
 
-### 4. docs/contexts/workspace/README.md — Baseline Subdomains fixed
+### 4. docs/structure/contexts/workspace/README.md — Baseline Subdomains fixed
 - REMOVED: workspace-workflow (outdated name)
 - ADDED: approve, issue, orchestration, quality, settlement, task, task-formation
 - KEPT: audit, feed, scheduling
 
-### 5. docs/contexts/workspace/AGENT.md — Canonical Ownership fixed
+### 5. docs/structure/contexts/workspace/AGENT.md — Canonical Ownership fixed
 - REMOVED: workspace-workflow (outdated)
 - ADDED: approve, issue, orchestration, quality, settlement, task, task-formation
 
@@ -40,10 +40,10 @@ Three-session documentation audit (session 3). Completed review and fixes for re
 - src/modules/platform/ docs — correct
 
 ## Files Confirmed OK (audited this session)
-- docs/contexts/billing/README.md
-- docs/contexts/notion/README.md
-- docs/contexts/notebooklm/README.md
-- docs/contexts/iam/README.md
-- docs/contexts/analytics/README.md
+- docs/structure/contexts/billing/README.md
+- docs/structure/contexts/notion/README.md
+- docs/structure/contexts/notebooklm/README.md
+- docs/structure/contexts/iam/README.md
+- docs/structure/contexts/analytics/README.md
 - packages/AGENT.md
 - docs/architecture/AGENT.md

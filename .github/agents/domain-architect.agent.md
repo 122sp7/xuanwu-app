@@ -25,7 +25,7 @@ handoffs:
 - `src/modules/**/application/use-cases/**`
 - `src/modules/**/application/machines/**`
 - `docs/structure/domain/ubiquitous-language.md`
-- `docs/contexts/*/**`
+- `docs/structure/contexts/*/**`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
@@ -41,7 +41,7 @@ handoffs:
 - `docs/structure/domain/ubiquitous-language.md`
 - `docs/structure/domain/subdomains.md`
 - `docs/structure/domain/bounded-contexts.md`
-- `docs/contexts/<context>/*`
+- `docs/structure/contexts/<context>/*`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
@@ -52,7 +52,7 @@ handoffs:
 - [ ] 命名是否已先對齊 `docs/structure/domain/ubiquitous-language.md` 與對應 context 文件？
 - [ ] 程式碼是否位於正確的 bounded context / subdomain？
 - [ ] 跨模組互動是否只透過 `index.ts` 公開邊界或領域事件？
-- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
+- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/structure/contexts/<context>/context-map.md` 一致？
 - [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
 - [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
 - [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？

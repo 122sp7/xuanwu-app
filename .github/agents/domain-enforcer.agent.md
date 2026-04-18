@@ -35,7 +35,7 @@ handoffs:
 - `.github/instructions/domain-layer-rules.instructions.md`
 - `.github/instructions/event-driven-state.instructions.md`
 - `docs/structure/domain/ubiquitous-language.md`
-- `docs/contexts/<context>/README.md`
+- `docs/structure/contexts/<context>/README.md`
 
 ## 禁止事項（Hard Violations）
 

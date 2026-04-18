@@ -5,7 +5,7 @@ applyTo: 'src/modules/**/*.{ts,tsx}'
 
 # 事件驅動狀態規範 (Event-Driven State)
 
-> 完整邊界參考：**先查 `docs/contexts/<context>/context-map.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 完整邊界參考：**先查 `docs/structure/contexts/<context>/context-map.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 領域事件 (Domain Events)

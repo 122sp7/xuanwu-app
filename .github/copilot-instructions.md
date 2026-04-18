@@ -40,7 +40,7 @@ These three skills **must be loaded at the start of every conversation** before 
 1. Start with [docs/README.md](../docs/README.md).
 2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
 3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
 5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
 6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
 

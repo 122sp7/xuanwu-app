@@ -36,7 +36,7 @@
   },
   "include": [
     "src/modules/platform/**",
-    "docs/contexts/platform/**"
+    "docs/structure/contexts/platform/**"
   ],
     "ignore": {
     "useGitignore": true,

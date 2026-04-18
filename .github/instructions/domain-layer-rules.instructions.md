@@ -5,7 +5,7 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 
 # Domain Layer（領域層）設計規則
 
-> 完整邊界參考：**先查 `docs/structure/domain/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 完整邊界參考：**先查 `docs/structure/domain/ubiquitous-language.md`、`docs/structure/contexts/<context>/README.md`**
 > 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
 > 此文件只包含 Domain Layer 層級的**戰略設計約束**。
 

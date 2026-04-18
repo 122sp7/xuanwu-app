@@ -34,7 +34,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 ## 工作流程
 
-1. 讀取 `docs/structure/domain/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認語言與邊界。
+1. 讀取 `docs/structure/domain/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/README.md`，確認語言與邊界。
 2. 讀取 `.github/instructions/architecture-core.instructions.md`，確認 use case 決策規則。
 3. 在 `src/modules/<context>/[subdomains/<sub>/]application/use-cases/` 建立：
    - 檔案命名：`verb-noun.use-case.ts`（例如 `create-work-demand.use-case.ts`）

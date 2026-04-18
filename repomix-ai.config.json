@@ -36,7 +36,7 @@
   },
   "include": [
     "src/modules/ai/**",
-    "docs/contexts/ai/**"
+    "docs/structure/contexts/ai/**"
   ],
     "ignore": {
     "useGitignore": true,

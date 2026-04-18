@@ -37,7 +37,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 1. 讀取 `docs/structure/domain/ubiquitous-language.md` — 確認命名符合通用語言，若術語不存在，先在 docs 新增再繼續。
 2. 讀取 `docs/structure/domain/bounded-contexts.md` 與 `docs/structure/domain/subdomains.md` — 確認所屬 bounded context 與子域正確。
-3. 讀取 `docs/contexts/<context>/README.md` — 了解 context-local 語言規則。
+3. 讀取 `docs/structure/contexts/<context>/README.md` — 了解 context-local 語言規則。
 4. 讀取 `.github/instructions/domain-modeling.instructions.md` — 確認 Aggregate / Value Object / Event 設計模式。
 5. 讀取 `.github/instructions/domain-layer-rules.instructions.md` — 確認技術純度規則。
 6. 在 `src/modules/<context>/[subdomains/<sub>/]domain/` 建立以下結構（視需要）：

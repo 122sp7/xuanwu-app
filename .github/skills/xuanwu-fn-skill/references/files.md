@@ -2116,7 +2116,7 @@ Defined in: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payl
 Both sides must stay semantically aligned. Changes to the TypeScript schema
 require corresponding updates here, and vice versa.
 
-See: docs/contexts/ai/cross-runtime-contracts.md
+See: docs/structure/contexts/ai/cross-runtime-contracts.md
 """
 ⋮----
 class ChunkingStrategy(str, Enum)
@@ -2151,7 +2151,7 @@ Defined in: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-
 Both sides must stay semantically aligned. Changes to the TypeScript schema
 require corresponding updates here, and vice versa.
 
-See: docs/contexts/ai/cross-runtime-contracts.md
+See: docs/structure/contexts/ai/cross-runtime-contracts.md
 """
 ⋮----
 class EmbeddingJobPayload(BaseModel)

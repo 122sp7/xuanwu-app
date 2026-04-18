@@ -225,5 +225,5 @@ ${input.query}
 - [event-driven-design.md](./event-driven-design.md)
 - [firebase-architecture.md](./firebase-architecture.md)
 - [`../.github/instructions/genkit-flow.instructions.md`](../../.github/instructions/genkit-flow.instructions.md)
-- [`docs/contexts/platform/README.md`](../contexts/platform/README.md)
-- [`docs/contexts/notebooklm/README.md`](../contexts/notebooklm/README.md)
+- [`docs/structure/contexts/platform/README.md`](../contexts/platform/README.md)
+- [`docs/structure/contexts/notebooklm/README.md`](../contexts/notebooklm/README.md)

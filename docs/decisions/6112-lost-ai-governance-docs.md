@@ -68,7 +68,7 @@ datasets            → evaluation（提供評估資料）
 
 **不實施**。僅記錄缺口。
 
-此文件應作為 `src/modules/ai/subdomains/AGENT.md` 或 `docs/contexts/ai/subdomains.md` 的重建基礎。
+此文件應作為 `src/modules/ai/subdomains/AGENT.md` 或 `docs/structure/contexts/ai/subdomains.md` 的重建基礎。
 
 ## Consequences
 

@@ -36,7 +36,7 @@
   },
   "include": [
     "src/modules/analytics/**",
-    "docs/contexts/analytics/**"
+    "docs/structure/contexts/analytics/**"
   ],
     "ignore": {
     "useGitignore": true,

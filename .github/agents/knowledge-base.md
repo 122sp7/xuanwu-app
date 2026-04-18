@@ -29,7 +29,7 @@ This file is an implementation-oriented supplement for repository navigation. St
 
 ## Docs Authority
 
-- Strategic ownership, terminology, and duplicate-name resolution: `docs/structure/domain/subdomains.md`, `docs/structure/domain/bounded-contexts.md`, `docs/structure/domain/ubiquitous-language.md`, `docs/contexts/<context>/*`
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/structure/domain/subdomains.md`, `docs/structure/domain/bounded-contexts.md`, `docs/structure/domain/ubiquitous-language.md`, `docs/structure/contexts/<context>/*`
 - Bounded-context scaffolding and root-layer rules: `docs/structure/domain/bounded-context-subdomain-template.md`
 - Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
 

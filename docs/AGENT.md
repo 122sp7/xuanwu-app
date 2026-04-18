@@ -17,7 +17,7 @@
 
 ## Context Folders
 
-`docs/contexts/<context>/` 各有：
+`docs/structure/contexts/<context>/` 各有：
 - `README.md` — 主域用途、Upstream/Downstream、Baseline Subdomains
 - `AGENT.md` — Agent 路由規則、保護邊界的 Guardrails
 - `subdomains.md`、`bounded-context.md`、`ubiquitous-language.md`、`context-map.md`（選擇性）
@@ -26,7 +26,7 @@
 
 - 不得在 `docs/` 外複製架構決策內容（指向，不複製）。
 - ADR 只記錄有持續影響的架構決策；不把每個實作細節都升格為 ADR。
-- `docs/contexts/<context>/` 的術語命名衝突，以 `docs/structure/domain/ubiquitous-language.md` 為準。
+- `docs/structure/contexts/<context>/` 的術語命名衝突，以 `docs/structure/domain/ubiquitous-language.md` 為準。
 - 不得把 `.github/instructions/` 的行為規則寫成 `docs/` 的策略文件。
 
 ## 文件網絡

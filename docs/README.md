@@ -51,8 +51,8 @@
 ## Focused Implementation Docs
 
 - [structure/system/source-to-task-flow.md](./structure/system/source-to-task-flow.md)
-- [feature/notebooklm-source-processing-task-flow.md](./feature/notebooklm-source-processing-task-flow.md)
-- [deliveries/upload-parse-to-task-flow.md](./deliveries/upload-parse-to-task-flow.md)
+- [feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
+- [deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
 - [decisions/0012-source-to-task-orchestration.md](./decisions/0012-source-to-task-orchestration.md)
 
 ## Route Contract Authority
