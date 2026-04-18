@@ -101,10 +101,10 @@ export type {
   SecurityPolicySnapshot,
   SecurityPolicyRepository,
 } from "./subdomains/security-policy/domain/index";
+export { SecurityPolicy } from "./subdomains/security-policy/domain/index";
 export {
   GetSecurityPolicyUseCase,
   UpdateSecurityPolicyUseCase,
-  InMemorySecurityPolicyRepository,
 } from "./subdomains/security-policy/application/index";
 
 // session
@@ -112,22 +112,22 @@ export type {
   SessionSnapshot,
   SessionRepository,
 } from "./subdomains/session/domain/index";
+export { Session } from "./subdomains/session/domain/index";
 export {
   CreateSessionUseCase,
   GetSessionUseCase,
   RevokeSessionUseCase,
   RevokeAllSessionsUseCase,
-  InMemorySessionRepository,
 } from "./subdomains/session/application/index";
 
 // tenant
 export { createTenantId } from "./subdomains/tenant/domain/index";
 export type { TenantId, TenantSnapshot, TenantStatus } from "./subdomains/tenant/domain/index";
+export { Tenant } from "./subdomains/tenant/domain/index";
 export {
   ProvisionTenantUseCase,
   SuspendTenantUseCase,
   GetTenantUseCase,
-  InMemoryTenantRepository,
 } from "./subdomains/tenant/application/index";
 
 // shared errors
