@@ -44,6 +44,14 @@
 
 ## 缺口總覽
 
+### 優先級定義
+
+| 等級 | 定義 |
+|---|---|
+| P0 | 直接影響主流程可用性、跨邊界一致性或安全邊界，需優先修補 |
+| P1 | 已有替代路徑但風險持續累積，應安排近期迭代處理 |
+| P2 | 不阻塞主流程，但會造成能力不完整或擴展成本上升 |
+
 | Gap ID | 類型 | 優先級 | 描述 |
 |---|---|---|---|
 | GAP-01 | 功能缺口 | P0 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` 仍為 UI empty-state，未接 use case 與 repository |
@@ -63,7 +71,7 @@
 - `src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx`
 - 三者皆為 UI empty state 與 disabled CTA，未觸發 application use cases。
 
-### 對應 14 準則（符合目標）
+### 架構對齊（14 準則）
 
 1. **Proper Domain Segmentation**：將 schedule/audit/settlement 視為各自子域能力，不再由 UI 直出假資料。
 2. **Complete Aggregate Design**：補齊 `WorkDemand` / `AuditEntry` / `Invoice` 聚合不變條件與命令入口。
@@ -91,7 +99,7 @@
 - `src/modules/notion/subdomains/view/*`、`collaboration/*`、`block/*` 多處 placeholder index 檔
 - `src/modules/notion/adapters/outbound/notion-page-stub.ts`（`not yet implemented`）
 
-### 對應 14 準則（符合目標）
+### 架構對齊（14 準則）
 
 1. **Proper Domain Segmentation**：明確切開 page/block/database/view/template/collaboration 的責任邊界。
 2. **Complete Aggregate Design**：每個子域至少有可操作聚合根，不以裸資料結構替代。
@@ -117,7 +125,7 @@
 - `src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts`
 - 目前 `materializeTasks()` 回傳固定 `{ ok: true, taskCount }`，尚未真正呼叫 workspace 公開邊界。
 
-### 對應 14 準則（符合目標）
+### 架構對齊（14 準則）
 
 1. **Proper Domain Segmentation**：notebooklm 只負責候選與語意；task 建立由 workspace 擁有。
 2. **Complete Aggregate Design**：task 建立/關聯來源需由 workspace aggregate enforce invariant。
@@ -143,7 +151,7 @@
 - `src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts`
 - callable 失敗時固定回傳「待部署」假候選，缺少失敗分類、重試決策與追蹤資訊。
 
-### 對應 14 準則（符合目標）
+### 架構對齊（14 準則）
 
 1. **Proper Domain Segmentation**：抽取器屬於 task-formation outbound port，不滲透到 domain。
 2. **Complete Aggregate Design**：`TaskFormationJob` 需完整記錄失敗原因與重試次數。
@@ -169,7 +177,7 @@
 - `src/modules/notion/adapters/inbound/server-actions/template-actions.ts`
 - 目前僅驗證 `workspaceId/accountId/scope/category` 格式，未見 actor/session 驗證與 permission gate。
 
-### 對應 14 準則（符合目標）
+### 架構對齊（14 準則）
 
 1. **Proper Domain Segmentation**：授權決策歸屬 iam/platform permission API，不內嵌在 UI。
 2. **Complete Aggregate Design**：受保護操作應由聚合命令方法 + actor context 驅動。
@@ -189,6 +197,10 @@
 ---
 
 ## Context7 最佳解決方案查核（已執行）
+
+> 這些查核直接用於本文件決策：  
+> - 讓 `GAP-01/03/05` 優先落在「邊界可執行 + 一致性 + 安全」而非先做 UI 擴張。  
+> - 讓 `GAP-02/04` 以「先補可驗證主鏈路，再進階擴展」為原則，避免 placeholder 直接演化成過度設計。
 
 ### 1) Repomix（`/yamadashy/repomix`）
 
