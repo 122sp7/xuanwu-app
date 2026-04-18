@@ -1,5 +1,114 @@
 # Files
 
+## File: docs/structure/contexts/billing/AGENT.md
+````markdown
+# Billing Context Agent Guide
+
+## Purpose
+
+The Billing context owns commercial lifecycle concerns, including subscription and entitlement.
+
+## Rules
+
+- Keep billing, subscription, entitlement, and referral ownership here.
+- Do not move identity governance or content ownership into billing.
+- Downstream consumers receive capability signals, not internal billing aggregates.
+````
+
+## File: docs/structure/contexts/billing/bounded-contexts.md
+````markdown
+# Billing
+
+## Domain Role
+
+billing 是 commercial bounded context。它擁有 subscription 與 entitlement 的商業語義，並把結果輸出為 capability signal。
+
+## Ownership Rules
+
+- 擁有 billing、subscription、entitlement、referral。
+- 不擁有 identity 與 access decision 正典語言。
+- 不擁有 workspace、knowledge 或 notebook aggregate。
+````
+
+## File: docs/structure/contexts/billing/context-map.md
+````markdown
+# Billing
+
+## Relationships
+
+| Upstream | Downstream | Published Language |
+|---|---|---|
+| iam | billing | actor reference、tenant scope、access policy baseline |
+| billing | workspace | entitlement signal、subscription capability signal |
+| billing | notion | entitlement signal、subscription capability signal |
+| billing | notebooklm | entitlement signal、subscription capability signal |
+
+## Notes
+
+- billing 向下游提供 capability signal，不暴露內部商業 aggregate。
+````
+
+## File: docs/structure/contexts/billing/README.md
+````markdown
+# Billing Context
+
+本 README 在本次重切作業下，定義 commercial lifecycle 的主域邊界。
+
+## Purpose
+
+billing 是商業與權益治理主域。它負責 billing event、subscription、entitlement 與 referral，為 workspace、notion、notebooklm 等主域提供 capability signal。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 商業生命週期與有效權益解算 |
+| Upstream Dependency | iam 的 actor、tenant、access policy |
+| Downstream Consumers | workspace、notion、notebooklm |
+| Core Principle | 提供商業能力訊號，不接管內容或協作正典 |
+````
+
+## File: docs/structure/contexts/billing/subdomains.md
+````markdown
+# Billing
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 可量化配額與商業限制規則 |
+````
+
+## File: docs/structure/contexts/billing/ubiquitous-language.md
+````markdown
+# Billing
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Subscription | 方案、配額與續期狀態 |
+| Entitlement | 綜合商業規則後的有效權益 |
+| BillingEvent | 財務計價或收費事實 |
+| Referral | 推薦關係與獎勵追蹤 |
+
+## Avoid
+
+- 不用 Plan 混稱 Subscription 與 Entitlement。
+- 不把 feature flag 當成 entitlement 正典語義。
+````
+
 ## File: src/modules/billing/orchestration/index.ts
 ````typescript
 // billing — orchestration layer
@@ -881,7 +990,7 @@ src/modules/billing/
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/billing/AGENT.md
@@ -931,5 +1040,5 @@ src/modules/billing/
 
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````

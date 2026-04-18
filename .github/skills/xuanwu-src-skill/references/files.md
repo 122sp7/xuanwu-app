@@ -1,5 +1,1641 @@
 # Files
 
+## File: src/modules/template/index.ts
+````typescript
+/**
+ * Template Module — aggregate export.
+ * Cross-module consumers should only depend on symbols re-exported here.
+ *
+ * Source of truth: subdomains/document
+ * Orchestration:   orchestration/TemplateFacade (composition root)
+ * Shared types:    shared/types, shared/errors, shared/events
+ */
+⋮----
+// ── document subdomain: domain ────────────────────────────────────────────────
+⋮----
+// ── document subdomain: application ──────────────────────────────────────────
+⋮----
+// ── shared ────────────────────────────────────────────────────────────────────
+⋮----
+// ── generation subdomain ──────────────────────────────────────────────────────
+⋮----
+// ── ingestion subdomain ───────────────────────────────────────────────────────
+⋮----
+// ── workflow subdomain ────────────────────────────────────────────────────────
+````
+
+## File: src/modules/template/orchestration/TemplateCoordinator.ts
+````typescript
+/**
+ * TemplateCoordinator
+ *
+ * Handles cross-subdomain workflows that span more than one subdomain.
+ * Example pipeline: document created → generation triggered → ingestion
+ * queued → workflow initiated.
+ *
+ * Currently a stub. Wire subdomain use cases through the constructor once
+ * each subdomain is activated and its cross-subdomain trigger points are
+ * defined.
+ *
+ * Rules:
+ * - Coordinator orchestrates only; it does NOT own business rules.
+ * - Each step delegates to the responsible subdomain's use case.
+ * - Cross-subdomain state is communicated via Published Language DTOs,
+ *   never by sharing aggregate references.
+ */
+export class TemplateCoordinator {
+⋮----
+// Inject subdomain use cases or facades as constructor parameters when
+// the corresponding subdomains are activated.
+// Example:
+//   constructor(
+//     private readonly document: TemplateFacade,
+//     private readonly generation: GenerationFacade,
+//     private readonly ingestion: IngestionFacade,
+//     private readonly workflow: WorkflowFacade,
+//   ) {}
+⋮----
+/**
+   * Full creation pipeline stub.
+   * Expand this when generation / ingestion / workflow subdomains are live.
+   */
+async runCreationPipeline(_templateId: string): Promise<void>
+⋮----
+// 1. document subdomain: template already created — templateId provided
+// 2. generation subdomain: trigger content generation
+// 3. ingestion subdomain: queue generated content for ingestion
+// 4. workflow subdomain: initiate review workflow
+````
+
+## File: src/modules/template/orchestration/TemplateFacade.ts
+````typescript
+import type { CreateTemplateUseCase } from '../subdomains/document/application/use-cases/CreateTemplateUseCase';
+import type { UpdateTemplateUseCase } from '../subdomains/document/application/use-cases/UpdateTemplateUseCase';
+import type { DeleteTemplateUseCase } from '../subdomains/document/application/use-cases/DeleteTemplateUseCase';
+import type { CreateTemplateDTO } from '../subdomains/document/application/dto/CreateTemplateDTO';
+import type { UpdateTemplateDTO } from '../subdomains/document/application/dto/UpdateTemplateDTO';
+import type { TemplateResponseDTO } from '../subdomains/document/application/dto/TemplateResponseDTO';
+⋮----
+/**
+ * TemplateFacade
+ *
+ * Unified public entry point for the template module.
+ * Delegates each operation to the owning subdomain use case.
+ * External callers (Server Actions, controllers, other modules) should
+ * depend on this facade rather than individual use cases.
+ *
+ * Add new methods here as new subdomains activate.
+ */
+export class TemplateFacade {
+⋮----
+constructor(
+⋮----
+createTemplate(input: CreateTemplateDTO): Promise<TemplateResponseDTO>
+⋮----
+updateTemplate(input: UpdateTemplateDTO): Promise<TemplateResponseDTO>
+⋮----
+deleteTemplate(id: string): Promise<void>
+````
+
+## File: src/modules/template/shared/application/index.ts
+````typescript
+// shared/application — cross-subdomain application types
+// Place shared DTOs, Ports, or ApplicationService interfaces used by
+// more than one subdomain here.
+````
+
+## File: src/modules/template/shared/config/index.ts
+````typescript
+// shared/config — module-level configuration
+// Place typed configuration interfaces and defaults here.
+// Config values should be injected at the composition root, not read from
+// process.env directly inside subdomains.
+⋮----
+export interface TemplateModuleConfig {
+  /** Maximum number of templates per account. */
+  maxTemplatesPerAccount: number;
+  /** Default locale for template content. */
+  defaultLocale: string;
+}
+⋮----
+/** Maximum number of templates per account. */
+⋮----
+/** Default locale for template content. */
+````
+
+## File: src/modules/template/shared/constants/index.ts
+````typescript
+// shared/constants — module-wide constants
+````
+
+## File: src/modules/template/shared/domain/index.ts
+````typescript
+// shared/domain — cross-subdomain domain types
+// Place shared Value Objects, Policies, or domain-level abstractions used by
+// more than one subdomain here.
+// Do NOT place subdomain-specific aggregates here.
+````
+
+## File: src/modules/template/shared/errors/index.ts
+````typescript
+// shared/errors — shared error types for the template module
+⋮----
+/**
+ * Base error class for template module errors.
+ * Subclass this for each subdomain error rather than throwing plain Error.
+ */
+export class TemplateModuleError extends Error {
+⋮----
+constructor(
+    message: string,
+    public readonly code: string,
+)
+⋮----
+export class TemplateNotFoundError extends TemplateModuleError {
+⋮----
+constructor(id: string)
+⋮----
+export class TemplateDuplicateNameError extends TemplateModuleError {
+⋮----
+constructor(name: string)
+````
+
+## File: src/modules/template/shared/events/index.ts
+````typescript
+// shared/events — cross-subdomain Published Language events
+// These are integration events emitted at the module boundary for other
+// bounded contexts to consume. Do NOT mix these with subdomain-local
+// domain events (those live in subdomains/*/domain/events/).
+⋮----
+export type TemplateModuleEventType =
+  | 'template.created'
+  | 'template.updated'
+  | 'template.deleted'
+  | 'template.generation.completed'
+  | 'template.ingestion.completed'
+  | 'template.workflow.completed';
+⋮----
+export interface TemplateModuleEvent<
+  T extends TemplateModuleEventType = TemplateModuleEventType,
+  P = unknown,
+> {
+  type: T;
+  templateId: string;
+  occurredAt: Date;
+  payload?: P;
+}
+````
+
+## File: src/modules/template/shared/infrastructure/index.ts
+````typescript
+// shared/infrastructure — shared infrastructure helpers
+// Place cross-subdomain persistence helpers, connection factories, or
+// shared adapter utilities here.
+// Do NOT place business logic here.
+````
+
+## File: src/modules/template/shared/types/index.ts
+````typescript
+// shared/types — shared TypeScript types used across subdomains
+⋮----
+/** Lightweight read model for list views. */
+export interface TemplateSummary {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+⋮----
+/** Generic paginated result wrapper. */
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+````
+
+## File: src/modules/template/shared/utils/index.ts
+````typescript
+// shared/utils — shared utility functions
+⋮----
+/**
+ * Strips leading/trailing whitespace and collapses inner whitespace.
+ * Useful for normalising user-supplied template names.
+ */
+export function normaliseWhitespace(value: string): string
+⋮----
+/**
+ * Returns true when the given string is a non-empty, non-whitespace value.
+ */
+export function isNonBlank(value: string): boolean
+````
+
+## File: src/modules/template/subdomains/document/adapters/inbound/http/routes.ts
+````typescript
+import type { TemplateController } from './TemplateController';
+⋮----
+/**
+ * HTTP route definitions for the document subdomain.
+ * Framework-agnostic registration descriptor; wired up at composition root.
+ */
+export interface HttpRoute {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  path: string;
+  handler: (req: {
+    body?: unknown;
+    params?: Record<string, string>;
+  }) => Promise<unknown>;
+}
+⋮----
+export function buildTemplateRoutes(controller: TemplateController): HttpRoute[]
+````
+
+## File: src/modules/template/subdomains/document/adapters/inbound/http/TemplateController.ts
+````typescript
+import type { CreateTemplateUseCase } from '../../../application/use-cases/CreateTemplateUseCase';
+import type { UpdateTemplateUseCase } from '../../../application/use-cases/UpdateTemplateUseCase';
+import type { DeleteTemplateUseCase } from '../../../application/use-cases/DeleteTemplateUseCase';
+import type { CreateTemplateDTO } from '../../../application/dto/CreateTemplateDTO';
+import type { UpdateTemplateDTO } from '../../../application/dto/UpdateTemplateDTO';
+⋮----
+/**
+ * HTTP inbound adapter — translates HTTP requests into application calls.
+ */
+export class TemplateController {
+⋮----
+constructor(
+⋮----
+async create(body: CreateTemplateDTO)
+⋮----
+async update(body: UpdateTemplateDTO)
+⋮----
+async delete(id: string)
+````
+
+## File: src/modules/template/subdomains/document/adapters/inbound/index.ts
+````typescript
+// http
+⋮----
+// queue
+````
+
+## File: src/modules/template/subdomains/document/adapters/inbound/queue/TemplateQueueHandler.ts
+````typescript
+/**
+ * OPTIONAL ADAPTER
+ * 僅在需要「非同步背景處理」時使用
+ * 例如：AI 任務 / email / 長時間 job
+ */
+export class TemplateQueueHandler {
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+constructor(private createTemplateUseCase: any)
+⋮----
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async handle(message: any)
+````
+
+## File: src/modules/template/subdomains/document/adapters/index.ts
+````typescript
+// inbound
+⋮----
+// outbound
+````
+
+## File: src/modules/template/subdomains/document/adapters/outbound/cache/TemplateCacheAdapter.ts
+````typescript
+import type { CachePort } from '../../../application/ports/outbound/CachePort';
+⋮----
+interface CacheEntry<T = unknown> {
+  value: T;
+  expiresAt?: number;
+}
+⋮----
+/**
+ * In-memory reference implementation of CachePort.
+ * Swap for Redis/Memcached adapter at the composition root if needed.
+ */
+export class TemplateCacheAdapter implements CachePort {
+⋮----
+async get<T>(key: string): Promise<T | null>
+⋮----
+async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>
+⋮----
+async delete(key: string): Promise<void>
+````
+
+## File: src/modules/template/subdomains/document/adapters/outbound/external-api/TemplateApiClient.ts
+````typescript
+import type { ExternalApiPort } from '../../../application/ports/outbound/ExternalApiPort';
+⋮----
+/**
+ * External API adapter — concrete implementation of ExternalApiPort.
+ */
+export class TemplateApiClient implements ExternalApiPort {
+⋮----
+constructor(
+⋮----
+async fetchMetadata(resourceId: string): Promise<Record<string, unknown>>
+````
+
+## File: src/modules/template/subdomains/document/adapters/outbound/firestore/FirestoreMapper.ts
+````typescript
+import { Template } from '../../../domain/entities/Template';
+import { TemplateId } from '../../../domain/value-objects/TemplateId';
+import { TemplateName } from '../../../domain/value-objects/TemplateName';
+⋮----
+/**
+ * Persistence model stored in Firestore.
+ */
+export interface TemplateDocument {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+⋮----
+/**
+ * Mapper between the Template aggregate and its Firestore document representation.
+ */
+⋮----
+toDocument(template: Template): TemplateDocument
+⋮----
+toDomain(doc: TemplateDocument): Template
+````
+
+## File: src/modules/template/subdomains/document/adapters/outbound/firestore/FirestoreTemplateRepository.ts
+````typescript
+import { Template } from '../../../domain/entities/Template';
+import { TemplateId } from '../../../domain/value-objects/TemplateId';
+import type { TemplateRepository } from '../../../domain/repositories/TemplateRepository';
+import { FirestoreMapper, type TemplateDocument } from './FirestoreMapper';
+⋮----
+/**
+ * Minimal Firestore client surface required by this repository.
+ * Keeps the adapter decoupled from any specific SDK version.
+ */
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<TemplateDocument | null>;
+  set(collection: string, id: string, data: TemplateDocument): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+}
+⋮----
+get(collection: string, id: string): Promise<TemplateDocument | null>;
+set(collection: string, id: string, data: TemplateDocument): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+⋮----
+/**
+ * Firestore implementation of TemplateRepository.
+ */
+export class FirestoreTemplateRepository implements TemplateRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(id: TemplateId): Promise<Template | null>
+⋮----
+async save(template: Template): Promise<void>
+⋮----
+async delete(id: TemplateId): Promise<void>
+````
+
+## File: src/modules/template/subdomains/document/adapters/outbound/index.ts
+````typescript
+// firestore
+⋮----
+// cache
+⋮----
+// external-api
+````
+
+## File: src/modules/template/subdomains/document/application/dto/CreateTemplateDTO.ts
+````typescript
+/**
+ * Input DTO for creating a Template.
+ */
+export interface CreateTemplateDTO {
+  name: string;
+  description?: string;
+}
+````
+
+## File: src/modules/template/subdomains/document/application/dto/TemplateResponseDTO.ts
+````typescript
+/**
+ * Output DTO returned to callers outside the application layer.
+ */
+export interface TemplateResponseDTO {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+````
+
+## File: src/modules/template/subdomains/document/application/dto/UpdateTemplateDTO.ts
+````typescript
+/**
+ * Input DTO for updating a Template.
+ */
+export interface UpdateTemplateDTO {
+  id: string;
+  name?: string;
+  description?: string;
+}
+````
+
+## File: src/modules/template/subdomains/document/application/index.ts
+````typescript
+// use-cases
+⋮----
+// dto
+⋮----
+// ports inbound
+⋮----
+// ports outbound
+````
+
+## File: src/modules/template/subdomains/document/application/ports/inbound/CreateTemplatePort.ts
+````typescript
+import type { CreateTemplateDTO } from '../../dto/CreateTemplateDTO';
+import type { TemplateResponseDTO } from '../../dto/TemplateResponseDTO';
+⋮----
+/**
+ * Inbound port — the contract exposed to adapters that drive the application.
+ */
+export interface CreateTemplatePort {
+  execute(input: CreateTemplateDTO): Promise<TemplateResponseDTO>;
+}
+⋮----
+execute(input: CreateTemplateDTO): Promise<TemplateResponseDTO>;
+````
+
+## File: src/modules/template/subdomains/document/application/ports/outbound/CachePort.ts
+````typescript
+/**
+ * Outbound port — cache abstraction used by use cases.
+ */
+export interface CachePort {
+  get<T>(key: string): Promise<T | null>;
+  set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+⋮----
+get<T>(key: string): Promise<T | null>;
+set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
+delete(key: string): Promise<void>;
+````
+
+## File: src/modules/template/subdomains/document/application/ports/outbound/ExternalApiPort.ts
+````typescript
+/**
+ * Outbound port — abstraction over any external API dependency
+ * consumed by template use cases.
+ */
+export interface ExternalApiPort {
+  fetchMetadata(resourceId: string): Promise<Record<string, unknown>>;
+}
+⋮----
+fetchMetadata(resourceId: string): Promise<Record<string, unknown>>;
+````
+
+## File: src/modules/template/subdomains/document/application/ports/outbound/TemplateRepositoryPort.ts
+````typescript
+import type { TemplateRepository } from '../../../domain/repositories/TemplateRepository';
+⋮----
+/**
+ * Outbound port — application layer dependency on the repository contract.
+ * Alias of the domain repository interface to keep adapter wiring explicit.
+ */
+export type TemplateRepositoryPort = TemplateRepository;
+````
+
+## File: src/modules/template/subdomains/document/application/use-cases/CreateTemplateUseCase.ts
+````typescript
+import { Template } from '../../domain/entities/Template';
+import { TemplateName } from '../../domain/value-objects/TemplateName';
+import type { CreateTemplateDTO } from '../dto/CreateTemplateDTO';
+import type { TemplateResponseDTO } from '../dto/TemplateResponseDTO';
+import type { CreateTemplatePort } from '../ports/inbound/CreateTemplatePort';
+import type { TemplateRepositoryPort } from '../ports/outbound/TemplateRepositoryPort';
+⋮----
+/**
+ * Use case: Create a new Template aggregate and persist it.
+ */
+export class CreateTemplateUseCase implements CreateTemplatePort {
+⋮----
+constructor(private readonly repository: TemplateRepositoryPort)
+⋮----
+async execute(input: CreateTemplateDTO): Promise<TemplateResponseDTO>
+````
+
+## File: src/modules/template/subdomains/document/application/use-cases/DeleteTemplateUseCase.ts
+````typescript
+import { TemplateId } from '../../domain/value-objects/TemplateId';
+import type { TemplateRepositoryPort } from '../ports/outbound/TemplateRepositoryPort';
+⋮----
+/**
+ * Use case: Delete a Template aggregate by id.
+ */
+export class DeleteTemplateUseCase {
+⋮----
+constructor(private readonly repository: TemplateRepositoryPort)
+⋮----
+async execute(id: string): Promise<void>
+````
+
+## File: src/modules/template/subdomains/document/application/use-cases/UpdateTemplateUseCase.ts
+````typescript
+import { TemplateId } from '../../domain/value-objects/TemplateId';
+import { TemplateName } from '../../domain/value-objects/TemplateName';
+import type { UpdateTemplateDTO } from '../dto/UpdateTemplateDTO';
+import type { TemplateResponseDTO } from '../dto/TemplateResponseDTO';
+import type { TemplateRepositoryPort } from '../ports/outbound/TemplateRepositoryPort';
+⋮----
+/**
+ * Use case: Update a Template aggregate.
+ */
+export class UpdateTemplateUseCase {
+⋮----
+constructor(private readonly repository: TemplateRepositoryPort)
+⋮----
+async execute(input: UpdateTemplateDTO): Promise<TemplateResponseDTO>
+````
+
+## File: src/modules/template/subdomains/document/domain/entities/Template.ts
+````typescript
+import { TemplateId } from '../value-objects/TemplateId';
+import { TemplateName } from '../value-objects/TemplateName';
+⋮----
+/**
+ * Template — Aggregate Root
+ * Encapsulates business invariants for a template.
+ */
+export interface TemplateProps {
+  id: TemplateId;
+  name: TemplateName;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+⋮----
+export class Template {
+⋮----
+private constructor(private props: TemplateProps)
+⋮----
+static create(params: {
+    id?: TemplateId;
+    name: TemplateName;
+    description?: string;
+}): Template
+⋮----
+static restore(props: TemplateProps): Template
+⋮----
+get id(): TemplateId
+⋮----
+get name(): TemplateName
+⋮----
+get description(): string | undefined
+⋮----
+get createdAt(): Date
+⋮----
+get updatedAt(): Date
+⋮----
+rename(name: TemplateName): void
+⋮----
+changeDescription(description: string): void
+````
+
+## File: src/modules/template/subdomains/document/domain/events/TemplateCreatedEvent.ts
+````typescript
+import { TemplateId } from '../value-objects/TemplateId';
+⋮----
+/**
+ * Domain Event — Emitted when a Template is created.
+ */
+export class TemplateCreatedEvent {
+⋮----
+constructor(
+    readonly templateId: TemplateId,
+    readonly name: string,
+    occurredAt: Date = new Date(),
+)
+````
+
+## File: src/modules/template/subdomains/document/domain/events/TemplateUpdatedEvent.ts
+````typescript
+import { TemplateId } from '../value-objects/TemplateId';
+⋮----
+/**
+ * Domain Event — Emitted when a Template is updated.
+ */
+export class TemplateUpdatedEvent {
+⋮----
+constructor(
+    readonly templateId: TemplateId,
+    readonly changes: Readonly<Record<string, unknown>>,
+    occurredAt: Date = new Date(),
+)
+````
+
+## File: src/modules/template/subdomains/document/domain/index.ts
+````typescript
+// entities
+⋮----
+// value-objects
+⋮----
+// events
+⋮----
+// repositories
+⋮----
+// services
+````
+
+## File: src/modules/template/subdomains/document/domain/repositories/TemplateRepository.ts
+````typescript
+import { Template } from '../entities/Template';
+import { TemplateId } from '../value-objects/TemplateId';
+⋮----
+/**
+ * TemplateRepository — Domain Repository Interface
+ * Abstract persistence contract owned by the domain layer.
+ */
+export interface TemplateRepository {
+  findById(id: TemplateId): Promise<Template | null>;
+  save(template: Template): Promise<void>;
+  delete(id: TemplateId): Promise<void>;
+}
+⋮----
+findById(id: TemplateId): Promise<Template | null>;
+save(template: Template): Promise<void>;
+delete(id: TemplateId): Promise<void>;
+````
+
+## File: src/modules/template/subdomains/document/domain/services/TemplateDomainService.ts
+````typescript
+import { Template } from '../entities/Template';
+import { TemplateName } from '../value-objects/TemplateName';
+⋮----
+/**
+ * TemplateDomainService
+ * Cross-entity or stateless domain logic that does not belong to a single aggregate.
+ */
+export class TemplateDomainService {
+⋮----
+/**
+   * Business rule: Two templates are considered duplicates when their normalized
+   * names match (case-insensitive, whitespace-collapsed).
+   */
+isDuplicateName(existing: Template, candidate: TemplateName): boolean
+⋮----
+const normalize = (v: string)
+````
+
+## File: src/modules/template/subdomains/document/domain/value-objects/TemplateId.ts
+````typescript
+/**
+ * TemplateId — Value Object
+ * Immutable identifier for a Template aggregate.
+ */
+export class TemplateId {
+⋮----
+private constructor(private readonly value: string)
+⋮----
+static create(value: string): TemplateId
+⋮----
+static generate(): TemplateId
+⋮----
+toString(): string
+⋮----
+equals(other: TemplateId): boolean
+````
+
+## File: src/modules/template/subdomains/document/domain/value-objects/TemplateName.ts
+````typescript
+/**
+ * TemplateName — Value Object
+ * Validated template name with domain invariants.
+ */
+export class TemplateName {
+⋮----
+private constructor(private readonly value: string)
+⋮----
+static create(value: string): TemplateName
+⋮----
+toString(): string
+⋮----
+equals(other: TemplateName): boolean
+````
+
+## File: src/modules/template/subdomains/generation/adapters/inbound/http/GenerationController.ts
+````typescript
+import type { GenerateTemplatePort } from '../../../application/ports/inbound/GenerateTemplatePort';
+⋮----
+/**
+ * GenerationController — Inbound HTTP Adapter (stub)
+ * Translates HTTP requests into GenerateTemplateUseCase calls.
+ * Framework-agnostic stub — wire to Next.js route handler or tRPC when activated.
+ */
+export class GenerationController {
+⋮----
+constructor(private readonly generateUseCase: GenerateTemplatePort)
+⋮----
+/**
+   * POST /api/templates/:sourceId/generate
+   */
+async handleGenerate(request: {
+    sourceTemplateId: string;
+    prompt: string;
+})
+````
+
+## File: src/modules/template/subdomains/generation/adapters/inbound/http/routes.ts
+````typescript
+/**
+ * generation/routes.ts (stub)
+ *
+ * Register GenerationController routes here when activating this subdomain.
+ * Example structure for a Next.js App Router route handler:
+ *
+ * ```ts
+ * export async function POST(request: Request) {
+ *   const body = await request.json();
+ *   const controller = getGenerationController();
+ *   const result = await controller.handleGenerate(body);
+ *   return Response.json(result.body, { status: result.status });
+ * }
+ * ```
+ */
+````
+
+## File: src/modules/template/subdomains/generation/adapters/inbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/generation/adapters/inbound/queue/GenerationQueueHandler.ts
+````typescript
+import type { GenerateTemplatePort } from '../../../application/ports/inbound/GenerateTemplatePort';
+⋮----
+/**
+ * GenerationQueueHandler — Inbound Queue Adapter (stub)
+ * Handles async generation jobs delivered via a message queue (QStash, Pub/Sub, etc.).
+ */
+export class GenerationQueueHandler {
+⋮----
+constructor(private readonly generateUseCase: GenerateTemplatePort)
+⋮----
+async handle(message:
+````
+
+## File: src/modules/template/subdomains/generation/adapters/index.ts
+````typescript
+// generation subdomain — adapters stub
+// Add inbound (http/queue) and outbound (persistence/external) adapters here.
+````
+
+## File: src/modules/template/subdomains/generation/adapters/outbound/ai/AiGenerationAdapter.ts
+````typescript
+import type { AiGenerationPort } from '../../../application/ports/outbound/AiGenerationPort';
+⋮----
+/**
+ * AiGenerationAdapter — Outbound AI Adapter (stub)
+ * Implements AiGenerationPort by calling an AI provider (Genkit, OpenAI, etc.).
+ * Replace the stub body with a real Genkit runFlow call when activated.
+ */
+export class AiGenerationAdapter implements AiGenerationPort {
+⋮----
+async generate(sourceTemplateId: string, prompt: string): Promise<string>
+⋮----
+// TODO: Replace with real Genkit / AI SDK call.
+// Example:
+//   const result = await genkitClient.runFlow('generateTemplateContent', {
+//     sourceTemplateId,
+//     prompt,
+//   });
+//   return result.content;
+````
+
+## File: src/modules/template/subdomains/generation/adapters/outbound/firestore/FirestoreGenerationRepository.ts
+````typescript
+import { GeneratedTemplate } from '../../../domain/entities/GeneratedTemplate';
+import { GenerationId } from '../../../domain/value-objects/GenerationId';
+import type { GenerationRepository } from '../../../domain/repositories/GenerationRepository';
+⋮----
+/**
+ * Minimal Firestore-compatible interface used to keep this adapter
+ * free from direct Firebase SDK imports.
+ * The real Firestore client satisfies this shape at runtime.
+ */
+interface FirestoreLike {
+  get<T>(path: string): Promise<T | null>;
+  set<T>(path: string, data: T): Promise<void>;
+  delete(path: string): Promise<void>;
+}
+⋮----
+get<T>(path: string): Promise<T | null>;
+set<T>(path: string, data: T): Promise<void>;
+delete(path: string): Promise<void>;
+⋮----
+/**
+ * FirestoreGenerationRepository
+ * Outbound adapter that implements GenerationRepository using Firestore.
+ */
+export class FirestoreGenerationRepository implements GenerationRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(id: GenerationId): Promise<GeneratedTemplate | null>
+⋮----
+async save(generated: GeneratedTemplate): Promise<void>
+⋮----
+async delete(id: GenerationId): Promise<void>
+⋮----
+/**
+ * Persistence document shape (Firestore document).
+ */
+export interface GeneratedTemplateDoc {
+  id: string;
+  sourceTemplateId: string;
+  content: string;
+  createdAt: string;
+}
+⋮----
+/**
+ * GenerationMapper — maps between domain and persistence representations.
+ */
+⋮----
+toPersistence(entity: GeneratedTemplate): GeneratedTemplateDoc
+⋮----
+toDomain(doc: GeneratedTemplateDoc): GeneratedTemplate
+````
+
+## File: src/modules/template/subdomains/generation/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/generation/application/dto/GenerateTemplateDTO.ts
+````typescript
+/**
+ * GenerateTemplateDTO — inbound command for template generation.
+ */
+export interface GenerateTemplateDTO {
+  /** ID of the source Template to generate content from. */
+  sourceTemplateId: string;
+  /** Prompt or instructions to guide the generation model. */
+  prompt: string;
+}
+⋮----
+/** ID of the source Template to generate content from. */
+⋮----
+/** Prompt or instructions to guide the generation model. */
+````
+
+## File: src/modules/template/subdomains/generation/application/dto/GenerationResultDTO.ts
+````typescript
+/**
+ * GenerationResultDTO — outbound read model returned after a successful generation run.
+ */
+export interface GenerationResultDTO {
+  generationId: string;
+  sourceTemplateId: string;
+  content: string;
+  generatedAt: string;
+}
+````
+
+## File: src/modules/template/subdomains/generation/application/index.ts
+````typescript
+// generation subdomain — application stub
+// Add use-cases, DTOs, and ports for AI/rule-based template generation here.
+// Expand only when this subdomain has real business behavior.
+````
+
+## File: src/modules/template/subdomains/generation/application/ports/inbound/GenerateTemplatePort.ts
+````typescript
+import type { GenerateTemplateDTO } from '../../dto/GenerateTemplateDTO';
+import type { GenerationResultDTO } from '../../dto/GenerationResultDTO';
+⋮----
+/**
+ * GenerateTemplatePort — Inbound Port
+ * Contract for the GenerateTemplateUseCase public entry point.
+ */
+export interface GenerateTemplatePort {
+  execute(input: GenerateTemplateDTO): Promise<GenerationResultDTO>;
+}
+⋮----
+execute(input: GenerateTemplateDTO): Promise<GenerationResultDTO>;
+````
+
+## File: src/modules/template/subdomains/generation/application/ports/outbound/AiGenerationPort.ts
+````typescript
+/**
+ * AiGenerationPort — Outbound Port
+ * Abstract contract for AI-powered content generation.
+ * Infrastructure adapters (Genkit, OpenAI, mock) implement this interface.
+ */
+export interface AiGenerationPort {
+  generate(sourceTemplateId: string, prompt: string): Promise<string>;
+}
+⋮----
+generate(sourceTemplateId: string, prompt: string): Promise<string>;
+````
+
+## File: src/modules/template/subdomains/generation/application/ports/outbound/GenerationRepositoryPort.ts
+````typescript
+import type { GenerationRepository } from '../../../domain/repositories/GenerationRepository';
+⋮----
+/**
+ * GenerationRepositoryPort — Outbound Port
+ * Type alias that exposes the domain repository contract to the application layer.
+ */
+export type GenerationRepositoryPort = GenerationRepository;
+````
+
+## File: src/modules/template/subdomains/generation/application/use-cases/GenerateTemplateUseCase.ts
+````typescript
+import type { GenerateTemplatePort } from '../ports/inbound/GenerateTemplatePort';
+import type { GenerationRepositoryPort } from '../ports/outbound/GenerationRepositoryPort';
+import type { AiGenerationPort } from '../ports/outbound/AiGenerationPort';
+import type { GenerateTemplateDTO } from '../dto/GenerateTemplateDTO';
+import type { GenerationResultDTO } from '../dto/GenerationResultDTO';
+import { GeneratedTemplate } from '../../domain/entities/GeneratedTemplate';
+import { GenerationId } from '../../domain/value-objects/GenerationId';
+import { GenerationDomainService } from '../../domain/services/GenerationDomainService';
+⋮----
+/**
+ * GenerateTemplateUseCase
+ * Orchestrates AI-driven generation of a new template artifact.
+ */
+export class GenerateTemplateUseCase implements GenerateTemplatePort {
+⋮----
+constructor(
+⋮----
+async execute(input: GenerateTemplateDTO): Promise<GenerationResultDTO>
+````
+
+## File: src/modules/template/subdomains/generation/domain/entities/GeneratedTemplate.ts
+````typescript
+import { GenerationId } from '../value-objects/GenerationId';
+⋮----
+/**
+ * GeneratedTemplate — Aggregate Root
+ *
+ * Represents the output artefact produced by an AI / rule-based
+ * template generation run.
+ */
+export interface GeneratedTemplateProps {
+  id: GenerationId;
+  sourceTemplateId: string;
+  content: string;
+  createdAt: Date;
+}
+⋮----
+export class GeneratedTemplate {
+⋮----
+private constructor(private readonly props: GeneratedTemplateProps)
+⋮----
+static create(
+    params: Omit<GeneratedTemplateProps, 'createdAt'>,
+): GeneratedTemplate
+⋮----
+get id(): GenerationId
+⋮----
+get sourceTemplateId(): string
+⋮----
+get content(): string
+⋮----
+get createdAt(): Date
+````
+
+## File: src/modules/template/subdomains/generation/domain/events/GenerationCompletedEvent.ts
+````typescript
+/**
+ * GenerationCompletedEvent — Domain Event
+ * Emitted when AI/rule-based template generation completes successfully.
+ */
+export class GenerationCompletedEvent {
+⋮----
+constructor(
+````
+
+## File: src/modules/template/subdomains/generation/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/generation/domain/repositories/GenerationRepository.ts
+````typescript
+import type { GeneratedTemplate } from '../entities/GeneratedTemplate';
+import type { GenerationId } from '../value-objects/GenerationId';
+⋮----
+/**
+ * GenerationRepository — Domain Repository Interface
+ * Abstract persistence contract for GeneratedTemplate aggregates.
+ */
+export interface GenerationRepository {
+  findById(id: GenerationId): Promise<GeneratedTemplate | null>;
+  save(generated: GeneratedTemplate): Promise<void>;
+  delete(id: GenerationId): Promise<void>;
+}
+⋮----
+findById(id: GenerationId): Promise<GeneratedTemplate | null>;
+save(generated: GeneratedTemplate): Promise<void>;
+delete(id: GenerationId): Promise<void>;
+````
+
+## File: src/modules/template/subdomains/generation/domain/services/GenerationDomainService.ts
+````typescript
+/**
+ * GenerationDomainService — Domain Service (stub)
+ *
+ * Handles business rules that span multiple GeneratedTemplate instances
+ * or require coordination beyond a single aggregate.
+ * Expand when generation subdomain is activated.
+ */
+export class GenerationDomainService {
+⋮----
+/**
+   * Validate that a generation request is well-formed before the
+   * AI generation port is invoked.
+   */
+validateGenerationRequest(sourceTemplateId: string, prompt: string): void
+````
+
+## File: src/modules/template/subdomains/generation/domain/value-objects/GenerationId.ts
+````typescript
+/**
+ * GenerationId — Value Object
+ * Immutable identifier for a GeneratedTemplate aggregate.
+ */
+export class GenerationId {
+⋮----
+private constructor(private readonly value: string)
+⋮----
+static create(value: string): GenerationId
+⋮----
+static generate(): GenerationId
+⋮----
+toString(): string
+⋮----
+equals(other: GenerationId): boolean
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/inbound/http/IngestionController.ts
+````typescript
+import type { StartIngestionPort } from '../../../application/ports/inbound/StartIngestionPort';
+⋮----
+/**
+ * IngestionController — Inbound HTTP Adapter (stub)
+ */
+export class IngestionController {
+⋮----
+constructor(private readonly startUseCase: StartIngestionPort)
+⋮----
+/** POST /api/ingestion */
+async handleStart(request:
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/inbound/http/routes.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/inbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/inbound/queue/IngestionQueueHandler.ts
+````typescript
+import type { StartIngestionPort } from '../../../application/ports/inbound/StartIngestionPort';
+⋮----
+/**
+ * IngestionQueueHandler — Inbound Queue Adapter (stub)
+ * Triggered by a queue message (QStash, Pub/Sub, etc.) to start or resume an ingestion job.
+ */
+export class IngestionQueueHandler {
+⋮----
+constructor(private readonly startUseCase: StartIngestionPort)
+⋮----
+async handle(message:
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/index.ts
+````typescript
+// ingestion subdomain — adapters stub
+// Add inbound (queue) and outbound (storage/firestore) adapters here.
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/outbound/firestore/FirestoreIngestionJobRepository.ts
+````typescript
+import type { IngestionJobRepository } from '../../../domain/repositories/IngestionJobRepository';
+import type { IngestionId } from '../../../domain/value-objects/IngestionId';
+import { IngestionJob } from '../../../domain/entities/IngestionJob';
+⋮----
+interface FirestoreLike {
+  get(path: string): Promise<Record<string, unknown> | null>;
+  set(path: string, data: Record<string, unknown>): Promise<void>;
+  delete(path: string): Promise<void>;
+}
+⋮----
+get(path: string): Promise<Record<string, unknown> | null>;
+set(path: string, data: Record<string, unknown>): Promise<void>;
+delete(path: string): Promise<void>;
+⋮----
+const toData = (job: IngestionJob): Record<string, unknown> => (
+⋮----
+/**
+ * FirestoreIngestionJobRepository — Outbound Firestore Adapter
+ */
+export class FirestoreIngestionJobRepository implements IngestionJobRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(id: IngestionId): Promise<IngestionJob | null>
+⋮----
+async save(job: IngestionJob): Promise<void>
+⋮----
+async delete(id: IngestionId): Promise<void>
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/ingestion/adapters/outbound/storage/CloudStorageAdapter.ts
+````typescript
+import type { StoragePort } from '../../../application/ports/outbound/StoragePort';
+⋮----
+/**
+ * CloudStorageAdapter — Outbound Storage Adapter (stub)
+ * TODO: wire to Firebase Cloud Storage SDK in actual module implementation.
+ */
+export class CloudStorageAdapter implements StoragePort {
+⋮----
+async readFile(_path: string): Promise<Buffer>
+````
+
+## File: src/modules/template/subdomains/ingestion/application/dto/IngestionJobResponseDTO.ts
+````typescript
+/** IngestionJobResponseDTO — read model returned after a job is created or queried. */
+export interface IngestionJobResponseDTO {
+  jobId: string;
+  sourceUrl: string;
+  status: string;
+  createdAt: string;
+  completedAt?: string;
+}
+````
+
+## File: src/modules/template/subdomains/ingestion/application/dto/StartIngestionDTO.ts
+````typescript
+/** StartIngestionDTO — inbound command to start a new ingestion job. */
+export interface StartIngestionDTO {
+  sourceUrl: string;
+}
+````
+
+## File: src/modules/template/subdomains/ingestion/application/index.ts
+````typescript
+// ingestion subdomain — application stub
+// Add use-cases, DTOs, and ports for source-document ingestion flows here.
+````
+
+## File: src/modules/template/subdomains/ingestion/application/ports/inbound/StartIngestionPort.ts
+````typescript
+import type { StartIngestionDTO } from '../../dto/StartIngestionDTO';
+import type { IngestionJobResponseDTO } from '../../dto/IngestionJobResponseDTO';
+⋮----
+/** StartIngestionPort — Inbound Port for the StartIngestionUseCase. */
+export interface StartIngestionPort {
+  execute(input: StartIngestionDTO): Promise<IngestionJobResponseDTO>;
+}
+⋮----
+execute(input: StartIngestionDTO): Promise<IngestionJobResponseDTO>;
+````
+
+## File: src/modules/template/subdomains/ingestion/application/ports/outbound/IngestionRepositoryPort.ts
+````typescript
+import type { IngestionJobRepository } from '../../../domain/repositories/IngestionJobRepository';
+⋮----
+/** IngestionRepositoryPort — Outbound Port (type alias). */
+export type IngestionRepositoryPort = IngestionJobRepository;
+````
+
+## File: src/modules/template/subdomains/ingestion/application/ports/outbound/StoragePort.ts
+````typescript
+/**
+ * StoragePort — Outbound Port
+ * Abstract contract for reading source documents from object storage.
+ */
+export interface StoragePort {
+  readFile(path: string): Promise<Buffer>;
+}
+⋮----
+readFile(path: string): Promise<Buffer>;
+````
+
+## File: src/modules/template/subdomains/ingestion/application/use-cases/StartIngestionUseCase.ts
+````typescript
+import type { StartIngestionPort } from '../ports/inbound/StartIngestionPort';
+import type { IngestionRepositoryPort } from '../ports/outbound/IngestionRepositoryPort';
+import type { StartIngestionDTO } from '../dto/StartIngestionDTO';
+import type { IngestionJobResponseDTO } from '../dto/IngestionJobResponseDTO';
+import { IngestionJob } from '../../domain/entities/IngestionJob';
+import { IngestionId } from '../../domain/value-objects/IngestionId';
+import { IngestionDomainService } from '../../domain/services/IngestionDomainService';
+⋮----
+/**
+ * StartIngestionUseCase
+ * Creates a new IngestionJob and queues it for background processing.
+ */
+export class StartIngestionUseCase implements StartIngestionPort {
+⋮----
+constructor(private readonly repository: IngestionRepositoryPort)
+⋮----
+async execute(input: StartIngestionDTO): Promise<IngestionJobResponseDTO>
+````
+
+## File: src/modules/template/subdomains/ingestion/domain/entities/IngestionJob.ts
+````typescript
+import { IngestionId } from '../value-objects/IngestionId';
+⋮----
+/**
+ * IngestionJob — Aggregate Root
+ * Tracks the lifecycle of a single source-document ingestion run.
+ */
+export type IngestionStatus = 'pending' | 'processing' | 'completed' | 'failed';
+⋮----
+export interface IngestionJobProps {
+  id: IngestionId;
+  sourceUrl: string;
+  status: IngestionStatus;
+  createdAt: Date;
+  completedAt?: Date;
+}
+⋮----
+export class IngestionJob {
+⋮----
+private constructor(private props: IngestionJobProps)
+⋮----
+static create(
+    params: Pick<IngestionJobProps, 'id' | 'sourceUrl'>,
+): IngestionJob
+⋮----
+get id(): IngestionId
+⋮----
+get sourceUrl(): string
+⋮----
+get status(): IngestionStatus
+⋮----
+get createdAt(): Date
+⋮----
+get completedAt(): Date | undefined
+⋮----
+markProcessing(): void
+⋮----
+markCompleted(): void
+⋮----
+markFailed(): void
+````
+
+## File: src/modules/template/subdomains/ingestion/domain/events/IngestionJobEvents.ts
+````typescript
+/**
+ * IngestionJobStartedEvent — Domain Event
+ * Emitted when a new ingestion job is created and submitted for processing.
+ */
+export class IngestionJobStartedEvent {
+⋮----
+constructor(
+⋮----
+/**
+ * IngestionJobCompletedEvent — Domain Event
+ * Emitted when an ingestion job finishes successfully.
+ */
+export class IngestionJobCompletedEvent {
+````
+
+## File: src/modules/template/subdomains/ingestion/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/ingestion/domain/repositories/IngestionJobRepository.ts
+````typescript
+import type { IngestionJob } from '../entities/IngestionJob';
+import type { IngestionId } from '../value-objects/IngestionId';
+⋮----
+/**
+ * IngestionJobRepository — Domain Repository Interface
+ */
+export interface IngestionJobRepository {
+  findById(id: IngestionId): Promise<IngestionJob | null>;
+  save(job: IngestionJob): Promise<void>;
+  delete(id: IngestionId): Promise<void>;
+}
+⋮----
+findById(id: IngestionId): Promise<IngestionJob | null>;
+save(job: IngestionJob): Promise<void>;
+delete(id: IngestionId): Promise<void>;
+````
+
+## File: src/modules/template/subdomains/ingestion/domain/services/IngestionDomainService.ts
+````typescript
+/**
+ * IngestionDomainService — Domain Service (stub)
+ *
+ * Business rules for ingestion job lifecycle that span multiple
+ * aggregate instances or depend on external constraints.
+ */
+export class IngestionDomainService {
+⋮----
+validateSourceUrl(sourceUrl: string): void
+````
+
+## File: src/modules/template/subdomains/ingestion/domain/value-objects/IngestionId.ts
+````typescript
+/**
+ * IngestionId — Value Object
+ * Immutable identifier for an IngestionJob aggregate.
+ */
+export class IngestionId {
+⋮----
+private constructor(private readonly value: string)
+⋮----
+static create(value: string): IngestionId
+⋮----
+static generate(): IngestionId
+⋮----
+toString(): string
+⋮----
+equals(other: IngestionId): boolean
+````
+
+## File: src/modules/template/subdomains/workflow/adapters/inbound/http/routes.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/workflow/adapters/inbound/http/WorkflowController.ts
+````typescript
+import type { InitiateWorkflowPort } from '../../../application/ports/inbound/InitiateWorkflowPort';
+⋮----
+/**
+ * WorkflowController — Inbound HTTP Adapter (stub)
+ */
+export class WorkflowController {
+⋮----
+constructor(private readonly initiateUseCase: InitiateWorkflowPort)
+⋮----
+/** POST /api/workflows */
+async handleInitiate(request:
+````
+
+## File: src/modules/template/subdomains/workflow/adapters/inbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/workflow/adapters/index.ts
+````typescript
+// workflow subdomain — adapters stub
+// Add inbound (http) and outbound (persistence) adapters here.
+````
+
+## File: src/modules/template/subdomains/workflow/adapters/outbound/firestore/FirestoreWorkflowRepository.ts
+````typescript
+import type { TemplateWorkflowRepository } from '../../../domain/repositories/TemplateWorkflowRepository';
+import type { WorkflowId } from '../../../domain/value-objects/WorkflowId';
+import { TemplateWorkflow } from '../../../domain/entities/TemplateWorkflow';
+⋮----
+interface FirestoreLike {
+  get(path: string): Promise<Record<string, unknown> | null>;
+  set(path: string, data: Record<string, unknown>): Promise<void>;
+  delete(path: string): Promise<void>;
+}
+⋮----
+get(path: string): Promise<Record<string, unknown> | null>;
+set(path: string, data: Record<string, unknown>): Promise<void>;
+delete(path: string): Promise<void>;
+⋮----
+/**
+ * FirestoreWorkflowRepository — Outbound Firestore Adapter
+ */
+export class FirestoreWorkflowRepository implements TemplateWorkflowRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(id: WorkflowId): Promise<TemplateWorkflow | null>
+⋮----
+async save(workflow: TemplateWorkflow): Promise<void>
+⋮----
+async delete(id: WorkflowId): Promise<void>
+````
+
+## File: src/modules/template/subdomains/workflow/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/workflow/application/dto/InitiateWorkflowDTO.ts
+````typescript
+/** InitiateWorkflowDTO — inbound command to start a new workflow for a template. */
+export interface InitiateWorkflowDTO {
+  templateId: string;
+}
+````
+
+## File: src/modules/template/subdomains/workflow/application/dto/WorkflowResponseDTO.ts
+````typescript
+/** WorkflowResponseDTO — read model returned after a workflow is created or queried. */
+export interface WorkflowResponseDTO {
+  workflowId: string;
+  templateId: string;
+  status: string;
+  startedAt: string;
+  completedAt?: string;
+}
+````
+
+## File: src/modules/template/subdomains/workflow/application/index.ts
+````typescript
+// workflow subdomain — application stub
+// Add use-cases, DTOs, and ports for template lifecycle workflows here.
+````
+
+## File: src/modules/template/subdomains/workflow/application/ports/inbound/InitiateWorkflowPort.ts
+````typescript
+import type { InitiateWorkflowDTO } from '../../dto/InitiateWorkflowDTO';
+import type { WorkflowResponseDTO } from '../../dto/WorkflowResponseDTO';
+⋮----
+/** InitiateWorkflowPort — Inbound Port for the InitiateWorkflowUseCase. */
+export interface InitiateWorkflowPort {
+  execute(input: InitiateWorkflowDTO): Promise<WorkflowResponseDTO>;
+}
+⋮----
+execute(input: InitiateWorkflowDTO): Promise<WorkflowResponseDTO>;
+````
+
+## File: src/modules/template/subdomains/workflow/application/ports/outbound/WorkflowRepositoryPort.ts
+````typescript
+import type { TemplateWorkflowRepository } from '../../../domain/repositories/TemplateWorkflowRepository';
+⋮----
+/** WorkflowRepositoryPort — Outbound Port (type alias). */
+export type WorkflowRepositoryPort = TemplateWorkflowRepository;
+````
+
+## File: src/modules/template/subdomains/workflow/application/use-cases/InitiateWorkflowUseCase.ts
+````typescript
+import type { InitiateWorkflowPort } from '../ports/inbound/InitiateWorkflowPort';
+import type { WorkflowRepositoryPort } from '../ports/outbound/WorkflowRepositoryPort';
+import type { InitiateWorkflowDTO } from '../dto/InitiateWorkflowDTO';
+import type { WorkflowResponseDTO } from '../dto/WorkflowResponseDTO';
+import { TemplateWorkflow } from '../../domain/entities/TemplateWorkflow';
+import { WorkflowId } from '../../domain/value-objects/WorkflowId';
+import { WorkflowDomainService } from '../../domain/services/WorkflowDomainService';
+⋮----
+/**
+ * InitiateWorkflowUseCase
+ * Creates a new TemplateWorkflow in 'pending' status.
+ */
+export class InitiateWorkflowUseCase implements InitiateWorkflowPort {
+⋮----
+constructor(private readonly repository: WorkflowRepositoryPort)
+⋮----
+async execute(input: InitiateWorkflowDTO): Promise<WorkflowResponseDTO>
+````
+
+## File: src/modules/template/subdomains/workflow/domain/entities/TemplateWorkflow.ts
+````typescript
+import { WorkflowId } from '../value-objects/WorkflowId';
+⋮----
+/**
+ * TemplateWorkflow — Aggregate Root
+ * Represents a lifecycle workflow bound to a Template aggregate
+ * (e.g. pending → active → completed).
+ */
+export type WorkflowStatus =
+  | 'pending'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'cancelled';
+⋮----
+export interface TemplateWorkflowProps {
+  id: WorkflowId;
+  templateId: string;
+  status: WorkflowStatus;
+  startedAt: Date;
+  completedAt?: Date;
+}
+⋮----
+export class TemplateWorkflow {
+⋮----
+private constructor(private props: TemplateWorkflowProps)
+⋮----
+static initiate(
+    params: Pick<TemplateWorkflowProps, 'id' | 'templateId'>,
+): TemplateWorkflow
+⋮----
+get id(): WorkflowId
+⋮----
+get templateId(): string
+⋮----
+get status(): WorkflowStatus
+⋮----
+get startedAt(): Date
+⋮----
+get completedAt(): Date | undefined
+⋮----
+activate(): void
+⋮----
+pause(): void
+⋮----
+complete(): void
+⋮----
+cancel(): void
+````
+
+## File: src/modules/template/subdomains/workflow/domain/events/WorkflowEvents.ts
+````typescript
+/**
+ * WorkflowInitiatedEvent — Domain Event
+ * Raised when a TemplateWorkflow is successfully created.
+ */
+export class WorkflowInitiatedEvent {
+⋮----
+constructor(
+⋮----
+/**
+ * WorkflowCompletedEvent — Domain Event
+ * Raised when a TemplateWorkflow reaches the 'completed' status.
+ */
+export class WorkflowCompletedEvent {
+````
+
+## File: src/modules/template/subdomains/workflow/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/template/subdomains/workflow/domain/repositories/TemplateWorkflowRepository.ts
+````typescript
+import type { TemplateWorkflow } from '../entities/TemplateWorkflow';
+import type { WorkflowId } from '../value-objects/WorkflowId';
+⋮----
+/** TemplateWorkflowRepository — Domain Port (interface). */
+export interface TemplateWorkflowRepository {
+  findById(id: WorkflowId): Promise<TemplateWorkflow | null>;
+  save(workflow: TemplateWorkflow): Promise<void>;
+  delete(id: WorkflowId): Promise<void>;
+}
+⋮----
+findById(id: WorkflowId): Promise<TemplateWorkflow | null>;
+save(workflow: TemplateWorkflow): Promise<void>;
+delete(id: WorkflowId): Promise<void>;
+````
+
+## File: src/modules/template/subdomains/workflow/domain/services/WorkflowDomainService.ts
+````typescript
+/**
+ * WorkflowDomainService
+ * Business rules that do not belong to a single TemplateWorkflow instance.
+ */
+export class WorkflowDomainService {
+⋮----
+/**
+   * Validates that a templateId is provided before initiating a workflow.
+   */
+validateInitiateRequest(params:
+````
+
+## File: src/modules/template/subdomains/workflow/domain/value-objects/WorkflowId.ts
+````typescript
+import { v4 as uuidv4 } from 'uuid';
+⋮----
+/**
+ * WorkflowId — Value Object
+ */
+export class WorkflowId {
+⋮----
+private constructor(private readonly value: string)
+⋮----
+static create(raw: string): WorkflowId
+⋮----
+static generate(): WorkflowId
+⋮----
+toString(): string
+⋮----
+equals(other: WorkflowId): boolean
+````
+
 ## File: src/app/(public)/page.tsx
 ````typescript
 import { PublicLandingView } from "@/src/modules/iam/adapters/inbound/react";
@@ -23,6 +1659,50 @@ import { ShellFrame } from "@/src/modules/platform/adapters/inbound/react";
 export default function ShellLayout({
   children,
 }: Readonly<
+````
+
+## File: src/app/AGENT.md
+````markdown
+# App — Agent Guide
+
+## Purpose
+
+`src/app/` 是 **Next.js 16 App Router** 的路由入口層，負責 layout 組合與 page slot 分發。不承載任何業務邏輯。
+
+## Boundary Rules
+
+- `app/` 只組合路由、layout 與 UI 入口，不寫業務規則、不呼叫 repository、不直接存取 Firebase SDK。
+- 業務行為透過 Server Action 或模組 `index.ts` 公開邊界取得。
+- 不在 layout / page 中引用另一個模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部路徑。
+- Route 組件只接受 scope props（`accountId`、`workspaceId`），不直接消費跨模組的 context provider。
+
+## Route Group 設計
+
+| 群組 | 用途 |
+|---|---|
+| `(public)` | 登入前公開頁（landing、auth） |
+| `(shell)` | 登入後帶 shell chrome 的應用頁面 |
+| `(shell)/(account)/[accountId]` | account-scoped 頁面，`accountId` 為 shell route identifier |
+| `[[...slug]]` | catch-all，在 account scope 下承接所有子路徑 |
+
+## Route Here When
+
+- 需要新增 page、layout 或 route group。
+- 需要在 shell 內新增一個 account-scoped 功能頁面。
+- 需要組合 parallel routes 或 intercepting routes。
+
+## Route Elsewhere When
+
+- 業務邏輯 → `src/modules/<context>/application/use-cases/`。
+- Server Action → `modules/<context>/interfaces/_actions/`。
+- 共享 UI 元件 → `packages/ui-shadcn/`。
+- 共享 hook → `packages/shared-hooks/`。
+
+## Delivery Style
+
+- 保持 layout 和 page 輕薄（thin）：只做 slot 組合與 scope prop 傳遞。
+- 新增 route segment 前先確認 `accountId` / `workspaceId` scope 是否已在父 layout 中取得。
+- 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
 ````
 
 ## File: src/app/globals.css
@@ -74,6 +1754,65 @@ html {
 /* ── Table of Contents block ─────────────────────────────────────────────────── */
 .tiptap-editor .ProseMirror .toc-block {
 .tiptap-editor .ProseMirror .toc-block::before {
+````
+
+## File: src/app/README.md
+````markdown
+# App — Next.js App Router Entry
+
+> **⚠ 衝突防護聲明**：本層（`src/app/<context>/`）與 `app/<context>/`（完整 Hexagonal DDD 實作層）是**兩個獨立的實作層，不可互換、不可混用**。
+
+`src/app/` 是 Next.js 16 App Router 的 UI 進入層。負責路由組合與 layout 組裝，不承載任何業務邏輯。
+
+## 目錄結構
+
+```
+src/app/
+  layout.tsx               ← Root Layout（html / body / metadata）
+  (public)/
+    page.tsx               ← 公開頁面（登入前可見）
+  (shell)/
+    layout.tsx             ← Shell Group Layout（通用 chrome wrapper）
+    (account)/
+      [accountId]/
+        [[...slug]]/
+          page.tsx         ← account-scoped catch-all route
+```
+
+## 路由群組說明
+
+| 路由群組 | 用途 |
+|---|---|
+| `(public)` | 登入前可存取的公開頁面（marketing、landing、auth） |
+| `(shell)` | 登入後有 shell chrome（導覽列、側邊欄）的頁面 |
+| `(account)/[accountId]` | 以 `accountId` 為 scope 的帳號相關頁面 |
+| `[[...slug]]` | catch-all：在 account scope 下承接所有子路徑 |
+
+## Layout 層級
+
+```
+RootLayout (layout.tsx)           ← html / body / global metadata
+└── ShellLayout ((shell)/layout.tsx)  ← shell chrome wrapper
+    └── page.tsx                      ← route segment 的實際頁面
+```
+
+## 設計原則
+
+- `app/` 只做路由組合（Route Composition）與 Layout 組裝，不寫業務規則。
+- 業務邏輯統一來自 `src/modules/<context>/`（模組 `index.ts` 公開入口）。
+- Server Action 呼叫来自 `modules/<context>/interfaces/_actions/`。
+- 不在 page / layout 內直接呼叫 Firestore、Firebase Auth SDK 或 domain repository。
+- 路由 props 只傳 scope identifier（`accountId`、`workspaceId`），不傳 upstream aggregate 物件。
+
+## 命名規則
+
+| 元素 | 規則 |
+|---|---|
+| Route Group | `(kebab-case)` |
+| Dynamic Segment | `[camelCase]` |
+| Catch-all | `[[...slug]]` |
+| Layout | `layout.tsx` |
+| Page | `page.tsx` |
 ````
 
 ## File: src/modules/AGENT.md
@@ -4650,1371 +6389,6 @@ export interface Timestamp {
 toDate(): Date;
 ````
 
-## File: src/modules/template/orchestration/TemplateCoordinator.ts
-````typescript
-/**
- * TemplateCoordinator
- *
- * Handles cross-subdomain workflows that span more than one subdomain.
- * Example pipeline: document created → generation triggered → ingestion
- * queued → workflow initiated.
- *
- * Currently a stub. Wire subdomain use cases through the constructor once
- * each subdomain is activated and its cross-subdomain trigger points are
- * defined.
- *
- * Rules:
- * - Coordinator orchestrates only; it does NOT own business rules.
- * - Each step delegates to the responsible subdomain's use case.
- * - Cross-subdomain state is communicated via Published Language DTOs,
- *   never by sharing aggregate references.
- */
-export class TemplateCoordinator {
-⋮----
-// Inject subdomain use cases or facades as constructor parameters when
-// the corresponding subdomains are activated.
-// Example:
-//   constructor(
-//     private readonly document: TemplateFacade,
-//     private readonly generation: GenerationFacade,
-//     private readonly ingestion: IngestionFacade,
-//     private readonly workflow: WorkflowFacade,
-//   ) {}
-⋮----
-/**
-   * Full creation pipeline stub.
-   * Expand this when generation / ingestion / workflow subdomains are live.
-   */
-async runCreationPipeline(_templateId: string): Promise<void>
-⋮----
-// 1. document subdomain: template already created — templateId provided
-// 2. generation subdomain: trigger content generation
-// 3. ingestion subdomain: queue generated content for ingestion
-// 4. workflow subdomain: initiate review workflow
-````
-
-## File: src/modules/template/orchestration/TemplateFacade.ts
-````typescript
-import type { CreateTemplateUseCase } from '../subdomains/document/application/use-cases/CreateTemplateUseCase';
-import type { UpdateTemplateUseCase } from '../subdomains/document/application/use-cases/UpdateTemplateUseCase';
-import type { DeleteTemplateUseCase } from '../subdomains/document/application/use-cases/DeleteTemplateUseCase';
-import type { CreateTemplateDTO } from '../subdomains/document/application/dto/CreateTemplateDTO';
-import type { UpdateTemplateDTO } from '../subdomains/document/application/dto/UpdateTemplateDTO';
-import type { TemplateResponseDTO } from '../subdomains/document/application/dto/TemplateResponseDTO';
-⋮----
-/**
- * TemplateFacade
- *
- * Unified public entry point for the template module.
- * Delegates each operation to the owning subdomain use case.
- * External callers (Server Actions, controllers, other modules) should
- * depend on this facade rather than individual use cases.
- *
- * Add new methods here as new subdomains activate.
- */
-export class TemplateFacade {
-⋮----
-constructor(
-⋮----
-createTemplate(input: CreateTemplateDTO): Promise<TemplateResponseDTO>
-⋮----
-updateTemplate(input: UpdateTemplateDTO): Promise<TemplateResponseDTO>
-⋮----
-deleteTemplate(id: string): Promise<void>
-````
-
-## File: src/modules/template/shared/application/index.ts
-````typescript
-// shared/application — cross-subdomain application types
-// Place shared DTOs, Ports, or ApplicationService interfaces used by
-// more than one subdomain here.
-````
-
-## File: src/modules/template/shared/config/index.ts
-````typescript
-// shared/config — module-level configuration
-// Place typed configuration interfaces and defaults here.
-// Config values should be injected at the composition root, not read from
-// process.env directly inside subdomains.
-⋮----
-export interface TemplateModuleConfig {
-  /** Maximum number of templates per account. */
-  maxTemplatesPerAccount: number;
-  /** Default locale for template content. */
-  defaultLocale: string;
-}
-⋮----
-/** Maximum number of templates per account. */
-⋮----
-/** Default locale for template content. */
-````
-
-## File: src/modules/template/shared/constants/index.ts
-````typescript
-// shared/constants — module-wide constants
-````
-
-## File: src/modules/template/shared/domain/index.ts
-````typescript
-// shared/domain — cross-subdomain domain types
-// Place shared Value Objects, Policies, or domain-level abstractions used by
-// more than one subdomain here.
-// Do NOT place subdomain-specific aggregates here.
-````
-
-## File: src/modules/template/shared/errors/index.ts
-````typescript
-// shared/errors — shared error types for the template module
-⋮----
-/**
- * Base error class for template module errors.
- * Subclass this for each subdomain error rather than throwing plain Error.
- */
-export class TemplateModuleError extends Error {
-⋮----
-constructor(
-    message: string,
-    public readonly code: string,
-)
-⋮----
-export class TemplateNotFoundError extends TemplateModuleError {
-⋮----
-constructor(id: string)
-⋮----
-export class TemplateDuplicateNameError extends TemplateModuleError {
-⋮----
-constructor(name: string)
-````
-
-## File: src/modules/template/shared/events/index.ts
-````typescript
-// shared/events — cross-subdomain Published Language events
-// These are integration events emitted at the module boundary for other
-// bounded contexts to consume. Do NOT mix these with subdomain-local
-// domain events (those live in subdomains/*/domain/events/).
-⋮----
-export type TemplateModuleEventType =
-  | 'template.created'
-  | 'template.updated'
-  | 'template.deleted'
-  | 'template.generation.completed'
-  | 'template.ingestion.completed'
-  | 'template.workflow.completed';
-⋮----
-export interface TemplateModuleEvent<
-  T extends TemplateModuleEventType = TemplateModuleEventType,
-  P = unknown,
-> {
-  type: T;
-  templateId: string;
-  occurredAt: Date;
-  payload?: P;
-}
-````
-
-## File: src/modules/template/shared/infrastructure/index.ts
-````typescript
-// shared/infrastructure — shared infrastructure helpers
-// Place cross-subdomain persistence helpers, connection factories, or
-// shared adapter utilities here.
-// Do NOT place business logic here.
-````
-
-## File: src/modules/template/shared/types/index.ts
-````typescript
-// shared/types — shared TypeScript types used across subdomains
-⋮----
-/** Lightweight read model for list views. */
-export interface TemplateSummary {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-⋮----
-/** Generic paginated result wrapper. */
-export interface PaginatedResult<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-````
-
-## File: src/modules/template/shared/utils/index.ts
-````typescript
-// shared/utils — shared utility functions
-⋮----
-/**
- * Strips leading/trailing whitespace and collapses inner whitespace.
- * Useful for normalising user-supplied template names.
- */
-export function normaliseWhitespace(value: string): string
-⋮----
-/**
- * Returns true when the given string is a non-empty, non-whitespace value.
- */
-export function isNonBlank(value: string): boolean
-````
-
-## File: src/modules/template/subdomains/document/adapters/inbound/http/routes.ts
-````typescript
-import type { TemplateController } from './TemplateController';
-⋮----
-/**
- * HTTP route definitions for the document subdomain.
- * Framework-agnostic registration descriptor; wired up at composition root.
- */
-export interface HttpRoute {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  path: string;
-  handler: (req: {
-    body?: unknown;
-    params?: Record<string, string>;
-  }) => Promise<unknown>;
-}
-⋮----
-export function buildTemplateRoutes(controller: TemplateController): HttpRoute[]
-````
-
-## File: src/modules/template/subdomains/document/adapters/inbound/http/TemplateController.ts
-````typescript
-import type { CreateTemplateUseCase } from '../../../application/use-cases/CreateTemplateUseCase';
-import type { UpdateTemplateUseCase } from '../../../application/use-cases/UpdateTemplateUseCase';
-import type { DeleteTemplateUseCase } from '../../../application/use-cases/DeleteTemplateUseCase';
-import type { CreateTemplateDTO } from '../../../application/dto/CreateTemplateDTO';
-import type { UpdateTemplateDTO } from '../../../application/dto/UpdateTemplateDTO';
-⋮----
-/**
- * HTTP inbound adapter — translates HTTP requests into application calls.
- */
-export class TemplateController {
-⋮----
-constructor(
-⋮----
-async create(body: CreateTemplateDTO)
-⋮----
-async update(body: UpdateTemplateDTO)
-⋮----
-async delete(id: string)
-````
-
-## File: src/modules/template/subdomains/document/adapters/inbound/index.ts
-````typescript
-// http
-⋮----
-// queue
-````
-
-## File: src/modules/template/subdomains/document/adapters/inbound/queue/TemplateQueueHandler.ts
-````typescript
-/**
- * OPTIONAL ADAPTER
- * 僅在需要「非同步背景處理」時使用
- * 例如：AI 任務 / email / 長時間 job
- */
-export class TemplateQueueHandler {
-⋮----
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-constructor(private createTemplateUseCase: any)
-⋮----
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async handle(message: any)
-````
-
-## File: src/modules/template/subdomains/document/adapters/index.ts
-````typescript
-// inbound
-⋮----
-// outbound
-````
-
-## File: src/modules/template/subdomains/document/adapters/outbound/cache/TemplateCacheAdapter.ts
-````typescript
-import type { CachePort } from '../../../application/ports/outbound/CachePort';
-⋮----
-interface CacheEntry<T = unknown> {
-  value: T;
-  expiresAt?: number;
-}
-⋮----
-/**
- * In-memory reference implementation of CachePort.
- * Swap for Redis/Memcached adapter at the composition root if needed.
- */
-export class TemplateCacheAdapter implements CachePort {
-⋮----
-async get<T>(key: string): Promise<T | null>
-⋮----
-async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>
-⋮----
-async delete(key: string): Promise<void>
-````
-
-## File: src/modules/template/subdomains/document/adapters/outbound/external-api/TemplateApiClient.ts
-````typescript
-import type { ExternalApiPort } from '../../../application/ports/outbound/ExternalApiPort';
-⋮----
-/**
- * External API adapter — concrete implementation of ExternalApiPort.
- */
-export class TemplateApiClient implements ExternalApiPort {
-⋮----
-constructor(
-⋮----
-async fetchMetadata(resourceId: string): Promise<Record<string, unknown>>
-````
-
-## File: src/modules/template/subdomains/document/adapters/outbound/firestore/FirestoreMapper.ts
-````typescript
-import { Template } from '../../../domain/entities/Template';
-import { TemplateId } from '../../../domain/value-objects/TemplateId';
-import { TemplateName } from '../../../domain/value-objects/TemplateName';
-⋮----
-/**
- * Persistence model stored in Firestore.
- */
-export interface TemplateDocument {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-⋮----
-/**
- * Mapper between the Template aggregate and its Firestore document representation.
- */
-⋮----
-toDocument(template: Template): TemplateDocument
-⋮----
-toDomain(doc: TemplateDocument): Template
-````
-
-## File: src/modules/template/subdomains/document/adapters/outbound/firestore/FirestoreTemplateRepository.ts
-````typescript
-import { Template } from '../../../domain/entities/Template';
-import { TemplateId } from '../../../domain/value-objects/TemplateId';
-import type { TemplateRepository } from '../../../domain/repositories/TemplateRepository';
-import { FirestoreMapper, type TemplateDocument } from './FirestoreMapper';
-⋮----
-/**
- * Minimal Firestore client surface required by this repository.
- * Keeps the adapter decoupled from any specific SDK version.
- */
-export interface FirestoreLike {
-  get(collection: string, id: string): Promise<TemplateDocument | null>;
-  set(collection: string, id: string, data: TemplateDocument): Promise<void>;
-  delete(collection: string, id: string): Promise<void>;
-}
-⋮----
-get(collection: string, id: string): Promise<TemplateDocument | null>;
-set(collection: string, id: string, data: TemplateDocument): Promise<void>;
-delete(collection: string, id: string): Promise<void>;
-⋮----
-/**
- * Firestore implementation of TemplateRepository.
- */
-export class FirestoreTemplateRepository implements TemplateRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(id: TemplateId): Promise<Template | null>
-⋮----
-async save(template: Template): Promise<void>
-⋮----
-async delete(id: TemplateId): Promise<void>
-````
-
-## File: src/modules/template/subdomains/document/adapters/outbound/index.ts
-````typescript
-// firestore
-⋮----
-// cache
-⋮----
-// external-api
-````
-
-## File: src/modules/template/subdomains/document/application/dto/CreateTemplateDTO.ts
-````typescript
-/**
- * Input DTO for creating a Template.
- */
-export interface CreateTemplateDTO {
-  name: string;
-  description?: string;
-}
-````
-
-## File: src/modules/template/subdomains/document/application/dto/TemplateResponseDTO.ts
-````typescript
-/**
- * Output DTO returned to callers outside the application layer.
- */
-export interface TemplateResponseDTO {
-  id: string;
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-````
-
-## File: src/modules/template/subdomains/document/application/dto/UpdateTemplateDTO.ts
-````typescript
-/**
- * Input DTO for updating a Template.
- */
-export interface UpdateTemplateDTO {
-  id: string;
-  name?: string;
-  description?: string;
-}
-````
-
-## File: src/modules/template/subdomains/document/application/index.ts
-````typescript
-// use-cases
-⋮----
-// dto
-⋮----
-// ports inbound
-⋮----
-// ports outbound
-````
-
-## File: src/modules/template/subdomains/document/application/ports/inbound/CreateTemplatePort.ts
-````typescript
-import type { CreateTemplateDTO } from '../../dto/CreateTemplateDTO';
-import type { TemplateResponseDTO } from '../../dto/TemplateResponseDTO';
-⋮----
-/**
- * Inbound port — the contract exposed to adapters that drive the application.
- */
-export interface CreateTemplatePort {
-  execute(input: CreateTemplateDTO): Promise<TemplateResponseDTO>;
-}
-⋮----
-execute(input: CreateTemplateDTO): Promise<TemplateResponseDTO>;
-````
-
-## File: src/modules/template/subdomains/document/application/ports/outbound/CachePort.ts
-````typescript
-/**
- * Outbound port — cache abstraction used by use cases.
- */
-export interface CachePort {
-  get<T>(key: string): Promise<T | null>;
-  set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
-  delete(key: string): Promise<void>;
-}
-⋮----
-get<T>(key: string): Promise<T | null>;
-set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
-delete(key: string): Promise<void>;
-````
-
-## File: src/modules/template/subdomains/document/application/ports/outbound/ExternalApiPort.ts
-````typescript
-/**
- * Outbound port — abstraction over any external API dependency
- * consumed by template use cases.
- */
-export interface ExternalApiPort {
-  fetchMetadata(resourceId: string): Promise<Record<string, unknown>>;
-}
-⋮----
-fetchMetadata(resourceId: string): Promise<Record<string, unknown>>;
-````
-
-## File: src/modules/template/subdomains/document/application/ports/outbound/TemplateRepositoryPort.ts
-````typescript
-import type { TemplateRepository } from '../../../domain/repositories/TemplateRepository';
-⋮----
-/**
- * Outbound port — application layer dependency on the repository contract.
- * Alias of the domain repository interface to keep adapter wiring explicit.
- */
-export type TemplateRepositoryPort = TemplateRepository;
-````
-
-## File: src/modules/template/subdomains/document/application/use-cases/CreateTemplateUseCase.ts
-````typescript
-import { Template } from '../../domain/entities/Template';
-import { TemplateName } from '../../domain/value-objects/TemplateName';
-import type { CreateTemplateDTO } from '../dto/CreateTemplateDTO';
-import type { TemplateResponseDTO } from '../dto/TemplateResponseDTO';
-import type { CreateTemplatePort } from '../ports/inbound/CreateTemplatePort';
-import type { TemplateRepositoryPort } from '../ports/outbound/TemplateRepositoryPort';
-⋮----
-/**
- * Use case: Create a new Template aggregate and persist it.
- */
-export class CreateTemplateUseCase implements CreateTemplatePort {
-⋮----
-constructor(private readonly repository: TemplateRepositoryPort)
-⋮----
-async execute(input: CreateTemplateDTO): Promise<TemplateResponseDTO>
-````
-
-## File: src/modules/template/subdomains/document/application/use-cases/DeleteTemplateUseCase.ts
-````typescript
-import { TemplateId } from '../../domain/value-objects/TemplateId';
-import type { TemplateRepositoryPort } from '../ports/outbound/TemplateRepositoryPort';
-⋮----
-/**
- * Use case: Delete a Template aggregate by id.
- */
-export class DeleteTemplateUseCase {
-⋮----
-constructor(private readonly repository: TemplateRepositoryPort)
-⋮----
-async execute(id: string): Promise<void>
-````
-
-## File: src/modules/template/subdomains/document/application/use-cases/UpdateTemplateUseCase.ts
-````typescript
-import { TemplateId } from '../../domain/value-objects/TemplateId';
-import { TemplateName } from '../../domain/value-objects/TemplateName';
-import type { UpdateTemplateDTO } from '../dto/UpdateTemplateDTO';
-import type { TemplateResponseDTO } from '../dto/TemplateResponseDTO';
-import type { TemplateRepositoryPort } from '../ports/outbound/TemplateRepositoryPort';
-⋮----
-/**
- * Use case: Update a Template aggregate.
- */
-export class UpdateTemplateUseCase {
-⋮----
-constructor(private readonly repository: TemplateRepositoryPort)
-⋮----
-async execute(input: UpdateTemplateDTO): Promise<TemplateResponseDTO>
-````
-
-## File: src/modules/template/subdomains/document/domain/entities/Template.ts
-````typescript
-import { TemplateId } from '../value-objects/TemplateId';
-import { TemplateName } from '../value-objects/TemplateName';
-⋮----
-/**
- * Template — Aggregate Root
- * Encapsulates business invariants for a template.
- */
-export interface TemplateProps {
-  id: TemplateId;
-  name: TemplateName;
-  description?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-⋮----
-export class Template {
-⋮----
-private constructor(private props: TemplateProps)
-⋮----
-static create(params: {
-    id?: TemplateId;
-    name: TemplateName;
-    description?: string;
-}): Template
-⋮----
-static restore(props: TemplateProps): Template
-⋮----
-get id(): TemplateId
-⋮----
-get name(): TemplateName
-⋮----
-get description(): string | undefined
-⋮----
-get createdAt(): Date
-⋮----
-get updatedAt(): Date
-⋮----
-rename(name: TemplateName): void
-⋮----
-changeDescription(description: string): void
-````
-
-## File: src/modules/template/subdomains/document/domain/events/TemplateCreatedEvent.ts
-````typescript
-import { TemplateId } from '../value-objects/TemplateId';
-⋮----
-/**
- * Domain Event — Emitted when a Template is created.
- */
-export class TemplateCreatedEvent {
-⋮----
-constructor(
-    readonly templateId: TemplateId,
-    readonly name: string,
-    occurredAt: Date = new Date(),
-)
-````
-
-## File: src/modules/template/subdomains/document/domain/events/TemplateUpdatedEvent.ts
-````typescript
-import { TemplateId } from '../value-objects/TemplateId';
-⋮----
-/**
- * Domain Event — Emitted when a Template is updated.
- */
-export class TemplateUpdatedEvent {
-⋮----
-constructor(
-    readonly templateId: TemplateId,
-    readonly changes: Readonly<Record<string, unknown>>,
-    occurredAt: Date = new Date(),
-)
-````
-
-## File: src/modules/template/subdomains/document/domain/index.ts
-````typescript
-// entities
-⋮----
-// value-objects
-⋮----
-// events
-⋮----
-// repositories
-⋮----
-// services
-````
-
-## File: src/modules/template/subdomains/document/domain/repositories/TemplateRepository.ts
-````typescript
-import { Template } from '../entities/Template';
-import { TemplateId } from '../value-objects/TemplateId';
-⋮----
-/**
- * TemplateRepository — Domain Repository Interface
- * Abstract persistence contract owned by the domain layer.
- */
-export interface TemplateRepository {
-  findById(id: TemplateId): Promise<Template | null>;
-  save(template: Template): Promise<void>;
-  delete(id: TemplateId): Promise<void>;
-}
-⋮----
-findById(id: TemplateId): Promise<Template | null>;
-save(template: Template): Promise<void>;
-delete(id: TemplateId): Promise<void>;
-````
-
-## File: src/modules/template/subdomains/document/domain/services/TemplateDomainService.ts
-````typescript
-import { Template } from '../entities/Template';
-import { TemplateName } from '../value-objects/TemplateName';
-⋮----
-/**
- * TemplateDomainService
- * Cross-entity or stateless domain logic that does not belong to a single aggregate.
- */
-export class TemplateDomainService {
-⋮----
-/**
-   * Business rule: Two templates are considered duplicates when their normalized
-   * names match (case-insensitive, whitespace-collapsed).
-   */
-isDuplicateName(existing: Template, candidate: TemplateName): boolean
-⋮----
-const normalize = (v: string)
-````
-
-## File: src/modules/template/subdomains/document/domain/value-objects/TemplateId.ts
-````typescript
-/**
- * TemplateId — Value Object
- * Immutable identifier for a Template aggregate.
- */
-export class TemplateId {
-⋮----
-private constructor(private readonly value: string)
-⋮----
-static create(value: string): TemplateId
-⋮----
-static generate(): TemplateId
-⋮----
-toString(): string
-⋮----
-equals(other: TemplateId): boolean
-````
-
-## File: src/modules/template/subdomains/document/domain/value-objects/TemplateName.ts
-````typescript
-/**
- * TemplateName — Value Object
- * Validated template name with domain invariants.
- */
-export class TemplateName {
-⋮----
-private constructor(private readonly value: string)
-⋮----
-static create(value: string): TemplateName
-⋮----
-toString(): string
-⋮----
-equals(other: TemplateName): boolean
-````
-
-## File: src/modules/template/subdomains/generation/adapters/inbound/http/routes.ts
-````typescript
-/**
- * generation/routes.ts (stub)
- *
- * Register GenerationController routes here when activating this subdomain.
- * Example structure for a Next.js App Router route handler:
- *
- * ```ts
- * export async function POST(request: Request) {
- *   const body = await request.json();
- *   const controller = getGenerationController();
- *   const result = await controller.handleGenerate(body);
- *   return Response.json(result.body, { status: result.status });
- * }
- * ```
- */
-````
-
-## File: src/modules/template/subdomains/generation/adapters/inbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/generation/adapters/outbound/ai/AiGenerationAdapter.ts
-````typescript
-import type { AiGenerationPort } from '../../../application/ports/outbound/AiGenerationPort';
-⋮----
-/**
- * AiGenerationAdapter — Outbound AI Adapter (stub)
- * Implements AiGenerationPort by calling an AI provider (Genkit, OpenAI, etc.).
- * Replace the stub body with a real Genkit runFlow call when activated.
- */
-export class AiGenerationAdapter implements AiGenerationPort {
-⋮----
-async generate(sourceTemplateId: string, prompt: string): Promise<string>
-⋮----
-// TODO: Replace with real Genkit / AI SDK call.
-// Example:
-//   const result = await genkitClient.runFlow('generateTemplateContent', {
-//     sourceTemplateId,
-//     prompt,
-//   });
-//   return result.content;
-````
-
-## File: src/modules/template/subdomains/generation/adapters/outbound/firestore/FirestoreGenerationRepository.ts
-````typescript
-import { GeneratedTemplate } from '../../../domain/entities/GeneratedTemplate';
-import { GenerationId } from '../../../domain/value-objects/GenerationId';
-import type { GenerationRepository } from '../../../domain/repositories/GenerationRepository';
-⋮----
-/**
- * Minimal Firestore-compatible interface used to keep this adapter
- * free from direct Firebase SDK imports.
- * The real Firestore client satisfies this shape at runtime.
- */
-interface FirestoreLike {
-  get<T>(path: string): Promise<T | null>;
-  set<T>(path: string, data: T): Promise<void>;
-  delete(path: string): Promise<void>;
-}
-⋮----
-get<T>(path: string): Promise<T | null>;
-set<T>(path: string, data: T): Promise<void>;
-delete(path: string): Promise<void>;
-⋮----
-/**
- * FirestoreGenerationRepository
- * Outbound adapter that implements GenerationRepository using Firestore.
- */
-export class FirestoreGenerationRepository implements GenerationRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(id: GenerationId): Promise<GeneratedTemplate | null>
-⋮----
-async save(generated: GeneratedTemplate): Promise<void>
-⋮----
-async delete(id: GenerationId): Promise<void>
-⋮----
-/**
- * Persistence document shape (Firestore document).
- */
-export interface GeneratedTemplateDoc {
-  id: string;
-  sourceTemplateId: string;
-  content: string;
-  createdAt: string;
-}
-⋮----
-/**
- * GenerationMapper — maps between domain and persistence representations.
- */
-⋮----
-toPersistence(entity: GeneratedTemplate): GeneratedTemplateDoc
-⋮----
-toDomain(doc: GeneratedTemplateDoc): GeneratedTemplate
-````
-
-## File: src/modules/template/subdomains/generation/adapters/outbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/generation/application/dto/GenerateTemplateDTO.ts
-````typescript
-/**
- * GenerateTemplateDTO — inbound command for template generation.
- */
-export interface GenerateTemplateDTO {
-  /** ID of the source Template to generate content from. */
-  sourceTemplateId: string;
-  /** Prompt or instructions to guide the generation model. */
-  prompt: string;
-}
-⋮----
-/** ID of the source Template to generate content from. */
-⋮----
-/** Prompt or instructions to guide the generation model. */
-````
-
-## File: src/modules/template/subdomains/generation/application/dto/GenerationResultDTO.ts
-````typescript
-/**
- * GenerationResultDTO — outbound read model returned after a successful generation run.
- */
-export interface GenerationResultDTO {
-  generationId: string;
-  sourceTemplateId: string;
-  content: string;
-  generatedAt: string;
-}
-````
-
-## File: src/modules/template/subdomains/generation/application/ports/inbound/GenerateTemplatePort.ts
-````typescript
-import type { GenerateTemplateDTO } from '../../dto/GenerateTemplateDTO';
-import type { GenerationResultDTO } from '../../dto/GenerationResultDTO';
-⋮----
-/**
- * GenerateTemplatePort — Inbound Port
- * Contract for the GenerateTemplateUseCase public entry point.
- */
-export interface GenerateTemplatePort {
-  execute(input: GenerateTemplateDTO): Promise<GenerationResultDTO>;
-}
-⋮----
-execute(input: GenerateTemplateDTO): Promise<GenerationResultDTO>;
-````
-
-## File: src/modules/template/subdomains/generation/application/ports/outbound/AiGenerationPort.ts
-````typescript
-/**
- * AiGenerationPort — Outbound Port
- * Abstract contract for AI-powered content generation.
- * Infrastructure adapters (Genkit, OpenAI, mock) implement this interface.
- */
-export interface AiGenerationPort {
-  generate(sourceTemplateId: string, prompt: string): Promise<string>;
-}
-⋮----
-generate(sourceTemplateId: string, prompt: string): Promise<string>;
-````
-
-## File: src/modules/template/subdomains/generation/application/ports/outbound/GenerationRepositoryPort.ts
-````typescript
-import type { GenerationRepository } from '../../../domain/repositories/GenerationRepository';
-⋮----
-/**
- * GenerationRepositoryPort — Outbound Port
- * Type alias that exposes the domain repository contract to the application layer.
- */
-export type GenerationRepositoryPort = GenerationRepository;
-````
-
-## File: src/modules/template/subdomains/generation/application/use-cases/GenerateTemplateUseCase.ts
-````typescript
-import type { GenerateTemplatePort } from '../ports/inbound/GenerateTemplatePort';
-import type { GenerationRepositoryPort } from '../ports/outbound/GenerationRepositoryPort';
-import type { AiGenerationPort } from '../ports/outbound/AiGenerationPort';
-import type { GenerateTemplateDTO } from '../dto/GenerateTemplateDTO';
-import type { GenerationResultDTO } from '../dto/GenerationResultDTO';
-import { GeneratedTemplate } from '../../domain/entities/GeneratedTemplate';
-import { GenerationId } from '../../domain/value-objects/GenerationId';
-import { GenerationDomainService } from '../../domain/services/GenerationDomainService';
-⋮----
-/**
- * GenerateTemplateUseCase
- * Orchestrates AI-driven generation of a new template artifact.
- */
-export class GenerateTemplateUseCase implements GenerateTemplatePort {
-⋮----
-constructor(
-⋮----
-async execute(input: GenerateTemplateDTO): Promise<GenerationResultDTO>
-````
-
-## File: src/modules/template/subdomains/generation/domain/events/GenerationCompletedEvent.ts
-````typescript
-/**
- * GenerationCompletedEvent — Domain Event
- * Emitted when AI/rule-based template generation completes successfully.
- */
-export class GenerationCompletedEvent {
-⋮----
-constructor(
-````
-
-## File: src/modules/template/subdomains/generation/domain/repositories/GenerationRepository.ts
-````typescript
-import type { GeneratedTemplate } from '../entities/GeneratedTemplate';
-import type { GenerationId } from '../value-objects/GenerationId';
-⋮----
-/**
- * GenerationRepository — Domain Repository Interface
- * Abstract persistence contract for GeneratedTemplate aggregates.
- */
-export interface GenerationRepository {
-  findById(id: GenerationId): Promise<GeneratedTemplate | null>;
-  save(generated: GeneratedTemplate): Promise<void>;
-  delete(id: GenerationId): Promise<void>;
-}
-⋮----
-findById(id: GenerationId): Promise<GeneratedTemplate | null>;
-save(generated: GeneratedTemplate): Promise<void>;
-delete(id: GenerationId): Promise<void>;
-````
-
-## File: src/modules/template/subdomains/generation/domain/services/GenerationDomainService.ts
-````typescript
-/**
- * GenerationDomainService — Domain Service (stub)
- *
- * Handles business rules that span multiple GeneratedTemplate instances
- * or require coordination beyond a single aggregate.
- * Expand when generation subdomain is activated.
- */
-export class GenerationDomainService {
-⋮----
-/**
-   * Validate that a generation request is well-formed before the
-   * AI generation port is invoked.
-   */
-validateGenerationRequest(sourceTemplateId: string, prompt: string): void
-````
-
-## File: src/modules/template/subdomains/generation/domain/value-objects/GenerationId.ts
-````typescript
-/**
- * GenerationId — Value Object
- * Immutable identifier for a GeneratedTemplate aggregate.
- */
-export class GenerationId {
-⋮----
-private constructor(private readonly value: string)
-⋮----
-static create(value: string): GenerationId
-⋮----
-static generate(): GenerationId
-⋮----
-toString(): string
-⋮----
-equals(other: GenerationId): boolean
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/inbound/http/routes.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/inbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/outbound/firestore/FirestoreIngestionJobRepository.ts
-````typescript
-import type { IngestionJobRepository } from '../../../domain/repositories/IngestionJobRepository';
-import type { IngestionId } from '../../../domain/value-objects/IngestionId';
-import { IngestionJob } from '../../../domain/entities/IngestionJob';
-⋮----
-interface FirestoreLike {
-  get(path: string): Promise<Record<string, unknown> | null>;
-  set(path: string, data: Record<string, unknown>): Promise<void>;
-  delete(path: string): Promise<void>;
-}
-⋮----
-get(path: string): Promise<Record<string, unknown> | null>;
-set(path: string, data: Record<string, unknown>): Promise<void>;
-delete(path: string): Promise<void>;
-⋮----
-const toData = (job: IngestionJob): Record<string, unknown> => (
-⋮----
-/**
- * FirestoreIngestionJobRepository — Outbound Firestore Adapter
- */
-export class FirestoreIngestionJobRepository implements IngestionJobRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(id: IngestionId): Promise<IngestionJob | null>
-⋮----
-async save(job: IngestionJob): Promise<void>
-⋮----
-async delete(id: IngestionId): Promise<void>
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/outbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/outbound/storage/CloudStorageAdapter.ts
-````typescript
-import type { StoragePort } from '../../../application/ports/outbound/StoragePort';
-⋮----
-/**
- * CloudStorageAdapter — Outbound Storage Adapter (stub)
- * TODO: wire to Firebase Cloud Storage SDK in actual module implementation.
- */
-export class CloudStorageAdapter implements StoragePort {
-⋮----
-async readFile(_path: string): Promise<Buffer>
-````
-
-## File: src/modules/template/subdomains/ingestion/application/dto/IngestionJobResponseDTO.ts
-````typescript
-/** IngestionJobResponseDTO — read model returned after a job is created or queried. */
-export interface IngestionJobResponseDTO {
-  jobId: string;
-  sourceUrl: string;
-  status: string;
-  createdAt: string;
-  completedAt?: string;
-}
-````
-
-## File: src/modules/template/subdomains/ingestion/application/dto/StartIngestionDTO.ts
-````typescript
-/** StartIngestionDTO — inbound command to start a new ingestion job. */
-export interface StartIngestionDTO {
-  sourceUrl: string;
-}
-````
-
-## File: src/modules/template/subdomains/ingestion/application/ports/inbound/StartIngestionPort.ts
-````typescript
-import type { StartIngestionDTO } from '../../dto/StartIngestionDTO';
-import type { IngestionJobResponseDTO } from '../../dto/IngestionJobResponseDTO';
-⋮----
-/** StartIngestionPort — Inbound Port for the StartIngestionUseCase. */
-export interface StartIngestionPort {
-  execute(input: StartIngestionDTO): Promise<IngestionJobResponseDTO>;
-}
-⋮----
-execute(input: StartIngestionDTO): Promise<IngestionJobResponseDTO>;
-````
-
-## File: src/modules/template/subdomains/ingestion/application/ports/outbound/IngestionRepositoryPort.ts
-````typescript
-import type { IngestionJobRepository } from '../../../domain/repositories/IngestionJobRepository';
-⋮----
-/** IngestionRepositoryPort — Outbound Port (type alias). */
-export type IngestionRepositoryPort = IngestionJobRepository;
-````
-
-## File: src/modules/template/subdomains/ingestion/application/ports/outbound/StoragePort.ts
-````typescript
-/**
- * StoragePort — Outbound Port
- * Abstract contract for reading source documents from object storage.
- */
-export interface StoragePort {
-  readFile(path: string): Promise<Buffer>;
-}
-⋮----
-readFile(path: string): Promise<Buffer>;
-````
-
-## File: src/modules/template/subdomains/ingestion/application/use-cases/StartIngestionUseCase.ts
-````typescript
-import type { StartIngestionPort } from '../ports/inbound/StartIngestionPort';
-import type { IngestionRepositoryPort } from '../ports/outbound/IngestionRepositoryPort';
-import type { StartIngestionDTO } from '../dto/StartIngestionDTO';
-import type { IngestionJobResponseDTO } from '../dto/IngestionJobResponseDTO';
-import { IngestionJob } from '../../domain/entities/IngestionJob';
-import { IngestionId } from '../../domain/value-objects/IngestionId';
-import { IngestionDomainService } from '../../domain/services/IngestionDomainService';
-⋮----
-/**
- * StartIngestionUseCase
- * Creates a new IngestionJob and queues it for background processing.
- */
-export class StartIngestionUseCase implements StartIngestionPort {
-⋮----
-constructor(private readonly repository: IngestionRepositoryPort)
-⋮----
-async execute(input: StartIngestionDTO): Promise<IngestionJobResponseDTO>
-````
-
-## File: src/modules/template/subdomains/ingestion/domain/events/IngestionJobEvents.ts
-````typescript
-/**
- * IngestionJobStartedEvent — Domain Event
- * Emitted when a new ingestion job is created and submitted for processing.
- */
-export class IngestionJobStartedEvent {
-⋮----
-constructor(
-⋮----
-/**
- * IngestionJobCompletedEvent — Domain Event
- * Emitted when an ingestion job finishes successfully.
- */
-export class IngestionJobCompletedEvent {
-````
-
-## File: src/modules/template/subdomains/ingestion/domain/repositories/IngestionJobRepository.ts
-````typescript
-import type { IngestionJob } from '../entities/IngestionJob';
-import type { IngestionId } from '../value-objects/IngestionId';
-⋮----
-/**
- * IngestionJobRepository — Domain Repository Interface
- */
-export interface IngestionJobRepository {
-  findById(id: IngestionId): Promise<IngestionJob | null>;
-  save(job: IngestionJob): Promise<void>;
-  delete(id: IngestionId): Promise<void>;
-}
-⋮----
-findById(id: IngestionId): Promise<IngestionJob | null>;
-save(job: IngestionJob): Promise<void>;
-delete(id: IngestionId): Promise<void>;
-````
-
-## File: src/modules/template/subdomains/ingestion/domain/services/IngestionDomainService.ts
-````typescript
-/**
- * IngestionDomainService — Domain Service (stub)
- *
- * Business rules for ingestion job lifecycle that span multiple
- * aggregate instances or depend on external constraints.
- */
-export class IngestionDomainService {
-⋮----
-validateSourceUrl(sourceUrl: string): void
-````
-
-## File: src/modules/template/subdomains/ingestion/domain/value-objects/IngestionId.ts
-````typescript
-/**
- * IngestionId — Value Object
- * Immutable identifier for an IngestionJob aggregate.
- */
-export class IngestionId {
-⋮----
-private constructor(private readonly value: string)
-⋮----
-static create(value: string): IngestionId
-⋮----
-static generate(): IngestionId
-⋮----
-toString(): string
-⋮----
-equals(other: IngestionId): boolean
-````
-
-## File: src/modules/template/subdomains/workflow/adapters/inbound/http/routes.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/workflow/adapters/inbound/http/WorkflowController.ts
-````typescript
-import type { InitiateWorkflowPort } from '../../../application/ports/inbound/InitiateWorkflowPort';
-⋮----
-/**
- * WorkflowController — Inbound HTTP Adapter (stub)
- */
-export class WorkflowController {
-⋮----
-constructor(private readonly initiateUseCase: InitiateWorkflowPort)
-⋮----
-/** POST /api/workflows */
-async handleInitiate(request:
-````
-
-## File: src/modules/template/subdomains/workflow/adapters/inbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/workflow/adapters/outbound/firestore/FirestoreWorkflowRepository.ts
-````typescript
-import type { TemplateWorkflowRepository } from '../../../domain/repositories/TemplateWorkflowRepository';
-import type { WorkflowId } from '../../../domain/value-objects/WorkflowId';
-import { TemplateWorkflow } from '../../../domain/entities/TemplateWorkflow';
-⋮----
-interface FirestoreLike {
-  get(path: string): Promise<Record<string, unknown> | null>;
-  set(path: string, data: Record<string, unknown>): Promise<void>;
-  delete(path: string): Promise<void>;
-}
-⋮----
-get(path: string): Promise<Record<string, unknown> | null>;
-set(path: string, data: Record<string, unknown>): Promise<void>;
-delete(path: string): Promise<void>;
-⋮----
-/**
- * FirestoreWorkflowRepository — Outbound Firestore Adapter
- */
-export class FirestoreWorkflowRepository implements TemplateWorkflowRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(id: WorkflowId): Promise<TemplateWorkflow | null>
-⋮----
-async save(workflow: TemplateWorkflow): Promise<void>
-⋮----
-async delete(id: WorkflowId): Promise<void>
-````
-
-## File: src/modules/template/subdomains/workflow/adapters/outbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/workflow/application/dto/InitiateWorkflowDTO.ts
-````typescript
-/** InitiateWorkflowDTO — inbound command to start a new workflow for a template. */
-export interface InitiateWorkflowDTO {
-  templateId: string;
-}
-````
-
-## File: src/modules/template/subdomains/workflow/application/dto/WorkflowResponseDTO.ts
-````typescript
-/** WorkflowResponseDTO — read model returned after a workflow is created or queried. */
-export interface WorkflowResponseDTO {
-  workflowId: string;
-  templateId: string;
-  status: string;
-  startedAt: string;
-  completedAt?: string;
-}
-````
-
-## File: src/modules/template/subdomains/workflow/application/ports/inbound/InitiateWorkflowPort.ts
-````typescript
-import type { InitiateWorkflowDTO } from '../../dto/InitiateWorkflowDTO';
-import type { WorkflowResponseDTO } from '../../dto/WorkflowResponseDTO';
-⋮----
-/** InitiateWorkflowPort — Inbound Port for the InitiateWorkflowUseCase. */
-export interface InitiateWorkflowPort {
-  execute(input: InitiateWorkflowDTO): Promise<WorkflowResponseDTO>;
-}
-⋮----
-execute(input: InitiateWorkflowDTO): Promise<WorkflowResponseDTO>;
-````
-
-## File: src/modules/template/subdomains/workflow/application/ports/outbound/WorkflowRepositoryPort.ts
-````typescript
-import type { TemplateWorkflowRepository } from '../../../domain/repositories/TemplateWorkflowRepository';
-⋮----
-/** WorkflowRepositoryPort — Outbound Port (type alias). */
-export type WorkflowRepositoryPort = TemplateWorkflowRepository;
-````
-
-## File: src/modules/template/subdomains/workflow/application/use-cases/InitiateWorkflowUseCase.ts
-````typescript
-import type { InitiateWorkflowPort } from '../ports/inbound/InitiateWorkflowPort';
-import type { WorkflowRepositoryPort } from '../ports/outbound/WorkflowRepositoryPort';
-import type { InitiateWorkflowDTO } from '../dto/InitiateWorkflowDTO';
-import type { WorkflowResponseDTO } from '../dto/WorkflowResponseDTO';
-import { TemplateWorkflow } from '../../domain/entities/TemplateWorkflow';
-import { WorkflowId } from '../../domain/value-objects/WorkflowId';
-import { WorkflowDomainService } from '../../domain/services/WorkflowDomainService';
-⋮----
-/**
- * InitiateWorkflowUseCase
- * Creates a new TemplateWorkflow in 'pending' status.
- */
-export class InitiateWorkflowUseCase implements InitiateWorkflowPort {
-⋮----
-constructor(private readonly repository: WorkflowRepositoryPort)
-⋮----
-async execute(input: InitiateWorkflowDTO): Promise<WorkflowResponseDTO>
-````
-
-## File: src/modules/template/subdomains/workflow/domain/events/WorkflowEvents.ts
-````typescript
-/**
- * WorkflowInitiatedEvent — Domain Event
- * Raised when a TemplateWorkflow is successfully created.
- */
-export class WorkflowInitiatedEvent {
-⋮----
-constructor(
-⋮----
-/**
- * WorkflowCompletedEvent — Domain Event
- * Raised when a TemplateWorkflow reaches the 'completed' status.
- */
-export class WorkflowCompletedEvent {
-````
-
-## File: src/modules/template/subdomains/workflow/domain/repositories/TemplateWorkflowRepository.ts
-````typescript
-import type { TemplateWorkflow } from '../entities/TemplateWorkflow';
-import type { WorkflowId } from '../value-objects/WorkflowId';
-⋮----
-/** TemplateWorkflowRepository — Domain Port (interface). */
-export interface TemplateWorkflowRepository {
-  findById(id: WorkflowId): Promise<TemplateWorkflow | null>;
-  save(workflow: TemplateWorkflow): Promise<void>;
-  delete(id: WorkflowId): Promise<void>;
-}
-⋮----
-findById(id: WorkflowId): Promise<TemplateWorkflow | null>;
-save(workflow: TemplateWorkflow): Promise<void>;
-delete(id: WorkflowId): Promise<void>;
-````
-
-## File: src/modules/template/subdomains/workflow/domain/services/WorkflowDomainService.ts
-````typescript
-/**
- * WorkflowDomainService
- * Business rules that do not belong to a single TemplateWorkflow instance.
- */
-export class WorkflowDomainService {
-⋮----
-/**
-   * Validates that a templateId is provided before initiating a workflow.
-   */
-validateInitiateRequest(params:
-````
-
-## File: src/modules/template/subdomains/workflow/domain/value-objects/WorkflowId.ts
-````typescript
-import { v4 as uuidv4 } from 'uuid';
-⋮----
-/**
- * WorkflowId — Value Object
- */
-export class WorkflowId {
-⋮----
-private constructor(private readonly value: string)
-⋮----
-static create(raw: string): WorkflowId
-⋮----
-static generate(): WorkflowId
-⋮----
-toString(): string
-⋮----
-equals(other: WorkflowId): boolean
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -6023,6 +6397,210 @@ equals(other: WorkflowId): boolean
  * Public surface for all workspace React inbound adapters.
  * Consumed by src/app/ route shims and platform/adapters/inbound/react/.
  */
+````
+
+## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
+````typescript
+/**
+ * workspace-route-screens — workspace-scoped route screen components.
+ *
+ * Provides screens rendered within a workspace context:
+ *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
+ *   - WorkspaceHubScreen          (workspace listing / hub for an account)
+ *
+ * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
+ * etc.) belong in platform-ui-stubs because they are platform-owned, not
+ * workspace-owned.
+ */
+⋮----
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+⋮----
+import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
+import {
+  WORKSPACE_TAB_ITEMS,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "./workspace-nav-model";
+⋮----
+// ── Internal helpers ──────────────────────────────────────────────────────────
+⋮----
+function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
+⋮----
+// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+⋮----
+const tabHref = (tab: WorkspaceTabValue)
+⋮----
+<Badge variant=
+⋮----
+// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
+⋮----
+onClick=
+⋮----
+router.push(href);
+````
+
+## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
+````typescript
+/**
+ * workspace-shell-interop — workspace shell integration components & hooks.
+ *
+ * Bridges the workspace module with the platform shell:
+ *   - WorkspaceQuickAccessRow   (icon strip in sidebar header)
+ *   - WorkspaceSectionContent   (domain-grouped tab nav in sidebar body)
+ *   - CustomizeNavigationDialog (user nav-preference editor)
+ *   - CreateWorkspaceDialogRail (workspace creation triggered from app rail)
+ *   - useRecentWorkspaces       (recent workspace list hook)
+ *   - useSidebarLocale          (locale bundle stub hook)
+ *   - buildWorkspaceQuickAccessItems (URL builder for quick-access items)
+ *
+ * All pure navigation data (types, constants, URL helpers) lives in
+ * workspace-nav-model.ts — import from there for non-React consumers.
+ */
+⋮----
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  AlertCircle,
+  BadgeCheck,
+  Brain,
+  ClipboardCheck,
+  FileText,
+  FolderOpen,
+  Home,
+  Inbox,
+  ListTodo,
+  MessageSquare,
+  Notebook,
+  Receipt,
+  Settings,
+  Shield,
+  Users,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+⋮----
+import type { WorkspaceEntity } from "./WorkspaceContext";
+import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
+import {
+  DEFAULT_NAV_PREFS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
+  WORKSPACE_TAB_ITEMS,
+  getWorkspaceIdFromPath,
+  readNavPreferences,
+  resolveWorkspaceTabValue,
+  sanitizeNavPreferences,
+  writeNavPreferences,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+  type WorkspaceDomainGroup,
+} from "./workspace-nav-model";
+⋮----
+// Re-export types so callers that previously imported from workspace-ui-stubs
+// can keep working without change when workspace-ui-stubs becomes a barrel.
+⋮----
+// ── WorkspaceQuickAccessItem ──────────────────────────────────────────────────
+⋮----
+interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+⋮----
+interface WorkspaceQuickAccessItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+⋮----
+// workspace task lifecycle quick access
+⋮----
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId: string | undefined,
+): WorkspaceQuickAccessItem[]
+⋮----
+// ── useRecentWorkspaces ───────────────────────────────────────────────────────
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getRecentStorageKey(accountId: string): string
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string): void
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+):
+⋮----
+export function useSidebarLocale(): SidebarLocaleBundle | null
+⋮----
+// ── Module-level instantiation ────────────────────────────────────────────────
+⋮----
+// ── WorkspaceQuickAccessRow ───────────────────────────────────────────────────
+⋮----
+interface WorkspaceQuickAccessRowProps {
+  items: WorkspaceQuickAccessItem[];
+  pathname: string;
+  currentPanel: string | null;
+  currentWorkspaceTab: string | null;
+  workspaceSettingsHref: string;
+  isActiveRoute: (href: string) => boolean;
+}
+⋮----
+// ── WorkspaceSectionContent ───────────────────────────────────────────────────
+⋮----
+className=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+// ── CustomizeNavigationDialog ─────────────────────────────────────────────────
+⋮----
+setDraft((prev) => (
+⋮----
+setDraft(DEFAULT_NAV_PREFS);
+⋮----
+// ── CreateWorkspaceDialogRail ─────────────────────────────────────────────────
+⋮----
+function reset()
+⋮----
+async function handleSubmit(event: FormEvent<HTMLFormElement>)
+⋮----
+onOpenChange(isOpen);
+⋮----
+reset();
+onOpenChange(false);
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceContext.tsx
@@ -7515,40 +8093,6 @@ export function nextTaskStatus(current: TaskStatus): TaskStatus | null
 export function isTerminalTaskStatus(status: TaskStatus): boolean
 ````
 
-## File: src/AGENT.md
-````markdown
-# src — Agent Guide
-
-## Purpose
-
-`src/` 是 Xuanwu App 的 Next.js 應用程式根目錄，包含兩個主要子目錄：
-
-- `src/app/` — Next.js 16 App Router 路由入口層（layout、page、route group）
-- `src/modules/` — 所有主域模組實作層（Hexagonal Architecture + DDD）
-
-## Route Decision
-
-| 需要 | 去哪裡 |
-|---|---|
-| 新增或修改路由、layout、page | `src/app/` → 見 `src/app/AGENT.md` |
-| 新增或修改模組的 use case、entity、adapter | `src/modules/<context>/` → 見對應 `AGENT.md` |
-| 跨模組 API boundary | `src/modules/<context>/index.ts` |
-| 模組清單與子域狀態 | `src/modules/README.md` |
-
-## Boundary Rules
-
-- `src/app/` 只組合路由與 UI 入口，不承載業務邏輯。
-- `src/modules/` 是唯一模組實作層；不得在 `src/app/` 內直接撰寫 domain 或 use case 邏輯。
-- 跨模組協作只能透過目標模組的 `index.ts` 公開邊界，禁止跨模組直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/` 內部路徑。
-
-## 文件網絡
-
-- [src/app/AGENT.md](app/AGENT.md) — App Router 路由規則
-- [src/modules/README.md](modules/README.md) — 模組清單與子域狀態
-- [docs/bounded-contexts.md](../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/README.md](../docs/README.md) — 架構文件索引
-````
-
 ## File: src/modules/ai/index.ts
 ````typescript
 /**
@@ -7575,44 +8119,6 @@ export function isTerminalTaskStatus(status: TaskStatus): boolean
 // memory
 ⋮----
 // tool-calling
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
-````typescript
-/**
- * chunk-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching chunking jobs
- * to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The raw document content to be chunked */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Source type (e.g. "notion-page", "uploaded-file") */
-⋮----
-/** Optional hint for chunking strategy */
-⋮----
-/** Max token count per chunk; py_fn uses default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
 ````
 
 ## File: src/modules/ai/subdomains/chunk/adapters/outbound/index.ts
@@ -7765,42 +8271,6 @@ get id(): string
 get messages(): ContextMessage[]
 ⋮----
 getSnapshot(): Readonly<ContextSessionSnapshot>
-````
-
-## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
-````typescript
-/**
- * embedding-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching embedding generation
- * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The document/artifact that sourced these chunks */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Chunk IDs to generate embeddings for (at least one required) */
-⋮----
-/** Optional model hint; py_fn selects default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ````
 
 ## File: src/modules/ai/subdomains/embedding/adapters/outbound/index.ts
@@ -11385,326 +11855,6 @@ export function createWorkspaceNotificationEventType(raw: string): WorkspaceNoti
 
 ````
 
-## File: src/modules/template/subdomains/generation/adapters/inbound/http/GenerationController.ts
-````typescript
-import type { GenerateTemplatePort } from '../../../application/ports/inbound/GenerateTemplatePort';
-⋮----
-/**
- * GenerationController — Inbound HTTP Adapter (stub)
- * Translates HTTP requests into GenerateTemplateUseCase calls.
- * Framework-agnostic stub — wire to Next.js route handler or tRPC when activated.
- */
-export class GenerationController {
-⋮----
-constructor(private readonly generateUseCase: GenerateTemplatePort)
-⋮----
-/**
-   * POST /api/templates/:sourceId/generate
-   */
-async handleGenerate(request: {
-    sourceTemplateId: string;
-    prompt: string;
-})
-````
-
-## File: src/modules/template/subdomains/generation/adapters/inbound/queue/GenerationQueueHandler.ts
-````typescript
-import type { GenerateTemplatePort } from '../../../application/ports/inbound/GenerateTemplatePort';
-⋮----
-/**
- * GenerationQueueHandler — Inbound Queue Adapter (stub)
- * Handles async generation jobs delivered via a message queue (QStash, Pub/Sub, etc.).
- */
-export class GenerationQueueHandler {
-⋮----
-constructor(private readonly generateUseCase: GenerateTemplatePort)
-⋮----
-async handle(message:
-````
-
-## File: src/modules/template/subdomains/generation/adapters/index.ts
-````typescript
-// generation subdomain — adapters stub
-// Add inbound (http/queue) and outbound (persistence/external) adapters here.
-````
-
-## File: src/modules/template/subdomains/generation/application/index.ts
-````typescript
-// generation subdomain — application stub
-// Add use-cases, DTOs, and ports for AI/rule-based template generation here.
-// Expand only when this subdomain has real business behavior.
-````
-
-## File: src/modules/template/subdomains/generation/domain/entities/GeneratedTemplate.ts
-````typescript
-import { GenerationId } from '../value-objects/GenerationId';
-⋮----
-/**
- * GeneratedTemplate — Aggregate Root
- *
- * Represents the output artefact produced by an AI / rule-based
- * template generation run.
- */
-export interface GeneratedTemplateProps {
-  id: GenerationId;
-  sourceTemplateId: string;
-  content: string;
-  createdAt: Date;
-}
-⋮----
-export class GeneratedTemplate {
-⋮----
-private constructor(private readonly props: GeneratedTemplateProps)
-⋮----
-static create(
-    params: Omit<GeneratedTemplateProps, 'createdAt'>,
-): GeneratedTemplate
-⋮----
-get id(): GenerationId
-⋮----
-get sourceTemplateId(): string
-⋮----
-get content(): string
-⋮----
-get createdAt(): Date
-````
-
-## File: src/modules/template/subdomains/generation/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/inbound/http/IngestionController.ts
-````typescript
-import type { StartIngestionPort } from '../../../application/ports/inbound/StartIngestionPort';
-⋮----
-/**
- * IngestionController — Inbound HTTP Adapter (stub)
- */
-export class IngestionController {
-⋮----
-constructor(private readonly startUseCase: StartIngestionPort)
-⋮----
-/** POST /api/ingestion */
-async handleStart(request:
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/inbound/queue/IngestionQueueHandler.ts
-````typescript
-import type { StartIngestionPort } from '../../../application/ports/inbound/StartIngestionPort';
-⋮----
-/**
- * IngestionQueueHandler — Inbound Queue Adapter (stub)
- * Triggered by a queue message (QStash, Pub/Sub, etc.) to start or resume an ingestion job.
- */
-export class IngestionQueueHandler {
-⋮----
-constructor(private readonly startUseCase: StartIngestionPort)
-⋮----
-async handle(message:
-````
-
-## File: src/modules/template/subdomains/ingestion/adapters/index.ts
-````typescript
-// ingestion subdomain — adapters stub
-// Add inbound (queue) and outbound (storage/firestore) adapters here.
-````
-
-## File: src/modules/template/subdomains/ingestion/application/index.ts
-````typescript
-// ingestion subdomain — application stub
-// Add use-cases, DTOs, and ports for source-document ingestion flows here.
-````
-
-## File: src/modules/template/subdomains/ingestion/domain/entities/IngestionJob.ts
-````typescript
-import { IngestionId } from '../value-objects/IngestionId';
-⋮----
-/**
- * IngestionJob — Aggregate Root
- * Tracks the lifecycle of a single source-document ingestion run.
- */
-export type IngestionStatus = 'pending' | 'processing' | 'completed' | 'failed';
-⋮----
-export interface IngestionJobProps {
-  id: IngestionId;
-  sourceUrl: string;
-  status: IngestionStatus;
-  createdAt: Date;
-  completedAt?: Date;
-}
-⋮----
-export class IngestionJob {
-⋮----
-private constructor(private props: IngestionJobProps)
-⋮----
-static create(
-    params: Pick<IngestionJobProps, 'id' | 'sourceUrl'>,
-): IngestionJob
-⋮----
-get id(): IngestionId
-⋮----
-get sourceUrl(): string
-⋮----
-get status(): IngestionStatus
-⋮----
-get createdAt(): Date
-⋮----
-get completedAt(): Date | undefined
-⋮----
-markProcessing(): void
-⋮----
-markCompleted(): void
-⋮----
-markFailed(): void
-````
-
-## File: src/modules/template/subdomains/ingestion/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/template/subdomains/workflow/adapters/index.ts
-````typescript
-// workflow subdomain — adapters stub
-// Add inbound (http) and outbound (persistence) adapters here.
-````
-
-## File: src/modules/template/subdomains/workflow/application/index.ts
-````typescript
-// workflow subdomain — application stub
-// Add use-cases, DTOs, and ports for template lifecycle workflows here.
-````
-
-## File: src/modules/template/subdomains/workflow/domain/entities/TemplateWorkflow.ts
-````typescript
-import { WorkflowId } from '../value-objects/WorkflowId';
-⋮----
-/**
- * TemplateWorkflow — Aggregate Root
- * Represents a lifecycle workflow bound to a Template aggregate
- * (e.g. pending → active → completed).
- */
-export type WorkflowStatus =
-  | 'pending'
-  | 'active'
-  | 'paused'
-  | 'completed'
-  | 'cancelled';
-⋮----
-export interface TemplateWorkflowProps {
-  id: WorkflowId;
-  templateId: string;
-  status: WorkflowStatus;
-  startedAt: Date;
-  completedAt?: Date;
-}
-⋮----
-export class TemplateWorkflow {
-⋮----
-private constructor(private props: TemplateWorkflowProps)
-⋮----
-static initiate(
-    params: Pick<TemplateWorkflowProps, 'id' | 'templateId'>,
-): TemplateWorkflow
-⋮----
-get id(): WorkflowId
-⋮----
-get templateId(): string
-⋮----
-get status(): WorkflowStatus
-⋮----
-get startedAt(): Date
-⋮----
-get completedAt(): Date | undefined
-⋮----
-activate(): void
-⋮----
-pause(): void
-⋮----
-complete(): void
-⋮----
-cancel(): void
-````
-
-## File: src/modules/template/subdomains/workflow/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
-````typescript
-/**
- * AccountRouteDispatcher — workspace inbound adapter (React).
- *
- * Receives accountId + slug props from the Server Component shim and
- * dispatches to the appropriate route screen.
- *
- * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
- */
-⋮----
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
-import {
-  useAccountRouteContext,
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
-import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
-import {
-  AccountDashboardRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "./workspace-ui-stubs";
-⋮----
-// Lazy imports to avoid hard-coupling modules that may not yet be available
-⋮----
-// These screens live in workspace/platform stubs — import dynamically to
-// allow partial availability during incremental migration.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-⋮----
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-⋮----
-// Gracefully degrade if screens are not yet available
-⋮----
-export interface AccountRouteDispatcherProps {
-  accountId: string;
-  slug: string[];
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-function NotFound()
-⋮----
-export function AccountRouteDispatcher({
-  accountId: accountIdFromParams,
-  slug,
-}: AccountRouteDispatcherProps)
-⋮----
-// Legacy redirect: /organization/... → /<accountId>/...
-⋮----
-// Legacy redirect: /workspace/... → /<accountId>/...
-⋮----
-// Root: /<accountId>
-⋮----
-if (accountType === "organization")
-⋮----
-// Single-segment routes: /<accountId>/<segment>
-⋮----
-// Two-segment routes
-⋮----
-// Fallback
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts
 ````typescript
 /**
@@ -13482,48 +13632,112 @@ export function createTaskId(raw: string): TaskId
 詳見 [AGENT.md](./AGENT.md) 與 [src/modules/README.md](./modules/README.md)。
 ````
 
-## File: src/app/AGENT.md
+## File: src/AGENT.md
 ````markdown
-# App — Agent Guide
+# src — Agent Guide
 
 ## Purpose
 
-`src/app/` 是 **Next.js 16 App Router** 的路由入口層，負責 layout 組合與 page slot 分發。不承載任何業務邏輯。
+`src/` 是 Xuanwu App 的 Next.js 應用程式根目錄，包含兩個主要子目錄：
+
+- `src/app/` — Next.js 16 App Router 路由入口層（layout、page、route group）
+- `src/modules/` — 所有主域模組實作層（Hexagonal Architecture + DDD）
+
+## Route Decision
+
+| 需要 | 去哪裡 |
+|---|---|
+| 新增或修改路由、layout、page | `src/app/` → 見 `src/app/AGENT.md` |
+| 新增或修改模組的 use case、entity、adapter | `src/modules/<context>/` → 見對應 `AGENT.md` |
+| 跨模組 API boundary | `src/modules/<context>/index.ts` |
+| 模組清單與子域狀態 | `src/modules/README.md` |
 
 ## Boundary Rules
 
-- `app/` 只組合路由、layout 與 UI 入口，不寫業務規則、不呼叫 repository、不直接存取 Firebase SDK。
-- 業務行為透過 Server Action 或模組 `index.ts` 公開邊界取得。
-- 不在 layout / page 中引用另一個模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部路徑。
-- Route 組件只接受 scope props（`accountId`、`workspaceId`），不直接消費跨模組的 context provider。
+- `src/app/` 只組合路由與 UI 入口，不承載業務邏輯。
+- `src/modules/` 是唯一模組實作層；不得在 `src/app/` 內直接撰寫 domain 或 use case 邏輯。
+- 跨模組協作只能透過目標模組的 `index.ts` 公開邊界，禁止跨模組直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/` 內部路徑。
 
-## Route Group 設計
+## 文件網絡
 
-| 群組 | 用途 |
-|---|---|
-| `(public)` | 登入前公開頁（landing、auth） |
-| `(shell)` | 登入後帶 shell chrome 的應用頁面 |
-| `(shell)/(account)/[accountId]` | account-scoped 頁面，`accountId` 為 shell route identifier |
-| `[[...slug]]` | catch-all，在 account scope 下承接所有子路徑 |
+- [src/app/AGENT.md](app/AGENT.md) — App Router 路由規則
+- [src/modules/README.md](modules/README.md) — 模組清單與子域狀態
+- [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/README.md](../docs/README.md) — 架構文件索引
+````
 
-## Route Here When
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
+````typescript
+/**
+ * chunk-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching chunking jobs
+ * to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The raw document content to be chunked */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Source type (e.g. "notion-page", "uploaded-file") */
+⋮----
+/** Optional hint for chunking strategy */
+⋮----
+/** Max token count per chunk; py_fn uses default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
+````
 
-- 需要新增 page、layout 或 route group。
-- 需要在 shell 內新增一個 account-scoped 功能頁面。
-- 需要組合 parallel routes 或 intercepting routes。
-
-## Route Elsewhere When
-
-- 業務邏輯 → `src/modules/<context>/application/use-cases/`。
-- Server Action → `modules/<context>/interfaces/_actions/`。
-- 共享 UI 元件 → `packages/ui-shadcn/`。
-- 共享 hook → `packages/shared-hooks/`。
-
-## Delivery Style
-
-- 保持 layout 和 page 輕薄（thin）：只做 slot 組合與 scope prop 傳遞。
-- 新增 route segment 前先確認 `accountId` / `workspaceId` scope 是否已在父 layout 中取得。
-- 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
+````typescript
+/**
+ * embedding-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching embedding generation
+ * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The document/artifact that sourced these chunks */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Chunk IDs to generate embeddings for (at least one required) */
+⋮----
+/** Optional model hint; py_fn selects default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ````
 
 ## File: src/modules/iam/adapters/inbound/react/AuthContext.tsx
@@ -13717,56 +13931,6 @@ export function AccountScopeProvider(
 // eslint-disable-next-line react-hooks/exhaustive-deps
 ````
 
-## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
-````typescript
-/**
- * platform-ui-stubs — platform inbound adapter (React).
- *
- * Remaining stubs for platform UI elements not yet implemented as real
- * components.  Items that have been promoted to real implementations are
- * re-exported from their canonical files below.
- */
-⋮----
-import { useState } from "react";
-⋮----
-// ── Shell theme toggle + language switcher ────────────────────────────────────
-// Imported locally so they can be composed in ShellHeaderControls below,
-// then re-exported so callers that want direct access can import from here.
-⋮----
-import { ShellThemeToggle } from "./shell/ShellThemeToggle";
-import { ShellLanguageSwitcher } from "./shell/ShellLanguageSwitcher";
-⋮----
-// ── Real implementations (promoted from stubs) ────────────────────────────────
-⋮----
-// ── Account route context ─────────────────────────────────────────────────────
-⋮----
-// ── Shell breadcrumbs ─────────────────────────────────────────────────────────
-⋮----
-export function ShellAppBreadcrumbs(): null
-⋮----
-// ── Shell header controls (theme toggle + language switcher) ──────────────────
-⋮----
-export function ShellHeaderControls(): React.ReactElement
-⋮----
-// ── Global search ─────────────────────────────────────────────────────────────
-⋮----
-export function ShellGlobalSearchDialog(
-  _props: ShellGlobalSearchDialogProps,
-): null
-⋮----
-export function useShellGlobalSearch():
-⋮----
-// ── Stub route screens ────────────────────────────────────────────────────────
-⋮----
-export function OrganizationMembersRouteScreen(): React.ReactElement
-⋮----
-export function OrganizationOverviewRouteScreen(): React.ReactElement
-⋮----
-export function OrganizationPermissionsRouteScreen(): React.ReactElement
-⋮----
-export function SettingsNotificationsRouteScreen(): React.ReactElement
-````
-
 ## File: src/modules/platform/adapters/inbound/react/shell/AccountSwitcher.tsx
 ````typescript
 /**
@@ -13930,28 +14094,621 @@ export interface SearchCatalogPort {
 listItems(): readonly SearchItem[];
 ````
 
-## File: src/modules/template/index.ts
+## File: src/modules/template/AGENT.md
+````markdown
+# Template Module — Agent Guide
+
+## Purpose
+
+`src/modules/template` 是**可複製的 Hexagonal Architecture + DDD 多子域骨架**，示範正確的多 subdomain 分層結構、具名匯出規範與跨子域協調模式。用來當作新模組的起點，或作為架構參照。
+
+## Structure At a Glance
+
+```
+index.ts              ← 唯一對外入口（重新匯出全部四個子域的 domain + application 符號）
+orchestration/        ← 跨子域 Facade + Coordinator
+shared/               ← 跨子域共用層（domain / application / config / constants /
+                         errors / events / infrastructure / types / utils）
+subdomains/
+  document/           ← 核心子域，完整 domain + application + adapters
+  generation/         ← 生成子域，完整 domain + application + adapters
+  ingestion/          ← 匠入子域，完整 domain + application + adapters
+  workflow/           ← 流程子域，完整 domain + application + adapters
+```
+
+## Boundary Rules
+
+- `subdomains/*/domain/` 不得匯入 React、Firebase SDK、HTTP client、ORM 或任何框架。
+- `subdomains/*/application/` 只依賴同子域 `domain/` 抽象，不依賴 adapter 實作。
+- Adapters 只實作 port 介面，不承載業務規則。
+- 跨子域協調只能透過 `orchestration/` 或 `shared/events/`，**禁止直接跨 subdomain import**。
+- 外部消費者只能透過 `src/modules/template/index.ts`（具名匯出）存取。
+
+## Barrel & Named Export Rules
+
+- 所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
+- 每個子域各有自己的 barrel 層（domain/index.ts、application/index.ts、adapters/index.ts）。
+- Source 檔案之間的 import 使用**直接相對路徑**（例如 `'../../../domain/value-objects/TemplateId'`），不依賴 barrel，確保 barrel 可獨立變更。
+- `shared/*/index.ts` 為各共用層的匯出出口，由需要者直接引用。
+
+## Route Here When
+
+- 需要新建一個多子域 DDD module 骨架。
+- 需要查閱正確的 barrel 結構、具名匯出寫法或跨子域協調模式。
+- 需要確認 Hexagonal 依賴方向、多子域邂界、VO ID 模式、FirestoreLike 抄象、AI adapter stub 鮣變的範例。
+
+## Route Elsewhere When
+
+- 真實業務需求 → 依對應 bounded context 建立新的 `src/modules/<context>/`。
+- 共享 UI 元件 → `packages/ui-shadcn/`。
+- 共享工具函式 → `packages/shared-utils/`。
+
+## Development Order（新子域展開順序）
+
+1. `subdomains/<name>/domain/`：定義 Entity、Value Object（VO ID）、Domain Event、Repository Port。
+2. `subdomains/<name>/application/`：定義 Use Case、DTO、Inbound / Outbound Port。
+3. `subdomains/<name>/adapters/outbound/`：實作 Repository Port（FirestoreLike 抄象）與其他 outbound adapter。
+4. `subdomains/<name>/adapters/inbound/`：實作 HTTP / Queue adapter（workflow 僅需 HTTP）。
+5. 更新各層 barrel index，確保具名匯出完整。
+6. 如有跨子域流程需求，在 `orchestration/TemplateCoordinator.ts` 注入相關 use case。
+7. 更新根 `index.ts` 補露新符號。
+
+## Delivery Style
+
+- 奈卡姆剥刀：本模組四個子域均已完整實作，可直接複製作為新模組起點。
+- 複製時只保留有實際業務需求的子域；generation / ingestion / workflow 可依業務選手。
+- AI adapter（`AiGenerationAdapter`）與 Storage adapter（`CloudStorageAdapter`）為 stub，待雞 Genkit / Cloud Storage 連接時再完善。
+
+---
+
+## 已確立模式（Pattern Reference）
+
+| 模式 | 說明 |
+|---|---|
+| **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
+| **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
+| **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
+| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Genkit wiring |
+| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Cloud Storage wiring |
+| **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
+| **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
+
+---
+
+## 衝突防護（src/modules vs modules/）
+
+`src/modules/template` 屬於**模組實作層（`src/modules/`）**。
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
+| 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
+| 跨模組 API boundary | `src/modules/<context>/index.ts` |
+| 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
+
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 React、Firebase SDK、HTTP client、ORM
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
+- [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/template/README.md
+````markdown
+# Template Module
+
+`src/modules/template` 是一個可複製的 **Hexagonal Architecture + DDD 多子域骨架**，示範多 subdomain 分層結構、具名匯出規範與跨子域協調模式。
+
+## 目錄結構
+
+```
+src/modules/template/
+  index.ts                          ← 模組對外唯一入口（具名匯出）
+  README.md
+  AGENT.md
+  orchestration/
+    TemplateFacade.ts               ← 對外統一 Facade（委派各子域 use case）
+    TemplateCoordinator.ts          ← 跨子域流程協調（document→generation→ingestion→workflow）
+  shared/
+    domain/index.ts                 ← 跨子域共用 domain 概念（Value Object、Policy）
+    application/index.ts            ← 跨子域共用 DTO / Port
+    config/index.ts                 ← 模組設定
+    constants/index.ts              ← 模組常數
+    errors/index.ts                 ← 共用錯誤類型
+    events/index.ts                 ← 跨子域 Published Language Events
+    infrastructure/index.ts         ← 共用 infrastructure 工具
+    types/index.ts                  ← 共用 TypeScript 型別
+    utils/index.ts                  ← 共用工具函式
+  subdomains/
+    document/                       ← 核心子域（CRUD 完整實作）
+      domain/
+        entities/Template.ts
+        value-objects/TemplateId.ts
+        value-objects/TemplateName.ts
+        events/TemplateCreatedEvent.ts
+        events/TemplateUpdatedEvent.ts
+        repositories/TemplateRepository.ts
+        services/TemplateDomainService.ts
+        index.ts
+      application/
+        use-cases/{Create,Update,Delete}TemplateUseCase.ts
+        dto/{Create,Update,Response}TemplateDTO.ts
+        ports/inbound/CreateTemplatePort.ts
+        ports/outbound/{TemplateRepositoryPort,CachePort,ExternalApiPort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{TemplateController,routes}.ts
+          queue/TemplateQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/{FirestoreTemplateRepository,FirestoreMapper}.ts
+          cache/TemplateCacheAdapter.ts
+          external-api/TemplateApiClient.ts
+          index.ts
+        index.ts
+    generation/                     ← 生成子域（完整實作）
+      domain/
+        entities/GeneratedTemplate.ts   ← id: GenerationId（VO）
+        value-objects/GenerationId.ts
+        repositories/GenerationRepository.ts
+        services/GenerationDomainService.ts
+        events/GenerationCompletedEvent.ts
+        index.ts
+      application/
+        use-cases/GenerateTemplateUseCase.ts
+        dto/{GenerateTemplate,GenerationResult}DTO.ts
+        ports/inbound/GenerateTemplatePort.ts
+        ports/outbound/{GenerationRepositoryPort,AiGenerationPort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{GenerationController,routes}.ts
+          queue/GenerationQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/FirestoreGenerationRepository.ts
+          ai/AiGenerationAdapter.ts             ← stub, TODO: wire Genkit
+          index.ts
+        index.ts
+    ingestion/                      ← 匯入子域（完整實作）
+      domain/
+        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
+        value-objects/IngestionId.ts
+        repositories/IngestionJobRepository.ts
+        services/IngestionDomainService.ts
+        events/IngestionJobEvents.ts
+        index.ts
+      application/
+        use-cases/StartIngestionUseCase.ts
+        dto/{StartIngestion,IngestionJobResponse}DTO.ts
+        ports/inbound/StartIngestionPort.ts
+        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{IngestionController,routes}.ts
+          queue/IngestionQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/FirestoreIngestionJobRepository.ts
+          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
+          index.ts
+        index.ts
+    workflow/                       ← 流程子域（完整實作）
+      domain/
+        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
+        value-objects/WorkflowId.ts
+        repositories/TemplateWorkflowRepository.ts
+        services/WorkflowDomainService.ts
+        events/WorkflowEvents.ts
+        index.ts
+      application/
+        use-cases/InitiateWorkflowUseCase.ts
+        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
+        ports/inbound/InitiateWorkflowPort.ts
+        ports/outbound/WorkflowRepositoryPort.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
+          index.ts
+        outbound/
+          firestore/FirestoreWorkflowRepository.ts
+          index.ts
+        
+        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
+        value-objects/IngestionId.ts
+        repositories/IngestionJobRepository.ts
+        services/IngestionDomainService.ts
+        events/IngestionJobEvents.ts
+        index.ts
+      application/
+        use-cases/StartIngestionUseCase.ts
+        dto/{StartIngestion,IngestionJobResponse}DTO.ts
+        ports/inbound/StartIngestionPort.ts
+        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{IngestionController,routes}.ts
+          queue/IngestionQueueHandler.ts
+          index.ts
+        outbound/
+          firestore/FirestoreIngestionJobRepository.ts
+          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
+          index.ts
+        index.ts
+    workflow/                       ← 流程子域（完整實作）
+      domain/
+        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
+        value-objects/WorkflowId.ts
+        repositories/TemplateWorkflowRepository.ts
+        services/WorkflowDomainService.ts
+        events/WorkflowEvents.ts
+        index.ts
+      application/
+        use-cases/InitiateWorkflowUseCase.ts
+        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
+        ports/inbound/InitiateWorkflowPort.ts
+        ports/outbound/WorkflowRepositoryPort.ts
+        index.ts
+      adapters/
+        inbound/
+          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
+          index.ts
+        outbound/
+          firestore/FirestoreWorkflowRepository.ts
+          index.ts
+        index.ts
+```
+
+## Barrel 結構（具名匯出原則）
+
+所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
+
+| 檔案 | 覆蓋範圍 |
+|---|---|
+| `index.ts` | 模組對外唯一公開入口：重新匯出全部四個子域的 domain + application 符號 |
+| `subdomains/document/domain/index.ts` | entities、value-objects、events、repositories、services |
+| `subdomains/document/application/index.ts` | use-cases、dto、ports |
+| `subdomains/generation/domain/index.ts` | GeneratedTemplate、GenerationId、events、service、repo |
+| `subdomains/generation/application/index.ts` | GenerateTemplateUseCase、dto、ports（含 AiGenerationPort）|
+| `subdomains/ingestion/domain/index.ts` | IngestionJob、IngestionId、events、service、repo |
+| `subdomains/ingestion/application/index.ts` | StartIngestionUseCase、dto、ports（含 StoragePort）|
+| `subdomains/workflow/domain/index.ts` | TemplateWorkflow、WorkflowId、events、service、repo |
+| `subdomains/workflow/application/index.ts` | InitiateWorkflowUseCase、dto、ports |
+| `shared/*/index.ts` | 各共用層的對外出口 |
+
+### 根 index.ts 匯出範例
+
+```ts
+// src/modules/template/index.ts
+export {
+  Template, TemplateId, TemplateName,
+  TemplateCreatedEvent, TemplateUpdatedEvent, TemplateDomainService,
+} from './subdomains/document/domain';
+export type { TemplateProps, TemplateRepository } from './subdomains/document/domain';
+export {
+  CreateTemplateUseCase, UpdateTemplateUseCase, DeleteTemplateUseCase,
+} from './subdomains/document/application';
+export type {
+  CreateTemplateDTO, UpdateTemplateDTO, TemplateResponseDTO,
+  CreateTemplatePort, TemplateRepositoryPort, CachePort, ExternalApiPort,
+} from './subdomains/document/application';
+
+// generation
+export { GeneratedTemplate, GenerationId, GenerationDomainService, GenerationCompletedEvent } from './subdomains/generation/domain';
+export type { GenerationRepository } from './subdomains/generation/domain';
+export { GenerateTemplateUseCase } from './subdomains/generation/application';
+export type { GenerateTemplateDTO, GenerationResultDTO, GenerateTemplatePort, GenerationRepositoryPort, AiGenerationPort } from './subdomains/generation/application';
+
+// ingestion
+export { IngestionJob, IngestionId, IngestionDomainService, IngestionJobStartedEvent, IngestionJobCompletedEvent } from './subdomains/ingestion/domain';
+export type { IngestionJobRepository, IngestionStatus } from './subdomains/ingestion/domain';
+export { StartIngestionUseCase } from './subdomains/ingestion/application';
+export type { StartIngestionDTO, IngestionJobResponseDTO, StartIngestionPort, IngestionRepositoryPort, StoragePort } from './subdomains/ingestion/application';
+
+// workflow
+export { TemplateWorkflow, WorkflowId, WorkflowDomainService, WorkflowInitiatedEvent, WorkflowCompletedEvent } from './subdomains/workflow/domain';
+export type { TemplateWorkflowRepository, WorkflowStatus } from './subdomains/workflow/domain';
+export { InitiateWorkflowUseCase } from './subdomains/workflow/application';
+export type { InitiateWorkflowDTO, WorkflowResponseDTO, InitiateWorkflowPort, WorkflowRepositoryPort } from './subdomains/workflow/application';
+```
+
+所有 source 檔內部 import 使用**直接相對路徑**，不依賴 barrel index，確保 barrel 可獨立修改。
+
+## 依賴方向
+
+```
+subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
+                                                                    ↑
+                               subdomains/*/adapters/outbound  ───┘
+                                                    ↑
+                                             shared/domain
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
+
+## 如何複製成新模組
+
+1. 複製整個 `src/modules/template/` 資料夾。
+2. 全域取代 `Template` → `<YourEntity>`（保留大小寫規律），各子域實體名稱也一併取代。
+3. 保留實際有業務需求的子域；刪除不需要的子域（generation / ingestion / workflow 可視業務選用）。
+4. 依 DDD 開發順序填入業務規則：Domain → Application → Ports → Adapters → Orchestration。
+5. 更新根 `index.ts` barrel，僅匯出有實作的子域符號。
+
+---
+
+## 路由規則
+
+- 讀取邊界規則、published language → `src/modules/<context>/AGENT.md`
+- 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
+- 需要跨模組 API boundary → `src/modules/<context>/index.ts`
+
+---
+
+## 衝突防護
+
+1. **不在 `domain/` 匯入 Firebase SDK、React、HTTP client 或 ORM。**
+2. `template` 模組本身不代表任何業務邊界；真實業務請在對應 `src/modules/<context>/` 實作。
+
+---
+
+## 文件網絡
+
+- [src/modules/README.md](../README.md) — 模組層狀態總覽
+- [src/modules/template/AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-context-subdomain-template.md](../../../docs/structure/domain/bounded-context-subdomain-template.md) — 設計藍圖
+````
+
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
 ````typescript
 /**
- * Template Module — aggregate export.
- * Cross-module consumers should only depend on symbols re-exported here.
+ * AccountRouteDispatcher — workspace inbound adapter (React).
  *
- * Source of truth: subdomains/document
- * Orchestration:   orchestration/TemplateFacade (composition root)
- * Shared types:    shared/types, shared/errors, shared/events
+ * Receives accountId + slug props from the Server Component shim and
+ * dispatches to the appropriate route screen.
+ *
+ * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
  */
 ⋮----
-// ── document subdomain: domain ────────────────────────────────────────────────
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 ⋮----
-// ── document subdomain: application ──────────────────────────────────────────
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  useAccountRouteContext,
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  OrganizationTeamsRouteScreen,
+  OrganizationScheduleRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationAuditRouteScreen,
+  SettingsNotificationsRouteScreen,
+} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import {
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "./workspace-ui-stubs";
 ⋮----
-// ── shared ────────────────────────────────────────────────────────────────────
+export interface AccountRouteDispatcherProps {
+  accountId: string;
+  slug: string[];
+}
 ⋮----
-// ── generation subdomain ──────────────────────────────────────────────────────
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
 ⋮----
-// ── ingestion subdomain ───────────────────────────────────────────────────────
+function RedirectingRoute(
 ⋮----
-// ── workflow subdomain ────────────────────────────────────────────────────────
+export function AccountRouteDispatcher({
+  accountId: accountIdFromParams,
+  slug,
+}: AccountRouteDispatcherProps)
+⋮----
+// Legacy redirect: /organization/... → /<accountId>/...
+⋮----
+// Legacy redirect: /workspace/... → /<accountId>/...
+⋮----
+// Root: /<accountId>
+⋮----
+if (accountType === "organization")
+⋮----
+// Single-segment routes: /<accountId>/<segment>
+⋮----
+// Two-segment routes
+⋮----
+// Fallback
+````
+
+## File: src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts
+````typescript
+/**
+ * workspace-nav-model — pure navigation model for the workspace context.
+ *
+ * Domain-aware tab/group model, URL utilities, and nav-preferences persistence.
+ * No JSX, no React hooks — safe to import in Server Components or shared utils.
+ *
+ * Tab ID naming convention:
+ *   <domainGroup>.<slug>  e.g. "notion.knowledge", "notebooklm.ai-chat"
+ * Tab value naming convention (URL ?tab= query param):
+ *   PascalCase, must remain stable to preserve bookmarked URLs.
+ */
+⋮----
+// ── Types & interfaces ────────────────────────────────────────────────────────
+⋮----
+export interface NavPreferences {
+  readonly pinnedWorkspace: string[];
+  readonly pinnedPersonal: string[];
+  readonly showLimitedWorkspaces: boolean;
+  readonly maxWorkspaces: number;
+}
+⋮----
+export type SidebarLocaleBundle = Record<string, string>;
+⋮----
+/**
+ * WorkspaceTabValue — canonical URL ?tab= values.
+ * These are stable URL identifiers; do not rename without a redirect layer.
+ *
+ * workspace group (業務運作 — Work Execution)
+ *   Backed by: workspace/subdomains/task, issue, approval, settlement, membership
+ *
+ * notion group (知識與資料結構 — Knowledge & Structure)
+ *   Backed by: notion/subdomains/page, block, database, view, template, collaboration
+ *   Context7 alignment: Page = hierarchical content container; Database = structured
+ *   collection with typed properties; View = filter/sort/layout of a Database
+ *   (table/board/calendar/gallery/timeline); Template = reusable page/db scaffold.
+ *
+ * notebooklm group (AI 理解與推理 — AI Reasoning & Synthesis)
+ *   Backed by: notebooklm/subdomains/notebook, document, conversation
+ *   Notebook = AI-assisted notebook with documentIds[]; Document = ingested source
+ *   (storageUrl, mimeType, classification, processing status); Conversation =
+ *   thread-based RAG exchange linked to a notebook.
+ */
+export type WorkspaceTabValue =
+  // workspace
+  | "Overview"
+  | "Daily"
+  | "Schedule"
+  | "Audit"
+  | "Files"
+  | "Members"
+  | "WorkspaceSettings"
+  | "TaskFormation"
+  | "Tasks"
+  | "Quality"
+  | "Approval"
+  | "Settlement"
+  | "Issues"
+  // notion
+  | "Knowledge"
+  | "Pages"
+  | "Database"
+  | "Templates"
+  // notebooklm
+  | "Notebook"
+  | "AiChat"
+  | "Sources"
+  | "Research";
+⋮----
+// workspace
+⋮----
+// notion
+⋮----
+// notebooklm
+⋮----
+/**
+ * WorkspaceDomainGroup — the owning domain module for a workspace tab.
+ *
+ * workspace   → 業務運作 (Work Execution)
+ * notion      → 知識與資料結構 (Knowledge & Data)
+ * notebooklm  → AI 理解與推理 (AI Reasoning)
+ */
+export type WorkspaceDomainGroup = "workspace" | "notion" | "notebooklm";
+⋮----
+export interface WorkspaceTabItem {
+  /**
+   * id — domain-prefixed stable identifier used in localStorage preferences.
+   * Format: "<domainGroup>.<slug>", e.g. "notion.knowledge", "workspace.tasks".
+   */
+  readonly id: string;
+  /** value — canonical URL ?tab= query param value. Never rename. */
+  readonly value: WorkspaceTabValue;
+  readonly label: string;
+  readonly domainGroup: WorkspaceDomainGroup;
+}
+⋮----
+/**
+   * id — domain-prefixed stable identifier used in localStorage preferences.
+   * Format: "<domainGroup>.<slug>", e.g. "notion.knowledge", "workspace.tasks".
+   */
+⋮----
+/** value — canonical URL ?tab= query param value. Never rename. */
+⋮----
+// ── Tab catalogue ─────────────────────────────────────────────────────────────
+⋮----
+/**
+ * WORKSPACE_TAB_ITEMS — authoritative ordered tab catalogue.
+ *
+ * id    — domain-prefixed localStorage key (workspace.*|notion.*|notebooklm.*)
+ * value — URL ?tab= query param (must never be renamed without a redirect layer)
+ */
+⋮----
+// workspace group — 業務運作
+⋮----
+// notion group — 知識與資料結構 (Knowledge & Structure)
+// Subdomains: page (hierarchical pages) · block (content units) · database
+//   (typed collections) · view (table/board/calendar/gallery) · template ·
+//   collaboration (comments/presence)
+⋮----
+// notebooklm group — AI 理解與推理 (AI Reasoning & Synthesis)
+// Subdomains: notebook (AI notebooks with documentIds[]) · document (ingested
+//   sources; mimeType / classification / processing status) · conversation
+//   (thread-based RAG exchanges linked to a notebook)
+⋮----
+/** Legacy aliases: allow old ?tab= values to resolve to current canonical values. */
+⋮----
+// notebooklm subdomain aliases
+⋮----
+// notion subdomain aliases
+⋮----
+// ── Tab resolution helpers ────────────────────────────────────────────────────
+⋮----
+export function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
+⋮----
+/**
+ * Returns the domain group for a given workspace tab value string.
+ * Falls back to "workspace" when the tab is unknown or null (so the
+ * workspace-specific sidebar sections remain visible by default).
+ */
+export function resolveTabDomainGroup(tab: string | null | undefined): WorkspaceDomainGroup
+⋮----
+// ── Nav preferences ───────────────────────────────────────────────────────────
+⋮----
+// Bump version suffix whenever default tab IDs change so stale localStorage
+// entries are discarded and users see the updated defaults.
+// v3: tab IDs are now domain-prefixed (workspace.*, notion.*, notebooklm.*)
+⋮----
+// notion section
+⋮----
+// workspace section (continued)
+⋮----
+// notebooklm section
+⋮----
+// workspace settings & dispatcher
+⋮----
+export function sanitizeNavPreferences(input: Partial<NavPreferences> | null | undefined): NavPreferences
+⋮----
+// Additive merge: always include every default tab ID so that new domain
+// sections added to WORKSPACE_TAB_ITEMS remain visible even when an older
+// version of stored preferences is present.
+⋮----
+export function writeNavPreferences(prefs: NavPreferences): void
+⋮----
+export function readNavPreferences(): NavPreferences
+⋮----
+// ── URL / path utilities ──────────────────────────────────────────────────────
+⋮----
+export function supportsWorkspaceSearchContext(pathname: string): boolean
+⋮----
+export function getWorkspaceIdFromPath(pathname: string): string | null
+⋮----
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: { accountId: string | null; workspaceId: string | null },
+): string
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
@@ -14269,63 +15026,429 @@ export default function RootLayout({
 }: Readonly<
 ````
 
-## File: src/app/README.md
+## File: src/modules/analytics/README.md
 ````markdown
-# App — Next.js App Router Entry
+# Analytics Module
 
-> **⚠ 衝突防護聲明**：本層（`src/app/<context>/`）與 `app/<context>/`（完整 Hexagonal DDD 實作層）是**兩個獨立的實作層，不可互換、不可混用**。
+## 子域清單
 
-`src/app/` 是 Next.js 16 App Router 的 UI 進入層。負責路由組合與 layout 組裝，不承載任何業務邏輯。
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
+| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
+| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
+| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
+| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
+| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
+| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/analytics/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+  shared/
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    event-projection/
+      domain/
+      application/
+      adapters/outbound/
+    metrics/
+    event-ingestion/
+    event-contracts/
+    experimentation/
+    insights/
+    realtime-insights/
+```
+
+---
+
+## 依賴方向
+
+```
+adapters/inbound → application → domain ← adapters/outbound
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/billing/README.md
+````markdown
+# Billing Module
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
+| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
+| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
+
+**術語提醒：**
+- `Subscription` = 計費計劃（billing plan）
+- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/billing/
+  index.ts
+  README.md
+  AGENT.md
+  shared/
+    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
+    types/index.ts
+  subdomains/
+    entitlement/
+      domain/
+      application/
+      adapters/outbound/
+    subscription/
+      domain/
+      application/
+      adapters/outbound/
+    usage-metering/
+      domain/
+      application/
+      adapters/outbound/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/iam/README.md
+````markdown
+# IAM Module
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `account` | ✅ 完成 | AccountProfile read-model |
+| `access-control` | ✅ 完成 | 存取控制規則 |
+| `authentication` | ✅ 完成 | 認證流程 |
+| `authorization` | ✅ 完成 | 授權決策 |
+| `federation` | ✅ 完成 | SSO / 聯合身份 |
+| `identity` | ✅ 完成 | 身份核心（Actor）|
+| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
+| `security-policy` | ✅ 完成 | 安全策略 |
+| `session` | ✅ 完成 | 會話管理 |
+| `tenant` | ✅ 完成 | 租戶隔離 |
+
+### account / organization 遷入說明
+
+`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
+- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
+
+---
 
 ## 目錄結構
 
 ```
-src/app/
-  layout.tsx               ← Root Layout（html / body / metadata）
-  (public)/
-    page.tsx               ← 公開頁面（登入前可見）
-  (shell)/
-    layout.tsx             ← Shell Group Layout（通用 chrome wrapper）
-    (account)/
-      [accountId]/
-        [[...slug]]/
-          page.tsx         ← account-scoped catch-all route
+src/modules/iam/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    IamFacade.ts
+    IamCoordinator.ts
+  shared/
+    domain/index.ts             ← Actor value object（跨子域共用）
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    account/
+      domain/
+      application/
+      adapters/outbound/
+    organization/
+      domain/
+      application/
+      adapters/outbound/
+    authentication/
+    authorization/
+    access-control/
+    session/
+    tenant/
+    identity/
+    security-policy/
+    federation/
 ```
 
-## 路由群組說明
+---
 
-| 路由群組 | 用途 |
+## 依賴方向
+
+```
+adapters/inbound → application → domain ← adapters/outbound
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
 |---|---|
-| `(public)` | 登入前可存取的公開頁面（marketing、landing、auth） |
-| `(shell)` | 登入後有 shell chrome（導覽列、側邊欄）的頁面 |
-| `(account)/[accountId]` | 以 `accountId` 為 scope 的帳號相關頁面 |
-| `[[...slug]]` | catch-all：在 account scope 下承接所有子路徑 |
+| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
+| 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
 
-## Layout 層級
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/README.md
+````markdown
+# NotebookLM Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
+| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
+| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
+
+---
+
+## 子域邊界示意（notebooklm vs ai）
 
 ```
-RootLayout (layout.tsx)           ← html / body / global metadata
-└── ShellLayout ((shell)/layout.tsx)  ← shell chrome wrapper
-    └── page.tsx                      ← route segment 的實際頁面
+notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
+notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
+notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
+notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
+notebooklm/conversation ─引用取得→  ai/citation（標注來源）
 ```
 
-## 設計原則
+notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
 
-- `app/` 只做路由組合（Route Composition）與 Layout 組裝，不寫業務規則。
-- 業務邏輯統一來自 `src/modules/<context>/`（模組 `index.ts` 公開入口）。
-- Server Action 呼叫来自 `modules/<context>/interfaces/_actions/`。
-- 不在 page / layout 內直接呼叫 Firestore、Firebase Auth SDK 或 domain repository。
-- 路由 props 只傳 scope identifier（`accountId`、`workspaceId`），不傳 upstream aggregate 物件。
+---
 
-## 命名規則
+## 預期目錄結構
 
-| 元素 | 規則 |
+```
+src/modules/notebooklm/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotebooklmFacade.ts
+    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
+  shared/
+    domain/index.ts
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    document/
+      domain/
+      application/
+      adapters/outbound/
+    conversation/
+    notebook/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
 |---|---|
-| Route Group | `(kebab-case)` |
-| Dynamic Segment | `[camelCase]` |
-| Catch-all | `[[...slug]]` |
-| Layout | `layout.tsx` |
-| Page | `page.tsx` |
+| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
+| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
+| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
+| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notion/README.md
+````markdown
+# Notion Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
+| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
+| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
+| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
+| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
+| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/notion/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotionFacade.ts
+  shared/
+    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    page/
+      domain/
+      application/
+      adapters/outbound/
+    block/
+    database/
+    view/
+    collaboration/
+    template/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
+| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
+| 在 barrel 使用 `export *` | 破壞可追蹤性 |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
+````typescript
+/**
+ * platform-ui-stubs — platform inbound adapter (React).
+ *
+ * Remaining stubs for platform UI elements not yet implemented as real
+ * components.  Items that have been promoted to real implementations are
+ * re-exported from their canonical files below.
+ *
+ * Account / organization route screens are owned here because they belong to
+ * the platform bounded context (account lifecycle, org management) rather than
+ * to the workspace bounded context.
+ */
+⋮----
+import { useState } from "react";
+import { CalendarDays } from "lucide-react";
+⋮----
+// ── Shell theme toggle + language switcher ────────────────────────────────────
+// Imported locally so they can be composed in ShellHeaderControls below,
+// then re-exported so callers that want direct access can import from here.
+⋮----
+import { ShellThemeToggle } from "./shell/ShellThemeToggle";
+import { ShellLanguageSwitcher } from "./shell/ShellLanguageSwitcher";
+⋮----
+// ── Real implementations (promoted from stubs) ────────────────────────────────
+⋮----
+// ── Account route context ─────────────────────────────────────────────────────
+⋮----
+// ── Shell breadcrumbs ─────────────────────────────────────────────────────────
+⋮----
+export function ShellAppBreadcrumbs(): null
+⋮----
+// ── Shell header controls (theme toggle + language switcher) ──────────────────
+⋮----
+export function ShellHeaderControls(): React.ReactElement
+⋮----
+// ── Global search ─────────────────────────────────────────────────────────────
+⋮----
+export function ShellGlobalSearchDialog(
+  _props: ShellGlobalSearchDialogProps,
+): null
+⋮----
+export function useShellGlobalSearch():
+⋮----
+// ── Stub route screens ────────────────────────────────────────────────────────
+⋮----
+export function OrganizationMembersRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationOverviewRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationPermissionsRouteScreen(): React.ReactElement
+⋮----
+export function SettingsNotificationsRouteScreen(): React.ReactElement
+⋮----
+// ── Account / organization route screens ──────────────────────────────────────
+// These screens belong to the platform bounded context (account lifecycle and
+// organization management) and were previously misplaced in workspace-ui-stubs.
+⋮----
+export function AccountDashboardRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationWorkspacesRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationTeamsRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationScheduleRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationDailyRouteScreen(): React.ReactElement
+⋮----
+export function OrganizationAuditRouteScreen(): React.ReactElement
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellDashboardSidebar.tsx
@@ -14449,6 +15572,421 @@ export function resolveNavSection(pathname: string): NavSection
 export function isActiveRoute(pathname: string, href: string)
 ⋮----
 // ── Simple section nav component ──────────────────────────────────────────────
+````
+
+## File: src/modules/ai/README.md
+````markdown
+# AI Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
+> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
+| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
+| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
+| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
+| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
+| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
+| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
+| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
+| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
+| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
+
+---
+
+## task-formation 歸屬決策
+
+| 子域 | 歸屬 | 理由 |
+|---|---|---|
+| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/ai/
+  index.ts                      ← 模組對外唯一入口（具名匯出）
+  README.md
+  AGENT.md
+  orchestration/
+    AiFacade.ts                 ← 對外統一 Facade
+    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
+  shared/
+    domain/index.ts
+    application/index.ts
+    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
+    errors/index.ts
+    types/index.ts
+  subdomains/
+    embedding/
+      domain/
+      application/
+      adapters/outbound/
+    pipeline/
+      domain/
+      application/
+      adapters/outbound/
+    evaluation/
+    generation/
+    chunk/
+    retrieval/
+    context/
+    citation/
+    memory/
+    tool-calling/
+```
+
+---
+
+## 依賴方向
+
+```
+subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
+                                                                    ↑
+                               subdomains/*/adapters/outbound  ───┘
+                                                    ↑
+                                             shared/domain
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
+
+---
+
+## 子域邊界示意（ai vs notebooklm）
+
+```
+notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
+notebooklm/document      ←使用→  ai/embedding（向量化文件）
+notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
+notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
+notebooklm/document      ─切塊→  ai/chunk（分塊計算）
+```
+
+ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
+| 在 ai 定義使用者對話 UX | 屬 notebooklm |
+| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/analytics/AGENT.md
+````markdown
+# Analytics Module — Agent Guide
+
+## Purpose
+
+`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
+| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
+| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
+| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
+| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
+| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
+| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 Analytics 的新 use case、entity、adapter 實作。
+- 實作事件投影、指標計算 port 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
+- 跨模組 API boundary → `src/modules/analytics/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
+| 跨模組 API boundary | `src/modules/analytics/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/billing/AGENT.md
+````markdown
+# Billing Module — Agent Guide
+
+## Purpose
+
+`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
+| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
+| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
+- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
+
+## Route Here When
+
+- 撰寫 Billing 的新 use case、entity、adapter 實作。
+- 實作 entitlement check port、subscription repository 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/billing/AGENT.md`
+- 跨模組 API boundary → `src/modules/billing/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
+| 跨模組 API boundary | `src/modules/billing/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/iam/AGENT.md
+````markdown
+# IAM Module — Agent Guide
+
+## Purpose
+
+`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `account` | 帳號 Profile 管理 | ✅ 完成 |
+| `access-control` | 存取控制規則 | ✅ 完成 |
+| `authentication` | 認證流程 | ✅ 完成 |
+| `authorization` | 授權決策 | ✅ 完成 |
+| `federation` | SSO / 聯合身份 | ✅ 完成 |
+| `identity` | 身份核心（Actor）| ✅ 完成 |
+| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
+| `security-policy` | 安全策略 | ✅ 完成 |
+| `session` | 會話管理 | ✅ 完成 |
+| `tenant` | 租戶隔離 | ✅ 完成 |
+
+## 遷入說明
+
+`platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
+- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
+- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `organization/` 使用 `OrganizationTeam` aggregate；不得混用 `Actor`（身份）與 `Membership`（工作區參與）術語。
+- `identity` 是唯一定義 Actor 概念的子域。
+
+## Route Here When
+
+- 撰寫 IAM 的新 use case、entity、adapter 實作（account、session、access-control 等）。
+- 擴展 organization 子域的 team / member 功能。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/iam/AGENT.md`
+- 跨模組 API boundary → `src/modules/iam/index.ts`
+- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
+| 跨模組 API boundary | `src/modules/iam/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
+- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 混用 Actor（身份）與 User（業務角色）術語
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Module — Agent Guide
+
+## Purpose
+
+`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
+
+> **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
+> AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
+| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
+| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
+> - AI 機制（embedding、retrieval、generation）屬 `ai` 模組；notebooklm 透過 Port 注入消費  
+> - `conversation`（AI 模型上下文管理）屬 `ai/context`；`conversation`（使用者對話 UX）屬本模組  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
+- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
+- `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 NotebookLM 的新 use case、entity、adapter 實作。
+- 實作 document ingestion、conversation 管理、notebook lifecycle 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
+- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
+- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
+- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
+| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
+- ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notion/AGENT.md
+````markdown
+# Notion Module — Agent Guide
+
+## Purpose
+
+`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
+
+> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
+| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
+| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
+| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
+| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
+| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
+> - `relations`（關聯圖）以 `view` 呈現；Page 間的關聯是 View 的一種形式  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
+- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
+- `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 notion 的新 use case、entity、adapter 實作。
+- 實作 page authoring、database CRUD、collaboration、template 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/notion/AGENT.md`
+- 跨模組 API boundary → `src/modules/notion/index.ts`
+- RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
+- AI 生成輔助 → `src/modules/ai/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
+| 跨模組 API boundary | `src/modules/notion/index.ts` |
+
+**嚴禁事項：**
+- ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
+- ❌ 在 barrel 使用 `export *`
+- ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
+- ❌ 在 notion 模組定義 AI 生成能力（屬 ai）
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
@@ -14709,9 +16247,89 @@ cp -r src/modules/template src/modules/<your-context>
 
 - [src/modules/template/README.md](template/README.md) — 多子域骨架說明
 - [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
-- [docs/bounded-contexts.md](../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/subdomains.md](../../docs/subdomains.md) — 子域清單
-- [docs/ubiquitous-language.md](../../docs/ubiquitous-language.md) — 術語權威
+- [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單
+- [docs/structure/domain/ubiquitous-language.md](../../docs/structure/domain/ubiquitous-language.md) — 術語權威
+````
+
+## File: src/modules/ai/AGENT.md
+````markdown
+# AI Module — Agent Guide
+
+## Purpose
+
+`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
+
+> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
+| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
+| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
+| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
+| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
+| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
+| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
+| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
+| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
+| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
+> - `document`（來源文件管理）→ `notebooklm` 所有  
+> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
+- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
+- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
+- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
+
+## task-formation 歸屬決策
+
+`task-formation` 子域屬於 **`workspace`**，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 觸發者（使用者指定生成任務）是 workspace 層業務流程
+- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
+
+## Route Here When
+
+- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
+- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
+- 需要 `src/modules/ai/` 層的骨架結構作為起點。
+
+## Route Elsewhere When
+
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
+- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
+- 知識文件 / Page 管理 → `src/modules/notion/`
+- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
+- 跨模組 API boundary → `src/modules/ai/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
+| 跨模組 API boundary | `src/modules/ai/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
+- ❌ 在 barrel 使用 `export *`
+- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
+- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarBody.tsx
@@ -14774,802 +16392,74 @@ className=
 // Show the context section only when a workspace is actually in scope.
 ````
 
-## File: src/modules/analytics/README.md
+## File: src/modules/platform/README.md
 ````markdown
-# Analytics Module
+# Platform Module
+
+> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
 
 ## 子域清單
 
 | 子域 | 狀態 | 說明 |
 |---|---|---|
-| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
-| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
-| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
-| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
-| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
-| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
-| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
+| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
+| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
+| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
+| `notification` | ✅ 完成 | 通知發送 |
+| `platform-config` | ✅ 完成 | 平台設定 |
+| `search` | ✅ 完成 | 跨域搜尋 |
+
+**已遷移（不在 platform）：**
+
+| 子域 | 遷移目標 |
+|---|---|
+| `account` | `src/modules/iam/subdomains/account/` |
+| `organization` | `src/modules/iam/subdomains/organization/` |
 
 ---
 
-## 預期目錄結構
+## 目錄結構
 
 ```
-src/modules/analytics/
+src/modules/platform/
   index.ts
   README.md
   AGENT.md
   orchestration/
-  shared/
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    event-projection/
-      domain/
-      application/
-      adapters/outbound/
-    metrics/
-    event-ingestion/
-    event-contracts/
-    experimentation/
-    insights/
-    realtime-insights/
-```
-
----
-
-## 依賴方向
-
-```
-adapters/inbound → application → domain ← adapters/outbound
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/billing/README.md
-````markdown
-# Billing Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
-| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
-| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
-
-**術語提醒：**
-- `Subscription` = 計費計劃（billing plan）
-- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
-
----
-
-## 預期目錄結構
-
-```
-src/modules/billing/
-  index.ts
-  README.md
-  AGENT.md
-  shared/
-    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
-    types/index.ts
-  subdomains/
-    entitlement/
-      domain/
-      application/
-      adapters/outbound/
-    subscription/
-      domain/
-      application/
-      adapters/outbound/
-    usage-metering/
-      domain/
-      application/
-      adapters/outbound/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notebooklm/README.md
-````markdown
-# NotebookLM Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
-| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
-| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
-
----
-
-## 子域邊界示意（notebooklm vs ai）
-
-```
-notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
-notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
-notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
-notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
-notebooklm/conversation ─引用取得→  ai/citation（標注來源）
-```
-
-notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notebooklm/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    NotebooklmFacade.ts
-    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
+    PlatformFacade.ts
   shared/
     domain/index.ts
-    events/index.ts             ← Published Language Events
+    events/index.ts             ← Platform Published Language Events
     types/index.ts
   subdomains/
-    document/
+    notification/
       domain/
       application/
       adapters/outbound/
-    conversation/
-    notebook/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
-| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
-| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
-| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notion/README.md
-````markdown
-# Notion Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
-| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
-| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
-| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
-| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
-| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notion/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    NotionFacade.ts
-  shared/
-    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    page/
-      domain/
+    background-job/
+      domain/                   ← BackgroundJob / JobDocument / JobChunk
       application/
       adapters/outbound/
-    block/
-    database/
-    view/
-    collaboration/
-    template/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
-| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
-| 在 barrel 使用 `export *` | 破壞可追蹤性 |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/template/README.md
-````markdown
-# Template Module
-
-`src/modules/template` 是一個可複製的 **Hexagonal Architecture + DDD 多子域骨架**，示範多 subdomain 分層結構、具名匯出規範與跨子域協調模式。
-
-## 目錄結構
-
-```
-src/modules/template/
-  index.ts                          ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENT.md
-  orchestration/
-    TemplateFacade.ts               ← 對外統一 Facade（委派各子域 use case）
-    TemplateCoordinator.ts          ← 跨子域流程協調（document→generation→ingestion→workflow）
-  shared/
-    domain/index.ts                 ← 跨子域共用 domain 概念（Value Object、Policy）
-    application/index.ts            ← 跨子域共用 DTO / Port
-    config/index.ts                 ← 模組設定
-    constants/index.ts              ← 模組常數
-    errors/index.ts                 ← 共用錯誤類型
-    events/index.ts                 ← 跨子域 Published Language Events
-    infrastructure/index.ts         ← 共用 infrastructure 工具
-    types/index.ts                  ← 共用 TypeScript 型別
-    utils/index.ts                  ← 共用工具函式
-  subdomains/
-    document/                       ← 核心子域（CRUD 完整實作）
-      domain/
-        entities/Template.ts
-        value-objects/TemplateId.ts
-        value-objects/TemplateName.ts
-        events/TemplateCreatedEvent.ts
-        events/TemplateUpdatedEvent.ts
-        repositories/TemplateRepository.ts
-        services/TemplateDomainService.ts
-        index.ts
-      application/
-        use-cases/{Create,Update,Delete}TemplateUseCase.ts
-        dto/{Create,Update,Response}TemplateDTO.ts
-        ports/inbound/CreateTemplatePort.ts
-        ports/outbound/{TemplateRepositoryPort,CachePort,ExternalApiPort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{TemplateController,routes}.ts
-          queue/TemplateQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/{FirestoreTemplateRepository,FirestoreMapper}.ts
-          cache/TemplateCacheAdapter.ts
-          external-api/TemplateApiClient.ts
-          index.ts
-        index.ts
-    generation/                     ← 生成子域（完整實作）
-      domain/
-        entities/GeneratedTemplate.ts   ← id: GenerationId（VO）
-        value-objects/GenerationId.ts
-        repositories/GenerationRepository.ts
-        services/GenerationDomainService.ts
-        events/GenerationCompletedEvent.ts
-        index.ts
-      application/
-        use-cases/GenerateTemplateUseCase.ts
-        dto/{GenerateTemplate,GenerationResult}DTO.ts
-        ports/inbound/GenerateTemplatePort.ts
-        ports/outbound/{GenerationRepositoryPort,AiGenerationPort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{GenerationController,routes}.ts
-          queue/GenerationQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/FirestoreGenerationRepository.ts
-          ai/AiGenerationAdapter.ts             ← stub, TODO: wire Genkit
-          index.ts
-        index.ts
-    ingestion/                      ← 匯入子域（完整實作）
-      domain/
-        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
-        value-objects/IngestionId.ts
-        repositories/IngestionJobRepository.ts
-        services/IngestionDomainService.ts
-        events/IngestionJobEvents.ts
-        index.ts
-      application/
-        use-cases/StartIngestionUseCase.ts
-        dto/{StartIngestion,IngestionJobResponse}DTO.ts
-        ports/inbound/StartIngestionPort.ts
-        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{IngestionController,routes}.ts
-          queue/IngestionQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/FirestoreIngestionJobRepository.ts
-          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
-          index.ts
-        index.ts
-    workflow/                       ← 流程子域（完整實作）
-      domain/
-        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
-        value-objects/WorkflowId.ts
-        repositories/TemplateWorkflowRepository.ts
-        services/WorkflowDomainService.ts
-        events/WorkflowEvents.ts
-        index.ts
-      application/
-        use-cases/InitiateWorkflowUseCase.ts
-        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
-        ports/inbound/InitiateWorkflowPort.ts
-        ports/outbound/WorkflowRepositoryPort.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
-          index.ts
-        outbound/
-          firestore/FirestoreWorkflowRepository.ts
-          index.ts
-        
-        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
-        value-objects/IngestionId.ts
-        repositories/IngestionJobRepository.ts
-        services/IngestionDomainService.ts
-        events/IngestionJobEvents.ts
-        index.ts
-      application/
-        use-cases/StartIngestionUseCase.ts
-        dto/{StartIngestion,IngestionJobResponse}DTO.ts
-        ports/inbound/StartIngestionPort.ts
-        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{IngestionController,routes}.ts
-          queue/IngestionQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/FirestoreIngestionJobRepository.ts
-          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
-          index.ts
-        index.ts
-    workflow/                       ← 流程子域（完整實作）
-      domain/
-        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
-        value-objects/WorkflowId.ts
-        repositories/TemplateWorkflowRepository.ts
-        services/WorkflowDomainService.ts
-        events/WorkflowEvents.ts
-        index.ts
-      application/
-        use-cases/InitiateWorkflowUseCase.ts
-        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
-        ports/inbound/InitiateWorkflowPort.ts
-        ports/outbound/WorkflowRepositoryPort.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
-          index.ts
-        outbound/
-          firestore/FirestoreWorkflowRepository.ts
-          index.ts
-        index.ts
-```
-
-## Barrel 結構（具名匯出原則）
-
-所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
-
-| 檔案 | 覆蓋範圍 |
-|---|---|
-| `index.ts` | 模組對外唯一公開入口：重新匯出全部四個子域的 domain + application 符號 |
-| `subdomains/document/domain/index.ts` | entities、value-objects、events、repositories、services |
-| `subdomains/document/application/index.ts` | use-cases、dto、ports |
-| `subdomains/generation/domain/index.ts` | GeneratedTemplate、GenerationId、events、service、repo |
-| `subdomains/generation/application/index.ts` | GenerateTemplateUseCase、dto、ports（含 AiGenerationPort）|
-| `subdomains/ingestion/domain/index.ts` | IngestionJob、IngestionId、events、service、repo |
-| `subdomains/ingestion/application/index.ts` | StartIngestionUseCase、dto、ports（含 StoragePort）|
-| `subdomains/workflow/domain/index.ts` | TemplateWorkflow、WorkflowId、events、service、repo |
-| `subdomains/workflow/application/index.ts` | InitiateWorkflowUseCase、dto、ports |
-| `shared/*/index.ts` | 各共用層的對外出口 |
-
-### 根 index.ts 匯出範例
-
-```ts
-// src/modules/template/index.ts
-export {
-  Template, TemplateId, TemplateName,
-  TemplateCreatedEvent, TemplateUpdatedEvent, TemplateDomainService,
-} from './subdomains/document/domain';
-export type { TemplateProps, TemplateRepository } from './subdomains/document/domain';
-export {
-  CreateTemplateUseCase, UpdateTemplateUseCase, DeleteTemplateUseCase,
-} from './subdomains/document/application';
-export type {
-  CreateTemplateDTO, UpdateTemplateDTO, TemplateResponseDTO,
-  CreateTemplatePort, TemplateRepositoryPort, CachePort, ExternalApiPort,
-} from './subdomains/document/application';
-
-// generation
-export { GeneratedTemplate, GenerationId, GenerationDomainService, GenerationCompletedEvent } from './subdomains/generation/domain';
-export type { GenerationRepository } from './subdomains/generation/domain';
-export { GenerateTemplateUseCase } from './subdomains/generation/application';
-export type { GenerateTemplateDTO, GenerationResultDTO, GenerateTemplatePort, GenerationRepositoryPort, AiGenerationPort } from './subdomains/generation/application';
-
-// ingestion
-export { IngestionJob, IngestionId, IngestionDomainService, IngestionJobStartedEvent, IngestionJobCompletedEvent } from './subdomains/ingestion/domain';
-export type { IngestionJobRepository, IngestionStatus } from './subdomains/ingestion/domain';
-export { StartIngestionUseCase } from './subdomains/ingestion/application';
-export type { StartIngestionDTO, IngestionJobResponseDTO, StartIngestionPort, IngestionRepositoryPort, StoragePort } from './subdomains/ingestion/application';
-
-// workflow
-export { TemplateWorkflow, WorkflowId, WorkflowDomainService, WorkflowInitiatedEvent, WorkflowCompletedEvent } from './subdomains/workflow/domain';
-export type { TemplateWorkflowRepository, WorkflowStatus } from './subdomains/workflow/domain';
-export { InitiateWorkflowUseCase } from './subdomains/workflow/application';
-export type { InitiateWorkflowDTO, WorkflowResponseDTO, InitiateWorkflowPort, WorkflowRepositoryPort } from './subdomains/workflow/application';
-```
-
-所有 source 檔內部 import 使用**直接相對路徑**，不依賴 barrel index，確保 barrel 可獨立修改。
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
-## 如何複製成新模組
-
-1. 複製整個 `src/modules/template/` 資料夾。
-2. 全域取代 `Template` → `<YourEntity>`（保留大小寫規律），各子域實體名稱也一併取代。
-3. 保留實際有業務需求的子域；刪除不需要的子域（generation / ingestion / workflow 可視業務選用）。
-4. 依 DDD 開發順序填入業務規則：Domain → Application → Ports → Adapters → Orchestration。
-5. 更新根 `index.ts` barrel，僅匯出有實作的子域符號。
-
----
-
-## 路由規則
-
-- 讀取邊界規則、published language → `src/modules/<context>/AGENT.md`
-- 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
-- 需要跨模組 API boundary → `src/modules/<context>/index.ts`
-
----
-
-## 衝突防護
-
-1. **不在 `domain/` 匯入 Firebase SDK、React、HTTP client 或 ORM。**
-2. `template` 模組本身不代表任何業務邊界；真實業務請在對應 `src/modules/<context>/` 實作。
-
----
-
-## 文件網絡
-
-- [src/modules/README.md](../README.md) — 模組層狀態總覽
-- [src/modules/template/AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 設計藍圖
-````
-
-## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
-````typescript
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  AlertCircle,
-  BadgeCheck,
-  Brain,
-  CalendarDays,
-  ClipboardCheck,
-  FileText,
-  FolderOpen,
-  Home,
-  Inbox,
-  ListTodo,
-  MessageSquare,
-  Notebook,
-  Receipt,
-  Settings,
-  Shield,
-  Users,
-} from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import type { WorkspaceEntity } from "./WorkspaceContext";
-import { useWorkspaceContext } from "./WorkspaceContext";
-import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
-⋮----
-export interface NavPreferences {
-  readonly pinnedWorkspace: string[];
-  readonly pinnedPersonal: string[];
-  readonly showLimitedWorkspaces: boolean;
-  readonly maxWorkspaces: number;
-}
-⋮----
-export type SidebarLocaleBundle = Record<string, string>;
-⋮----
-type WorkspaceTabValue =
-  | "Overview"
-  | "Daily"
-  | "Schedule"
-  | "Audit"
-  | "Files"
-  | "Members"
-  | "Knowledge"
-  | "Notebook"
-  | "AiChat"
-  | "WorkspaceSettings"
-  | "TaskFormation"
-  | "Tasks"
-  | "Quality"
-  | "Approval"
-  | "Settlement"
-  | "Issues";
-⋮----
-type WorkspaceDomainGroup = "workspace" | "notion" | "notebooklm";
-⋮----
-interface WorkspaceTabItem {
-  id: string;
-  value: WorkspaceTabValue;
-  label: string;
-  domainGroup: WorkspaceDomainGroup;
-}
-⋮----
-// Task lifecycle subdomains
-⋮----
-function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
-⋮----
-/**
- * Returns the domain group for a given workspace tab value string.
- * Falls back to "workspace" when the tab is unknown or null (so the
- * workspace-specific sidebar sections remain visible by default).
- */
-export function resolveTabDomainGroup(tab: string | null | undefined): WorkspaceDomainGroup
-⋮----
-// Bump version suffix whenever new default tab IDs are added so stale
-// localStorage entries are discarded and users see the updated defaults.
-⋮----
-function sanitizeNavPreferences(input: Partial<NavPreferences> | null | undefined): NavPreferences
-⋮----
-// Additive merge: always include every default tab ID so that new domain
-// sections added to WORKSPACE_TAB_ITEMS remain visible even when an older
-// version of stored preferences is present.
-⋮----
-function writeNavPreferences(prefs: NavPreferences): void
-⋮----
-export function readNavPreferences(): NavPreferences
-⋮----
-export function supportsWorkspaceSearchContext(pathname: string): boolean
-⋮----
-export function getWorkspaceIdFromPath(pathname: string): string | null
-⋮----
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: { accountId: string | null; workspaceId: string | null },
-): string
-⋮----
-interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-⋮----
-interface WorkspaceQuickAccessItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-⋮----
-// Task lifecycle quick access
-⋮----
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId: string | undefined,
-): WorkspaceQuickAccessItem[]
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getRecentStorageKey(accountId: string): string
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string): void
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-):
-⋮----
-export function useSidebarLocale(): SidebarLocaleBundle | null
-⋮----
-interface WorkspaceQuickAccessRowProps {
-  items: WorkspaceQuickAccessItem[];
-  pathname: string;
-  currentPanel: string | null;
-  currentWorkspaceTab: string | null;
-  workspaceSettingsHref: string;
-  isActiveRoute: (href: string) => boolean;
-}
-⋮----
-className=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-setDraft((prev) => (
-⋮----
-setDraft(DEFAULT_NAV_PREFS);
-⋮----
-function reset()
-⋮----
-async function handleSubmit(event: FormEvent<HTMLFormElement>)
-⋮----
-onOpenChange(isOpen);
-⋮----
-reset();
-onOpenChange(false);
-⋮----
-if (!accountsHydrated || !workspaceState.workspacesHydrated)
-⋮----
-<Badge variant=
-⋮----
-onClick=
-⋮----
-router.push(href);
-⋮----
-return (
-    <div className="px-4 py-6 text-sm text-muted-foreground">
-      Teams (stub)
-    </div>
-  ) as React.ReactElement;
-````
-
-## File: src/modules/iam/README.md
-````markdown
-# IAM Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `account` | ✅ 完成 | AccountProfile read-model |
-| `access-control` | ✅ 完成 | 存取控制規則 |
-| `authentication` | ✅ 完成 | 認證流程 |
-| `authorization` | ✅ 完成 | 授權決策 |
-| `federation` | ✅ 完成 | SSO / 聯合身份 |
-| `identity` | ✅ 完成 | 身份核心（Actor）|
-| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
-| `security-policy` | ✅ 完成 | 安全策略 |
-| `session` | ✅ 完成 | 會話管理 |
-| `tenant` | ✅ 完成 | 租戶隔離 |
-
-### account / organization 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
-- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
-
----
-
-## 目錄結構
-
-```
-src/modules/iam/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    IamFacade.ts
-    IamCoordinator.ts
-  shared/
-    domain/index.ts             ← Actor value object（跨子域共用）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    account/
-      domain/
-      application/
-      adapters/outbound/
-    organization/
-      domain/
-      application/
-      adapters/outbound/
-    authentication/
-    authorization/
-    access-control/
-    session/
-    tenant/
-    identity/
-    security-policy/
-    federation/
+    cache/
+    file-storage/
+    platform-config/
+    search/
 ```
 
 ---
 
 ## 依賴方向
 
+Platform 是 T1 operational support，依賴方向固定：
+
 ```
-adapters/inbound → application → domain ← adapters/outbound
+iam     → platform
+billing → platform (entitlement governance)
+platform → workspace
+(platform 也被 notion, notebooklm 以 Service API 形式消費)
 ```
 
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`。
+Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
 
 ---
 
@@ -15577,8 +16467,9 @@ adapters/inbound → application → domain ← adapters/outbound
 
 | 禁止行為 | 原因 |
 |---|---|
-| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
-| 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
+| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
+| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
+| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
 
 ---
 
@@ -15586,225 +16477,148 @@ adapters/inbound → application → domain ← adapters/outbound
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/template/AGENT.md
+## File: src/modules/platform/AGENT.md
 ````markdown
-# Template Module — Agent Guide
+# Platform Module — Agent Guide
 
 ## Purpose
 
-`src/modules/template` 是**可複製的 Hexagonal Architecture + DDD 多子域骨架**，示範正確的多 subdomain 分層結構、具名匯出規範與跨子域協調模式。用來當作新模組的起點，或作為架構參照。
+`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
 
-## Structure At a Glance
+> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
 
-```
-index.ts              ← 唯一對外入口（重新匯出全部四個子域的 domain + application 符號）
-orchestration/        ← 跨子域 Facade + Coordinator
-shared/               ← 跨子域共用層（domain / application / config / constants /
-                         errors / events / infrastructure / types / utils）
-subdomains/
-  document/           ← 核心子域，完整 domain + application + adapters
-  generation/         ← 生成子域，完整 domain + application + adapters
-  ingestion/          ← 匠入子域，完整 domain + application + adapters
-  workflow/           ← 流程子域，完整 domain + application + adapters
-```
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
+| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
+| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
+| `notification` | 通知發送 | ✅ 完成 |
+| `platform-config` | 平台設定 | ✅ 完成 |
+| `search` | 跨域搜尋 | ✅ 完成 |
+
+**已遷移子域（不在 platform）：**
+- `account` → `src/modules/iam/subdomains/account/`
+- `organization` → `src/modules/iam/subdomains/organization/`
 
 ## Boundary Rules
 
-- `subdomains/*/domain/` 不得匯入 React、Firebase SDK、HTTP client、ORM 或任何框架。
-- `subdomains/*/application/` 只依賴同子域 `domain/` 抽象，不依賴 adapter 實作。
-- Adapters 只實作 port 介面，不承載業務規則。
-- 跨子域協調只能透過 `orchestration/` 或 `shared/events/`，**禁止直接跨 subdomain import**。
-- 外部消費者只能透過 `src/modules/template/index.ts`（具名匯出）存取。
-
-## Barrel & Named Export Rules
-
-- 所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
-- 每個子域各有自己的 barrel 層（domain/index.ts、application/index.ts、adapters/index.ts）。
-- Source 檔案之間的 import 使用**直接相對路徑**（例如 `'../../../domain/value-objects/TemplateId'`），不依賴 barrel，確保 barrel 可獨立變更。
-- `shared/*/index.ts` 為各共用層的匯出出口，由需要者直接引用。
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
+- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
 
 ## Route Here When
 
-- 需要新建一個多子域 DDD module 骨架。
-- 需要查閱正確的 barrel 結構、具名匯出寫法或跨子域協調模式。
-- 需要確認 Hexagonal 依賴方向、多子域邂界、VO ID 模式、FirestoreLike 抄象、AI adapter stub 鮣變的範例。
+- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
+- 實作 notification、background-job 等骨架。
 
 ## Route Elsewhere When
 
-- 真實業務需求 → 依對應 bounded context 建立新的 `src/modules/<context>/`。
-- 共享 UI 元件 → `packages/ui-shadcn/`。
-- 共享工具函式 → `packages/shared-utils/`。
+- 讀取邊界規則 → `src/modules/platform/AGENT.md`
+- Account / Organization → `src/modules/iam/`（已遷入）
+- 跨模組 API boundary → `src/modules/platform/index.ts`
 
-## Development Order（新子域展開順序）
-
-1. `subdomains/<name>/domain/`：定義 Entity、Value Object（VO ID）、Domain Event、Repository Port。
-2. `subdomains/<name>/application/`：定義 Use Case、DTO、Inbound / Outbound Port。
-3. `subdomains/<name>/adapters/outbound/`：實作 Repository Port（FirestoreLike 抄象）與其他 outbound adapter。
-4. `subdomains/<name>/adapters/inbound/`：實作 HTTP / Queue adapter（workflow 僅需 HTTP）。
-5. 更新各層 barrel index，確保具名匯出完整。
-6. 如有跨子域流程需求，在 `orchestration/TemplateCoordinator.ts` 注入相關 use case。
-7. 更新根 `index.ts` 補露新符號。
-
-## Delivery Style
-
-- 奈卡姆剥刀：本模組四個子域均已完整實作，可直接複製作為新模組起點。
-- 複製時只保留有實際業務需求的子域；generation / ingestion / workflow 可依業務選手。
-- AI adapter（`AiGenerationAdapter`）與 Storage adapter（`CloudStorageAdapter`）為 stub，待雞 Genkit / Cloud Storage 連接時再完善。
-
----
-
-## 已確立模式（Pattern Reference）
-
-| 模式 | 說明 |
-|---|---|
-| **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
-| **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
-| **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
-| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Genkit wiring |
-| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Cloud Storage wiring |
-| **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
-| **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
-
----
-
-## 衝突防護（src/modules vs modules/）
-
-`src/modules/template` 屬於**模組實作層（`src/modules/`）**。
+## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
-| 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
-| 跨模組 API boundary | `src/modules/<context>/index.ts` |
-| 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
+| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
+| 跨模組 API boundary | `src/modules/platform/index.ts` |
 
 **嚴禁事項：**
-- ❌ 在 `domain/` 匯入 React、Firebase SDK、HTTP client、ORM
+- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
+- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
+- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/workspace/AGENT.md
+````markdown
+# Workspace Module — Agent Guide
+
+## Purpose
+
+`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
+
+> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
+| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
+| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
+| `audit` | 稽核紀錄實體 | 🔨 骨架建立，實作進行中 |
+| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
+| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
+| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
+| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
+| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
+| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
+| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
+| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
+| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
+| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
+| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
+| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
+| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
+
+## task-formation 歸屬決策
+
+`task-formation` 屬於 **`workspace`** 子域，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 業務流程（使用者確認候選任務）是 workspace 層關注點
+- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
+- `orchestration/` 是跨子域流程協調層，不包含業務規則。
+- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
+
+## Route Here When
+
+- 撰寫 workspace 的新 use case、entity、adapter 實作。
+- 實作 task / issue / lifecycle 等子域骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/workspace/AGENT.md`
+- 跨模組 API boundary → `src/modules/workspace/index.ts`
+- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
+- 成員身份驗證 → `src/modules/iam/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/workspace/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
+| 跨模組 API boundary | `src/modules/workspace/index.ts` |
+
+**嚴禁事項：**
+- ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
+- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
+- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
 - ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
-- [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/ai/README.md
-````markdown
-# AI Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
-> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
-| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
-| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
-| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
-| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
-| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
-
----
-
-## task-formation 歸屬決策
-
-| 子域 | 歸屬 | 理由 |
-|---|---|---|
-| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/ai/
-  index.ts                      ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENT.md
-  orchestration/
-    AiFacade.ts                 ← 對外統一 Facade
-    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
-  shared/
-    domain/index.ts
-    application/index.ts
-    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
-    errors/index.ts
-    types/index.ts
-  subdomains/
-    embedding/
-      domain/
-      application/
-      adapters/outbound/
-    pipeline/
-      domain/
-      application/
-      adapters/outbound/
-    evaluation/
-    generation/
-    chunk/
-    retrieval/
-    context/
-    citation/
-    memory/
-    tool-calling/
-```
-
----
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
----
-
-## 子域邊界示意（ai vs notebooklm）
-
-```
-notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
-notebooklm/document      ←使用→  ai/embedding（向量化文件）
-notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
-notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
-notebooklm/document      ─切塊→  ai/chunk（分塊計算）
-```
-
-ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 在 ai 定義使用者對話 UX | 屬 notebooklm |
-| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/workspace/README.md
@@ -15893,614 +16707,27 @@ src/modules/workspace/
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/analytics/AGENT.md
-````markdown
-# Analytics Module — Agent Guide
-
-## Purpose
-
-`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
-| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
-| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
-| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
-| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
-| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
-| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 Analytics 的新 use case、entity、adapter 實作。
-- 實作事件投影、指標計算 port 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
-- 跨模組 API boundary → `src/modules/analytics/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
-| 跨模組 API boundary | `src/modules/analytics/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/billing/AGENT.md
-````markdown
-# Billing Module — Agent Guide
-
-## Purpose
-
-`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
-| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
-| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
-- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
-
-## Route Here When
-
-- 撰寫 Billing 的新 use case、entity、adapter 實作。
-- 實作 entitlement check port、subscription repository 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/billing/AGENT.md`
-- 跨模組 API boundary → `src/modules/billing/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
-| 跨模組 API boundary | `src/modules/billing/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Module — Agent Guide
-
-## Purpose
-
-`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
-
-> **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
-> AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
-| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
-| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
-> - AI 機制（embedding、retrieval、generation）屬 `ai` 模組；notebooklm 透過 Port 注入消費  
-> - `conversation`（AI 模型上下文管理）屬 `ai/context`；`conversation`（使用者對話 UX）屬本模組  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
-- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
-- `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 NotebookLM 的新 use case、entity、adapter 實作。
-- 實作 document ingestion、conversation 管理、notebook lifecycle 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
-- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
-- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
-- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
-| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
-- ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notion/AGENT.md
-````markdown
-# Notion Module — Agent Guide
-
-## Purpose
-
-`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
-
-> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
-| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
-| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
-| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
-| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
-| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
-> - `relations`（關聯圖）以 `view` 呈現；Page 間的關聯是 View 的一種形式  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
-- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
-- `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 notion 的新 use case、entity、adapter 實作。
-- 實作 page authoring、database CRUD、collaboration、template 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/notion/AGENT.md`
-- 跨模組 API boundary → `src/modules/notion/index.ts`
-- RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
-- AI 生成輔助 → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
-| 跨模組 API boundary | `src/modules/notion/index.ts` |
-
-**嚴禁事項：**
-- ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
-- ❌ 在 barrel 使用 `export *`
-- ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
-- ❌ 在 notion 模組定義 AI 生成能力（屬 ai）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/platform/README.md
-````markdown
-# Platform Module
-
-> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
-| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
-| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
-| `notification` | ✅ 完成 | 通知發送 |
-| `platform-config` | ✅ 完成 | 平台設定 |
-| `search` | ✅ 完成 | 跨域搜尋 |
-
-**已遷移（不在 platform）：**
-
-| 子域 | 遷移目標 |
-|---|---|
-| `account` | `src/modules/iam/subdomains/account/` |
-| `organization` | `src/modules/iam/subdomains/organization/` |
-
----
-
-## 目錄結構
-
-```
-src/modules/platform/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    PlatformFacade.ts
-  shared/
-    domain/index.ts
-    events/index.ts             ← Platform Published Language Events
-    types/index.ts
-  subdomains/
-    notification/
-      domain/
-      application/
-      adapters/outbound/
-    background-job/
-      domain/                   ← BackgroundJob / JobDocument / JobChunk
-      application/
-      adapters/outbound/
-    cache/
-    file-storage/
-    platform-config/
-    search/
-```
-
----
-
-## 依賴方向
-
-Platform 是 T1 operational support，依賴方向固定：
-
-```
-iam     → platform
-billing → platform (entitlement governance)
-platform → workspace
-(platform 也被 notion, notebooklm 以 Service API 形式消費)
-```
-
-Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
-| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/iam/AGENT.md
-````markdown
-# IAM Module — Agent Guide
-
-## Purpose
-
-`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `account` | 帳號 Profile 管理 | ✅ 完成 |
-| `access-control` | 存取控制規則 | ✅ 完成 |
-| `authentication` | 認證流程 | ✅ 完成 |
-| `authorization` | 授權決策 | ✅ 完成 |
-| `federation` | SSO / 聯合身份 | ✅ 完成 |
-| `identity` | 身份核心（Actor）| ✅ 完成 |
-| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
-| `security-policy` | 安全策略 | ✅ 完成 |
-| `session` | 會話管理 | ✅ 完成 |
-| `tenant` | 租戶隔離 | ✅ 完成 |
-
-## 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
-- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
-- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `organization/` 使用 `OrganizationTeam` aggregate；不得混用 `Actor`（身份）與 `Membership`（工作區參與）術語。
-- `identity` 是唯一定義 Actor 概念的子域。
-
-## Route Here When
-
-- 撰寫 IAM 的新 use case、entity、adapter 實作（account、session、access-control 等）。
-- 擴展 organization 子域的 team / member 功能。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/iam/AGENT.md`
-- 跨模組 API boundary → `src/modules/iam/index.ts`
-- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
-| 跨模組 API boundary | `src/modules/iam/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 混用 Actor（身份）與 User（業務角色）術語
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/workspace/AGENT.md
-````markdown
-# Workspace Module — Agent Guide
-
-## Purpose
-
-`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
-
-> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
-| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
-| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
-| `audit` | 稽核紀錄實體 | 🔨 骨架建立，實作進行中 |
-| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
-| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
-| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
-| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
-| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
-| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
-| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
-| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
-| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
-| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
-| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
-| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
-| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
-
-## task-formation 歸屬決策
-
-`task-formation` 屬於 **`workspace`** 子域，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 業務流程（使用者確認候選任務）是 workspace 層關注點
-- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
-- `orchestration/` 是跨子域流程協調層，不包含業務規則。
-- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
-
-## Route Here When
-
-- 撰寫 workspace 的新 use case、entity、adapter 實作。
-- 實作 task / issue / lifecycle 等子域骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/workspace/AGENT.md`
-- 跨模組 API boundary → `src/modules/workspace/index.ts`
-- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
-- 成員身份驗證 → `src/modules/iam/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/workspace/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
-| 跨模組 API boundary | `src/modules/workspace/index.ts` |
-
-**嚴禁事項：**
-- ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
-- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
-- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/ai/AGENT.md
-````markdown
-# AI Module — Agent Guide
-
-## Purpose
-
-`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
-
-> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
-| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
-| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
-| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
-| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
-| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
-| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
-| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
-| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
-| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
-> - `document`（來源文件管理）→ `notebooklm` 所有  
-> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
-- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
-- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
-
-## task-formation 歸屬決策
-
-`task-formation` 子域屬於 **`workspace`**，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 觸發者（使用者指定生成任務）是 workspace 層業務流程
-- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
-
-## Route Here When
-
-- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
-- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
-- 需要 `src/modules/ai/` 層的骨架結構作為起點。
-
-## Route Elsewhere When
-
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
-- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
-- 知識文件 / Page 管理 → `src/modules/notion/`
-- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
-- 跨模組 API boundary → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
-| 跨模組 API boundary | `src/modules/ai/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
-- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/platform/AGENT.md
-````markdown
-# Platform Module — Agent Guide
-
-## Purpose
-
-`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
-
-> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
-| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
-| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
-| `notification` | 通知發送 | ✅ 完成 |
-| `platform-config` | 平台設定 | ✅ 完成 |
-| `search` | 跨域搜尋 | ✅ 完成 |
-
-**已遷移子域（不在 platform）：**
-- `account` → `src/modules/iam/subdomains/account/`
-- `organization` → `src/modules/iam/subdomains/organization/`
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
-
-## Route Here When
-
-- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
-- 實作 notification、background-job 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/platform/AGENT.md`
-- Account / Organization → `src/modules/iam/`（已遷入）
-- 跨模組 API boundary → `src/modules/platform/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
-| 跨模組 API boundary | `src/modules/platform/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
-- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
-- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
+````typescript
+/**
+ * workspace-ui-stubs — re-export barrel (backward-compatible surface).
+ *
+ * This file was previously a monolithic stubs file.  It is now a thin barrel
+ * that re-exports from three focused modules:
+ *
+ *   workspace-nav-model.ts        — pure tab/group/URL model (no JSX)
+ *   workspace-shell-interop.tsx   — shell integration components & hooks
+ *   workspace-route-screens.tsx   — workspace-scoped route screens
+ *
+ * Account / organization route screens (AccountDashboard, OrganizationTeams,
+ * OrganizationSchedule, OrganizationDaily, OrganizationAudit,
+ * OrganizationWorkspaces) now live in platform-ui-stubs because they are owned
+ * by the platform bounded context, not the workspace bounded context.
+ *
+ * Direct consumers of those screens must import from platform-ui-stubs instead.
+ * AccountRouteDispatcher has already been updated accordingly.
+ */
 ````

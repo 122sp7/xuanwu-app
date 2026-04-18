@@ -1,6 +1,12 @@
 # Directory Structure
 
 ```
+docs/structure/contexts/notion/AGENT.md (103 lines)
+docs/structure/contexts/notion/bounded-contexts.md (83 lines)
+docs/structure/contexts/notion/context-map.md (80 lines)
+docs/structure/contexts/notion/README.md (117 lines)
+docs/structure/contexts/notion/subdomains.md (75 lines)
+docs/structure/contexts/notion/ubiquitous-language.md (94 lines)
 src/modules/notion/adapters/outbound/notion-page-stub.ts (25 lines)
 src/modules/notion/AGENT.md (62 lines)
 src/modules/notion/index.ts (16 lines)

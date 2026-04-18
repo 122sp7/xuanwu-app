@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/notebooklm/**
+- Only files matching these patterns are included: src/modules/notebooklm/**, docs/structure/contexts/notebooklm/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-36 files | 505 lines
+42 files | 1,034 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 34 | 376 |
-| Markdown | 2 | 129 |
+| Markdown | 8 | 658 |
 
 **Largest files:**
+- `docs/structure/contexts/notebooklm/README.md` (113 lines)
+- `docs/structure/contexts/notebooklm/ubiquitous-language.md` (94 lines)
+- `docs/structure/contexts/notebooklm/AGENT.md` (92 lines)
+- `docs/structure/contexts/notebooklm/bounded-contexts.md` (83 lines)
+- `docs/structure/contexts/notebooklm/context-map.md` (79 lines)
 - `src/modules/notebooklm/README.md` (70 lines)
+- `docs/structure/contexts/notebooklm/subdomains.md` (68 lines)
 - `src/modules/notebooklm/subdomains/document/domain/entities/Document.ts` (62 lines)
 - `src/modules/notebooklm/AGENT.md` (59 lines)
 - `src/modules/notebooklm/subdomains/notebook/domain/entities/Notebook.ts` (52 lines)
-- `src/modules/notebooklm/subdomains/conversation/domain/entities/Conversation.ts` (51 lines)
-- `src/modules/notebooklm/subdomains/document/domain/repositories/DocumentRepository.ts` (24 lines)
-- `src/modules/notebooklm/subdomains/notebook/application/use-cases/NotebookUseCases.ts` (24 lines)
-- `src/modules/notebooklm/subdomains/conversation/application/use-cases/ConversationUseCases.ts` (21 lines)
-- `src/modules/notebooklm/subdomains/document/application/use-cases/DocumentUseCases.ts` (17 lines)
-- `src/modules/notebooklm/subdomains/conversation/domain/repositories/ConversationRepository.ts` (15 lines)

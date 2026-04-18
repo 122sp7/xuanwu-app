@@ -33899,6 +33899,109 @@ import { getFirestore } from 'firebase/firestore'
 - [docs/README.md](../docs/README.md) — 架構文件索引
 ````
 
+## File: src/modules/template/AGENT.md
+````markdown
+# Template Module — Agent Guide
+
+## Purpose
+
+`src/modules/template` 是**可複製的 Hexagonal Architecture + DDD 多子域骨架**，示範正確的多 subdomain 分層結構、具名匯出規範與跨子域協調模式。用來當作新模組的起點，或作為架構參照。
+
+## Structure At a Glance
+
+```
+index.ts              ← 唯一對外入口（重新匯出全部四個子域的 domain + application 符號）
+orchestration/        ← 跨子域 Facade + Coordinator
+shared/               ← 跨子域共用層（domain / application / config / constants /
+                         errors / events / infrastructure / types / utils）
+subdomains/
+  document/           ← 核心子域，完整 domain + application + adapters
+  generation/         ← 生成子域，完整 domain + application + adapters
+  ingestion/          ← 匠入子域，完整 domain + application + adapters
+  workflow/           ← 流程子域，完整 domain + application + adapters
+```
+
+## Boundary Rules
+
+- `subdomains/*/domain/` 不得匯入 React、Firebase SDK、HTTP client、ORM 或任何框架。
+- `subdomains/*/application/` 只依賴同子域 `domain/` 抽象，不依賴 adapter 實作。
+- Adapters 只實作 port 介面，不承載業務規則。
+- 跨子域協調只能透過 `orchestration/` 或 `shared/events/`，**禁止直接跨 subdomain import**。
+- 外部消費者只能透過 `src/modules/template/index.ts`（具名匯出）存取。
+
+## Barrel & Named Export Rules
+
+- 所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
+- 每個子域各有自己的 barrel 層（domain/index.ts、application/index.ts、adapters/index.ts）。
+- Source 檔案之間的 import 使用**直接相對路徑**（例如 `'../../../domain/value-objects/TemplateId'`），不依賴 barrel，確保 barrel 可獨立變更。
+- `shared/*/index.ts` 為各共用層的匯出出口，由需要者直接引用。
+
+## Route Here When
+
+- 需要新建一個多子域 DDD module 骨架。
+- 需要查閱正確的 barrel 結構、具名匯出寫法或跨子域協調模式。
+- 需要確認 Hexagonal 依賴方向、多子域邂界、VO ID 模式、FirestoreLike 抄象、AI adapter stub 鮣變的範例。
+
+## Route Elsewhere When
+
+- 真實業務需求 → 依對應 bounded context 建立新的 `src/modules/<context>/`。
+- 共享 UI 元件 → `packages/ui-shadcn/`。
+- 共享工具函式 → `packages/shared-utils/`。
+
+## Development Order（新子域展開順序）
+
+1. `subdomains/<name>/domain/`：定義 Entity、Value Object（VO ID）、Domain Event、Repository Port。
+2. `subdomains/<name>/application/`：定義 Use Case、DTO、Inbound / Outbound Port。
+3. `subdomains/<name>/adapters/outbound/`：實作 Repository Port（FirestoreLike 抄象）與其他 outbound adapter。
+4. `subdomains/<name>/adapters/inbound/`：實作 HTTP / Queue adapter（workflow 僅需 HTTP）。
+5. 更新各層 barrel index，確保具名匯出完整。
+6. 如有跨子域流程需求，在 `orchestration/TemplateCoordinator.ts` 注入相關 use case。
+7. 更新根 `index.ts` 補露新符號。
+
+## Delivery Style
+
+- 奈卡姆剥刀：本模組四個子域均已完整實作，可直接複製作為新模組起點。
+- 複製時只保留有實際業務需求的子域；generation / ingestion / workflow 可依業務選手。
+- AI adapter（`AiGenerationAdapter`）與 Storage adapter（`CloudStorageAdapter`）為 stub，待雞 Genkit / Cloud Storage 連接時再完善。
+
+---
+
+## 已確立模式（Pattern Reference）
+
+| 模式 | 說明 |
+|---|---|
+| **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
+| **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
+| **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
+| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Genkit wiring |
+| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Cloud Storage wiring |
+| **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
+| **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
+
+---
+
+## 衝突防護（src/modules vs modules/）
+
+`src/modules/template` 屬於**模組實作層（`src/modules/`）**。
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
+| 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
+| 跨模組 API boundary | `src/modules/<context>/index.ts` |
+| 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
+
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 React、Firebase SDK、HTTP client、ORM
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
+- [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
 ## File: src/modules/template/README.md
 ````markdown
 # Template Module
@@ -36153,106 +36256,357 @@ import { firestoreApi } from '@integration-firebase'
 | 是 UI 組件（自訂）？ | → 放 `packages/ui-shadcn/ui-custom/` |
 ````
 
-## File: src/modules/template/AGENT.md
+## File: src/modules/analytics/README.md
 ````markdown
-# Template Module — Agent Guide
+# Analytics Module
 
-## Purpose
+## 子域清單
 
-`src/modules/template` 是**可複製的 Hexagonal Architecture + DDD 多子域骨架**，示範正確的多 subdomain 分層結構、具名匯出規範與跨子域協調模式。用來當作新模組的起點，或作為架構參照。
-
-## Structure At a Glance
-
-```
-index.ts              ← 唯一對外入口（重新匯出全部四個子域的 domain + application 符號）
-orchestration/        ← 跨子域 Facade + Coordinator
-shared/               ← 跨子域共用層（domain / application / config / constants /
-                         errors / events / infrastructure / types / utils）
-subdomains/
-  document/           ← 核心子域，完整 domain + application + adapters
-  generation/         ← 生成子域，完整 domain + application + adapters
-  ingestion/          ← 匠入子域，完整 domain + application + adapters
-  workflow/           ← 流程子域，完整 domain + application + adapters
-```
-
-## Boundary Rules
-
-- `subdomains/*/domain/` 不得匯入 React、Firebase SDK、HTTP client、ORM 或任何框架。
-- `subdomains/*/application/` 只依賴同子域 `domain/` 抽象，不依賴 adapter 實作。
-- Adapters 只實作 port 介面，不承載業務規則。
-- 跨子域協調只能透過 `orchestration/` 或 `shared/events/`，**禁止直接跨 subdomain import**。
-- 外部消費者只能透過 `src/modules/template/index.ts`（具名匯出）存取。
-
-## Barrel & Named Export Rules
-
-- 所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
-- 每個子域各有自己的 barrel 層（domain/index.ts、application/index.ts、adapters/index.ts）。
-- Source 檔案之間的 import 使用**直接相對路徑**（例如 `'../../../domain/value-objects/TemplateId'`），不依賴 barrel，確保 barrel 可獨立變更。
-- `shared/*/index.ts` 為各共用層的匯出出口，由需要者直接引用。
-
-## Route Here When
-
-- 需要新建一個多子域 DDD module 骨架。
-- 需要查閱正確的 barrel 結構、具名匯出寫法或跨子域協調模式。
-- 需要確認 Hexagonal 依賴方向、多子域邂界、VO ID 模式、FirestoreLike 抄象、AI adapter stub 鮣變的範例。
-
-## Route Elsewhere When
-
-- 真實業務需求 → 依對應 bounded context 建立新的 `src/modules/<context>/`。
-- 共享 UI 元件 → `packages/ui-shadcn/`。
-- 共享工具函式 → `packages/shared-utils/`。
-
-## Development Order（新子域展開順序）
-
-1. `subdomains/<name>/domain/`：定義 Entity、Value Object（VO ID）、Domain Event、Repository Port。
-2. `subdomains/<name>/application/`：定義 Use Case、DTO、Inbound / Outbound Port。
-3. `subdomains/<name>/adapters/outbound/`：實作 Repository Port（FirestoreLike 抄象）與其他 outbound adapter。
-4. `subdomains/<name>/adapters/inbound/`：實作 HTTP / Queue adapter（workflow 僅需 HTTP）。
-5. 更新各層 barrel index，確保具名匯出完整。
-6. 如有跨子域流程需求，在 `orchestration/TemplateCoordinator.ts` 注入相關 use case。
-7. 更新根 `index.ts` 補露新符號。
-
-## Delivery Style
-
-- 奈卡姆剥刀：本模組四個子域均已完整實作，可直接複製作為新模組起點。
-- 複製時只保留有實際業務需求的子域；generation / ingestion / workflow 可依業務選手。
-- AI adapter（`AiGenerationAdapter`）與 Storage adapter（`CloudStorageAdapter`）為 stub，待雞 Genkit / Cloud Storage 連接時再完善。
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
+| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
+| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
+| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
+| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
+| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
+| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
 
 ---
 
-## 已確立模式（Pattern Reference）
+## 預期目錄結構
 
-| 模式 | 說明 |
-|---|---|
-| **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
-| **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
-| **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
-| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Genkit wiring |
-| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Cloud Storage wiring |
-| **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
-| **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
+```
+src/modules/analytics/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+  shared/
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    event-projection/
+      domain/
+      application/
+      adapters/outbound/
+    metrics/
+    event-ingestion/
+    event-contracts/
+    experimentation/
+    insights/
+    realtime-insights/
+```
 
 ---
 
-## 衝突防護（src/modules vs modules/）
+## 依賴方向
 
-`src/modules/template` 屬於**模組實作層（`src/modules/`）**。
+```
+adapters/inbound → application → domain ← adapters/outbound
+```
 
-| 情境 | 正確路徑 |
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
-| 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
-| 跨模組 API boundary | `src/modules/<context>/index.ts` |
-| 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
+| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
 
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 React、Firebase SDK、HTTP client、ORM
-- ❌ 在 barrel 使用 `export *`
+---
 
 ## 文件網絡
 
-- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
-- [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/billing/README.md
+````markdown
+# Billing Module
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
+| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
+| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
+
+**術語提醒：**
+- `Subscription` = 計費計劃（billing plan）
+- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/billing/
+  index.ts
+  README.md
+  AGENT.md
+  shared/
+    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
+    types/index.ts
+  subdomains/
+    entitlement/
+      domain/
+      application/
+      adapters/outbound/
+    subscription/
+      domain/
+      application/
+      adapters/outbound/
+    usage-metering/
+      domain/
+      application/
+      adapters/outbound/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/iam/README.md
+````markdown
+# IAM Module
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `account` | ✅ 完成 | AccountProfile read-model |
+| `access-control` | ✅ 完成 | 存取控制規則 |
+| `authentication` | ✅ 完成 | 認證流程 |
+| `authorization` | ✅ 完成 | 授權決策 |
+| `federation` | ✅ 完成 | SSO / 聯合身份 |
+| `identity` | ✅ 完成 | 身份核心（Actor）|
+| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
+| `security-policy` | ✅ 完成 | 安全策略 |
+| `session` | ✅ 完成 | 會話管理 |
+| `tenant` | ✅ 完成 | 租戶隔離 |
+
+### account / organization 遷入說明
+
+`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
+- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
+
+---
+
+## 目錄結構
+
+```
+src/modules/iam/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    IamFacade.ts
+    IamCoordinator.ts
+  shared/
+    domain/index.ts             ← Actor value object（跨子域共用）
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    account/
+      domain/
+      application/
+      adapters/outbound/
+    organization/
+      domain/
+      application/
+      adapters/outbound/
+    authentication/
+    authorization/
+    access-control/
+    session/
+    tenant/
+    identity/
+    security-policy/
+    federation/
+```
+
+---
+
+## 依賴方向
+
+```
+adapters/inbound → application → domain ← adapters/outbound
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
+| 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/README.md
+````markdown
+# NotebookLM Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
+| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
+| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
+
+---
+
+## 子域邊界示意（notebooklm vs ai）
+
+```
+notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
+notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
+notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
+notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
+notebooklm/conversation ─引用取得→  ai/citation（標注來源）
+```
+
+notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/notebooklm/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotebooklmFacade.ts
+    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
+  shared/
+    domain/index.ts
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    document/
+      domain/
+      application/
+      adapters/outbound/
+    conversation/
+    notebook/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
+| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
+| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
+| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notion/README.md
+````markdown
+# Notion Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
+| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
+| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
+| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
+| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
+| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/notion/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotionFacade.ts
+  shared/
+    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    page/
+      domain/
+      application/
+      adapters/outbound/
+    block/
+    database/
+    view/
+    collaboration/
+    template/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
+| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
+| 在 barrel 使用 `export *` | 破壞可追蹤性 |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
@@ -36789,275 +37143,100 @@ flowchart LR
 - 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
-## File: src/modules/analytics/README.md
+## File: src/modules/ai/README.md
 ````markdown
-# Analytics Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
-| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
-| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
-| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
-| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
-| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
-| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/analytics/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-  shared/
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    event-projection/
-      domain/
-      application/
-      adapters/outbound/
-    metrics/
-    event-ingestion/
-    event-contracts/
-    experimentation/
-    insights/
-    realtime-insights/
-```
-
----
-
-## 依賴方向
-
-```
-adapters/inbound → application → domain ← adapters/outbound
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/billing/README.md
-````markdown
-# Billing Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
-| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
-| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
-
-**術語提醒：**
-- `Subscription` = 計費計劃（billing plan）
-- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
-
----
-
-## 預期目錄結構
-
-```
-src/modules/billing/
-  index.ts
-  README.md
-  AGENT.md
-  shared/
-    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
-    types/index.ts
-  subdomains/
-    entitlement/
-      domain/
-      application/
-      adapters/outbound/
-    subscription/
-      domain/
-      application/
-      adapters/outbound/
-    usage-metering/
-      domain/
-      application/
-      adapters/outbound/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/iam/README.md
-````markdown
-# IAM Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `account` | ✅ 完成 | AccountProfile read-model |
-| `access-control` | ✅ 完成 | 存取控制規則 |
-| `authentication` | ✅ 完成 | 認證流程 |
-| `authorization` | ✅ 完成 | 授權決策 |
-| `federation` | ✅ 完成 | SSO / 聯合身份 |
-| `identity` | ✅ 完成 | 身份核心（Actor）|
-| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
-| `security-policy` | ✅ 完成 | 安全策略 |
-| `session` | ✅ 完成 | 會話管理 |
-| `tenant` | ✅ 完成 | 租戶隔離 |
-
-### account / organization 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
-- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
-
----
-
-## 目錄結構
-
-```
-src/modules/iam/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    IamFacade.ts
-    IamCoordinator.ts
-  shared/
-    domain/index.ts             ← Actor value object（跨子域共用）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    account/
-      domain/
-      application/
-      adapters/outbound/
-    organization/
-      domain/
-      application/
-      adapters/outbound/
-    authentication/
-    authorization/
-    access-control/
-    session/
-    tenant/
-    identity/
-    security-policy/
-    federation/
-```
-
----
-
-## 依賴方向
-
-```
-adapters/inbound → application → domain ← adapters/outbound
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
-| 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notebooklm/README.md
-````markdown
-# NotebookLM Module
+# AI Module
 
 ## 子域清單（名詞域）
 
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
+> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
 
 | 子域 | 狀態 | 說明 |
 |---|---|---|
-| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
-| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
-| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
+| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
+| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
+| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
+| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
+| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
+| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
+| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
+| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
+| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
+| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
 
 ---
 
-## 子域邊界示意（notebooklm vs ai）
+## task-formation 歸屬決策
 
-```
-notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
-notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
-notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
-notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
-notebooklm/conversation ─引用取得→  ai/citation（標注來源）
-```
-
-notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
+| 子域 | 歸屬 | 理由 |
+|---|---|---|
+| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
 
 ---
 
 ## 預期目錄結構
 
 ```
-src/modules/notebooklm/
-  index.ts
+src/modules/ai/
+  index.ts                      ← 模組對外唯一入口（具名匯出）
   README.md
   AGENT.md
   orchestration/
-    NotebooklmFacade.ts
-    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
+    AiFacade.ts                 ← 對外統一 Facade
+    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
   shared/
     domain/index.ts
-    events/index.ts             ← Published Language Events
+    application/index.ts
+    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
+    errors/index.ts
     types/index.ts
   subdomains/
-    document/
+    embedding/
       domain/
       application/
       adapters/outbound/
-    conversation/
-    notebook/
+    pipeline/
+      domain/
+      application/
+      adapters/outbound/
+    evaluation/
+    generation/
+    chunk/
+    retrieval/
+    context/
+    citation/
+    memory/
+    tool-calling/
 ```
+
+---
+
+## 依賴方向
+
+```
+subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
+                                                                    ↑
+                               subdomains/*/adapters/outbound  ───┘
+                                                    ↑
+                                             shared/domain
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
+
+---
+
+## 子域邊界示意（ai vs notebooklm）
+
+```
+notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
+notebooklm/document      ←使用→  ai/embedding（向量化文件）
+notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
+notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
+notebooklm/document      ─切塊→  ai/chunk（分塊計算）
+```
+
+ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 
 ---
 
@@ -37065,10 +37244,10 @@ src/modules/notebooklm/
 
 | 禁止行為 | 原因 |
 |---|---|
-| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
-| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
-| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
-| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
+| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
+| 在 ai 定義使用者對話 UX | 屬 notebooklm |
+| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
 
 ---
 
@@ -37079,66 +37258,302 @@ src/modules/notebooklm/
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/notion/README.md
+## File: src/modules/analytics/AGENT.md
 ````markdown
-# Notion Module
+# Analytics Module — Agent Guide
 
-## 子域清單（名詞域）
+## Purpose
 
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
+`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
 
-| 子域 | 狀態 | 說明 |
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
 |---|---|---|
-| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
-| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
-| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
-| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
-| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
-| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
+| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
+| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
+| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
+| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
+| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
+| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
+| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
 
----
+## Boundary Rules
 
-## 預期目錄結構
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
 
-```
-src/modules/notion/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    NotionFacade.ts
-  shared/
-    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    page/
-      domain/
-      application/
-      adapters/outbound/
-    block/
-    database/
-    view/
-    collaboration/
-    template/
-```
+## Route Here When
 
----
+- 撰寫 Analytics 的新 use case、entity、adapter 實作。
+- 實作事件投影、指標計算 port 等骨架。
 
-## 衝突防護
+## Route Elsewhere When
 
-| 禁止行為 | 原因 |
+- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
+- 跨模組 API boundary → `src/modules/analytics/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
 |---|---|
-| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
-| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
-| 在 barrel 使用 `export *` | 破壞可追蹤性 |
+| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
+| 跨模組 API boundary | `src/modules/analytics/index.ts` |
 
----
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 在 barrel 使用 `export *`
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/billing/AGENT.md
+````markdown
+# Billing Module — Agent Guide
+
+## Purpose
+
+`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
+| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
+| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
+- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
+
+## Route Here When
+
+- 撰寫 Billing 的新 use case、entity、adapter 實作。
+- 實作 entitlement check port、subscription repository 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/billing/AGENT.md`
+- 跨模組 API boundary → `src/modules/billing/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
+| 跨模組 API boundary | `src/modules/billing/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/iam/AGENT.md
+````markdown
+# IAM Module — Agent Guide
+
+## Purpose
+
+`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `account` | 帳號 Profile 管理 | ✅ 完成 |
+| `access-control` | 存取控制規則 | ✅ 完成 |
+| `authentication` | 認證流程 | ✅ 完成 |
+| `authorization` | 授權決策 | ✅ 完成 |
+| `federation` | SSO / 聯合身份 | ✅ 完成 |
+| `identity` | 身份核心（Actor）| ✅ 完成 |
+| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
+| `security-policy` | 安全策略 | ✅ 完成 |
+| `session` | 會話管理 | ✅ 完成 |
+| `tenant` | 租戶隔離 | ✅ 完成 |
+
+## 遷入說明
+
+`platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
+- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
+- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `organization/` 使用 `OrganizationTeam` aggregate；不得混用 `Actor`（身份）與 `Membership`（工作區參與）術語。
+- `identity` 是唯一定義 Actor 概念的子域。
+
+## Route Here When
+
+- 撰寫 IAM 的新 use case、entity、adapter 實作（account、session、access-control 等）。
+- 擴展 organization 子域的 team / member 功能。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/iam/AGENT.md`
+- 跨模組 API boundary → `src/modules/iam/index.ts`
+- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
+| 跨模組 API boundary | `src/modules/iam/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
+- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 混用 Actor（身份）與 User（業務角色）術語
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Module — Agent Guide
+
+## Purpose
+
+`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
+
+> **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
+> AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
+| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
+| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
+> - AI 機制（embedding、retrieval、generation）屬 `ai` 模組；notebooklm 透過 Port 注入消費  
+> - `conversation`（AI 模型上下文管理）屬 `ai/context`；`conversation`（使用者對話 UX）屬本模組  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
+- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
+- `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 NotebookLM 的新 use case、entity、adapter 實作。
+- 實作 document ingestion、conversation 管理、notebook lifecycle 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
+- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
+- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
+- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
+| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
+- ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notion/AGENT.md
+````markdown
+# Notion Module — Agent Guide
+
+## Purpose
+
+`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
+
+> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
+| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
+| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
+| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
+| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
+| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
+> - `relations`（關聯圖）以 `view` 呈現；Page 間的關聯是 View 的一種形式  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
+- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
+- `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 notion 的新 use case、entity、adapter 實作。
+- 實作 page authoring、database CRUD、collaboration、template 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/notion/AGENT.md`
+- 跨模組 API boundary → `src/modules/notion/index.ts`
+- RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
+- AI 生成輔助 → `src/modules/ai/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
+| 跨模組 API boundary | `src/modules/notion/index.ts` |
+
+**嚴禁事項：**
+- ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
+- ❌ 在 barrel 使用 `export *`
+- ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
+- ❌ 在 notion 模組定義 AI 生成能力（屬 ai）
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -37683,53 +38098,78 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill hexagonal-ddd
 ````
 
-## File: src/modules/analytics/AGENT.md
+## File: src/modules/ai/AGENT.md
 ````markdown
-# Analytics Module — Agent Guide
+# AI Module — Agent Guide
 
 ## Purpose
 
-`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
+`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
 
-## 子域清單
+> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
+
+## 子域清單（名詞域）
 
 | 子域 | 說明 | 狀態 |
 |---|---|---|
-| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
-| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
-| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
-| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
-| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
-| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
-| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
+| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
+| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
+| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
+| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
+| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
+| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
+| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
+| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
+| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
+| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
+> - `document`（來源文件管理）→ `notebooklm` 所有  
+> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
 
 ## Boundary Rules
 
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
 - `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
+- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
+- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
+
+## task-formation 歸屬決策
+
+`task-formation` 子域屬於 **`workspace`**，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 觸發者（使用者指定生成任務）是 workspace 層業務流程
+- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
 
 ## Route Here When
 
-- 撰寫 Analytics 的新 use case、entity、adapter 實作。
-- 實作事件投影、指標計算 port 等骨架。
+- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
+- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
+- 需要 `src/modules/ai/` 層的骨架結構作為起點。
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
-- 跨模組 API boundary → `src/modules/analytics/index.ts`
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
+- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
+- 知識文件 / Page 管理 → `src/modules/notion/`
+- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
+- 跨模組 API boundary → `src/modules/ai/index.ts`
 
 ## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
-| 跨模組 API boundary | `src/modules/analytics/index.ts` |
+| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
+| 跨模組 API boundary | `src/modules/ai/index.ts` |
 
 **嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
 - ❌ 在 barrel 使用 `export *`
+- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
+- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
 
 ## 文件網絡
 
@@ -37738,247 +38178,90 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/billing/AGENT.md
+## File: src/modules/platform/README.md
 ````markdown
-# Billing Module — Agent Guide
+# Platform Module
 
-## Purpose
-
-`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
+> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
 
 ## 子域清單
 
-| 子域 | 說明 | 狀態 |
+| 子域 | 狀態 | 說明 |
 |---|---|---|
-| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
-| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
-| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
+| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
+| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
+| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
+| `notification` | ✅ 完成 | 通知發送 |
+| `platform-config` | ✅ 完成 | 平台設定 |
+| `search` | ✅ 完成 | 跨域搜尋 |
 
-## Boundary Rules
+**已遷移（不在 platform）：**
 
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
-- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
-
-## Route Here When
-
-- 撰寫 Billing 的新 use case、entity、adapter 實作。
-- 實作 entitlement check port、subscription repository 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/billing/AGENT.md`
-- 跨模組 API boundary → `src/modules/billing/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
+| 子域 | 遷移目標 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
-| 跨模組 API boundary | `src/modules/billing/index.ts` |
+| `account` | `src/modules/iam/subdomains/account/` |
+| `organization` | `src/modules/iam/subdomains/organization/` |
 
-**嚴禁事項：**
-- ❌ 在 barrel 使用 `export *`
+---
+
+## 目錄結構
+
+```
+src/modules/platform/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    PlatformFacade.ts
+  shared/
+    domain/index.ts
+    events/index.ts             ← Platform Published Language Events
+    types/index.ts
+  subdomains/
+    notification/
+      domain/
+      application/
+      adapters/outbound/
+    background-job/
+      domain/                   ← BackgroundJob / JobDocument / JobChunk
+      application/
+      adapters/outbound/
+    cache/
+    file-storage/
+    platform-config/
+    search/
+```
+
+---
+
+## 依賴方向
+
+Platform 是 T1 operational support，依賴方向固定：
+
+```
+iam     → platform
+billing → platform (entitlement governance)
+platform → workspace
+(platform 也被 notion, notebooklm 以 Service API 形式消費)
+```
+
+Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
+| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
+| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
+
+---
 
 ## 文件網絡
 
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/iam/AGENT.md
-````markdown
-# IAM Module — Agent Guide
-
-## Purpose
-
-`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `account` | 帳號 Profile 管理 | ✅ 完成 |
-| `access-control` | 存取控制規則 | ✅ 完成 |
-| `authentication` | 認證流程 | ✅ 完成 |
-| `authorization` | 授權決策 | ✅ 完成 |
-| `federation` | SSO / 聯合身份 | ✅ 完成 |
-| `identity` | 身份核心（Actor）| ✅ 完成 |
-| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
-| `security-policy` | 安全策略 | ✅ 完成 |
-| `session` | 會話管理 | ✅ 完成 |
-| `tenant` | 租戶隔離 | ✅ 完成 |
-
-## 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
-- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
-- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `organization/` 使用 `OrganizationTeam` aggregate；不得混用 `Actor`（身份）與 `Membership`（工作區參與）術語。
-- `identity` 是唯一定義 Actor 概念的子域。
-
-## Route Here When
-
-- 撰寫 IAM 的新 use case、entity、adapter 實作（account、session、access-control 等）。
-- 擴展 organization 子域的 team / member 功能。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/iam/AGENT.md`
-- 跨模組 API boundary → `src/modules/iam/index.ts`
-- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
-| 跨模組 API boundary | `src/modules/iam/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 混用 Actor（身份）與 User（業務角色）術語
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Module — Agent Guide
-
-## Purpose
-
-`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
-
-> **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
-> AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
-| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
-| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
-> - AI 機制（embedding、retrieval、generation）屬 `ai` 模組；notebooklm 透過 Port 注入消費  
-> - `conversation`（AI 模型上下文管理）屬 `ai/context`；`conversation`（使用者對話 UX）屬本模組  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
-- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
-- `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 NotebookLM 的新 use case、entity、adapter 實作。
-- 實作 document ingestion、conversation 管理、notebook lifecycle 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
-- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
-- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
-- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
-| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
-- ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notion/AGENT.md
-````markdown
-# Notion Module — Agent Guide
-
-## Purpose
-
-`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
-
-> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
-| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
-| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
-| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
-| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
-| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
-> - `relations`（關聯圖）以 `view` 呈現；Page 間的關聯是 View 的一種形式  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
-- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
-- `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 notion 的新 use case、entity、adapter 實作。
-- 實作 page authoring、database CRUD、collaboration、template 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/notion/AGENT.md`
-- 跨模組 API boundary → `src/modules/notion/index.ts`
-- RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
-- AI 生成輔助 → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
-| 跨模組 API boundary | `src/modules/notion/index.ts` |
-
-**嚴禁事項：**
-- ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
-- ❌ 在 barrel 使用 `export *`
-- ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
-- ❌ 在 notion 模組定義 AI 生成能力（屬 ai）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -38276,205 +38559,64 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill occams-razor
 ````
 
-## File: src/modules/ai/README.md
+## File: src/modules/platform/AGENT.md
 ````markdown
-# AI Module
+# Platform Module — Agent Guide
 
-## 子域清單（名詞域）
+## Purpose
 
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
-> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
+`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
 
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
-| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
-| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
-| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
-| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
-| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
-
----
-
-## task-formation 歸屬決策
-
-| 子域 | 歸屬 | 理由 |
-|---|---|---|
-| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/ai/
-  index.ts                      ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENT.md
-  orchestration/
-    AiFacade.ts                 ← 對外統一 Facade
-    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
-  shared/
-    domain/index.ts
-    application/index.ts
-    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
-    errors/index.ts
-    types/index.ts
-  subdomains/
-    embedding/
-      domain/
-      application/
-      adapters/outbound/
-    pipeline/
-      domain/
-      application/
-      adapters/outbound/
-    evaluation/
-    generation/
-    chunk/
-    retrieval/
-    context/
-    citation/
-    memory/
-    tool-calling/
-```
-
----
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
----
-
-## 子域邊界示意（ai vs notebooklm）
-
-```
-notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
-notebooklm/document      ←使用→  ai/embedding（向量化文件）
-notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
-notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
-notebooklm/document      ─切塊→  ai/chunk（分塊計算）
-```
-
-ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 在 ai 定義使用者對話 UX | 屬 notebooklm |
-| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/platform/README.md
-````markdown
-# Platform Module
-
-> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
+> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
 
 ## 子域清單
 
-| 子域 | 狀態 | 說明 |
+| 子域 | 說明 | 狀態 |
 |---|---|---|
-| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
-| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
-| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
-| `notification` | ✅ 完成 | 通知發送 |
-| `platform-config` | ✅ 完成 | 平台設定 |
-| `search` | ✅ 完成 | 跨域搜尋 |
+| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
+| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
+| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
+| `notification` | 通知發送 | ✅ 完成 |
+| `platform-config` | 平台設定 | ✅ 完成 |
+| `search` | 跨域搜尋 | ✅ 完成 |
 
-**已遷移（不在 platform）：**
+**已遷移子域（不在 platform）：**
+- `account` → `src/modules/iam/subdomains/account/`
+- `organization` → `src/modules/iam/subdomains/organization/`
 
-| 子域 | 遷移目標 |
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
+- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
+
+## Route Here When
+
+- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
+- 實作 notification、background-job 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/platform/AGENT.md`
+- Account / Organization → `src/modules/iam/`（已遷入）
+- 跨模組 API boundary → `src/modules/platform/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
 |---|---|
-| `account` | `src/modules/iam/subdomains/account/` |
-| `organization` | `src/modules/iam/subdomains/organization/` |
+| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
+| 跨模組 API boundary | `src/modules/platform/index.ts` |
 
----
-
-## 目錄結構
-
-```
-src/modules/platform/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    PlatformFacade.ts
-  shared/
-    domain/index.ts
-    events/index.ts             ← Platform Published Language Events
-    types/index.ts
-  subdomains/
-    notification/
-      domain/
-      application/
-      adapters/outbound/
-    background-job/
-      domain/                   ← BackgroundJob / JobDocument / JobChunk
-      application/
-      adapters/outbound/
-    cache/
-    file-storage/
-    platform-config/
-    search/
-```
-
----
-
-## 依賴方向
-
-Platform 是 T1 operational support，依賴方向固定：
-
-```
-iam     → platform
-billing → platform (entitlement governance)
-platform → workspace
-(platform 也被 notion, notebooklm 以 Service API 形式消費)
-```
-
-Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
-| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
-
----
+**嚴禁事項：**
+- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
+- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
+- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -38643,148 +38785,6 @@ src/modules/workspace/
 ## 文件網絡
 
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/ai/AGENT.md
-````markdown
-# AI Module — Agent Guide
-
-## Purpose
-
-`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
-
-> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
-| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
-| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
-| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
-| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
-| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
-| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
-| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
-| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
-| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
-> - `document`（來源文件管理）→ `notebooklm` 所有  
-> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
-- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
-- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
-
-## task-formation 歸屬決策
-
-`task-formation` 子域屬於 **`workspace`**，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 觸發者（使用者指定生成任務）是 workspace 層業務流程
-- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
-
-## Route Here When
-
-- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
-- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
-- 需要 `src/modules/ai/` 層的骨架結構作為起點。
-
-## Route Elsewhere When
-
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
-- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
-- 知識文件 / Page 管理 → `src/modules/notion/`
-- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
-- 跨模組 API boundary → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
-| 跨模組 API boundary | `src/modules/ai/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
-- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/platform/AGENT.md
-````markdown
-# Platform Module — Agent Guide
-
-## Purpose
-
-`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
-
-> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
-| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
-| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
-| `notification` | 通知發送 | ✅ 完成 |
-| `platform-config` | 平台設定 | ✅ 完成 |
-| `search` | 跨域搜尋 | ✅ 完成 |
-
-**已遷移子域（不在 platform）：**
-- `account` → `src/modules/iam/subdomains/account/`
-- `organization` → `src/modules/iam/subdomains/organization/`
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
-
-## Route Here When
-
-- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
-- 實作 notification、background-job 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/platform/AGENT.md`
-- Account / Organization → `src/modules/iam/`（已遷入）
-- 跨模組 API boundary → `src/modules/platform/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
-| 跨模組 API boundary | `src/modules/platform/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
-- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
-- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````

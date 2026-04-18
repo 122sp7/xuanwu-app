@@ -1,6 +1,12 @@
 # Directory Structure
 
 ```
+docs/structure/contexts/notebooklm/AGENT.md (92 lines)
+docs/structure/contexts/notebooklm/bounded-contexts.md (83 lines)
+docs/structure/contexts/notebooklm/context-map.md (79 lines)
+docs/structure/contexts/notebooklm/README.md (113 lines)
+docs/structure/contexts/notebooklm/subdomains.md (68 lines)
+docs/structure/contexts/notebooklm/ubiquitous-language.md (94 lines)
 src/modules/notebooklm/AGENT.md (59 lines)
 src/modules/notebooklm/index.ts (10 lines)
 src/modules/notebooklm/orchestration/index.ts (3 lines)

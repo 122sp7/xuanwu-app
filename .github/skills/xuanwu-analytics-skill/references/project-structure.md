@@ -1,6 +1,12 @@
 # Directory Structure
 
 ```
+docs/structure/contexts/analytics/AGENT.md (11 lines)
+docs/structure/contexts/analytics/bounded-contexts.md (11 lines)
+docs/structure/contexts/analytics/context-map.md (16 lines)
+docs/structure/contexts/analytics/README.md (16 lines)
+docs/structure/contexts/analytics/subdomains.md (17 lines)
+docs/structure/contexts/analytics/ubiquitous-language.md (15 lines)
 src/modules/analytics/AGENT.md (51 lines)
 src/modules/analytics/index.ts (18 lines)
 src/modules/analytics/orchestration/index.ts (3 lines)

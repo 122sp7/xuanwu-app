@@ -1,10 +1,19 @@
 # Directory Structure
 
 ```
-src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx (69 lines)
+docs/structure/contexts/workspace/AGENT.md (100 lines)
+docs/structure/contexts/workspace/bounded-contexts.md (93 lines)
+docs/structure/contexts/workspace/context-map.md (79 lines)
+docs/structure/contexts/workspace/README.md (126 lines)
+docs/structure/contexts/workspace/subdomains.md (80 lines)
+docs/structure/contexts/workspace/ubiquitous-language.md (120 lines)
+src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx (62 lines)
 src/modules/workspace/adapters/inbound/react/index.ts (6 lines)
 src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts (8 lines)
-src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx (187 lines)
+src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts (174 lines)
+src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx (49 lines)
+src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx (147 lines)
+src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx (18 lines)
 src/modules/workspace/adapters/inbound/react/WorkspaceContext.tsx (47 lines)
 src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx (39 lines)
 src/modules/workspace/adapters/outbound/firebase-composition.ts (81 lines)

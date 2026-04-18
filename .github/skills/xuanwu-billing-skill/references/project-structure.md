@@ -1,6 +1,12 @@
 # Directory Structure
 
 ```
+docs/structure/contexts/billing/AGENT.md (11 lines)
+docs/structure/contexts/billing/bounded-contexts.md (11 lines)
+docs/structure/contexts/billing/context-map.md (14 lines)
+docs/structure/contexts/billing/README.md (16 lines)
+docs/structure/contexts/billing/subdomains.md (18 lines)
+docs/structure/contexts/billing/ubiquitous-language.md (15 lines)
 src/modules/billing/AGENT.md (46 lines)
 src/modules/billing/index.ts (10 lines)
 src/modules/billing/orchestration/index.ts (3 lines)

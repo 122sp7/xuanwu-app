@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/notion/**
+- Only files matching these patterns are included: src/modules/notion/**, docs/structure/contexts/notion/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-57 files | 676 lines
+63 files | 1,228 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 55 | 554 |
-| Markdown | 2 | 122 |
+| Markdown | 8 | 674 |
 
 **Largest files:**
+- `docs/structure/contexts/notion/README.md` (117 lines)
+- `docs/structure/contexts/notion/AGENT.md` (103 lines)
+- `docs/structure/contexts/notion/ubiquitous-language.md` (94 lines)
+- `docs/structure/contexts/notion/bounded-contexts.md` (83 lines)
+- `docs/structure/contexts/notion/context-map.md` (80 lines)
+- `docs/structure/contexts/notion/subdomains.md` (75 lines)
 - `src/modules/notion/subdomains/block/domain/entities/Block.ts` (68 lines)
 - `src/modules/notion/AGENT.md` (62 lines)
 - `src/modules/notion/subdomains/page/domain/entities/Page.ts` (60 lines)
 - `src/modules/notion/README.md` (60 lines)
-- `src/modules/notion/subdomains/database/domain/entities/Database.ts` (57 lines)
-- `src/modules/notion/subdomains/view/domain/entities/View.ts` (41 lines)
-- `src/modules/notion/subdomains/template/domain/entities/Template.ts` (36 lines)
-- `src/modules/notion/subdomains/collaboration/domain/entities/Comment.ts` (34 lines)
-- `src/modules/notion/subdomains/page/domain/repositories/PageRepository.ts` (26 lines)
-- `src/modules/notion/adapters/outbound/notion-page-stub.ts` (25 lines)

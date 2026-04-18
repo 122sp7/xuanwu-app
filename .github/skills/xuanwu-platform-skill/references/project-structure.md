@@ -1,10 +1,16 @@
 # Directory Structure
 
 ```
+docs/structure/contexts/platform/AGENT.md (107 lines)
+docs/structure/contexts/platform/bounded-contexts.md (84 lines)
+docs/structure/contexts/platform/context-map.md (80 lines)
+docs/structure/contexts/platform/README.md (133 lines)
+docs/structure/contexts/platform/subdomains.md (84 lines)
+docs/structure/contexts/platform/ubiquitous-language.md (138 lines)
 src/modules/platform/adapters/inbound/react/AccountScopeProvider.tsx (28 lines)
 src/modules/platform/adapters/inbound/react/AppContext.tsx (106 lines)
 src/modules/platform/adapters/inbound/react/index.ts (6 lines)
-src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx (46 lines)
+src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx (67 lines)
 src/modules/platform/adapters/inbound/react/PlatformBootstrap.tsx (21 lines)
 src/modules/platform/adapters/inbound/react/shell/AccountSwitcher.tsx (61 lines)
 src/modules/platform/adapters/inbound/react/shell/CreateOrganizationDialog.tsx (48 lines)
