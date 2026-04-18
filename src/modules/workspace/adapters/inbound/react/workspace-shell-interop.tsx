@@ -86,93 +86,49 @@ interface WorkspaceQuickAccessItem {
   isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
 }
 
+/**
+ * WORKSPACE_TAB_ICONS — icon for each WorkspaceTabValue.
+ *
+ * This is the ONLY UI-specific data that cannot live in workspace-nav-model.ts
+ * (nav-model is JSX-free). All other tab metadata (label, id, value, group)
+ * is owned by WORKSPACE_TAB_ITEMS — never duplicate it here.
+ */
+const WORKSPACE_TAB_ICONS: Record<string, ReactNode> = {
+  // workspace group
+  Overview:          <Home className="size-3.5" />,
+  Daily:             <Inbox className="size-3.5" />,
+  Schedule:          <Inbox className="size-3.5" />,
+  Audit:             <Shield className="size-3.5" />,
+  Files:             <FolderOpen className="size-3.5" />,
+  Members:           <Users className="size-3.5" />,
+  WorkspaceSettings: <Settings className="size-3.5" />,
+  TaskFormation:     <Inbox className="size-3.5" />,
+  Tasks:             <ListTodo className="size-3.5" />,
+  Quality:           <ClipboardCheck className="size-3.5" />,
+  Approval:          <BadgeCheck className="size-3.5" />,
+  Settlement:        <Receipt className="size-3.5" />,
+  Issues:            <AlertCircle className="size-3.5" />,
+  // notion group
+  Knowledge:         <Notebook className="size-3.5" />,
+  Pages:             <FileText className="size-3.5" />,
+  Database:          <Table2 className="size-3.5" />,
+  Templates:         <LayoutTemplate className="size-3.5" />,
+  // notebooklm group
+  Notebook:          <Brain className="size-3.5" />,
+  AiChat:            <MessageSquare className="size-3.5" />,
+  Sources:           <FileStack className="size-3.5" />,
+  Research:          <BookOpen className="size-3.5" />,
+};
+
+/**
+ * WORKSPACE_QUICK_ACCESS_TEMPLATES — quick-access icon strip items.
+ *
+ * Tab-based items are auto-derived from WORKSPACE_TAB_ITEMS so that
+ * labels and IDs always stay in sync with workspace-nav-model.ts.
+ * Only non-tab panel shortcuts (e.g. governance panel) are defined manually.
+ */
 const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
-  {
-    id: "overview",
-    href: "{workspaceBaseHref}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (_pathname, options) =>
-      resolveWorkspaceTabValue(options?.tab) === "Overview" && options?.panel == null,
-  },
-  {
-    id: "knowledge-pages",
-    href: "{workspaceBaseHref}?tab=Overview&panel=knowledge-pages",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (_pathname, options) =>
-      resolveWorkspaceTabValue(options?.tab) === "Overview" && options?.panel === "knowledge-pages",
-  },
-  {
-    id: "knowledge",
-    href: "{workspaceBaseHref}?tab=Knowledge",
-    label: "知識",
-    icon: <Notebook className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Knowledge",
-  },
-  {
-    id: "files",
-    href: "{workspaceBaseHref}?tab=Files",
-    label: "檔案",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Files",
-  },
-  {
-    id: "members",
-    href: "{workspaceBaseHref}?tab=Members",
-    label: "成員",
-    icon: <Users className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Members",
-  },
-  {
-    id: "notebook",
-    href: "{workspaceBaseHref}?tab=Notebook",
-    label: "RAG",
-    icon: <Brain className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Notebook",
-  },
-  {
-    id: "ai-chat",
-    href: "{workspaceBaseHref}?tab=AiChat",
-    label: "AI",
-    icon: <MessageSquare className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "AiChat",
-  },
-  {
-    id: "pages",
-    href: "{workspaceBaseHref}?tab=Pages",
-    label: "頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Pages",
-  },
-  {
-    id: "database",
-    href: "{workspaceBaseHref}?tab=Database",
-    label: "資料庫",
-    icon: <Table2 className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Database",
-  },
-  {
-    id: "templates",
-    href: "{workspaceBaseHref}?tab=Templates",
-    label: "範本",
-    icon: <LayoutTemplate className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Templates",
-  },
-  {
-    id: "sources",
-    href: "{workspaceBaseHref}?tab=Sources",
-    label: "來源",
-    icon: <FileStack className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Sources",
-  },
-  {
-    id: "research",
-    href: "{workspaceBaseHref}?tab=Research",
-    label: "研究",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Research",
-  },
+  // Non-tab panel shortcut — not backed by a top-level WorkspaceTabValue
   {
     id: "governance",
     href: "{workspaceBaseHref}?tab=Overview&panel=governance",
@@ -181,49 +137,17 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
     isActive: (_pathname, options) =>
       resolveWorkspaceTabValue(options?.tab) === "Overview" && options?.panel === "governance",
   },
-  // workspace task lifecycle quick access
-  {
-    id: "task-formation",
-    href: "{workspaceBaseHref}?tab=TaskFormation",
-    label: "任務形成",
-    icon: <Inbox className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "TaskFormation",
-  },
-  {
-    id: "tasks",
-    href: "{workspaceBaseHref}?tab=Tasks",
-    label: "任務",
-    icon: <ListTodo className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Tasks",
-  },
-  {
-    id: "quality",
-    href: "{workspaceBaseHref}?tab=Quality",
-    label: "質檢",
-    icon: <ClipboardCheck className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Quality",
-  },
-  {
-    id: "approval",
-    href: "{workspaceBaseHref}?tab=Approval",
-    label: "驗收",
-    icon: <BadgeCheck className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Approval",
-  },
-  {
-    id: "settlement",
-    href: "{workspaceBaseHref}?tab=Settlement",
-    label: "結算",
-    icon: <Receipt className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Settlement",
-  },
-  {
-    id: "issues",
-    href: "{workspaceBaseHref}?tab=Issues",
-    label: "問題單",
-    icon: <AlertCircle className="size-3.5" />,
-    isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Issues",
-  },
+  // All tab-based items — derived from WORKSPACE_TAB_ITEMS; labels stay in sync
+  ...WORKSPACE_TAB_ITEMS
+    .filter((item) => item.value in WORKSPACE_TAB_ICONS)
+    .map((item) => ({
+      id: item.id,
+      href: `{workspaceBaseHref}?tab=${item.value}`,
+      label: item.label,
+      icon: WORKSPACE_TAB_ICONS[item.value],
+      isActive: (_pathname: string, options?: WorkspaceQuickAccessMatcherOptions) =>
+        resolveWorkspaceTabValue(options?.tab) === item.value,
+    })),
 ];
 
 export function buildWorkspaceQuickAccessItems(
