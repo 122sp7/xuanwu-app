@@ -19,7 +19,7 @@
 
 `docs/structure/contexts/<context>/` 各有：
 - `README.md` — 主域用途、Upstream/Downstream、Baseline Subdomains
-- `AGENT.md` — Agent 路由規則、保護邊界的 Guardrails
+- `AGENTS.md` — Agent 路由規則、保護邊界的 Guardrails
 - `subdomains.md`、`bounded-context.md`、`ubiquitous-language.md`、`context-map.md`（選擇性）
 
 ## Governance Rules

@@ -49,7 +49,7 @@
 
 ## Route Elsewhere When
 
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENTS.md`
 - 使用者對話 / Notebook UX → `src/modules/notebooklm/`
 - 知識文件 / Page 管理 → `src/modules/notion/`
 - 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
@@ -59,7 +59,7 @@
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/ai/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
 | 跨模組 API boundary | `src/modules/ai/index.ts` |
 

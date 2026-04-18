@@ -42,4 +42,4 @@
 ## Route Elsewhere When
 
 - 主域邊界、術語、context map → `docs/**/*`
-- 模組內實作路由 → `src/modules/<context>/AGENT.md`
+- 模組內實作路由 → `src/modules/<context>/AGENTS.md`

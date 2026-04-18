@@ -73,8 +73,8 @@ Enforcement: AGENTS.md § "Dependency Direction Rules"
 
 **Authority for Remediation**:
 - AGENTS.md rules are source of truth
-- Module AGENT.md must conform to AGENTS.md
-- Code must conform to module AGENT.md
+- Module AGENTS.md must conform to AGENTS.md
+- Code must conform to module AGENTS.md
 
 ---
 
@@ -98,7 +98,7 @@ All violations remediated or have clear remediation path. tsc/eslint PASSING.
   - Linters can enforce context map rules (future: eslint plugin)
   - Architects can review violations against written authority
   - New code submissions can self-check against AGENTS.md
-  - Onboarding is clearer: read AGENTS.md first, then module-level AGENT.md
+  - Onboarding is clearer: read AGENTS.md first, then module-level AGENTS.md
 
 ---
 
@@ -124,7 +124,7 @@ All violations remediated or have clear remediation path. tsc/eslint PASSING.
 ## Citations
 
 - AGENTS.md: `d:\GitHub\122sp7\xuanwu-app\AGENTS.md` (complete strategic framework)
-- Module AGENT.md files: each bounded context's implementation-level rules
+- Module AGENTS.md files: each bounded context's implementation-level rules
 - docs/bounded-contexts.md, subdomains.md, ubiquitous-language.md: Context7-verified sources
 
 ---

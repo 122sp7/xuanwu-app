@@ -51,7 +51,7 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -97,7 +97,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)

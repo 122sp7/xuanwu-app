@@ -47,7 +47,7 @@ applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 
 ## Module Shape and Naming
 
-- Bounded-context root required shape: `index.ts`, `adapters/`, `subdomains/`, `shared/`, `orchestration/`, `README.md`, `AGENT.md`.
+- Bounded-context root required shape: `index.ts`, `adapters/`, `subdomains/`, `shared/`, `orchestration/`, `README.md`, `AGENTS.md`.
 - Subdomain default shape follows core-first (`domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
 - Public boundary is `index.ts`; cross-module consumers import only from module root `index.ts`.
 - Use case file: `verb-noun.use-case.ts`.

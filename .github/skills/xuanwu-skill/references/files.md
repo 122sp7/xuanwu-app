@@ -1256,7 +1256,7 @@ applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 
 ## Module Shape and Naming
 
-- Bounded-context root required shape: `index.ts`, `adapters/`, `subdomains/`, `shared/`, `orchestration/`, `README.md`, `AGENT.md`.
+- Bounded-context root required shape: `index.ts`, `adapters/`, `subdomains/`, `shared/`, `orchestration/`, `README.md`, `AGENTS.md`.
 - Subdomain default shape follows core-first (`domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
 - Public boundary is `index.ts`; cross-module consumers import only from module root `index.ts`.
 - Use case file: `verb-noun.use-case.ts`.
@@ -4631,9 +4631,9 @@ These three skills **must be loaded at the start of every conversation** before 
 |---|---|---|
 | `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
 
-- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENT.md` 的 **Route Here / Route Elsewhere** 段落。
+- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
 - 新實作一律以 `src/modules/template` 骨架為基線。
-- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENT.md`。
+- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
 
 ## Operating Rules
 
@@ -10702,13 +10702,13 @@ datasets            → evaluation（提供評估資料）
 
 ### 現狀
 
-`src/modules/ai/` 沒有任何對應的 `subdomains.instructions.md` 或 `AGENT.md` 說明子域治理規格。
+`src/modules/ai/` 沒有任何對應的 `subdomains.instructions.md` 或 `AGENTS.md` 說明子域治理規格。
 
 ## Decision
 
 **不實施**。僅記錄缺口。
 
-此文件應作為 `src/modules/ai/subdomains/AGENT.md` 或 `docs/structure/contexts/ai/subdomains.md` 的重建基礎。
+此文件應作為 `src/modules/ai/subdomains/AGENTS.md` 或 `docs/structure/contexts/ai/subdomains.md` 的重建基礎。
 
 ## Consequences
 
@@ -11209,7 +11209,7 @@ src/modules/template/
   shared/             ← 模組內共用型別
   orchestration/      ← 跨子域 orchestration 示例
   README.md           ← 模組說明模板
-  AGENT.md            ← Copilot Agent 路由規格模板
+  AGENTS.md            ← Copilot Agent 路由規格模板
 ```
 
 ### 架構意義
@@ -11217,14 +11217,14 @@ src/modules/template/
 `src/modules/template` 提供：
 
 1. **標準骨架**：新模組必須遵循的目錄結構，避免命名不一致。
-2. **AGENT.md 模板**：每個模組應有的 Copilot routing 規格（Route Here / Route Elsewhere）。
+2. **AGENTS.md 模板**：每個模組應有的 Copilot routing 規格（Route Here / Route Elsewhere）。
 3. **示例文件**：aggregate、use-case、port、adapter 的正確寫法示例，降低新模組的認知負荷。
 
 ### 使用規範
 
 - 建立新 bounded context 時，以 `cp -r src/modules/template src/modules/<new-context>` 為起點。
 - `template` 目錄本身不應被修改為實際業務模組。
-- `template/AGENT.md` 的格式（Route Here / Route Elsewhere 段落）是所有模組 `AGENT.md` 的必填模板。
+- `template/AGENTS.md` 的格式（Route Here / Route Elsewhere 段落）是所有模組 `AGENTS.md` 的必填模板。
 
 ## Decision
 
@@ -11233,7 +11233,7 @@ src/modules/template/
 ## Consequences
 
 - 新增的 bounded context 有標準起點，減少因不熟悉架構而引入的結構錯誤。
-- `AGENT.md` 模板確保每個模組有明確的 Copilot 路由規格，減少 Copilot 在不確定場景下的錯誤判斷。
+- `AGENTS.md` 模板確保每個模組有明確的 Copilot 路由規格，減少 Copilot 在不確定場景下的錯誤判斷。
 
 ## 關聯 ADR
 
@@ -11490,7 +11490,7 @@ platform/subdomains/file-storage/
 
 - **6110** ai prompt-pipeline 子域：`pipeline` 子域是 prompt-pipeline 的重命名延伸，但 domain model 尚未補充。
 - **6111** ai 5 個缺失子域：`conversations`、`datasets`、`personas`、`safety-guardrail`、`model-observability` 仍未在新結構中出現，需另行評估。
-- **6112** ai governance docs：重組後的子域邊界規格需要重新撰寫 `AGENT.md`。
+- **6112** ai governance docs：重組後的子域邊界規格需要重新撰寫 `AGENTS.md`。
 ````
 
 ## File: docs/decisions/README.md
@@ -11549,7 +11549,7 @@ platform/subdomains/file-storage/
 |---|---|---|
 | [6116](./6116-gained-shell-ui-components.md) | Shell UI 元件：ShellRootLayout、ShellAppRail、AccountSwitcher、ShellGuard 等 13 個 | Recorded |
 | [6117](./6117-gained-packages-ui-shadcn.md) | packages/ui-shadcn：70+ shadcn/ui 元件 | Recorded |
-| [6118](./6118-gained-modules-template.md) | src/modules/template：新模組骨架模板 + AGENT.md 格式 | Recorded |
+| [6118](./6118-gained-modules-template.md) | src/modules/template：新模組骨架模板 + AGENTS.md 格式 | Recorded |
 | [6119](./6119-gained-workspace-new-subdomains.md) | workspace 新子域骨架：activity、api-key、invitation、resource、schedule | Recorded |
 | [6120](./6120-gained-platform-new-subdomains.md) | platform 新子域骨架：cache、file-storage | Recorded |
 | [6121](./6121-gained-ai-restructured-subdomains.md) | ai 重組後 10 個子域：chunk、citation、context、embedding、evaluation、generation、memory、pipeline、retrieval、tool-calling | Recorded |
@@ -11731,7 +11731,7 @@ flowchart LR
 
 ````
 
-## File: docs/examples/end-to-end/deliveries/AGENT.md
+## File: docs/examples/end-to-end/deliveries/AGENTS.md
 ````markdown
 # Deliveries Agent Guide
 
@@ -11843,7 +11843,7 @@ flowchart LR
 
 ````
 
-## File: docs/examples/modules/feature/AGENT.md
+## File: docs/examples/modules/feature/AGENTS.md
 ````markdown
 # Feature Docs Agent Guide
 
@@ -12607,7 +12607,7 @@ Research                   →  notebooklm     →  notebooklm/conversation (syn
 
 ````
 
-## File: docs/structure/contexts/ai/AGENT.md
+## File: docs/structure/contexts/ai/AGENTS.md
 ````markdown
 # AI Context Agent Guide
 
@@ -13103,7 +13103,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -13119,7 +13119,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -13276,7 +13276,7 @@ flowchart LR
 - 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
 ````
 
-## File: docs/structure/contexts/analytics/AGENT.md
+## File: docs/structure/contexts/analytics/AGENTS.md
 ````markdown
 # Analytics Context — Agent Guide
 
@@ -13404,7 +13404,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -13457,7 +13457,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 - 不把 projection 當成原始 aggregate。
 ````
 
-## File: docs/structure/contexts/billing/AGENT.md
+## File: docs/structure/contexts/billing/AGENTS.md
 ````markdown
 # Billing Context — Agent Guide
 
@@ -13583,7 +13583,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -13634,7 +13634,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 - 不把 feature flag 當成 entitlement 正典語義。
 ````
 
-## File: docs/structure/contexts/iam/AGENT.md
+## File: docs/structure/contexts/iam/AGENTS.md
 ````markdown
 # IAM Context — Agent Guide
 
@@ -13769,7 +13769,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -13832,7 +13832,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 - 不把 access decision 寫成 UI flag。
 ````
 
-## File: docs/structure/contexts/notebooklm/AGENT.md
+## File: docs/structure/contexts/notebooklm/AGENTS.md
 ````markdown
 # NotebookLM Agent
 
@@ -14006,7 +14006,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -14088,7 +14088,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -14153,7 +14153,7 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -14199,7 +14199,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -14378,14 +14378,14 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/structure/contexts/notion/AGENT.md
+## File: docs/structure/contexts/notion/AGENTS.md
 ````markdown
 # Notion Agent
 
@@ -14579,7 +14579,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -14662,7 +14662,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -14731,7 +14731,7 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -14777,7 +14777,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -14960,14 +14960,14 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/structure/contexts/platform/AGENT.md
+## File: docs/structure/contexts/platform/AGENTS.md
 ````markdown
 # Platform Agent
 
@@ -15163,7 +15163,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -15246,7 +15246,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -15326,7 +15326,7 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -15377,7 +15377,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -15624,14 +15624,14 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/structure/contexts/workspace/AGENT.md
+## File: docs/structure/contexts/workspace/AGENTS.md
 ````markdown
 # Workspace Agent
 
@@ -15823,7 +15823,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -15905,7 +15905,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -15974,7 +15974,7 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -16029,7 +16029,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -16246,7 +16246,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
@@ -16266,7 +16266,7 @@ flowchart LR
 - bounded-contexts.md
 - context-map.md
 - ubiquitous-language.md
-- AGENT.md
+- AGENTS.md
 
 ## README.md Template
 
@@ -16331,7 +16331,7 @@ flowchart LR
 - Correct Interaction Flow
 - Document Network
 
-## AGENT.md Template
+## AGENTS.md Template
 
 - Mission
 - Canonical Ownership
@@ -16428,7 +16428,7 @@ flowchart LR
 src/modules/                                    # 系統所有業務模組（bounded contexts）集合
 └── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
     ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
-    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
+    ├── AGENTS.md                                # 開發規範：命名、分層規則、不可違反設計約束
     ├── index.ts                                # 跨模組公開入口（cross-module entry surface）
     ├── application/                            # 應用層：負責 use case orchestration
     │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
@@ -16522,7 +16522,7 @@ src/modules/                                    # 系統所有業務模組（bou
 
 ## Delivery Checklist
 
-1. 建立 bounded context 的 `README.md`、`AGENT.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
+1. 建立 bounded context 的 `README.md`、`AGENTS.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
 2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
 3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
 4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。
@@ -18027,7 +18027,7 @@ flowchart LR
 # 51 Hard Rules — Consolidated Architecture Guardrails
 
 **Status**: Consolidated from user request (2026-04-12)  
-**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
+**Authority**: AGENTS.md (strategic) + module AGENTS.md (tactical)  
 **Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
 
 ---
@@ -18038,13 +18038,13 @@ flowchart LR
 |---|---|---|---|
 | **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
 | **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
-| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENT.md |
+| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENTS.md |
 | **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
 | **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
 | **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENT.md |
+| **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENTS.md |
 | **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-51) | 6 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
+| **Anti-Patterns** (46-51) | 6 | `AGENTS.md` § Anti-Patterns | Module AGENTS.md |
 
 **Total**: 51 rules consolidated into 8 homes
 
@@ -18374,7 +18374,7 @@ Each module enforces its own subset of these rules. Key mapping:
 | 24-27 | context-map.md | Cross-module contracts |
 | 17 | Platform feature-flag docs | Feature independence |
 | 46-51 | AGENTS.md | Anti-patterns |
-| All | Module AGENT.md | Tactical enforcement |
+| All | Module AGENTS.md | Tactical enforcement |
 
 ---
 
@@ -18390,7 +18390,7 @@ Each module enforces its own subset of these rules. Key mapping:
 - [ ] Application layer orchestrates, not rules
 
 ### Before Each Release:
-- [ ] All rules reviewed in relevant AGENT.md
+- [ ] All rules reviewed in relevant AGENTS.md
 - [ ] ESLint boundary checks passing
 - [ ] Zero anti-pattern violations (46-51)
 - [ ] Event schemas registered & consistent
@@ -18404,10 +18404,10 @@ Each module enforces its own subset of these rules. Key mapping:
 - [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
 - [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
 - [docs/structure/system/context-map.md](./context-map.md) — Cross-module contracts
-- [src/modules/platform/AGENT.md](../src/modules/platform/AGENT.md) — Platform constraints
-- [src/modules/workspace/AGENT.md](../src/modules/workspace/AGENT.md) — Workspace constraints
-- [src/modules/notion/AGENT.md](../src/modules/notion/AGENT.md) — Notion constraints
-- [src/modules/notebooklm/AGENT.md](../src/modules/notebooklm/AGENT.md) — NotebookLM constraints
+- [src/modules/platform/AGENTS.md](../src/modules/platform/AGENTS.md) — Platform constraints
+- [src/modules/workspace/AGENTS.md](../src/modules/workspace/AGENTS.md) — Workspace constraints
+- [src/modules/notion/AGENTS.md](../src/modules/notion/AGENTS.md) — Notion constraints
+- [src/modules/notebooklm/AGENTS.md](../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints
 ````
 
 ## File: docs/structure/system/integration-guidelines.md
@@ -19862,7 +19862,7 @@ src/modules/<context>/
 ```
 ````
 
-## File: docs/AGENT.md
+## File: docs/AGENTS.md
 ````markdown
 # docs — Agent Guide
 
@@ -19885,7 +19885,7 @@ src/modules/<context>/
 
 `docs/structure/contexts/<context>/` 各有：
 - `README.md` — 主域用途、Upstream/Downstream、Baseline Subdomains
-- `AGENT.md` — Agent 路由規則、保護邊界的 Guardrails
+- `AGENTS.md` — Agent 路由規則、保護邊界的 Guardrails
 - `subdomains.md`、`bounded-context.md`、`ubiquitous-language.md`、`context-map.md`（選擇性）
 
 ## Governance Rules
@@ -20008,7 +20008,7 @@ Repo 根目錄的三個運行時層：
 
 ### 路由規則
 
-- 讀取主域邊界與任務路由 → `src/modules/<context>/AGENT.md`
+- 讀取主域邊界與任務路由 → `src/modules/<context>/AGENTS.md`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以 `src/modules/template` 為骨架基線
 - 跨主域協作只透過目標主域的公開匯出（`src/modules/<context>/index.ts`）
 
@@ -21572,7 +21572,7 @@ packages/ui-shadcn/
 
 ````
 
-## File: packages/AGENT.md
+## File: packages/AGENTS.md
 ````markdown
 # packages — Agent Rules
 
@@ -23540,7 +23540,7 @@ venv/
 *.local
 ````
 
-## File: py_fn/AGENT.md
+## File: py_fn/AGENTS.md
 ````markdown
 # py_fn — Agent Guide
 
@@ -23950,7 +23950,7 @@ export default function ShellLayout({
 }: Readonly<
 ````
 
-## File: src/app/AGENT.md
+## File: src/app/AGENTS.md
 ````markdown
 # App — Agent Guide
 
@@ -25162,7 +25162,7 @@ listAvailable(): Promise<AiTool[]>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/ai/AGENT.md
+## File: src/modules/ai/AGENTS.md
 ````markdown
 # AI Module — Agent Guide
 
@@ -25215,7 +25215,7 @@ listAvailable(): Promise<AiTool[]>;
 
 ## Route Elsewhere When
 
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENTS.md`
 - 使用者對話 / Notebook UX → `src/modules/notebooklm/`
 - 知識文件 / Page 管理 → `src/modules/notion/`
 - 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
@@ -25225,7 +25225,7 @@ listAvailable(): Promise<AiTool[]>;
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/ai/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
 | 跨模組 API boundary | `src/modules/ai/index.ts` |
 
@@ -25308,7 +25308,7 @@ listAvailable(): Promise<AiTool[]>;
 src/modules/ai/
   index.ts                      ← 模組對外唯一入口（具名匯出）
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     AiFacade.ts                 ← 對外統一 Facade
     AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
@@ -25380,7 +25380,7 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -26072,7 +26072,7 @@ queryWindow(metric: string, windowSeconds: number): Promise<RealtimeMetricWindow
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/analytics/AGENT.md
+## File: src/modules/analytics/AGENTS.md
 ````markdown
 # Analytics Module — Agent Guide
 
@@ -26105,14 +26105,14 @@ queryWindow(metric: string, windowSeconds: number): Promise<RealtimeMetricWindow
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
+- 讀取邊界規則 → `src/modules/analytics/AGENTS.md`
 - 跨模組 API boundary → `src/modules/analytics/index.ts`
 
 ## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/analytics/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
 | 跨模組 API boundary | `src/modules/analytics/index.ts` |
 
@@ -26173,7 +26173,7 @@ queryWindow(metric: string, windowSeconds: number): Promise<RealtimeMetricWindow
 src/modules/analytics/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
   shared/
     events/index.ts             ← Published Language Events
@@ -26212,7 +26212,7 @@ adapters/inbound → application → domain ← adapters/outbound
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -27026,7 +27026,7 @@ sumQuantity(featureKey: string, contextId: string, fromDate?: string, toDate?: s
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/billing/AGENT.md
+## File: src/modules/billing/AGENTS.md
 ````markdown
 # Billing Module — Agent Guide
 
@@ -27055,14 +27055,14 @@ sumQuantity(featureKey: string, contextId: string, fromDate?: string, toDate?: s
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/billing/AGENT.md`
+- 讀取邊界規則 → `src/modules/billing/AGENTS.md`
 - 跨模組 API boundary → `src/modules/billing/index.ts`
 
 ## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/billing/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
 | 跨模組 API boundary | `src/modules/billing/index.ts` |
 
@@ -27114,7 +27114,7 @@ sumQuantity(featureKey: string, contextId: string, fromDate?: string, toDate?: s
 src/modules/billing/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   shared/
     events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
     types/index.ts
@@ -27146,7 +27146,7 @@ src/modules/billing/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -30315,7 +30315,7 @@ pullDomainEvents(): readonly TenantDomainEvent[]
 private static assertInvariants(snapshot: TenantSnapshot): void
 ````
 
-## File: src/modules/iam/AGENT.md
+## File: src/modules/iam/AGENTS.md
 ````markdown
 # IAM Module — Agent Guide
 
@@ -30357,7 +30357,7 @@ private static assertInvariants(snapshot: TenantSnapshot): void
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/iam/AGENT.md`
+- 讀取邊界規則 → `src/modules/iam/AGENTS.md`
 - 跨模組 API boundary → `src/modules/iam/index.ts`
 - workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
 
@@ -30365,7 +30365,7 @@ private static assertInvariants(snapshot: TenantSnapshot): void
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/iam/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
 | 跨模組 API boundary | `src/modules/iam/index.ts` |
 
@@ -30443,7 +30443,7 @@ private static assertInvariants(snapshot: TenantSnapshot): void
 src/modules/iam/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     IamFacade.ts
     IamCoordinator.ts
@@ -30493,7 +30493,7 @@ adapters/inbound → application → domain ← adapters/outbound
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -31627,7 +31627,7 @@ delete(id: string): Promise<void>;
 
 ````
 
-## File: src/modules/notebooklm/AGENT.md
+## File: src/modules/notebooklm/AGENTS.md
 ````markdown
 # NotebookLM Module — Agent Guide
 
@@ -31665,7 +31665,7 @@ delete(id: string): Promise<void>;
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
+- 讀取邊界規則 → `src/modules/notebooklm/AGENTS.md`
 - AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
 - KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
 - 跨模組 API boundary → `src/modules/notebooklm/index.ts`
@@ -31674,7 +31674,7 @@ delete(id: string): Promise<void>;
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
 | 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
 
@@ -31743,7 +31743,7 @@ notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
 src/modules/notebooklm/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     NotebooklmFacade.ts
     NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
@@ -31775,7 +31775,7 @@ src/modules/notebooklm/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -32744,7 +32744,7 @@ delete(id: string): Promise<void>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/notion/AGENT.md
+## File: src/modules/notion/AGENTS.md
 ````markdown
 # Notion Module — Agent Guide
 
@@ -32784,7 +32784,7 @@ delete(id: string): Promise<void>;
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/notion/AGENT.md`
+- 讀取邊界規則 → `src/modules/notion/AGENTS.md`
 - 跨模組 API boundary → `src/modules/notion/index.ts`
 - RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
 - AI 生成輔助 → `src/modules/ai/index.ts`
@@ -32793,7 +32793,7 @@ delete(id: string): Promise<void>;
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/notion/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
 | 跨模組 API boundary | `src/modules/notion/index.ts` |
 
@@ -32856,7 +32856,7 @@ delete(id: string): Promise<void>;
 src/modules/notion/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     NotionFacade.ts
   shared/
@@ -32889,7 +32889,7 @@ src/modules/notion/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -35272,7 +35272,7 @@ export interface SearchCatalogPort {
 listItems(): readonly SearchItem[];
 ````
 
-## File: src/modules/platform/AGENT.md
+## File: src/modules/platform/AGENTS.md
 ````markdown
 # Platform Module — Agent Guide
 
@@ -35310,7 +35310,7 @@ listItems(): readonly SearchItem[];
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/platform/AGENT.md`
+- 讀取邊界規則 → `src/modules/platform/AGENTS.md`
 - Account / Organization → `src/modules/iam/`（已遷入）
 - 跨模組 API boundary → `src/modules/platform/index.ts`
 
@@ -35318,7 +35318,7 @@ listItems(): readonly SearchItem[];
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/platform/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
 | 跨模組 API boundary | `src/modules/platform/index.ts` |
 
@@ -35374,7 +35374,7 @@ listItems(): readonly SearchItem[];
 src/modules/platform/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     PlatformFacade.ts
   shared/
@@ -35425,7 +35425,7 @@ Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics�
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -37153,7 +37153,7 @@ equals(other: WorkflowId): boolean
 
 ````
 
-## File: src/modules/template/AGENT.md
+## File: src/modules/template/AGENTS.md
 ````markdown
 # Template Module — Agent Guide
 
@@ -37240,7 +37240,7 @@ subdomains/
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENTS.md` |
 | 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
 | 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
@@ -37292,7 +37292,7 @@ subdomains/
 src/modules/template/
   index.ts                          ← 模組對外唯一入口（具名匯出）
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     TemplateFacade.ts               ← 對外統一 Facade（委派各子域 use case）
     TemplateCoordinator.ts          ← 跨子域流程協調（document→generation→ingestion→workflow）
@@ -37529,7 +37529,7 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 
 ## 路由規則
 
-- 讀取邊界規則、published language → `src/modules/<context>/AGENT.md`
+- 讀取邊界規則、published language → `src/modules/<context>/AGENTS.md`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
 - 需要跨模組 API boundary → `src/modules/<context>/index.ts`
 
@@ -37545,7 +37545,7 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 ## 文件網絡
 
 - [src/modules/README.md](../README.md) — 模組層狀態總覽
-- [src/modules/template/AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/template/AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 - [docs/structure/domain/bounded-context-subdomain-template.md](../../../docs/structure/domain/bounded-context-subdomain-template.md) — 設計藍圖
 ````
@@ -42994,7 +42994,7 @@ queued → cancelled
 ```
 task-formation/
 ├── README.md                         ← 本文件
-├── AGENT.md                          ← 開發守則
+├── AGENTS.md                          ← 開發守則
 ├── domain/
 │   ├── index.ts
 │   ├── entities/
@@ -43158,7 +43158,7 @@ export async function startExtractionAction(
 | P3 | 建 `TaskFormationPanel` UI（XState `useMachine`） | `adapters/inbound/react/` |
 ````
 
-## File: src/modules/workspace/AGENT.md
+## File: src/modules/workspace/AGENTS.md
 ````markdown
 # Workspace Module — Agent Guide
 
@@ -43211,7 +43211,7 @@ export async function startExtractionAction(
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/workspace/AGENT.md`
+- 讀取邊界規則 → `src/modules/workspace/AGENTS.md`
 - 跨模組 API boundary → `src/modules/workspace/index.ts`
 - AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
 - 成員身份驗證 → `src/modules/iam/index.ts`
@@ -43220,7 +43220,7 @@ export async function startExtractionAction(
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/workspace/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/workspace/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
 | 跨模組 API boundary | `src/modules/workspace/index.ts` |
 
@@ -43293,7 +43293,7 @@ export async function startExtractionAction(
 src/modules/workspace/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     WorkspaceFacade.ts
     WorkspaceCoordinator.ts     ← 跨子域流程（task→settlement 等）
@@ -43339,12 +43339,12 @@ src/modules/workspace/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/AGENT.md
+## File: src/modules/AGENTS.md
 ````markdown
 # src/modules — Agent Guide
 
@@ -43370,7 +43370,7 @@ src/modules/workspace/
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENTS.md` |
 | 撰寫新 use case / entity / adapter | `src/modules/<context>/`（以 `src/modules/template/` 為骨架）|
 | 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 模組清單與實作進度 | `src/modules/README.md` |
@@ -43379,7 +43379,7 @@ src/modules/workspace/
 ## Route Here When
 
 - 需要新增或修改任何業務邏輯、use case、entity、adapter 的**實作**。
-- 需要確認某個功能屬於哪個 bounded context（查對應模組的 `AGENT.md`）。
+- 需要確認某個功能屬於哪個 bounded context（查對應模組的 `AGENTS.md`）。
 - 需要定義跨模組發布語言（查 `index.ts` 公開邊界）。
 
 ## Route Elsewhere When
@@ -43412,7 +43412,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Document Network
 
 - [README.md](README.md) — 模組清單與子域對照表
-- [template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
+- [template/AGENTS.md](template/AGENTS.md) — 骨架使用規則（Copilot / Agent 專用）
 - [template/README.md](template/README.md) — 骨架目錄樹、barrel 表、複製步驟
 - [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 - [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單（戰略層）
@@ -43445,7 +43445,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ```
 需要：                                  去哪裡
 ────────────────────────────────────────────────────────────────
-讀取邊界規則 / published language       src/modules/<context>/AGENT.md
+讀取邊界規則 / published language       src/modules/<context>/AGENTS.md
 撰寫新 use case / entity / adapter      src/modules/<context>/
                                         以 src/modules/template 為骨架
 了解模組目錄與實作狀態                  src/modules/<context>/README.md
@@ -43471,7 +43471,7 @@ cp -r src/modules/template src/modules/<your-context>
 # Domain → Application → Ports → Adapters → Orchestration
 ```
 
-詳見 [template/README.md](template/README.md) 與 [template/AGENT.md](template/AGENT.md)。
+詳見 [template/README.md](template/README.md) 與 [template/AGENTS.md](template/AGENTS.md)。
 
 ---
 
@@ -43485,7 +43485,7 @@ cp -r src/modules/template src/modules/<your-context>
 | 在 `domain/` 中 import React、Firebase SDK、HTTP client、ORM | 破壞 domain 純度 |
 | 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
 | 新建或恢復 `workspace-workflow` 子域 | 已拆解（2026-04-15），禁止回歸 |
-| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENT.md |
+| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENTS.md |
 | 在 ai 模組定義使用者對話 UX 或 task-formation 業務流程 | 對話屬 notebooklm；task-formation 屬 workspace |
 | 在 notion 模組定義 `knowledge-database`、`authoring`、`relations`、`taxonomy` 子域 | 已整合至名詞域（database / page / view / template）|
 
@@ -43494,13 +43494,13 @@ cp -r src/modules/template src/modules/<your-context>
 ## 文件網絡
 
 - [src/modules/template/README.md](template/README.md) — 多子域骨架說明
-- [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
+- [src/modules/template/AGENTS.md](template/AGENTS.md) — 骨架使用規則（Copilot / Agent 專用）
 - [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 - [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單
 - [docs/structure/domain/ubiquitous-language.md](../../docs/structure/domain/ubiquitous-language.md) — 術語權威
 ````
 
-## File: src/AGENT.md
+## File: src/AGENTS.md
 ````markdown
 # src — Agent Guide
 
@@ -43515,8 +43515,8 @@ cp -r src/modules/template src/modules/<your-context>
 
 | 需要 | 去哪裡 |
 |---|---|
-| 新增或修改路由、layout、page | `src/app/` → 見 `src/app/AGENT.md` |
-| 新增或修改模組的 use case、entity、adapter | `src/modules/<context>/` → 見對應 `AGENT.md` |
+| 新增或修改路由、layout、page | `src/app/` → 見 `src/app/AGENTS.md` |
+| 新增或修改模組的 use case、entity、adapter | `src/modules/<context>/` → 見對應 `AGENTS.md` |
 | 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 模組清單與子域狀態 | `src/modules/README.md` |
 
@@ -43528,7 +43528,7 @@ cp -r src/modules/template src/modules/<your-context>
 
 ## 文件網絡
 
-- [src/app/AGENT.md](app/AGENT.md) — App Router 路由規則
+- [src/app/AGENTS.md](app/AGENTS.md) — App Router 路由規則
 - [src/modules/README.md](modules/README.md) — 模組清單與子域狀態
 - [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 - [docs/README.md](../docs/README.md) — 架構文件索引
@@ -43543,7 +43543,7 @@ cp -r src/modules/template src/modules/<your-context>
 - `src/app/` — Next.js 16 App Router 路由入口層（layout、page、route group）
 - `src/modules/` — 所有主域模組實作層（Hexagonal Architecture + DDD）
 
-詳見 [AGENT.md](./AGENT.md) 與 [src/modules/README.md](./modules/README.md)。
+詳見 [AGENTS.md](./AGENTS.md) 與 [src/modules/README.md](./modules/README.md)。
 ````
 
 ## File: apphosting.yaml
@@ -46691,7 +46691,7 @@ ADR 4202 只針對 domain event factory 函數中的 eventId 生成（`uuid()` �
 4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
-## File: src/modules/workspace/subdomains/task-formation/AGENT.md
+## File: src/modules/workspace/subdomains/task-formation/AGENTS.md
 ````markdown
 # task-formation — Agent Guide
 

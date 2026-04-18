@@ -1,7 +1,7 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/workspace/AGENT.md (100 lines)
+docs/structure/contexts/workspace/AGENTS.md (100 lines)
 docs/structure/contexts/workspace/bounded-contexts.md (93 lines)
 docs/structure/contexts/workspace/context-map.md (79 lines)
 docs/structure/contexts/workspace/README.md (126 lines)
@@ -31,7 +31,7 @@ src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx (
 src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx (28 lines)
 src/modules/workspace/adapters/outbound/firebase-composition.ts (91 lines)
 src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts (60 lines)
-src/modules/workspace/AGENT.md (75 lines)
+src/modules/workspace/AGENTS.md (75 lines)
 src/modules/workspace/index.ts (14 lines)
 src/modules/workspace/orchestration/index.ts (4 lines)
 src/modules/workspace/README.md (85 lines)
@@ -218,7 +218,7 @@ src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/Fireb
 src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository.ts (30 lines)
 src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts (35 lines)
 src/modules/workspace/subdomains/task-formation/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/task-formation/AGENT.md (166 lines)
+src/modules/workspace/subdomains/task-formation/AGENTS.md (166 lines)
 src/modules/workspace/subdomains/task-formation/application/dto/TaskFormationDTO.ts (7 lines)
 src/modules/workspace/subdomains/task-formation/application/index.ts (0 lines)
 src/modules/workspace/subdomains/task-formation/application/machines/task-formation.machine.ts (46 lines)

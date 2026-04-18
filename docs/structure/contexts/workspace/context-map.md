@@ -69,7 +69,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)

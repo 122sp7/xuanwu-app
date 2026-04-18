@@ -22,7 +22,7 @@
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENTS.md` |
 | 撰寫新 use case / entity / adapter | `src/modules/<context>/`（以 `src/modules/template/` 為骨架）|
 | 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 模組清單與實作進度 | `src/modules/README.md` |
@@ -31,7 +31,7 @@
 ## Route Here When
 
 - 需要新增或修改任何業務邏輯、use case、entity、adapter 的**實作**。
-- 需要確認某個功能屬於哪個 bounded context（查對應模組的 `AGENT.md`）。
+- 需要確認某個功能屬於哪個 bounded context（查對應模組的 `AGENTS.md`）。
 - 需要定義跨模組發布語言（查 `index.ts` 公開邊界）。
 
 ## Route Elsewhere When
@@ -64,7 +64,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Document Network
 
 - [README.md](README.md) — 模組清單與子域對照表
-- [template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
+- [template/AGENTS.md](template/AGENTS.md) — 骨架使用規則（Copilot / Agent 專用）
 - [template/README.md](template/README.md) — 骨架目錄樹、barrel 表、複製步驟
 - [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 - [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單（戰略層）

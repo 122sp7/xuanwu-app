@@ -11,7 +11,7 @@ Before writing any code, read these documents in order:
 3. `docs/structure/domain/bounded-contexts.md` — 主域與子域所有權
 4. `docs/structure/domain/ubiquitous-language.md` — 戰略術語權威
 5. `docs/decisions/README.md` — ADR 決策日誌
-6. `src/modules/<context>/AGENT.md` — 目標主域的任務定義
+6. `src/modules/<context>/AGENTS.md` — 目標主域的任務定義
 
 ## Project Structure
 

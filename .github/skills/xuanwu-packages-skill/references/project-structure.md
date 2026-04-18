@@ -1,7 +1,7 @@
 # Directory Structure
 
 ```
-packages/AGENT.md (59 lines)
+packages/AGENTS.md (59 lines)
 packages/integration-firebase/AGENTS.md (53 lines)
 packages/integration-firebase/auth.ts (14 lines)
 packages/integration-firebase/auth/.gitkeep (0 lines)

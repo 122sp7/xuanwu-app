@@ -1,7 +1,7 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/notion/AGENT.md (112 lines)
+docs/structure/contexts/notion/AGENTS.md (112 lines)
 docs/structure/contexts/notion/bounded-contexts.md (83 lines)
 docs/structure/contexts/notion/context-map.md (80 lines)
 docs/structure/contexts/notion/README.md (117 lines)
@@ -17,7 +17,7 @@ src/modules/notion/adapters/inbound/server-actions/page-actions.ts (18 lines)
 src/modules/notion/adapters/inbound/server-actions/template-actions.ts (13 lines)
 src/modules/notion/adapters/outbound/firebase-composition.ts (36 lines)
 src/modules/notion/adapters/outbound/notion-page-stub.ts (25 lines)
-src/modules/notion/AGENT.md (62 lines)
+src/modules/notion/AGENTS.md (62 lines)
 src/modules/notion/index.ts (16 lines)
 src/modules/notion/orchestration/index.ts (3 lines)
 src/modules/notion/README.md (60 lines)

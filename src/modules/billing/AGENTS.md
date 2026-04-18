@@ -25,14 +25,14 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/billing/AGENT.md`
+- 讀取邊界規則 → `src/modules/billing/AGENTS.md`
 - 跨模組 API boundary → `src/modules/billing/index.ts`
 
 ## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/billing/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
 | 跨模組 API boundary | `src/modules/billing/index.ts` |
 

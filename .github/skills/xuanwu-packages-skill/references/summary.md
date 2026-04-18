@@ -56,7 +56,7 @@ This skill contains the following reference files:
 - `packages/README.md` (82 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (73 lines)
 - `packages/ui-shadcn/AGENTS.md` (69 lines)
-- `packages/AGENT.md` (59 lines)
+- `packages/AGENTS.md` (59 lines)
 - `packages/integration-firebase/AGENTS.md` (53 lines)
 - `packages/integration-firebase/README.md` (48 lines)
 - `packages/ui-shadcn/ui/carousel.tsx` (42 lines)

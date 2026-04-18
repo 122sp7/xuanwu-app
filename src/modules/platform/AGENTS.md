@@ -34,7 +34,7 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/platform/AGENT.md`
+- 讀取邊界規則 → `src/modules/platform/AGENTS.md`
 - Account / Organization → `src/modules/iam/`（已遷入）
 - 跨模組 API boundary → `src/modules/platform/index.ts`
 
@@ -42,7 +42,7 @@
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/platform/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
 | 跨模組 API boundary | `src/modules/platform/index.ts` |
 

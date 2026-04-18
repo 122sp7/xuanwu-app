@@ -1,7 +1,7 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/iam/AGENT.md (74 lines)
+docs/structure/contexts/iam/AGENTS.md (74 lines)
 docs/structure/contexts/iam/bounded-contexts.md (12 lines)
 docs/structure/contexts/iam/context-map.md (16 lines)
 docs/structure/contexts/iam/README.md (27 lines)
@@ -14,7 +14,7 @@ src/modules/iam/adapters/inbound/react/PublicLandingView.tsx (28 lines)
 src/modules/iam/adapters/outbound/firebase-composition.ts (140 lines)
 src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts (91 lines)
 src/modules/iam/adapters/outbound/FirebaseAuthIdentityRepository.ts (51 lines)
-src/modules/iam/AGENT.md (62 lines)
+src/modules/iam/AGENTS.md (62 lines)
 src/modules/iam/index.ts (26 lines)
 src/modules/iam/orchestration/index.ts (3 lines)
 src/modules/iam/README.md (83 lines)

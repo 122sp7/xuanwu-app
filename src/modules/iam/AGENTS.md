@@ -38,7 +38,7 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/iam/AGENT.md`
+- 讀取邊界規則 → `src/modules/iam/AGENTS.md`
 - 跨模組 API boundary → `src/modules/iam/index.ts`
 - workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
 
@@ -46,7 +46,7 @@
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/iam/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
 | 跨模組 API boundary | `src/modules/iam/index.ts` |
 

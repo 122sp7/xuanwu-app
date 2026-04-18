@@ -83,7 +83,7 @@ subdomains/
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/<context>/AGENTS.md` |
 | 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
 | 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |

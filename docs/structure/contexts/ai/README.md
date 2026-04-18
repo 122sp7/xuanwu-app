@@ -48,7 +48,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -64,7 +64,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)

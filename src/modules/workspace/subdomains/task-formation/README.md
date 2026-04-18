@@ -56,7 +56,7 @@ queued → cancelled
 ```
 task-formation/
 ├── README.md                         ← 本文件
-├── AGENT.md                          ← 開發守則
+├── AGENTS.md                          ← 開發守則
 ├── domain/
 │   ├── index.ts
 │   ├── entities/

@@ -29,14 +29,14 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
+- 讀取邊界規則 → `src/modules/analytics/AGENTS.md`
 - 跨模組 API boundary → `src/modules/analytics/index.ts`
 
 ## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/analytics/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
 | 跨模組 API boundary | `src/modules/analytics/index.ts` |
 

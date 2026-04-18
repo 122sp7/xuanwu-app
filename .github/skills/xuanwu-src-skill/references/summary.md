@@ -57,7 +57,7 @@ This skill contains the following reference files:
 - `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (190 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (175 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
-- `src/modules/workspace/subdomains/task-formation/AGENT.md` (166 lines)
+- `src/modules/workspace/subdomains/task-formation/AGENTS.md` (166 lines)
 - `src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts` (159 lines)
 - `src/modules/iam/adapters/outbound/firebase-composition.ts` (140 lines)
 - `src/modules/iam/subdomains/organization/domain/entities/Organization.ts` (111 lines)

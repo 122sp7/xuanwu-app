@@ -1,7 +1,7 @@
 ﻿# 51 Hard Rules — Consolidated Architecture Guardrails
 
 **Status**: Consolidated from user request (2026-04-12)  
-**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
+**Authority**: AGENTS.md (strategic) + module AGENTS.md (tactical)  
 **Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
 
 ---
@@ -12,13 +12,13 @@
 |---|---|---|---|
 | **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
 | **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
-| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENT.md |
+| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENTS.md |
 | **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
 | **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
 | **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENT.md |
+| **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENTS.md |
 | **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-51) | 6 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
+| **Anti-Patterns** (46-51) | 6 | `AGENTS.md` § Anti-Patterns | Module AGENTS.md |
 
 **Total**: 51 rules consolidated into 8 homes
 
@@ -348,7 +348,7 @@ Each module enforces its own subset of these rules. Key mapping:
 | 24-27 | context-map.md | Cross-module contracts |
 | 17 | Platform feature-flag docs | Feature independence |
 | 46-51 | AGENTS.md | Anti-patterns |
-| All | Module AGENT.md | Tactical enforcement |
+| All | Module AGENTS.md | Tactical enforcement |
 
 ---
 
@@ -364,7 +364,7 @@ Each module enforces its own subset of these rules. Key mapping:
 - [ ] Application layer orchestrates, not rules
 
 ### Before Each Release:
-- [ ] All rules reviewed in relevant AGENT.md
+- [ ] All rules reviewed in relevant AGENTS.md
 - [ ] ESLint boundary checks passing
 - [ ] Zero anti-pattern violations (46-51)
 - [ ] Event schemas registered & consistent
@@ -378,7 +378,7 @@ Each module enforces its own subset of these rules. Key mapping:
 - [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
 - [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
 - [docs/structure/system/context-map.md](./context-map.md) — Cross-module contracts
-- [src/modules/platform/AGENT.md](../src/modules/platform/AGENT.md) — Platform constraints
-- [src/modules/workspace/AGENT.md](../src/modules/workspace/AGENT.md) — Workspace constraints
-- [src/modules/notion/AGENT.md](../src/modules/notion/AGENT.md) — Notion constraints
-- [src/modules/notebooklm/AGENT.md](../src/modules/notebooklm/AGENT.md) — NotebookLM constraints
+- [src/modules/platform/AGENTS.md](../src/modules/platform/AGENTS.md) — Platform constraints
+- [src/modules/workspace/AGENTS.md](../src/modules/workspace/AGENTS.md) — Workspace constraints
+- [src/modules/notion/AGENTS.md](../src/modules/notion/AGENTS.md) — Notion constraints
+- [src/modules/notebooklm/AGENTS.md](../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints

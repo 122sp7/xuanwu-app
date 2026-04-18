@@ -36,7 +36,7 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/notion/AGENT.md`
+- 讀取邊界規則 → `src/modules/notion/AGENTS.md`
 - 跨模組 API boundary → `src/modules/notion/index.ts`
 - RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
 - AI 生成輔助 → `src/modules/ai/index.ts`
@@ -45,7 +45,7 @@
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/notion/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
 | 跨模組 API boundary | `src/modules/notion/index.ts` |
 

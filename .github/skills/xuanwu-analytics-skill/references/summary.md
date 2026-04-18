@@ -50,9 +50,9 @@ This skill contains the following reference files:
 | Markdown | 8 | 272 |
 
 **Largest files:**
-- `docs/structure/contexts/analytics/AGENT.md` (68 lines)
+- `docs/structure/contexts/analytics/AGENTS.md` (68 lines)
 - `src/modules/analytics/README.md` (64 lines)
-- `src/modules/analytics/AGENT.md` (51 lines)
+- `src/modules/analytics/AGENTS.md` (51 lines)
 - `src/modules/analytics/subdomains/metrics/domain/entities/Metric.ts` (43 lines)
 - `src/modules/analytics/subdomains/event-contracts/domain/entities/AnalyticsEvent.ts` (33 lines)
 - `docs/structure/contexts/analytics/README.md` (27 lines)

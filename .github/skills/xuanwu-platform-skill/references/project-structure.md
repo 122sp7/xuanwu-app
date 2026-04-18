@@ -5,7 +5,7 @@ docs/
   structure/
     contexts/
       platform/
-        AGENT.md (108 lines)
+        AGENTS.md (108 lines)
         bounded-contexts.md (89 lines)
         context-map.md (80 lines)
         README.md (133 lines)
@@ -177,7 +177,7 @@ src/
             index.ts (0 lines)
           domain/
             index.ts (14 lines)
-      AGENT.md (58 lines)
+      AGENTS.md (58 lines)
       index.ts (4 lines)
       README.md (84 lines)
 ```

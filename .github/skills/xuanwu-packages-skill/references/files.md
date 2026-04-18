@@ -455,7 +455,7 @@ import { firebaseClientApp } from "./client";
 export function getFirebaseStorage(): FirebaseStorage
 ````
 
-## File: packages/AGENT.md
+## File: packages/AGENTS.md
 ````markdown
 # packages — Agent Rules
 

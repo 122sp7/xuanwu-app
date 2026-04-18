@@ -999,7 +999,7 @@ listAvailable(): Promise<AiTool[]>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: docs/structure/contexts/ai/AGENT.md
+## File: docs/structure/contexts/ai/AGENTS.md
 ````markdown
 # AI Context Agent Guide
 
@@ -1495,7 +1495,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -1511,7 +1511,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -1780,7 +1780,7 @@ export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 src/modules/ai/
   index.ts                      ← 模組對外唯一入口（具名匯出）
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     AiFacade.ts                 ← 對外統一 Facade
     AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
@@ -1852,12 +1852,12 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/ai/AGENT.md
+## File: src/modules/ai/AGENTS.md
 ````markdown
 # AI Module — Agent Guide
 
@@ -1910,7 +1910,7 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 
 ## Route Elsewhere When
 
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENTS.md`
 - 使用者對話 / Notebook UX → `src/modules/notebooklm/`
 - 知識文件 / Page 管理 → `src/modules/notion/`
 - 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
@@ -1920,7 +1920,7 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/ai/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
 | 跨模組 API boundary | `src/modules/ai/index.ts` |
 

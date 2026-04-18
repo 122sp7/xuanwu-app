@@ -52,12 +52,12 @@ This skill contains the following reference files:
 
 **Largest files:**
 - `docs/structure/contexts/notion/README.md` (117 lines)
-- `docs/structure/contexts/notion/AGENT.md` (112 lines)
+- `docs/structure/contexts/notion/AGENTS.md` (112 lines)
 - `docs/structure/contexts/notion/ubiquitous-language.md` (94 lines)
 - `docs/structure/contexts/notion/bounded-contexts.md` (83 lines)
 - `docs/structure/contexts/notion/context-map.md` (80 lines)
 - `docs/structure/contexts/notion/subdomains.md` (72 lines)
 - `src/modules/notion/subdomains/block/domain/entities/Block.ts` (68 lines)
-- `src/modules/notion/AGENT.md` (62 lines)
+- `src/modules/notion/AGENTS.md` (62 lines)
 - `src/modules/notion/subdomains/page/domain/entities/Page.ts` (60 lines)
 - `src/modules/notion/README.md` (60 lines)

@@ -823,7 +823,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -906,7 +906,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -975,7 +975,7 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -1021,7 +1021,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -1128,7 +1128,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
@@ -1289,7 +1289,7 @@ export async function createKnowledgePage(
 ): Promise<CreateKnowledgePageResult>
 ````
 
-## File: docs/structure/contexts/notion/AGENT.md
+## File: docs/structure/contexts/notion/AGENTS.md
 ````markdown
 # Notion Agent
 
@@ -1590,7 +1590,7 @@ href=
 src/modules/notion/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     NotionFacade.ts
   shared/
@@ -1623,12 +1623,12 @@ src/modules/notion/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/notion/AGENT.md
+## File: src/modules/notion/AGENTS.md
 ````markdown
 # Notion Module — Agent Guide
 
@@ -1668,7 +1668,7 @@ src/modules/notion/
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/notion/AGENT.md`
+- 讀取邊界規則 → `src/modules/notion/AGENTS.md`
 - 跨模組 API boundary → `src/modules/notion/index.ts`
 - RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
 - AI 生成輔助 → `src/modules/ai/index.ts`
@@ -1677,7 +1677,7 @@ src/modules/notion/
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/notion/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
 | 跨模組 API boundary | `src/modules/notion/index.ts` |
 

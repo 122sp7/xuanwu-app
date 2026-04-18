@@ -2168,7 +2168,7 @@ requested_at: datetime = Field(..., description="ISO 8601 timestamp when the job
 model_config = {"str_strip_whitespace": True}
 ````
 
-## File: py_fn/AGENT.md
+## File: py_fn/AGENTS.md
 ````markdown
 # py_fn — Agent Guide
 

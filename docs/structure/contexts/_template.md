@@ -9,7 +9,7 @@
 - bounded-contexts.md
 - context-map.md
 - ubiquitous-language.md
-- AGENT.md
+- AGENTS.md
 
 ## README.md Template
 
@@ -74,7 +74,7 @@
 - Correct Interaction Flow
 - Document Network
 
-## AGENT.md Template
+## AGENTS.md Template
 
 - Mission
 - Canonical Ownership

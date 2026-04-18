@@ -99,7 +99,7 @@ Repo 根目錄的三個運行時層：
 
 ### 路由規則
 
-- 讀取主域邊界與任務路由 → `src/modules/<context>/AGENT.md`
+- 讀取主域邊界與任務路由 → `src/modules/<context>/AGENTS.md`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以 `src/modules/template` 為骨架基線
 - 跨主域協作只透過目標主域的公開匯出（`src/modules/<context>/index.ts`）
 

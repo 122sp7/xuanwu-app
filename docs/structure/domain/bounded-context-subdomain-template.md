@@ -23,7 +23,7 @@
 src/modules/                                    # 系統所有業務模組（bounded contexts）集合
 └── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
     ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
-    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
+    ├── AGENTS.md                                # 開發規範：命名、分層規則、不可違反設計約束
     ├── index.ts                                # 跨模組公開入口（cross-module entry surface）
     ├── application/                            # 應用層：負責 use case orchestration
     │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
@@ -117,7 +117,7 @@ src/modules/                                    # 系統所有業務模組（bou
 
 ## Delivery Checklist
 
-1. 建立 bounded context 的 `README.md`、`AGENT.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
+1. 建立 bounded context 的 `README.md`、`AGENTS.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
 2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
 3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
 4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。

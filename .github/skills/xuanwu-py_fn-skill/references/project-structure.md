@@ -3,7 +3,7 @@
 ```
 py_fn/.gitignore (6 lines)
 py_fn/.serena/.gitkeep (0 lines)
-py_fn/AGENT.md (32 lines)
+py_fn/AGENTS.md (32 lines)
 py_fn/docs/.gitkeep (0 lines)
 py_fn/main.py (43 lines)
 py_fn/README.md (265 lines)

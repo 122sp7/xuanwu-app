@@ -11,8 +11,8 @@
 
 | 需要 | 去哪裡 |
 |---|---|
-| 新增或修改路由、layout、page | `src/app/` → 見 `src/app/AGENT.md` |
-| 新增或修改模組的 use case、entity、adapter | `src/modules/<context>/` → 見對應 `AGENT.md` |
+| 新增或修改路由、layout、page | `src/app/` → 見 `src/app/AGENTS.md` |
+| 新增或修改模組的 use case、entity、adapter | `src/modules/<context>/` → 見對應 `AGENTS.md` |
 | 跨模組 API boundary | `src/modules/<context>/index.ts` |
 | 模組清單與子域狀態 | `src/modules/README.md` |
 
@@ -24,7 +24,7 @@
 
 ## 文件網絡
 
-- [src/app/AGENT.md](app/AGENT.md) — App Router 路由規則
+- [src/app/AGENTS.md](app/AGENTS.md) — App Router 路由規則
 - [src/modules/README.md](modules/README.md) — 模組清單與子域狀態
 - [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 - [docs/README.md](../docs/README.md) — 架構文件索引

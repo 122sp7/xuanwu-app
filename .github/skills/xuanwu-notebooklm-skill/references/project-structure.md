@@ -1,7 +1,7 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/notebooklm/AGENT.md (92 lines)
+docs/structure/contexts/notebooklm/AGENTS.md (92 lines)
 docs/structure/contexts/notebooklm/bounded-contexts.md (83 lines)
 docs/structure/contexts/notebooklm/context-map.md (79 lines)
 docs/structure/contexts/notebooklm/README.md (113 lines)
@@ -17,7 +17,7 @@ src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts (27 l
 src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts (59 lines)
 src/modules/notebooklm/adapters/outbound/firebase-composition.ts (72 lines)
 src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts (23 lines)
-src/modules/notebooklm/AGENT.md (59 lines)
+src/modules/notebooklm/AGENTS.md (59 lines)
 src/modules/notebooklm/index.ts (12 lines)
 src/modules/notebooklm/orchestration/index.ts (2 lines)
 src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts (107 lines)

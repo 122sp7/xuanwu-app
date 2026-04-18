@@ -34,7 +34,7 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
+- 讀取邊界規則 → `src/modules/notebooklm/AGENTS.md`
 - AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
 - KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
 - 跨模組 API boundary → `src/modules/notebooklm/index.ts`
@@ -43,7 +43,7 @@
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
 | 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
 

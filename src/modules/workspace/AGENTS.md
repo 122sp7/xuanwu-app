@@ -49,7 +49,7 @@
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/workspace/AGENT.md`
+- 讀取邊界規則 → `src/modules/workspace/AGENTS.md`
 - 跨模組 API boundary → `src/modules/workspace/index.ts`
 - AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
 - 成員身份驗證 → `src/modules/iam/index.ts`
@@ -58,7 +58,7 @@
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/workspace/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/workspace/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
 | 跨模組 API boundary | `src/modules/workspace/index.ts` |
 

@@ -58,6 +58,6 @@ This skill contains the following reference files:
 - `src/modules/iam/subdomains/account/domain/entities/Account.ts` (87 lines)
 - `src/modules/iam/README.md` (83 lines)
 - `src/modules/iam/subdomains/account/domain/events/AccountDomainEvent.ts` (78 lines)
-- `docs/structure/contexts/iam/AGENT.md` (74 lines)
+- `docs/structure/contexts/iam/AGENTS.md` (74 lines)
 - `src/modules/iam/subdomains/organization/domain/aggregates/Organization.ts` (72 lines)
 - `src/modules/iam/subdomains/account/domain/repositories/AccountQueryRepository.ts` (71 lines)

@@ -20,7 +20,7 @@
 src/modules/analytics/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
   shared/
     events/index.ts             ← Published Language Events
@@ -59,6 +59,6 @@ adapters/inbound → application → domain ← adapters/outbound
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖

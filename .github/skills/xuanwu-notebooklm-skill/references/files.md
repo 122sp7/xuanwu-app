@@ -491,7 +491,7 @@ findByAccountId(accountId: string): Promise<NotebookSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
-## File: docs/structure/contexts/notebooklm/AGENT.md
+## File: docs/structure/contexts/notebooklm/AGENTS.md
 ````markdown
 # NotebookLM Agent
 
@@ -665,7 +665,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -747,7 +747,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -812,7 +812,7 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -858,7 +858,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -1037,7 +1037,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
@@ -1645,7 +1645,7 @@ notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
 src/modules/notebooklm/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     NotebooklmFacade.ts
     NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
@@ -1677,7 +1677,7 @@ src/modules/notebooklm/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -1713,7 +1713,7 @@ const handleSynthesize = () =>
 href=
 ````
 
-## File: src/modules/notebooklm/AGENT.md
+## File: src/modules/notebooklm/AGENTS.md
 ````markdown
 # NotebookLM Module — Agent Guide
 
@@ -1751,7 +1751,7 @@ href=
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
+- 讀取邊界規則 → `src/modules/notebooklm/AGENTS.md`
 - AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
 - KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
 - 跨模組 API boundary → `src/modules/notebooklm/index.ts`
@@ -1760,7 +1760,7 @@ href=
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
+| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENTS.md` |
 | 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
 | 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
 

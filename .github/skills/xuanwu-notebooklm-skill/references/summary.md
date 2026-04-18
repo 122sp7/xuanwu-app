@@ -55,7 +55,7 @@ This skill contains the following reference files:
 - `src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts` (107 lines)
 - `src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository.ts` (97 lines)
 - `docs/structure/contexts/notebooklm/ubiquitous-language.md` (94 lines)
-- `docs/structure/contexts/notebooklm/AGENT.md` (92 lines)
+- `docs/structure/contexts/notebooklm/AGENTS.md` (92 lines)
 - `docs/structure/contexts/notebooklm/bounded-contexts.md` (83 lines)
 - `docs/structure/contexts/notebooklm/context-map.md` (79 lines)
 - `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (72 lines)

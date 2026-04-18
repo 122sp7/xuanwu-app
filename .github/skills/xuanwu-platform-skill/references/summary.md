@@ -54,7 +54,7 @@ This skill contains the following reference files:
 - `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (190 lines)
 - `docs/structure/contexts/platform/ubiquitous-language.md` (141 lines)
 - `docs/structure/contexts/platform/README.md` (133 lines)
-- `docs/structure/contexts/platform/AGENT.md` (108 lines)
+- `docs/structure/contexts/platform/AGENTS.md` (108 lines)
 - `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
 - `src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (94 lines)
 - `docs/structure/contexts/platform/bounded-contexts.md` (89 lines)

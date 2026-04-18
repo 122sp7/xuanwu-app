@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-343 files | 30,521 lines
+349 files | 31,029 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 343 | 30,521 |
+| Markdown | 349 | 31,029 |
 
 **Largest files:**
 - `.github/skills/vercel-react-best-practices/AGENTS.md` (3,810 lines)

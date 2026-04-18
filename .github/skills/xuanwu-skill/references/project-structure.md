@@ -190,13 +190,13 @@ docs/
       .gitkeep (0 lines)
     end-to-end/
       deliveries/
-        AGENT.md (8 lines)
+        AGENTS.md (8 lines)
         README.md (10 lines)
         upload-parse-to-task-flow.md (77 lines)
       .gitkeep (0 lines)
     modules/
       feature/
-        AGENT.md (8 lines)
+        AGENTS.md (8 lines)
         notebooklm-source-processing-task-flow.md (86 lines)
         py-fn-ts-capability-bridge.md (387 lines)
         README.md (12 lines)
@@ -206,7 +206,7 @@ docs/
   structure/
     contexts/
       ai/
-        AGENT.md (95 lines)
+        AGENTS.md (95 lines)
         bounded-contexts.md (61 lines)
         context-map.md (50 lines)
         cross-runtime-contracts.md (99 lines)
@@ -215,49 +215,49 @@ docs/
         subdomains.md (91 lines)
         ubiquitous-language.md (49 lines)
       analytics/
-        AGENT.md (68 lines)
+        AGENTS.md (68 lines)
         bounded-contexts.md (11 lines)
         context-map.md (16 lines)
         README.md (27 lines)
         subdomains.md (20 lines)
         ubiquitous-language.md (15 lines)
       billing/
-        AGENT.md (68 lines)
+        AGENTS.md (68 lines)
         bounded-contexts.md (11 lines)
         context-map.md (14 lines)
         README.md (27 lines)
         subdomains.md (18 lines)
         ubiquitous-language.md (15 lines)
       iam/
-        AGENT.md (74 lines)
+        AGENTS.md (74 lines)
         bounded-contexts.md (12 lines)
         context-map.md (16 lines)
         README.md (27 lines)
         subdomains.md (28 lines)
         ubiquitous-language.md (17 lines)
       notebooklm/
-        AGENT.md (92 lines)
+        AGENTS.md (92 lines)
         bounded-contexts.md (83 lines)
         context-map.md (79 lines)
         README.md (113 lines)
         subdomains.md (68 lines)
         ubiquitous-language.md (94 lines)
       notion/
-        AGENT.md (112 lines)
+        AGENTS.md (112 lines)
         bounded-contexts.md (83 lines)
         context-map.md (80 lines)
         README.md (117 lines)
         subdomains.md (72 lines)
         ubiquitous-language.md (94 lines)
       platform/
-        AGENT.md (108 lines)
+        AGENTS.md (108 lines)
         bounded-contexts.md (89 lines)
         context-map.md (80 lines)
         README.md (133 lines)
         subdomains.md (89 lines)
         ubiquitous-language.md (141 lines)
       workspace/
-        AGENT.md (100 lines)
+        AGENTS.md (100 lines)
         bounded-contexts.md (93 lines)
         context-map.md (79 lines)
         README.md (126 lines)
@@ -301,7 +301,7 @@ docs/
     .gitkeep (0 lines)
     commands-reference.md (54 lines)
     knowledge-base-reference.md (41 lines)
-  AGENT.md (39 lines)
+  AGENTS.md (39 lines)
   README.md (156 lines)
 packages/
   infra/
@@ -423,7 +423,7 @@ packages/
     README.md (86 lines)
   ui-visualization/
     .gitkeep (0 lines)
-  AGENT.md (59 lines)
+  AGENTS.md (59 lines)
   README.md (82 lines)
 py_fn/
   .serena/
@@ -568,7 +568,7 @@ py_fn/
     test_domain_repository_gateways.py (47 lines)
     test_parse_document_handler.py (44 lines)
   .gitignore (6 lines)
-  AGENT.md (32 lines)
+  AGENTS.md (32 lines)
   main.py (43 lines)
   README.md (265 lines)
   requirements-dev.txt (2 lines)
@@ -583,7 +583,7 @@ src/
           [[...slug]]/
             page.tsx (5 lines)
       layout.tsx (5 lines)
-    AGENT.md (40 lines)
+    AGENTS.md (40 lines)
     globals.css (47 lines)
     layout.tsx (9 lines)
     README.md (55 lines)
@@ -762,7 +762,7 @@ src/
             entities/
               AiTool.ts (27 lines)
             index.ts (2 lines)
-      AGENT.md (76 lines)
+      AGENTS.md (76 lines)
       index.ts (24 lines)
       README.md (111 lines)
     analytics/
@@ -898,7 +898,7 @@ src/
             entities/
               RealtimeMetric.ts (26 lines)
             index.ts (2 lines)
-      AGENT.md (51 lines)
+      AGENTS.md (51 lines)
       index.ts (18 lines)
       README.md (64 lines)
     billing/
@@ -997,7 +997,7 @@ src/
             repositories/
               UsageRecordRepository.ts (22 lines)
             index.ts (2 lines)
-      AGENT.md (46 lines)
+      AGENTS.md (46 lines)
       index.ts (10 lines)
       README.md (57 lines)
     iam/
@@ -1248,7 +1248,7 @@ src/
             index.ts (0 lines)
           domain/
             index.ts (60 lines)
-      AGENT.md (62 lines)
+      AGENTS.md (62 lines)
       index.ts (26 lines)
       README.md (83 lines)
     notebooklm/
@@ -1342,7 +1342,7 @@ src/
             repositories/
               NotebookRepository.ts (15 lines)
             index.ts (0 lines)
-      AGENT.md (59 lines)
+      AGENTS.md (59 lines)
       index.ts (12 lines)
       README.md (70 lines)
     notion/
@@ -1474,7 +1474,7 @@ src/
             entities/
               View.ts (41 lines)
             index.ts (2 lines)
-      AGENT.md (62 lines)
+      AGENTS.md (62 lines)
       index.ts (16 lines)
       README.md (60 lines)
     platform/
@@ -1641,7 +1641,7 @@ src/
             index.ts (0 lines)
           domain/
             index.ts (14 lines)
-      AGENT.md (58 lines)
+      AGENTS.md (58 lines)
       index.ts (4 lines)
       README.md (84 lines)
     shared/
@@ -1838,7 +1838,7 @@ src/
             value-objects/
               WorkflowId.ts (16 lines)
             index.ts (0 lines)
-      AGENT.md (99 lines)
+      AGENTS.md (99 lines)
       index.ts (20 lines)
       README.md (266 lines)
     workspace/
@@ -2319,14 +2319,14 @@ src/
               TaskCandidate.ts (11 lines)
               TaskFormationJobStatus.ts (1 lines)
             index.ts (0 lines)
-          AGENT.md (166 lines)
+          AGENTS.md (166 lines)
           README.md (220 lines)
-      AGENT.md (75 lines)
+      AGENTS.md (75 lines)
       index.ts (14 lines)
       README.md (85 lines)
-    AGENT.md (72 lines)
+    AGENTS.md (72 lines)
     README.md (76 lines)
-  AGENT.md (30 lines)
+  AGENTS.md (30 lines)
   README.md (8 lines)
 apphosting.yaml (64 lines)
 components.json (25 lines)

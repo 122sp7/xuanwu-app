@@ -120,7 +120,7 @@ src/modules/<bounded-context>/
 | subdomain API | Always delegate through `index.ts` boundary | Prevents interface leakage |
 | factory functions | Place in `interfaces/composition/` (not module root) | Separates DI from core |
 | bounded context naming | Must align with module folder | Consistency + grep-ability |
-| usage logs | Require AGENTS.md + module AGENT.md conformance | Ensure ownership clarity |
+| usage logs | Require AGENTS.md + module AGENTS.md conformance | Ensure ownership clarity |
 
 ---
 

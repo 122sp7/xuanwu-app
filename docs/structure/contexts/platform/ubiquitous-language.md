@@ -134,7 +134,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)

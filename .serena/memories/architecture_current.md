@@ -16,5 +16,5 @@
 
 - ❌ 不再有 `modules/<context>/` 根目錄（已刪除）
 - ❌ 不再有平行 `app/` 根目錄（已刪除）
-- ✅ 若不確定 → 查 `src/modules/<context>/AGENT.md` 的 Route Here/Elsewhere 段落
+- ✅ 若不確定 → 查 `src/modules/<context>/AGENTS.md` 的 Route Here/Elsewhere 段落
 - ✅ `src/modules/template/` 是新模組的骨架基線（完整多子域範本）
