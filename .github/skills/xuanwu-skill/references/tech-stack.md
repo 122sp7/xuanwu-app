@@ -98,6 +98,6 @@
 
 ## Configuration Files
 
+- tsconfig.json
 - eslint.config.mjs
 - package.json
-- tsconfig.json

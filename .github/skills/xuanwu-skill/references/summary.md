@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1319 files | 34,441 lines
+1330 files | 34,656 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 842 | 11,872 |
-| Markdown | 224 | 15,793 |
-| TypeScript (TSX) | 108 | 2,987 |
+| TypeScript | 852 | 12,093 |
+| Markdown | 224 | 15,868 |
+| TypeScript (TSX) | 109 | 2,906 |
 | Python | 63 | 1,459 |
 | No Extension | 54 | 59 |
 | JSON | 19 | 2,025 |
 | Text | 3 | 107 |
-| JavaScript (ESM) | 2 | 10 |
 | RULES | 2 | 18 |
-| CSS | 1 | 47 |
-| Other | 1 | 64 |
+| JavaScript (ESM) | 2 | 10 |
+| YAML | 1 | 64 |
+| Other | 1 | 47 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
