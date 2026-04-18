@@ -269,11 +269,11 @@ flowchart LR
 
 ## Document Network
 
-- [architecture-overview.md](./architecture-overview.md)
+- [architecture-overview.md](../system/architecture-overview.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
-- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
-- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
-- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
+- [project-delivery-milestones.md](../system/project-delivery-milestones.md)
+- [contexts/workspace/subdomains.md](../contexts/workspace/subdomains.md)
+- [contexts/platform/subdomains.md](../contexts/platform/subdomains.md)
+- [contexts/notion/subdomains.md](../contexts/notion/subdomains.md)
+- [contexts/notebooklm/subdomains.md](../contexts/notebooklm/subdomains.md)

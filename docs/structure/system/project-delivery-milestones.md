@@ -90,17 +90,17 @@ flowchart LR
 
 ## Document Network
 
-- [README.md](./README.md)
+- [README.md](../../README.md)
 - [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
 - [context-map.md](./context-map.md)
 - [integration-guidelines.md](./integration-guidelines.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [decisions/README.md](./decisions/README.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [decisions/README.md](../../decisions/README.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 
 ## Constraints
 

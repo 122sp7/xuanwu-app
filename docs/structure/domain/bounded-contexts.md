@@ -271,10 +271,10 @@ flowchart LR
 
 ## Document Network
 
-- [architecture-overview.md](./architecture-overview.md)
+- [architecture-overview.md](../system/architecture-overview.md)
 - [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
+- [context-map.md](../system/context-map.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
+- [project-delivery-milestones.md](../system/project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
