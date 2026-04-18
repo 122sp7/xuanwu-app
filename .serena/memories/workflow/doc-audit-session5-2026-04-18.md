@@ -23,3 +23,7 @@ Documentation drift fix and context AGENT.md expansion across analytics, billing
 ## All Completed
 - docs/structure/contexts/notion/AGENT.md Canonical Ownership updated: now shows both strategic vocabulary and implementation layer (page/block/database/view/collaboration/template) with explicit mapping notes
 - npm run repomix:markdown ran successfully: 409 files, 388,414 tokens
+
+## Session 6 — CRITICAL DRIFT FIX (account/org ownership migration)
+Completed in a follow-up session. Fixes: platform/AGENT.md, platform/subdomains.md, platform/bounded-contexts.md, iam/bounded-contexts.md, iam/context-map.md, iam/subdomains.md, docs/structure/domain/bounded-contexts.md, docs/structure/domain/subdomains.md, docs/structure/domain/ubiquitous-language.md, docs/structure/system/architecture-overview.md, docs/structure/system/context-map.md, docs/structure/system/module-graph.system-wide.md, docs/structure/contexts/platform/ubiquitous-language.md.
+Key: account/org aggregates fully migrated from platform → iam in ALL docs layers. platform ubiquitous-language.md refactored to remove Account/Organization from "Canonical Terms" (now "Consumed from iam"). repomix:markdown ran: 409 files, 388,820 tokens.
