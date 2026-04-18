@@ -30,6 +30,14 @@ import {
   ActivateWorkspaceUseCase,
   StopWorkspaceUseCase,
 } from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import { CreateTaskUseCase } from "../../subdomains/task/application/use-cases/TaskUseCases";
 
 type FirestoreWhereOperator =
   | "<"
@@ -138,6 +146,21 @@ export function createClientWorkspaceLifecycleUseCases() {
     createWorkspaceUseCase: new CreateWorkspaceUseCase(repo),
     activateWorkspaceUseCase: new ActivateWorkspaceUseCase(repo),
     stopWorkspaceUseCase: new StopWorkspaceUseCase(repo),
+  };
+}
+
+export function createClientTaskFormationUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const jobRepo = new FirestoreTaskFormationJobRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
+  const createTaskUseCase = new CreateTaskUseCase(taskRepo);
+  const extractor = new FirebaseCallableTaskCandidateExtractor();
+  return {
+    extractTaskCandidates: new ExtractTaskCandidatesUseCase(jobRepo, extractor),
+    confirmCandidates: new ConfirmCandidatesUseCase(jobRepo, {
+      createTask: (input) => createTaskUseCase.execute(input),
+    }),
+    getJobSnapshot: (jobId: string) => jobRepo.findById(jobId),
   };
 }
 

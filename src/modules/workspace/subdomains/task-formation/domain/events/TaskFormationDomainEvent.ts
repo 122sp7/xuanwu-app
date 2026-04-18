@@ -10,4 +10,23 @@ export interface TaskFormationJobCreatedEvent extends TaskFormationDomainEvent {
   readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly correlationId: string };
 }
 
-export type TaskFormationDomainEventType = TaskFormationJobCreatedEvent;
+export interface TaskCandidatesExtractedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.candidates-extracted";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly candidateCount: number };
+}
+
+export interface TaskCandidatesConfirmedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.candidates-confirmed";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly confirmedCount: number };
+}
+
+export interface TaskFormationJobFailedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.job-failed";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly errorCode: string };
+}
+
+export type TaskFormationDomainEventType =
+  | TaskFormationJobCreatedEvent
+  | TaskCandidatesExtractedEvent
+  | TaskCandidatesConfirmedEvent
+  | TaskFormationJobFailedEvent;

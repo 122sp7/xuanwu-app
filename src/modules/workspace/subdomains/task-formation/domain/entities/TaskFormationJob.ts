@@ -1,6 +1,7 @@
 import { v4 as uuid } from "uuid";
 import type { TaskFormationJobStatus } from "../value-objects/TaskFormationJobStatus";
 import type { TaskFormationDomainEventType } from "../events/TaskFormationDomainEvent";
+import type { ExtractedTaskCandidate } from "../value-objects/TaskCandidate";
 
 export interface TaskFormationJobSnapshot {
   readonly id: string;
@@ -8,6 +9,7 @@ export interface TaskFormationJobSnapshot {
   readonly actorId: string;
   readonly correlationId: string;
   readonly knowledgePageIds: ReadonlyArray<string>;
+  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
   readonly totalItems: number;
   readonly processedItems: number;
   readonly succeededItems: number;
@@ -47,6 +49,7 @@ export class TaskFormationJob {
       actorId: input.actorId,
       correlationId: input.correlationId,
       knowledgePageIds: input.knowledgePageIds,
+      candidates: [],
       totalItems: input.knowledgePageIds.length,
       processedItems: 0,
       succeededItems: 0,
@@ -92,6 +95,44 @@ export class TaskFormationJob {
   markFailed(errorCode: string, errorMessage: string): void {
     const now = new Date().toISOString();
     this._props = { ...this._props, status: "failed", errorCode, errorMessage, completedAtISO: now, updatedAtISO: now };
+    this._domainEvents.push({
+      type: "workspace.task-formation.job-failed",
+      eventId: uuid(),
+      occurredAt: now,
+      payload: { jobId: this._props.id, workspaceId: this._props.workspaceId, errorCode },
+    });
+  }
+
+  setCandidates(candidates: ExtractedTaskCandidate[]): void {
+    if (this._props.status !== "running") throw new Error("Job must be running to set candidates.");
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      candidates: [...candidates],
+      succeededItems: candidates.length,
+      processedItems: this._props.totalItems,
+      status: "succeeded",
+      completedAtISO: now,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "workspace.task-formation.candidates-extracted",
+      eventId: uuid(),
+      occurredAt: now,
+      payload: { jobId: this._props.id, workspaceId: this._props.workspaceId, candidateCount: candidates.length },
+    });
+  }
+
+  markCandidatesConfirmed(confirmedCount: number): void {
+    if (this._props.status !== "succeeded") throw new Error("Job must have succeeded (candidates extracted) to confirm.");
+    const now = new Date().toISOString();
+    this._props = { ...this._props, updatedAtISO: now };
+    this._domainEvents.push({
+      type: "workspace.task-formation.candidates-confirmed",
+      eventId: uuid(),
+      occurredAt: now,
+      payload: { jobId: this._props.id, workspaceId: this._props.workspaceId, confirmedCount },
+    });
   }
 
   get id(): string { return this._props.id; }

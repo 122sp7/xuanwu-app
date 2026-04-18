@@ -244,7 +244,7 @@ export function WorkspaceDetailRouteScreen({
           />
         )}
         {activeTab === "TaskFormation" && (
-          <WorkspaceTaskFormationSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceTaskFormationSection workspaceId={workspaceId} accountId={accountId} currentUserId={currentUserId ?? undefined} />
         )}
         {activeTab === "Tasks" && (
           <WorkspaceTasksSection workspaceId={workspaceId} accountId={accountId} />

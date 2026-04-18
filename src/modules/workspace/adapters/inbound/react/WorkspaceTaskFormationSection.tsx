@@ -7,7 +7,8 @@
  * (notion pages, databases, or AI research summaries). This section shows:
  *   1. A closed-loop banner explaining data provenance
  *   2. Source selector — where to pull task candidates from
- *   3. Pipeline stages showing the formation workflow
+ *   3. Candidate review + confirmation step
+ *   4. Pipeline stages showing the formation workflow
  */
 
 import {
@@ -19,31 +20,48 @@ import {
   Upload,
   ChevronRight,
   Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
 
 interface WorkspaceTaskFormationSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
 
 const PIPELINE_STAGES = [
-  { label: "需求收集", count: 0, color: "bg-blue-500/20 text-blue-600 border-blue-500/30" },
-  { label: "評估分析", count: 0, color: "bg-purple-500/20 text-purple-600 border-purple-500/30" },
-  { label: "任務拆解", count: 0, color: "bg-amber-500/20 text-amber-600 border-amber-500/30" },
-  { label: "待指派", count: 0, color: "bg-emerald-500/20 text-emerald-600 border-emerald-500/30" },
+  { label: "需求收集", color: "bg-blue-500/20 text-blue-600 border-blue-500/30" },
+  { label: "評估分析", color: "bg-purple-500/20 text-purple-600 border-purple-500/30" },
+  { label: "任務拆解", color: "bg-amber-500/20 text-amber-600 border-amber-500/30" },
+  { label: "待指派", color: "bg-emerald-500/20 text-emerald-600 border-emerald-500/30" },
 ] as const;
 
 type SourceType = "pages" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
 
 export function WorkspaceTaskFormationSection({
   workspaceId,
   accountId,
+  currentUserId,
 }: WorkspaceTaskFormationSectionProps): React.ReactElement {
   const [selectedSource, setSelectedSource] = useState<SourceType>(null);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [candidates, setCandidates] = useState<ExtractedTaskCandidate[]>([]);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmedCount, setConfirmedCount] = useState(0);
+  const [isPending, startTransition] = useTransition();
+
   const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
 
   const sources = [
@@ -76,6 +94,69 @@ export function WorkspaceTaskFormationSection({
     },
   ] as const;
 
+  function toggleCandidate(i: number) {
+    setSelectedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }
+
+  function handleExtract() {
+    if (!selectedSource || !currentUserId) return;
+    setPhase("extracting");
+    setErrorMessage(null);
+    startTransition(async () => {
+      const result = await startExtractionAction({
+        workspaceId,
+        actorId: currentUserId,
+        sourceType: "ai",
+        sourcePageIds: [selectedSource],
+      });
+      if (!result.success) {
+        setErrorMessage(result.error.message);
+        setPhase("error");
+        return;
+      }
+      setJobId(result.aggregateId);
+      const extractedCandidates = (result as { candidates?: ReadonlyArray<ExtractedTaskCandidate> }).candidates ?? [];
+      setCandidates([...extractedCandidates]);
+      setSelectedIndices(new Set(extractedCandidates.map((_, i) => i)));
+      setPhase("reviewing");
+    });
+  }
+
+  function handleConfirm() {
+    if (!jobId || !currentUserId || selectedIndices.size === 0) return;
+    setPhase("confirming");
+    startTransition(async () => {
+      const result = await confirmCandidatesAction({
+        jobId,
+        workspaceId,
+        actorId: currentUserId,
+        selectedIndices: [...selectedIndices],
+      });
+      if (!result.success) {
+        setErrorMessage(result.error.message);
+        setPhase("reviewing");
+        return;
+      }
+      setConfirmedCount(selectedIndices.size);
+      setPhase("done");
+    });
+  }
+
+  function handleReset() {
+    setPhase("idle");
+    setSelectedSource(null);
+    setCandidates([]);
+    setSelectedIndices(new Set());
+    setJobId(null);
+    setErrorMessage(null);
+    setConfirmedCount(0);
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -84,10 +165,18 @@ export function WorkspaceTaskFormationSection({
           <ListPlus className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">任務形成</h2>
         </div>
-        <Button size="sm" variant="outline" disabled={!selectedSource}>
-          <ListPlus className="size-3.5" />
-          從選定來源生成任務
-        </Button>
+        {phase === "idle" && (
+          <Button size="sm" variant="outline" disabled={!selectedSource || !currentUserId} onClick={handleExtract}>
+            <ListPlus className="size-3.5" />
+            從選定來源生成任務
+          </Button>
+        )}
+        {(phase === "reviewing" || phase === "error") && (
+          <Button size="sm" variant="ghost" onClick={handleReset}>
+            <RefreshCw className="size-3.5" />
+            重新選擇
+          </Button>
+        )}
       </div>
 
       {/* Closed-loop banner */}
@@ -117,58 +206,206 @@ export function WorkspaceTaskFormationSection({
         </div>
       </div>
 
-      {/* Source selector */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">選擇任務來源</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {sources.map((source) => {
-            const isSelected = selectedSource === source.id;
-            return (
+      {/* Phase: idle — source selector */}
+      {phase === "idle" && (
+        <>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">選擇任務來源</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {sources.map((source) => {
+                const isSelected = selectedSource === source.id;
+                return (
+                  <button
+                    key={source.id}
+                    type="button"
+                    onClick={() => setSelectedSource(isSelected ? null : source.id)}
+                    className={`rounded-xl border px-3 py-3 text-left transition ${
+                      isSelected ? source.activeColor : source.color
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {source.icon}
+                        <span className="text-sm font-medium">{source.label}</span>
+                      </div>
+                      {isSelected && <Badge variant="outline" className="text-xs">已選</Badge>}
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">{source.description}</p>
+                    <Link
+                      href={source.href}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      前往查看 <ChevronRight className="size-3" />
+                    </Link>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {selectedSource ? (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-6 text-center">
+              <ListPlus className="mx-auto mb-3 size-8 text-primary/50" />
+              <p className="text-sm font-medium">
+                從「{sources.find((s) => s.id === selectedSource)?.label}」生成任務候選
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                AI 將讀取選定來源的內容，萃取可執行任務並等待你確認。
+              </p>
+              {!currentUserId && (
+                <p className="mt-2 text-xs text-destructive/70">需要登入帳號才能執行 AI 萃取。</p>
+              )}
+              <Button size="sm" className="mt-3" onClick={handleExtract} disabled={!currentUserId}>
+                <ListPlus className="size-3.5" />
+                生成任務候選
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-6 text-center">
+              <Upload className="mx-auto mb-3 size-8 text-muted-foreground/40" />
+              <p className="text-sm font-medium text-muted-foreground">請先選定一個知識來源</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                從上方選擇「知識頁面」、「資料庫」或「AI 研究摘要」作為任務生成的依據。
+              </p>
+              <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Link href={`${base}?tab=Sources`} className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 hover:bg-muted">
+                  <Upload className="size-3" /> 上傳來源文件
+                </Link>
+                <Link href={`${base}?tab=Research`} className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 hover:bg-muted">
+                  <BookOpen className="size-3" /> 執行研究合成
+                </Link>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Phase: extracting */}
+      {phase === "extracting" && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-8 text-center">
+          <Loader2 className="mx-auto mb-3 size-8 animate-spin text-primary/60" />
+          <p className="text-sm font-medium">AI 正在萃取任務候選…</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">正在讀取知識來源並分析可執行任務，請稍候。</p>
+        </div>
+      )}
+
+      {/* Phase: reviewing */}
+      {phase === "reviewing" && (
+        <div className="space-y-3">
+          {errorMessage && (
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              <AlertCircle className="size-4 shrink-0" />
+              {errorMessage}
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">
+              AI 萃取結果 — {candidates.length} 個候選任務（已選 {selectedIndices.size}）
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" className="text-xs h-7 px-2" onClick={() => setSelectedIndices(new Set(candidates.map((_, i) => i)))}>
+                全選
+              </Button>
+              <Button size="sm" variant="ghost" className="text-xs h-7 px-2" onClick={() => setSelectedIndices(new Set())}>
+                全取消
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {candidates.map((c, i) => (
               <button
-                key={source.id}
+                key={i}
                 type="button"
-                onClick={() => setSelectedSource(isSelected ? null : source.id)}
-                className={`rounded-xl border px-3 py-3 text-left transition ${
-                  isSelected ? source.activeColor : source.color
+                onClick={() => toggleCandidate(i)}
+                className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                  selectedIndices.has(i)
+                    ? "border-primary/40 bg-primary/5"
+                    : "border-border/40 bg-card/30 opacity-50"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {source.icon}
-                    <span className="text-sm font-medium">{source.label}</span>
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border transition ${selectedIndices.has(i) ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"}`}>
+                    {selectedIndices.has(i) && <Check className="size-3" />}
                   </div>
-                  {isSelected && (
-                    <Badge variant="outline" className="text-xs">已選</Badge>
-                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{c.title}</p>
+                    {c.description && <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {c.dueDate && (
+                        <Badge variant="outline" className="text-xs">截止 {c.dueDate}</Badge>
+                      )}
+                      <Badge variant="outline" className="text-xs">
+                        信心度 {Math.round(c.confidence * 100)}%
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-                <p className="mt-1.5 text-xs text-muted-foreground">{source.description}</p>
-                <Link
-                  href={source.href}
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  前往查看
-                  <ChevronRight className="size-3" />
-                </Link>
               </button>
-            );
-          })}
+            ))}
+          </div>
+          <Button
+            className="w-full"
+            size="sm"
+            disabled={selectedIndices.size === 0 || isPending}
+            onClick={handleConfirm}
+          >
+            {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            確認建立 {selectedIndices.size} 個任務
+          </Button>
         </div>
-      </div>
+      )}
 
-      {/* Pipeline stages */}
+      {/* Phase: confirming */}
+      {phase === "confirming" && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-8 text-center">
+          <Loader2 className="mx-auto mb-3 size-8 animate-spin text-primary/60" />
+          <p className="text-sm font-medium">正在建立任務…</p>
+        </div>
+      )}
+
+      {/* Phase: done */}
+      {phase === "done" && (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-6 text-center">
+            <Check className="mx-auto mb-3 size-8 text-emerald-600" />
+            <p className="text-sm font-medium text-emerald-700">已成功建立 {confirmedCount} 個任務</p>
+            <p className="mt-1 text-xs text-muted-foreground/70">任務已加入此工作區的任務列表。</p>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <Button size="sm" variant="outline" onClick={handleReset}>
+                <RefreshCw className="size-3.5" /> 再次萃取
+              </Button>
+              <Link href={`${base}?tab=Tasks`}>
+                <Button size="sm">
+                  查看任務列表
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase: error (without candidate list) */}
+      {phase === "error" && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-6 text-center">
+          <AlertCircle className="mx-auto mb-3 size-8 text-destructive/60" />
+          <p className="text-sm font-medium text-destructive">萃取失敗</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">{errorMessage ?? "請稍後再試。"}</p>
+          <Button size="sm" variant="outline" className="mt-3" onClick={handleReset}>
+            <RefreshCw className="size-3.5" /> 重試
+          </Button>
+        </div>
+      )}
+
+      {/* Pipeline stages — always shown */}
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">任務形成管道</p>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
           {PIPELINE_STAGES.map((stage, i) => (
             <div key={stage.label} className="flex items-center gap-2 sm:flex-1 sm:flex-col sm:items-stretch">
-              <div
-                className={`flex items-center justify-between rounded-xl border px-3 py-3 sm:flex-col sm:items-start sm:gap-2 ${stage.color}`}
-              >
+              <div className={`flex items-center justify-between rounded-xl border px-3 py-3 sm:flex-col sm:items-start sm:gap-2 ${stage.color}`}>
                 <p className="text-xs font-medium">{stage.label}</p>
-                <Badge variant="outline" className="text-xs border-inherit">
-                  {stage.count}
-                </Badge>
+                <Badge variant="outline" className="text-xs border-inherit">0</Badge>
               </div>
               {i < PIPELINE_STAGES.length - 1 && (
                 <ArrowRight className="size-3.5 shrink-0 rotate-90 text-muted-foreground/40 sm:rotate-0 sm:self-center" />
@@ -177,47 +414,6 @@ export function WorkspaceTaskFormationSection({
           ))}
         </div>
       </div>
-
-      {/* Empty state or action prompt */}
-      {selectedSource ? (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-6 text-center">
-          <ListPlus className="mx-auto mb-3 size-8 text-primary/50" />
-          <p className="text-sm font-medium">
-            從「{sources.find((s) => s.id === selectedSource)?.label}」生成任務候選
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            AI 將讀取選定來源的內容，萃取可執行任務並等待你確認。
-          </p>
-          <Button size="sm" className="mt-3" disabled>
-            <ListPlus className="size-3.5" />
-            生成任務候選（開發中）
-          </Button>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-6 text-center">
-          <Upload className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-          <p className="text-sm font-medium text-muted-foreground">請先選定一個知識來源</p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            從上方選擇「知識頁面」、「資料庫」或「AI 研究摘要」作為任務生成的依據。
-          </p>
-          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Link
-              href={`${base}?tab=Sources`}
-              className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 hover:bg-muted"
-            >
-              <Upload className="size-3" />
-              上傳來源文件
-            </Link>
-            <Link
-              href={`${base}?tab=Research`}
-              className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2.5 py-1 hover:bg-muted"
-            >
-              <BookOpen className="size-3" />
-              執行研究合成
-            </Link>
-          </div>
-        </div>
-      )}
     </div>
   ) as React.ReactElement;
 }
