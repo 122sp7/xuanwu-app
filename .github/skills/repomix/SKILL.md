@@ -16,32 +16,56 @@ Use this skill when the task is repository exploration, pattern search, architec
 
 Make AI reliably know how to use `xuanwu-skill` as the first exploration path for this repository.
 
+## Official Skill Integration (Elevated Priority)
+
+The following three skills are **official Repomix ecosystem skills** — load and follow them before proceeding with any generation, exploration, or commit task:
+
+| Skill | Role | When to Invoke |
+|---|---|---|
+| `repomix-explorer` | Primary exploration workflow — browse structure, search patterns, refresh skills | Anytime the goal is repo understanding or skill refresh |
+| `agent-memory` | Persist findings across sessions — write after non-trivial exploration, read before starting |	Before exploring known areas; after any meaningful discovery |
+| `contextual-commit` | Capture intent, decisions, constraints in every commit body | On every commit concluding a Repomix-driven change |
+
+### Integration Order
+
+1. **Session start** → read `agent-memory` summaries for the target area.
+2. **Exploration** → follow `repomix-explorer` workflow.
+3. **Implementation** → apply findings.
+4. **Phase end** → write/update `agent-memory` with new facts.
+5. **Commit** → follow `contextual-commit` format with `intent`, `decision`, `learned` action lines.
+
+---
+
 ## Context7 Certainty Gate
 
 - If confidence is below 99.99% for Repomix CLI flags, behavior, or config schema, verify with Context7 first.
 - Required sequence: resolve library id -> get docs.
 - Do not proceed with guessed CLI syntax.
 
-## Explorer Workflow (Aligned with Repomix Explorer Skill)
+## Explorer Workflow (Delegates to `repomix-explorer`)
 
-1. Detect user intent:
+> **Load `repomix-explorer` skill first.** This section aligns with it and adds Xuanwu-specific context.
+
+1. **Read `agent-memory`** — scan summaries for the target module before any exploration.
+2. Detect user intent:
   - understand repo structure
   - find specific patterns
   - reference prior implementations
-2. Prepare analysis source:
+3. Prepare analysis source:
   - if `.github/skills/xuanwu-skill/` exists, use it first
   - otherwise run `npm run repomix:skill` to generate/refresh
-3. Analyze outputs in this order:
+4. Analyze outputs in this order:
   - `references/summary.md` for scope and exclusions
   - `references/project-structure.md` for file map
   - `references/files.md` for symbol/pattern search
-4. Use search-first strategy:
+5. Use search-first strategy:
   - grep/search patterns first
   - read full file content only when necessary
-5. Return insights:
+6. Return insights:
   - structure summary
   - file-level evidence
   - actionable next steps
+7. **Write `agent-memory`** — save non-obvious findings before the session ends.
 
 ## Agent Skills Generation Rules
 
@@ -105,4 +129,4 @@ Recommended user intents:
 - findings_summary
 - residual_risk
 
-Tags: #use skill context7 #use skill xuanwu-skill #use skill occams-razor
+Tags: #use skill context7 #use skill xuanwu-skill #use skill occams-razor #use skill repomix-explorer #use skill agent-memory #use skill contextual-commit
