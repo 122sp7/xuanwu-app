@@ -98,7 +98,7 @@
 
 ## Configuration Files
 
-- vitest.config.ts
 - eslint.config.mjs
-- tsconfig.json
 - package.json
+- tsconfig.json
+- vitest.config.ts

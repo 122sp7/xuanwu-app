@@ -1,276 +1,2286 @@
 # Directory Structure
 
 ```
-.github/agents/ai-genkit-lead.agent.md (43 lines)
-.github/agents/app-router.agent.md (48 lines)
-.github/agents/chunk-strategist.agent.md (36 lines)
-.github/agents/doc-ingest.agent.md (37 lines)
-.github/agents/domain-architect.agent.md (69 lines)
-.github/agents/e2e-qa.agent.md (47 lines)
-.github/agents/embedding-writer.agent.md (36 lines)
-.github/agents/firebase-guardian.agent.md (51 lines)
-.github/agents/firestore-schema.agent.md (34 lines)
-.github/agents/frontend-lead.agent.md (38 lines)
-.github/agents/hexagonal-convergence-enforcer.agent.md (92 lines)
-.github/agents/hexagonal-ddd-architect.agent.md (52 lines)
-.github/agents/kb-architect.agent.md (45 lines)
-.github/agents/lint-rule-enforcer.agent.md (39 lines)
-.github/agents/prompt-engineer.agent.md (39 lines)
-.github/agents/quality-lead.agent.md (53 lines)
-.github/agents/rag-lead.agent.md (42 lines)
-.github/agents/schema-migration.agent.md (34 lines)
-.github/agents/security-rules.agent.md (38 lines)
-.github/agents/server-action-writer.agent.md (34 lines)
-.github/agents/shadcn-composer.agent.md (40 lines)
-.github/agents/state-management.agent.md (41 lines)
-.github/agents/test-scenario-writer.agent.md (34 lines)
-.github/agents/ts-interface-writer.agent.md (40 lines)
-.github/agents/zod-validator.agent.md (43 lines)
-.github/copilot-instructions.md (95 lines)
-.github/instructions/architecture-core.instructions.md (170 lines)
-.github/instructions/architecture-runtime.instructions.md (40 lines)
-.github/instructions/architecture.instructions.md (32 lines)
-.github/instructions/bounded-context-rules.instructions.md (34 lines)
-.github/instructions/ci-cd.instructions.md (20 lines)
-.github/instructions/cloud-functions.instructions.md (29 lines)
-.github/instructions/docs-authority-and-language.instructions.md (40 lines)
-.github/instructions/domain-layer-rules.instructions.md (75 lines)
-.github/instructions/domain-modeling.instructions.md (74 lines)
-.github/instructions/embedding-pipeline.instructions.md (23 lines)
-.github/instructions/event-driven-state.instructions.md (107 lines)
-.github/instructions/firestore-schema.instructions.md (40 lines)
-.github/instructions/genkit-flow.instructions.md (84 lines)
-.github/instructions/hexagonal-rules.instructions.md (44 lines)
-.github/instructions/hosting-deploy.instructions.md (14 lines)
-.github/instructions/lint-format.instructions.md (20 lines)
-.github/instructions/nextjs-app-router.instructions.md (19 lines)
-.github/instructions/nextjs-parallel-routes.instructions.md (17 lines)
-.github/instructions/nextjs-server-actions.instructions.md (18 lines)
-.github/instructions/playwright-mcp-testing.instructions.md (101 lines)
-.github/instructions/process-framework.instructions.md (49 lines)
-.github/instructions/prompt-engineering.instructions.md (30 lines)
-.github/instructions/rag-architecture.instructions.md (19 lines)
-.github/instructions/README.md (34 lines)
-.github/instructions/security-rules.instructions.md (31 lines)
-.github/instructions/shadcn-ui.instructions.md (16 lines)
-.github/instructions/state-management.instructions.md (118 lines)
-.github/instructions/subdomain-rules.instructions.md (86 lines)
-.github/instructions/tailwind-design-system.instructions.md (16 lines)
-.github/instructions/testing-e2e.instructions.md (16 lines)
-.github/instructions/testing-unit.instructions.md (16 lines)
-.github/prompts/analyze-repo.prompt.md (35 lines)
-.github/prompts/chunk-docs.prompt.md (27 lines)
-.github/prompts/debug-error.prompt.md (25 lines)
-.github/prompts/domain-modeling.prompt.md (69 lines)
-.github/prompts/embedding-docs.prompt.md (20 lines)
-.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md (215 lines)
-.github/prompts/feature-design.prompt.md (99 lines)
-.github/prompts/firebase-adapter.prompt.md (63 lines)
-.github/prompts/generate-aggregate.prompt.md (51 lines)
-.github/prompts/generate-domain-event.prompt.md (59 lines)
-.github/prompts/generate-value-object.prompt.md (102 lines)
-.github/prompts/implement-feature.prompt.md (27 lines)
-.github/prompts/implement-firestore-schema.prompt.md (19 lines)
-.github/prompts/implement-genkit-flow.prompt.md (20 lines)
-.github/prompts/implement-security-rules.prompt.md (19 lines)
-.github/prompts/implement-server-action.prompt.md (21 lines)
-.github/prompts/implement-state-machine.prompt.md (102 lines)
-.github/prompts/implement-ui-component.prompt.md (22 lines)
-.github/prompts/implement-zustand-store.prompt.md (72 lines)
-.github/prompts/ingest-docs.prompt.md (21 lines)
-.github/prompts/plan-api.prompt.md (19 lines)
-.github/prompts/plan-feature.prompt.md (14 lines)
-.github/prompts/plan-module.prompt.md (19 lines)
-.github/prompts/playwright-mcp-inspect.prompt.md (165 lines)
-.github/prompts/playwright-mcp-test.prompt.md (129 lines)
-.github/prompts/README.md (27 lines)
-.github/prompts/refactor-api.prompt.md (17 lines)
-.github/prompts/refactor-module.prompt.md (18 lines)
-.github/prompts/review-architecture.prompt.md (18 lines)
-.github/prompts/review-code.prompt.md (18 lines)
-.github/prompts/review-performance.prompt.md (19 lines)
-.github/prompts/review-security.prompt.md (13 lines)
-.github/prompts/serena-hexagonal-ddd-refactor.prompt.md (50 lines)
-.github/prompts/use-case-generation.prompt.md (64 lines)
-.github/prompts/write-docs.prompt.md (19 lines)
-.github/prompts/write-e2e-tests.prompt.md (21 lines)
-.github/prompts/write-tests.prompt.md (19 lines)
+.github/
+  agents/
+    ai-genkit-lead.agent.md (43 lines)
+    app-router.agent.md (48 lines)
+    chunk-strategist.agent.md (36 lines)
+    doc-ingest.agent.md (37 lines)
+    domain-architect.agent.md (69 lines)
+    e2e-qa.agent.md (47 lines)
+    embedding-writer.agent.md (36 lines)
+    firebase-guardian.agent.md (51 lines)
+    firestore-schema.agent.md (34 lines)
+    frontend-lead.agent.md (38 lines)
+    hexagonal-convergence-enforcer.agent.md (92 lines)
+    hexagonal-ddd-architect.agent.md (52 lines)
+    kb-architect.agent.md (45 lines)
+    lint-rule-enforcer.agent.md (39 lines)
+    prompt-engineer.agent.md (39 lines)
+    quality-lead.agent.md (53 lines)
+    rag-lead.agent.md (42 lines)
+    schema-migration.agent.md (34 lines)
+    security-rules.agent.md (38 lines)
+    server-action-writer.agent.md (34 lines)
+    shadcn-composer.agent.md (40 lines)
+    state-management.agent.md (41 lines)
+    test-scenario-writer.agent.md (34 lines)
+    ts-interface-writer.agent.md (40 lines)
+    zod-validator.agent.md (43 lines)
+  instructions/
+    architecture-core.instructions.md (170 lines)
+    architecture-runtime.instructions.md (40 lines)
+    architecture.instructions.md (32 lines)
+    bounded-context-rules.instructions.md (34 lines)
+    ci-cd.instructions.md (20 lines)
+    cloud-functions.instructions.md (29 lines)
+    docs-authority-and-language.instructions.md (40 lines)
+    domain-layer-rules.instructions.md (75 lines)
+    domain-modeling.instructions.md (74 lines)
+    embedding-pipeline.instructions.md (23 lines)
+    event-driven-state.instructions.md (107 lines)
+    firestore-schema.instructions.md (40 lines)
+    genkit-flow.instructions.md (84 lines)
+    hexagonal-rules.instructions.md (44 lines)
+    hosting-deploy.instructions.md (14 lines)
+    lint-format.instructions.md (20 lines)
+    nextjs-app-router.instructions.md (19 lines)
+    nextjs-parallel-routes.instructions.md (17 lines)
+    nextjs-server-actions.instructions.md (18 lines)
+    playwright-mcp-testing.instructions.md (101 lines)
+    process-framework.instructions.md (49 lines)
+    prompt-engineering.instructions.md (30 lines)
+    rag-architecture.instructions.md (19 lines)
+    README.md (34 lines)
+    security-rules.instructions.md (31 lines)
+    shadcn-ui.instructions.md (16 lines)
+    state-management.instructions.md (118 lines)
+    subdomain-rules.instructions.md (86 lines)
+    tailwind-design-system.instructions.md (16 lines)
+    testing-e2e.instructions.md (16 lines)
+    testing-unit.instructions.md (16 lines)
+  prompts/
+    analyze-repo.prompt.md (35 lines)
+    chunk-docs.prompt.md (27 lines)
+    debug-error.prompt.md (25 lines)
+    domain-modeling.prompt.md (69 lines)
+    embedding-docs.prompt.md (20 lines)
+    enforce-hexagonal-ddd-convergence.prompt.md (215 lines)
+    feature-design.prompt.md (99 lines)
+    firebase-adapter.prompt.md (63 lines)
+    generate-aggregate.prompt.md (51 lines)
+    generate-domain-event.prompt.md (59 lines)
+    generate-value-object.prompt.md (102 lines)
+    implement-feature.prompt.md (27 lines)
+    implement-firestore-schema.prompt.md (19 lines)
+    implement-genkit-flow.prompt.md (20 lines)
+    implement-security-rules.prompt.md (19 lines)
+    implement-server-action.prompt.md (21 lines)
+    implement-state-machine.prompt.md (102 lines)
+    implement-ui-component.prompt.md (22 lines)
+    implement-zustand-store.prompt.md (72 lines)
+    ingest-docs.prompt.md (21 lines)
+    plan-api.prompt.md (19 lines)
+    plan-feature.prompt.md (14 lines)
+    plan-module.prompt.md (19 lines)
+    playwright-mcp-inspect.prompt.md (165 lines)
+    playwright-mcp-test.prompt.md (129 lines)
+    README.md (27 lines)
+    refactor-api.prompt.md (17 lines)
+    refactor-module.prompt.md (18 lines)
+    review-architecture.prompt.md (18 lines)
+    review-code.prompt.md (18 lines)
+    review-performance.prompt.md (19 lines)
+    review-security.prompt.md (13 lines)
+    serena-hexagonal-ddd-refactor.prompt.md (50 lines)
+    use-case-generation.prompt.md (64 lines)
+    write-docs.prompt.md (19 lines)
+    write-e2e-tests.prompt.md (21 lines)
+    write-tests.prompt.md (19 lines)
+  copilot-instructions.md (95 lines)
+docs/
+  decisions/
+    0001-hexagonal-architecture.md (80 lines)
+    0002-bounded-contexts.md (81 lines)
+    0003-context-map.md (79 lines)
+    0004-ubiquitous-language.md (79 lines)
+    0005-anti-corruption-layer.md (80 lines)
+    0006-domain-event-discriminant-format.md (117 lines)
+    0007-infrastructure-in-api-layer.md (73 lines)
+    0008-repository-interface-placement.md (83 lines)
+    0009-anemic-aggregates.md (81 lines)
+    0010-aggregate-domain-event-emission.md (114 lines)
+    0011-use-case-bundling.md (129 lines)
+    0012-source-to-task-orchestration.md (73 lines)
+    0014-main-domain-resplit.md (46 lines)
+    0015-api-layer-removal.md (76 lines)
+    1100-layer-violation.md (86 lines)
+    1101-layer-violation-crypto-in-domain.md (97 lines)
+    1102-layer-violation-ports-in-application.md (127 lines)
+    1103-layer-violation-firebase-sdk-in-api-layer.md (90 lines)
+    1104-layer-violation-globalthis-crypto-in-application-layer.md (78 lines)
+    1200-boundary-violation.md (107 lines)
+    1201-boundary-violation-business-logic-in-infrastructure.md (119 lines)
+    1300-cyclic-dependency.md (117 lines)
+    1400-dependency-leakage.md (64 lines)
+    1401-dependency-leakage-infrastructure-api-in-platform-api.md (119 lines)
+    1402-dependency-leakage-use-case-classes-in-platform-api.md (124 lines)
+    1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md (81 lines)
+    1404-dependency-leakage-subdomain-api-exports-application-wildcard.md (90 lines)
+    2100-tight-coupling.md (71 lines)
+    2101-tight-coupling-crypto-runtime.md (98 lines)
+    2200-hidden-coupling.md (59 lines)
+    2201-hidden-coupling-workspace-aggregate-no-domain-events.md (162 lines)
+    2300-temporal-coupling.md (63 lines)
+    3100-low-cohesion.md (89 lines)
+    3101-low-cohesion-platform-application-layer.md (105 lines)
+    3200-duplication.md (95 lines)
+    3201-duplication-event-discriminant-format.md (111 lines)
+    3202-duplication-source-dto-reimplements-domain-service.md (68 lines)
+    3203-duplication-shell-quick-create-orphaned-platform-copy.md (143 lines)
+    4100-change-amplification.md (71 lines)
+    4101-change-amplification-uuid-strategy.md (93 lines)
+    4200-inconsistency.md (78 lines)
+    4201-inconsistency-dto-vs-dtos.md (110 lines)
+    4202-inconsistency-uuid-v7-in-workspace-domain-events.md (109 lines)
+    4203-inconsistency-uuid-v7-application-infrastructure-layers.md (126 lines)
+    4300-semantic-drift.md (75 lines)
+    4301-semantic-drift-application-subdirectory-names.md (113 lines)
+    4302-semantic-drift-notion-notebooklm-event-discriminant-format.md (75 lines)
+    4303-semantic-drift-workspace-event-discriminants-use-underscore.md (119 lines)
+    5100-accidental-complexity.md (89 lines)
+    5101-accidental-complexity-platform-domain-stubs.md (144 lines)
+    5200-cognitive-load.md (105 lines)
+    5201-cognitive-load-workspace-workflow-application.md (151 lines)
+    5202-cognitive-load-workspace-dto-mixes-types-and-factory-functions.md (157 lines)
+    5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md (107 lines)
+    6100-migration-gap-registry.md (75 lines)
+    6101-lost-notebooklm-source-subdomain.md (89 lines)
+    6102-lost-notebooklm-synthesis-subdomain.md (80 lines)
+    6103-lost-notebooklm-interfaces-layer.md (76 lines)
+    6104-lost-notion-authoring-subdomain.md (95 lines)
+    6105-lost-notion-knowledge-database-subdomain.md (87 lines)
+    6106-lost-notion-knowledge-subdomain.md (76 lines)
+    6107-lost-platform-domain-model.md (109 lines)
+    6108-lost-platform-api-contracts.md (76 lines)
+    6109-lost-workspace-interfaces-layer.md (82 lines)
+    6110-lost-ai-prompt-pipeline-subdomain.md (102 lines)
+    6111-lost-ai-missing-subdomains.md (108 lines)
+    6112-lost-ai-governance-docs.md (81 lines)
+    6113-lost-packages.md (93 lines)
+    6114-lost-docs-semantic-model.md (113 lines)
+    6115-lost-docs-discussions.md (99 lines)
+    6116-gained-shell-ui-components.md (60 lines)
+    6117-gained-packages-ui-shadcn.md (62 lines)
+    6118-gained-modules-template.md (69 lines)
+    6119-gained-workspace-new-subdomains.md (91 lines)
+    6120-gained-platform-new-subdomains.md (76 lines)
+    6121-gained-ai-restructured-subdomains.md (73 lines)
+    README.md (214 lines)
+    SMELL-INDEX.md (121 lines)
+  examples/
+    ai/
+      .gitkeep (0 lines)
+    architecture/
+      .gitkeep (0 lines)
+    data/
+      .gitkeep (0 lines)
+    domain/
+      .gitkeep (0 lines)
+    end-to-end/
+      deliveries/
+        AGENT.md (8 lines)
+        README.md (10 lines)
+        upload-parse-to-task-flow.md (77 lines)
+      .gitkeep (0 lines)
+    modules/
+      feature/
+        AGENT.md (8 lines)
+        notebooklm-source-processing-task-flow.md (86 lines)
+        py-fn-ts-capability-bridge.md (387 lines)
+        README.md (12 lines)
+        workspace-nav-notion-notebooklm-implementation-guide.md (241 lines)
+      .gitkeep (0 lines)
+    .gitkeep (0 lines)
+  structure/
+    contexts/
+      ai/
+        AGENT.md (95 lines)
+        bounded-contexts.md (61 lines)
+        context-map.md (50 lines)
+        cross-runtime-contracts.md (99 lines)
+        ddd-strategic-design.md (119 lines)
+        README.md (73 lines)
+        subdomains.md (91 lines)
+        ubiquitous-language.md (49 lines)
+      analytics/
+        AGENT.md (68 lines)
+        bounded-contexts.md (11 lines)
+        context-map.md (16 lines)
+        README.md (27 lines)
+        subdomains.md (20 lines)
+        ubiquitous-language.md (15 lines)
+      billing/
+        AGENT.md (68 lines)
+        bounded-contexts.md (11 lines)
+        context-map.md (14 lines)
+        README.md (27 lines)
+        subdomains.md (18 lines)
+        ubiquitous-language.md (15 lines)
+      iam/
+        AGENT.md (74 lines)
+        bounded-contexts.md (12 lines)
+        context-map.md (16 lines)
+        README.md (27 lines)
+        subdomains.md (28 lines)
+        ubiquitous-language.md (17 lines)
+      notebooklm/
+        AGENT.md (92 lines)
+        bounded-contexts.md (83 lines)
+        context-map.md (79 lines)
+        README.md (113 lines)
+        subdomains.md (68 lines)
+        ubiquitous-language.md (94 lines)
+      notion/
+        AGENT.md (112 lines)
+        bounded-contexts.md (83 lines)
+        context-map.md (80 lines)
+        README.md (117 lines)
+        subdomains.md (72 lines)
+        ubiquitous-language.md (94 lines)
+      platform/
+        AGENT.md (108 lines)
+        bounded-contexts.md (89 lines)
+        context-map.md (80 lines)
+        README.md (133 lines)
+        subdomains.md (89 lines)
+        ubiquitous-language.md (141 lines)
+      workspace/
+        AGENT.md (100 lines)
+        bounded-contexts.md (93 lines)
+        context-map.md (79 lines)
+        README.md (126 lines)
+        subdomains.md (80 lines)
+        ubiquitous-language.md (120 lines)
+      _template.md (144 lines)
+    domain/
+      bounded-context-subdomain-template.md (203 lines)
+      bounded-contexts.md (280 lines)
+      ddd-strategic-design.md (218 lines)
+      event-driven-design.md (189 lines)
+      subdomains.md (279 lines)
+      ubiquitous-language.md (166 lines)
+    system/
+      architecture-overview.md (137 lines)
+      context-map.md (121 lines)
+      hard-rules-consolidated.md (459 lines)
+      integration-guidelines.md (112 lines)
+      module-graph.system-wide.md (135 lines)
+      project-delivery-milestones.md (109 lines)
+      source-to-task-flow.md (94 lines)
+      strategic-patterns.md (81 lines)
+      ui-ux-closed-loop.md (134 lines)
+    .gitkeep (0 lines)
+  tooling/
+    ci-cd/
+      .gitkeep (0 lines)
+    cli/
+      .gitkeep (0 lines)
+    firebase/
+      .gitkeep (0 lines)
+      firebase-architecture.md (197 lines)
+    firestore/
+      .gitkeep (0 lines)
+    genkit/
+      .gitkeep (0 lines)
+      genkit-flow-standards.md (229 lines)
+    nextjs/
+      .gitkeep (0 lines)
+      state-machine-model.md (186 lines)
+    .gitkeep (0 lines)
+    commands-reference.md (54 lines)
+    knowledge-base-reference.md (41 lines)
+  AGENT.md (39 lines)
+  README.md (158 lines)
+packages/
+  integration-firebase/
+    auth/
+      .gitkeep (0 lines)
+    firestore/
+      .gitkeep (0 lines)
+    functions/
+      .gitkeep (0 lines)
+    storage/
+      .gitkeep (0 lines)
+    AGENTS.md (53 lines)
+    auth.ts (14 lines)
+    client.ts (6 lines)
+    firestore.ts (28 lines)
+    functions.ts (9 lines)
+    index.ts (4 lines)
+    README.md (48 lines)
+    storage.ts (19 lines)
+  ui-shadcn/
+    hooks/
+      use-mobile.ts (3 lines)
+    lib/
+      utils.ts (4 lines)
+    provider/
+      theme-provider.tsx (12 lines)
+    ui/
+      accordion.tsx (20 lines)
+      alert-dialog.tsx (8 lines)
+      alert.tsx (5 lines)
+      aspect-ratio.tsx (3 lines)
+      avatar.tsx (5 lines)
+      badge.tsx (12 lines)
+      breadcrumb.tsx (9 lines)
+      button-group.tsx (8 lines)
+      button.tsx (6 lines)
+      calendar.tsx (12 lines)
+      card.tsx (3 lines)
+      carousel.tsx (49 lines)
+      chart.tsx (30 lines)
+      checkbox.tsx (6 lines)
+      collapsible.tsx (3 lines)
+      combobox.tsx (23 lines)
+      command.tsx (17 lines)
+      context-menu.tsx (13 lines)
+      dialog.tsx (15 lines)
+      direction.tsx (0 lines)
+      drawer.tsx (26 lines)
+      dropdown-menu.tsx (38 lines)
+      empty.tsx (5 lines)
+      field.tsx (8 lines)
+      hover-card.tsx (5 lines)
+      input-group.tsx (10 lines)
+      input-otp.tsx (7 lines)
+      input.tsx (7 lines)
+      item.tsx (18 lines)
+      kbd.tsx (3 lines)
+      label.tsx (3 lines)
+      menubar.tsx (22 lines)
+      native-select.tsx (14 lines)
+      navigation-menu.tsx (23 lines)
+      pagination.tsx (29 lines)
+      popover.tsx (9 lines)
+      progress.tsx (14 lines)
+      radio-group.tsx (8 lines)
+      resizable.tsx (1 lines)
+      scroll-area.tsx (15 lines)
+      select.tsx (40 lines)
+      separator.tsx (5 lines)
+      sheet.tsx (15 lines)
+      sidebar.tsx (73 lines)
+      skeleton.tsx (3 lines)
+      slider.tsx (5 lines)
+      sonner.tsx (3 lines)
+      spinner.tsx (6 lines)
+      switch.tsx (13 lines)
+      table.tsx (3 lines)
+      tabs.tsx (18 lines)
+      textarea.tsx (3 lines)
+      toggle-group.tsx (30 lines)
+      toggle.tsx (6 lines)
+      tooltip.tsx (19 lines)
+    ui-custom/
+      form/
+        .gitkeep (0 lines)
+      modal/
+        .gitkeep (0 lines)
+      table/
+        .gitkeep (0 lines)
+    AGENTS.md (69 lines)
+    index.ts (15 lines)
+    README.md (86 lines)
+  AGENT.md (59 lines)
+  README.md (82 lines)
+py_fn/
+  .serena/
+    .gitkeep (0 lines)
+  docs/
+    .gitkeep (0 lines)
+  src/
+    app/
+      bootstrap/
+        __init__.py (7 lines)
+      config/
+        .gitkeep (0 lines)
+      container/
+        .gitkeep (0 lines)
+        runtime_dependencies.py (41 lines)
+      settings/
+        .gitkeep (0 lines)
+      __init__.py (5 lines)
+    application/
+      dto/
+        __init__.py (3 lines)
+        .gitkeep (0 lines)
+        chunk_job.py (31 lines)
+        embedding_job.py (24 lines)
+        rag.py (11 lines)
+      mappers/
+        .gitkeep (0 lines)
+      ports/
+        input/
+          .gitkeep (0 lines)
+        output/
+          .gitkeep (0 lines)
+          gateways.py (3 lines)
+      services/
+        .gitkeep (0 lines)
+        document_pipeline.py (1 lines)
+      use_cases/
+        __init__.py (3 lines)
+        rag_ingestion.py (30 lines)
+        rag_query.py (46 lines)
+      __init__.py (1 lines)
+    core/
+      constants/
+        .gitkeep (0 lines)
+      exceptions/
+        .gitkeep (0 lines)
+      security/
+        .gitkeep (0 lines)
+      types/
+        .gitkeep (0 lines)
+      utils/
+        .gitkeep (0 lines)
+      __init__.py (1 lines)
+      config.py (56 lines)
+    domain/
+      aggregate/
+        __init__.py (1 lines)
+        .gitkeep (0 lines)
+      entities/
+        __init__.py (1 lines)
+        .gitkeep (0 lines)
+      events/
+        __init__.py (1 lines)
+        .gitkeep (0 lines)
+      exceptions/
+        __init__.py (1 lines)
+        .gitkeep (0 lines)
+      repositories/
+        __init__.py (3 lines)
+        .gitkeep (0 lines)
+        rag.py (61 lines)
+      services/
+        __init__.py (3 lines)
+        .gitkeep (0 lines)
+        rag_ingestion_text.py (41 lines)
+        rag_result_filter.py (55 lines)
+      value_objects/
+        __init__.py (3 lines)
+        .gitkeep (0 lines)
+        rag.py (62 lines)
+      __init__.py (1 lines)
+    infrastructure/
+      audit/
+        qstash.py (3 lines)
+      cache/
+        rag_query_cache.py (8 lines)
+      config/
+        .gitkeep (0 lines)
+      external/
+        documentai/
+          __init__.py (1 lines)
+          client.py (73 lines)
+        openai/
+          __init__.py (3 lines)
+          client.py (16 lines)
+          embeddings.py (36 lines)
+          llm.py (18 lines)
+          rag_query.py (3 lines)
+        upstash/
+          __init__.py (1 lines)
+          _base.py (18 lines)
+          clients.py (13 lines)
+          qstash_client.py (33 lines)
+          rag_query.py (3 lines)
+          redis_client.py (41 lines)
+          search_client.py (73 lines)
+          vector_client.py (40 lines)
+        __init__.py (1 lines)
+      logging/
+        .gitkeep (0 lines)
+      persistence/
+        firestore/
+          __init__.py (1 lines)
+          document_repository.py (89 lines)
+        storage/
+          __init__.py (1 lines)
+          client.py (68 lines)
+        __init__.py (1 lines)
+      repositories/
+        .gitkeep (0 lines)
+      __init__.py (1 lines)
+    interface/
+      controllers/
+        .gitkeep (0 lines)
+      handlers/
+        __init__.py (3 lines)
+        _https_helpers.py (40 lines)
+        https.py (12 lines)
+        parse_document.py (59 lines)
+        rag_query_handler.py (31 lines)
+        rag_reindex_handler.py (37 lines)
+        storage.py (100 lines)
+      middleware/
+        .gitkeep (0 lines)
+      routes/
+        .gitkeep (0 lines)
+      schemas/
+        .gitkeep (0 lines)
+      __init__.py (1 lines)
+  tests/
+    conftest.py (1 lines)
+    test_domain_repository_gateways.py (47 lines)
+    test_parse_document_handler.py (44 lines)
+  .gitignore (6 lines)
+  AGENT.md (32 lines)
+  main.py (43 lines)
+  README.md (265 lines)
+  requirements-dev.txt (2 lines)
+  requirements.txt (23 lines)
+src/
+  app/
+    (public)/
+      page.tsx (3 lines)
+    (shell)/
+      (account)/
+        [accountId]/
+          [[...slug]]/
+            page.tsx (5 lines)
+      layout.tsx (5 lines)
+    AGENT.md (40 lines)
+    globals.css (47 lines)
+    layout.tsx (9 lines)
+    README.md (55 lines)
+  modules/
+    ai/
+      orchestration/
+        index.ts (3 lines)
+      shared/
+        errors/
+          index.ts (1 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (1 lines)
+        index.ts (0 lines)
+      subdomains/
+        chunk/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              dto/
+                chunk-job-payload.ts (34 lines)
+              memory/
+                InMemoryChunkRepository.ts (18 lines)
+              index.ts (1 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              ChunkUseCases.ts (17 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Chunk.ts (49 lines)
+            repositories/
+              ChunkRepository.ts (26 lines)
+            index.ts (0 lines)
+        citation/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              CitationUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              Citation.ts (26 lines)
+            index.ts (2 lines)
+        context/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              ContextUseCases.ts (11 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              ContextSession.ts (44 lines)
+            repositories/
+              ContextSessionRepository.ts (13 lines)
+            index.ts (2 lines)
+        embedding/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              dto/
+                embedding-job-payload.ts (32 lines)
+              index.ts (1 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              EmbeddingUseCases.ts (15 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Embedding.ts (44 lines)
+            repositories/
+              EmbeddingRepository.ts (19 lines)
+            index.ts (0 lines)
+        evaluation/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              EvaluationUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              EvaluationResult.ts (37 lines)
+            index.ts (2 lines)
+        generation/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              GenerationUseCases.ts (29 lines)
+            index.ts (0 lines)
+          domain/
+            ports/
+              GenerationPorts.ts (83 lines)
+            index.ts (0 lines)
+        memory/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              MemoryUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              MemoryItem.ts (22 lines)
+            index.ts (2 lines)
+        pipeline/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              PipelineUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              PromptTemplate.ts (35 lines)
+            index.ts (2 lines)
+        retrieval/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              RetrievalUseCases.ts (7 lines)
+            index.ts (2 lines)
+          domain/
+            ports/
+              RetrievalPorts.ts (39 lines)
+            index.ts (2 lines)
+        tool-calling/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              ToolCallingUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              AiTool.ts (27 lines)
+            index.ts (2 lines)
+      AGENT.md (76 lines)
+      index.ts (24 lines)
+      README.md (111 lines)
+    analytics/
+      orchestration/
+        index.ts (3 lines)
+      shared/
+        errors/
+          index.ts (1 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (1 lines)
+        index.ts (0 lines)
+      subdomains/
+        event-contracts/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryAnalyticsEventRepository.ts (15 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              AnalyticsEventUseCases.ts (22 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              AnalyticsEvent.ts (33 lines)
+            events/
+              AnalyticsDomainEvent.ts (13 lines)
+            repositories/
+              AnalyticsEventRepository.ts (25 lines)
+            value-objects/
+              EventName.ts (5 lines)
+            index.ts (0 lines)
+        event-ingestion/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              IngestionUseCases.ts (10 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              IngestionBatch.ts (22 lines)
+            events/
+              IngestionDomainEvent.ts (19 lines)
+            index.ts (2 lines)
+        event-projection/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              ProjectionUseCases.ts (2 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              EventProjection.ts (23 lines)
+            index.ts (2 lines)
+        experimentation/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              ExperimentUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              Experiment.ts (26 lines)
+            index.ts (2 lines)
+        insights/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              InsightUseCases.ts (2 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              Insight.ts (23 lines)
+            index.ts (2 lines)
+        metrics/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryMetricRepository.ts (14 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              MetricUseCases.ts (17 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Metric.ts (43 lines)
+            repositories/
+              MetricRepository.ts (25 lines)
+            value-objects/
+              MetricName.ts (5 lines)
+            index.ts (0 lines)
+        realtime-insights/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              RealtimeInsightUseCases.ts (2 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              RealtimeMetric.ts (26 lines)
+            index.ts (2 lines)
+      AGENT.md (51 lines)
+      index.ts (18 lines)
+      README.md (64 lines)
+    billing/
+      orchestration/
+        index.ts (3 lines)
+      shared/
+        errors/
+          index.ts (1 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (1 lines)
+        index.ts (0 lines)
+      subdomains/
+        entitlement/
+          adapters/
+            inbound/
+              http/
+                EntitlementController.ts (25 lines)
+              index.ts (2 lines)
+            outbound/
+              firestore/
+                FirestoreEntitlementGrantRepository.ts (29 lines)
+              index.ts (2 lines)
+            index.ts (3 lines)
+          application/
+            dto/
+              EntitlementDTO.ts (9 lines)
+            ports/
+              outbound/
+                EntitlementRepositoryPort.ts (3 lines)
+            use-cases/
+              EntitlementUseCases.ts (29 lines)
+            index.ts (5 lines)
+          domain/
+            entities/
+              EntitlementGrant.ts (50 lines)
+            events/
+              EntitlementGrantDomainEvent.ts (46 lines)
+            repositories/
+              EntitlementGrantRepository.ts (21 lines)
+            value-objects/
+              EntitlementId.ts (5 lines)
+              EntitlementStatus.ts (7 lines)
+              FeatureKey.ts (5 lines)
+            index.ts (7 lines)
+        subscription/
+          adapters/
+            inbound/
+              http/
+                SubscriptionController.ts (29 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreSubscriptionRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (3 lines)
+          application/
+            dto/
+              SubscriptionDTO.ts (11 lines)
+            ports/
+              outbound/
+                SubscriptionRepositoryPort.ts (3 lines)
+            use-cases/
+              SubscriptionUseCases.ts (30 lines)
+            index.ts (5 lines)
+          domain/
+            entities/
+              Subscription.ts (56 lines)
+            events/
+              SubscriptionDomainEvent.ts (49 lines)
+            repositories/
+              SubscriptionRepository.ts (15 lines)
+            value-objects/
+              BillingCycle.ts (5 lines)
+              PlanCode.ts (7 lines)
+              SubscriptionId.ts (5 lines)
+              SubscriptionStatus.ts (7 lines)
+            index.ts (7 lines)
+        usage-metering/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryUsageRecordRepository.ts (12 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              UsageMeteringUseCases.ts (22 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              UsageRecord.ts (41 lines)
+            repositories/
+              UsageRecordRepository.ts (22 lines)
+            index.ts (2 lines)
+      AGENT.md (46 lines)
+      index.ts (10 lines)
+      README.md (57 lines)
+    iam/
+      adapters/
+        inbound/
+          react/
+            AuthContext.tsx (67 lines)
+            IamSessionProvider.tsx (9 lines)
+            index.ts (8 lines)
+            PublicLandingView.tsx (28 lines)
+        outbound/
+          firebase-composition.ts (140 lines)
+          FirebaseAccountQueryRepository.ts (91 lines)
+          FirebaseAuthIdentityRepository.ts (51 lines)
+      orchestration/
+        index.ts (3 lines)
+      shared/
+        errors/
+          index.ts (15 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (1 lines)
+        index.ts (0 lines)
+      subdomains/
+        access-control/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryAccessPolicyRepository.ts (20 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              AccessControlDTO.ts (12 lines)
+            use-cases/
+              AccessControlUseCases.ts (47 lines)
+            index.ts (0 lines)
+          domain/
+            aggregates/
+              AccessPolicy.ts (53 lines)
+            events/
+              AccessPolicyDomainEvent.ts (36 lines)
+            repositories/
+              AccessPolicyRepository.ts (23 lines)
+            value-objects/
+              PolicyEffect.ts (3 lines)
+              ResourceRef.ts (9 lines)
+              SubjectRef.ts (8 lines)
+            index.ts (0 lines)
+        account/
+          adapters/
+            inbound/
+              http/
+                AccountController.ts (31 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreAccountRepository.ts (50 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              AccountDTO.ts (0 lines)
+            ports/
+              outbound/
+                AccountRepositoryPort.ts (12 lines)
+            use-cases/
+              AccountPolicyUseCases.ts (29 lines)
+              AccountUseCases.ts (69 lines)
+            index.ts (5 lines)
+          domain/
+            entities/
+              Account.ts (87 lines)
+              AccountPolicy.ts (38 lines)
+              AccountProfile.ts (17 lines)
+            events/
+              AccountDomainEvent.ts (78 lines)
+            ports/
+              TokenRefreshPort.ts (13 lines)
+            repositories/
+              AccountPolicyRepository.ts (17 lines)
+              AccountQueryRepository.ts (71 lines)
+              AccountRepository.ts (55 lines)
+            value-objects/
+              AccountId.ts (5 lines)
+              AccountStatus.ts (7 lines)
+              AccountType.ts (5 lines)
+              index.ts (0 lines)
+              WalletAmount.ts (5 lines)
+            index.ts (9 lines)
+        authentication/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              AuthenticationUseCases.ts (11 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (27 lines)
+        authorization/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              AuthorizationUseCases.ts (17 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (17 lines)
+        federation/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              FederationUseCases.ts (15 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (22 lines)
+        identity/
+          adapters/
+            inbound/
+              http/
+                IdentityController.ts (21 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreIdentityRepository.ts (35 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              IdentityDTO.ts (0 lines)
+            use-cases/
+              IdentityUseCases.ts (25 lines)
+              TokenRefreshUseCases.ts (9 lines)
+            index.ts (3 lines)
+          domain/
+            entities/
+              Identity.ts (20 lines)
+              TokenRefreshSignal.ts (11 lines)
+              UserIdentity.ts (59 lines)
+            events/
+              IdentityDomainEvent.ts (64 lines)
+            repositories/
+              IdentityRepository.ts (19 lines)
+              TokenRefreshRepository.ts (9 lines)
+            value-objects/
+              DisplayName.ts (5 lines)
+              Email.ts (7 lines)
+              IdentityStatus.ts (5 lines)
+              index.ts (0 lines)
+              UserId.ts (7 lines)
+            index.ts (9 lines)
+        organization/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              firestore/
+                FirestoreOrganizationRepository.ts (159 lines)
+              memory/
+                InMemoryOrganizationRepository.ts (48 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              OrganizationDTO.ts (0 lines)
+            use-cases/
+              OrganizationLifecycleUseCases.ts (27 lines)
+              OrganizationMemberUseCases.ts (20 lines)
+              OrganizationTeamUseCases.ts (18 lines)
+            index.ts (0 lines)
+          domain/
+            aggregates/
+              Organization.ts (72 lines)
+              OrganizationTeam.ts (40 lines)
+            entities/
+              Organization.ts (111 lines)
+            events/
+              OrganizationDomainEvent.ts (56 lines)
+              OrganizationTeamDomainEvent.ts (15 lines)
+            repositories/
+              OrganizationRepository.ts (57 lines)
+              OrgPolicyRepository.ts (17 lines)
+            value-objects/
+              MemberRole.ts (7 lines)
+              OrganizationId.ts (5 lines)
+              OrganizationStatus.ts (5 lines)
+              TeamId.ts (5 lines)
+              TeamType.ts (3 lines)
+            index.ts (0 lines)
+        security-policy/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemorySecurityPolicyRepository.ts (7 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              SecurityPolicyUseCases.ts (13 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (22 lines)
+        session/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemorySessionRepository.ts (13 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              SessionUseCases.ts (19 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (26 lines)
+        tenant/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryTenantRepository.ts (7 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              TenantUseCases.ts (12 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (24 lines)
+      AGENT.md (62 lines)
+      index.ts (26 lines)
+      README.md (83 lines)
+    notebooklm/
+      adapters/
+        inbound/
+          react/
+            index.ts (4 lines)
+            NotebooklmAiChatSection.tsx (25 lines)
+            NotebooklmNotebookSection.tsx (18 lines)
+            NotebooklmResearchSection.tsx (27 lines)
+            NotebooklmSourcesSection.tsx (55 lines)
+          server-actions/
+            document-actions.ts (30 lines)
+            notebook-actions.ts (27 lines)
+        outbound/
+          callable/
+            FirebaseCallableAdapter.ts (59 lines)
+          firebase-composition.ts (72 lines)
+          TaskMaterializationWorkflowAdapter.ts (23 lines)
+      orchestration/
+        index.ts (2 lines)
+        ProcessSourceDocumentWorkflowUseCase.ts (107 lines)
+        TaskMaterializationWorkflowPort.ts (36 lines)
+      shared/
+        errors/
+          index.ts (1 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (1 lines)
+        index.ts (0 lines)
+      subdomains/
+        conversation/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryConversationRepository.ts (14 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              ConversationUseCases.ts (21 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Conversation.ts (51 lines)
+            repositories/
+              ConversationRepository.ts (15 lines)
+            index.ts (0 lines)
+        document/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              firestore/
+                FirestoreDocumentRepository.ts (97 lines)
+              memory/
+                InMemoryDocumentRepository.ts (14 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              DocumentUseCases.ts (17 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Document.ts (62 lines)
+            repositories/
+              DocumentRepository.ts (24 lines)
+            index.ts (0 lines)
+        notebook/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryNotebookRepository.ts (14 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              NotebookUseCases.ts (24 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Notebook.ts (52 lines)
+            ports/
+              NotebookGenerationPort.ts (15 lines)
+            repositories/
+              NotebookRepository.ts (15 lines)
+            index.ts (0 lines)
+      AGENT.md (59 lines)
+      index.ts (12 lines)
+      README.md (70 lines)
+    notion/
+      adapters/
+        inbound/
+          react/
+            index.ts (4 lines)
+            NotionDatabaseSection.tsx (24 lines)
+            NotionKnowledgeSection.tsx (21 lines)
+            NotionPagesSection.tsx (28 lines)
+            NotionTemplatesSection.tsx (16 lines)
+          server-actions/
+            database-actions.ts (14 lines)
+            page-actions.ts (18 lines)
+            template-actions.ts (13 lines)
+        outbound/
+          firebase-composition.ts (36 lines)
+          notion-page-stub.ts (25 lines)
+      orchestration/
+        index.ts (3 lines)
+      shared/
+        errors/
+          index.ts (1 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (1 lines)
+        index.ts (0 lines)
+      subdomains/
+        block/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryBlockRepository.ts (18 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              BlockUseCases.ts (17 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Block.ts (68 lines)
+            repositories/
+              BlockRepository.ts (19 lines)
+            index.ts (0 lines)
+        collaboration/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              CollaborationUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              Comment.ts (34 lines)
+            index.ts (2 lines)
+        database/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryDatabaseRepository.ts (14 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              DatabaseUseCases.ts (13 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Database.ts (57 lines)
+            repositories/
+              DatabaseRepository.ts (15 lines)
+            index.ts (0 lines)
+        page/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryPageRepository.ts (16 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              PageUseCases.ts (21 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Page.ts (60 lines)
+            repositories/
+              PageRepository.ts (26 lines)
+            index.ts (0 lines)
+        template/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              TemplateUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              Template.ts (36 lines)
+            index.ts (2 lines)
+        view/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              ViewUseCases.ts (1 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              View.ts (41 lines)
+            index.ts (2 lines)
+      AGENT.md (62 lines)
+      index.ts (16 lines)
+      README.md (60 lines)
+    platform/
+      adapters/
+        inbound/
+          react/
+            shell/
+              AccountSwitcher.tsx (61 lines)
+              CreateOrganizationDialog.tsx (40 lines)
+              index.ts (6 lines)
+              shell-quick-create.ts (22 lines)
+              ShellAppRail.tsx (86 lines)
+              ShellContextNavSection.tsx (36 lines)
+              ShellDashboardSidebar.tsx (58 lines)
+              ShellGuard.tsx (30 lines)
+              ShellLanguageSwitcher.tsx (53 lines)
+              ShellRootLayout.tsx (58 lines)
+              ShellSidebarBody.tsx (56 lines)
+              ShellSidebarHeader.tsx (21 lines)
+              ShellSidebarNavData.tsx (57 lines)
+              ShellThemeToggle.tsx (15 lines)
+              ShellUserAvatar.tsx (42 lines)
+            AccountScopeProvider.tsx (28 lines)
+            AppContext.tsx (106 lines)
+            index.ts (6 lines)
+            platform-ui-stubs.tsx (190 lines)
+            PlatformBootstrap.tsx (21 lines)
+            ShellFrame.tsx (6 lines)
+            useAccountRouteContext.ts (77 lines)
+            useAccountScope.ts (8 lines)
+          server-actions/
+            file-actions.ts (34 lines)
+        outbound/
+          firebase-composition.ts (53 lines)
+      orchestration/
+        index.ts (21 lines)
+      shared/
+        errors/
+          index.ts (9 lines)
+        events/
+          index.ts (27 lines)
+        types/
+          index.ts (5 lines)
+        index.ts (0 lines)
+      subdomains/
+        background-job/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore-like/
+                InMemoryBackgroundJobRepository.ts (20 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              background-job.use-cases.ts (50 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              BackgroundJob.ts (22 lines)
+              JobChunk.ts (13 lines)
+              JobDocument.ts (10 lines)
+            events/
+              BackgroundJobDomainEvent.ts (44 lines)
+            repositories/
+              BackgroundJobRepository.ts (29 lines)
+            index.ts (0 lines)
+        cache/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              memory/
+                InMemoryCacheRepository.ts (10 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              CacheUseCases.ts (30 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              CacheEntry.ts (7 lines)
+            repositories/
+              CacheRepository.ts (11 lines)
+            index.ts (0 lines)
+        file-storage/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreFileStorageRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              FileStorageUseCases.ts (41 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              StoredFile.ts (10 lines)
+            repositories/
+              FileStorageRepository.ts (13 lines)
+            index.ts (0 lines)
+        notification/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              memory/
+                InMemoryNotificationRepository.ts (15 lines)
+                InMemoryWorkspaceNotificationPreferenceRepository.ts (12 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              notification.dto.ts (0 lines)
+            queries/
+              notification.queries.ts (12 lines)
+              workspace-notification-preferences.queries.ts (16 lines)
+            use-cases/
+              notification.use-cases.ts (17 lines)
+              workspace-notification-preferences.use-case.ts (31 lines)
+            index.ts (0 lines)
+          domain/
+            aggregates/
+              NotificationAggregate.ts (35 lines)
+            entities/
+              Notification.ts (22 lines)
+              WorkspaceNotificationPreference.ts (31 lines)
+            events/
+              NotificationDomainEvent.ts (37 lines)
+            repositories/
+              NotificationRepository.ts (15 lines)
+              WorkspaceNotificationPreferenceRepository.ts (11 lines)
+            value-objects/
+              WorkspaceNotificationEventType.ts (5 lines)
+            index.ts (0 lines)
+        platform-config/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            services/
+              shell-navigation-catalog.ts (94 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (20 lines)
+        search/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            services/
+              shell-command-catalog.ts (29 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (14 lines)
+      AGENT.md (58 lines)
+      index.ts (4 lines)
+      README.md (84 lines)
+    shared/
+      index.ts (107 lines)
+    template/
+      orchestration/
+        TemplateCoordinator.ts (39 lines)
+        TemplateFacade.ts (26 lines)
+      shared/
+        application/
+          index.ts (3 lines)
+        config/
+          index.ts (15 lines)
+        constants/
+          index.ts (1 lines)
+        domain/
+          index.ts (4 lines)
+        errors/
+          index.ts (20 lines)
+        events/
+          index.ts (22 lines)
+        infrastructure/
+          index.ts (4 lines)
+        types/
+          index.ts (18 lines)
+        utils/
+          index.ts (12 lines)
+      subdomains/
+        document/
+          adapters/
+            inbound/
+              http/
+                routes.ts (16 lines)
+                TemplateController.ts (18 lines)
+              queue/
+                TemplateQueueHandler.ts (12 lines)
+              index.ts (3 lines)
+            outbound/
+              cache/
+                TemplateCacheAdapter.ts (18 lines)
+              external-api/
+                TemplateApiClient.ts (10 lines)
+              firestore/
+                FirestoreMapper.ts (22 lines)
+                FirestoreTemplateRepository.ts (31 lines)
+              index.ts (5 lines)
+            index.ts (3 lines)
+          application/
+            dto/
+              CreateTemplateDTO.ts (7 lines)
+              TemplateResponseDTO.ts (10 lines)
+              UpdateTemplateDTO.ts (8 lines)
+            ports/
+              inbound/
+                CreateTemplatePort.ts (11 lines)
+              outbound/
+                CachePort.ts (12 lines)
+                ExternalApiPort.ts (9 lines)
+                TemplateRepositoryPort.ts (7 lines)
+            use-cases/
+              CreateTemplateUseCase.ts (15 lines)
+              DeleteTemplateUseCase.ts (11 lines)
+              UpdateTemplateUseCase.ts (14 lines)
+            index.ts (7 lines)
+          domain/
+            entities/
+              Template.ts (40 lines)
+            events/
+              TemplateCreatedEvent.ts (12 lines)
+              TemplateUpdatedEvent.ts (12 lines)
+            repositories/
+              TemplateRepository.ts (16 lines)
+            services/
+              TemplateDomainService.ts (16 lines)
+            value-objects/
+              TemplateId.ts (15 lines)
+              TemplateName.ts (13 lines)
+            index.ts (9 lines)
+        generation/
+          adapters/
+            inbound/
+              http/
+                GenerationController.ts (18 lines)
+                routes.ts (15 lines)
+              queue/
+                GenerationQueueHandler.ts (11 lines)
+              index.ts (0 lines)
+            outbound/
+              ai/
+                AiGenerationAdapter.ts (18 lines)
+              firestore/
+                FirestoreGenerationRepository.ts (50 lines)
+              index.ts (0 lines)
+            index.ts (2 lines)
+          application/
+            dto/
+              GenerateTemplateDTO.ts (13 lines)
+              GenerationResultDTO.ts (9 lines)
+            ports/
+              inbound/
+                GenerateTemplatePort.ts (12 lines)
+              outbound/
+                AiGenerationPort.ts (10 lines)
+                GenerationRepositoryPort.ts (7 lines)
+            use-cases/
+              GenerateTemplateUseCase.ts (18 lines)
+            index.ts (3 lines)
+          domain/
+            entities/
+              GeneratedTemplate.ts (30 lines)
+            events/
+              GenerationCompletedEvent.ts (7 lines)
+            repositories/
+              GenerationRepository.ts (16 lines)
+            services/
+              GenerationDomainService.ts (14 lines)
+            value-objects/
+              GenerationId.ts (15 lines)
+            index.ts (0 lines)
+        ingestion/
+          adapters/
+            inbound/
+              http/
+                IngestionController.ts (11 lines)
+                routes.ts (0 lines)
+              queue/
+                IngestionQueueHandler.ts (11 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreIngestionJobRepository.ts (28 lines)
+              storage/
+                CloudStorageAdapter.ts (9 lines)
+              index.ts (0 lines)
+            index.ts (2 lines)
+          application/
+            dto/
+              IngestionJobResponseDTO.ts (8 lines)
+              StartIngestionDTO.ts (4 lines)
+            ports/
+              inbound/
+                StartIngestionPort.ts (9 lines)
+              outbound/
+                IngestionRepositoryPort.ts (4 lines)
+                StoragePort.ts (9 lines)
+            use-cases/
+              StartIngestionUseCase.ts (17 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              IngestionJob.ts (39 lines)
+            events/
+              IngestionJobEvents.ts (13 lines)
+            repositories/
+              IngestionJobRepository.ts (15 lines)
+            services/
+              IngestionDomainService.ts (9 lines)
+            value-objects/
+              IngestionId.ts (15 lines)
+            index.ts (0 lines)
+        workflow/
+          adapters/
+            inbound/
+              http/
+                routes.ts (0 lines)
+                WorkflowController.ts (11 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreWorkflowRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (2 lines)
+          application/
+            dto/
+              InitiateWorkflowDTO.ts (4 lines)
+              WorkflowResponseDTO.ts (8 lines)
+            ports/
+              inbound/
+                InitiateWorkflowPort.ts (9 lines)
+              outbound/
+                WorkflowRepositoryPort.ts (4 lines)
+            use-cases/
+              InitiateWorkflowUseCase.ts (17 lines)
+            index.ts (2 lines)
+          domain/
+            entities/
+              TemplateWorkflow.ts (47 lines)
+            events/
+              WorkflowEvents.ts (13 lines)
+            repositories/
+              TemplateWorkflowRepository.ts (13 lines)
+            services/
+              WorkflowDomainService.ts (10 lines)
+            value-objects/
+              WorkflowId.ts (16 lines)
+            index.ts (0 lines)
+      AGENT.md (99 lines)
+      index.ts (20 lines)
+      README.md (266 lines)
+    workspace/
+      adapters/
+        inbound/
+          react/
+            AccountRouteDispatcher.tsx (63 lines)
+            index.ts (6 lines)
+            useWorkspaceScope.ts (8 lines)
+            workspace-nav-model.ts (174 lines)
+            workspace-route-screens.tsx (83 lines)
+            workspace-shell-interop.tsx (175 lines)
+            workspace-ui-stubs.tsx (18 lines)
+            WorkspaceApprovalSection.tsx (18 lines)
+            WorkspaceAuditSection.tsx (23 lines)
+            WorkspaceContext.tsx (47 lines)
+            WorkspaceDailySection.tsx (80 lines)
+            WorkspaceFilesSection.tsx (65 lines)
+            WorkspaceIssuesSection.tsx (28 lines)
+            WorkspaceMembersSection.tsx (18 lines)
+            WorkspaceOverviewSection.tsx (71 lines)
+            WorkspaceQualitySection.tsx (18 lines)
+            WorkspaceScheduleSection.tsx (20 lines)
+            WorkspaceScopeProvider.tsx (39 lines)
+            WorkspaceSettingsSection.tsx (27 lines)
+            WorkspaceSettlementSection.tsx (19 lines)
+            WorkspaceTaskFormationSection.tsx (66 lines)
+            WorkspaceTasksSection.tsx (28 lines)
+        outbound/
+          firebase-composition.ts (91 lines)
+          FirebaseWorkspaceQueryRepository.ts (60 lines)
+      orchestration/
+        index.ts (4 lines)
+      shared/
+        errors/
+          index.ts (15 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (15 lines)
+        index.ts (0 lines)
+      subdomains/
+        activity/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreActivityRepository.ts (22 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              ActivityDTO.ts (3 lines)
+            use-cases/
+              ActivityUseCases.ts (11 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              ActivityEvent.ts (44 lines)
+            events/
+              ActivityDomainEvent.ts (13 lines)
+            repositories/
+              ActivityRepository.ts (11 lines)
+            index.ts (0 lines)
+        api-key/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreApiKeyRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              ApiKeyDTO.ts (3 lines)
+            use-cases/
+              ApiKeyUseCases.ts (14 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              ApiKey.ts (46 lines)
+            events/
+              ApiKeyDomainEvent.ts (18 lines)
+            repositories/
+              ApiKeyRepository.ts (15 lines)
+            value-objects/
+              ApiKeyId.ts (5 lines)
+            index.ts (0 lines)
+        approval/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              index.ts (1 lines)
+            index.ts (0 lines)
+          application/
+            use-cases/
+              ApprovalUseCases.ts (20 lines)
+            index.ts (0 lines)
+          domain/
+            repositories/
+              ApprovalRepository.ts (33 lines)
+            index.ts (0 lines)
+        audit/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreAuditRepository.ts (22 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              AuditDTO.ts (5 lines)
+            use-cases/
+              AuditUseCases.ts (11 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              AuditEntry.ts (59 lines)
+            events/
+              AuditDomainEvent.ts (19 lines)
+            repositories/
+              AuditRepository.ts (11 lines)
+            value-objects/
+              AuditAction.ts (5 lines)
+              AuditSeverity.ts (7 lines)
+            index.ts (0 lines)
+        feed/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreFeedRepository.ts (33 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              FeedDTO.ts (3 lines)
+            use-cases/
+              FeedUseCases.ts (11 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              FeedPost.ts (47 lines)
+            events/
+              FeedDomainEvent.ts (13 lines)
+            repositories/
+              FeedPostRepository.ts (15 lines)
+            index.ts (0 lines)
+        invitation/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreInvitationRepository.ts (28 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              InvitationDTO.ts (3 lines)
+            use-cases/
+              InvitationUseCases.ts (19 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              WorkspaceInvitation.ts (48 lines)
+            events/
+              InvitationDomainEvent.ts (18 lines)
+            repositories/
+              InvitationRepository.ts (15 lines)
+            index.ts (0 lines)
+        issue/
+          adapters/
+            inbound/
+              http/
+                IssueController.ts (6 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreIssueRepository.ts (46 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              IssueDTO.ts (6 lines)
+            use-cases/
+              IssueUseCases.ts (21 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Issue.ts (48 lines)
+            events/
+              IssueDomainEvent.ts (52 lines)
+            repositories/
+              IssueRepository.ts (23 lines)
+            value-objects/
+              IssueId.ts (5 lines)
+              IssueStage.ts (1 lines)
+              IssueStatus.ts (11 lines)
+            index.ts (0 lines)
+        lifecycle/
+          adapters/
+            inbound/
+              http/
+                WorkspaceController.ts (6 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreWorkspaceRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              WorkspaceDTO.ts (4 lines)
+            use-cases/
+              WorkspaceLifecycleUseCases.ts (19 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Workspace.ts (50 lines)
+            events/
+              WorkspaceDomainEvent.ts (26 lines)
+            repositories/
+              WorkspaceRepository.ts (13 lines)
+            index.ts (0 lines)
+        membership/
+          adapters/
+            inbound/
+              http/
+                MembershipController.ts (6 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreMemberRepository.ts (28 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              MembershipDTO.ts (5 lines)
+            use-cases/
+              MembershipUseCases.ts (19 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              WorkspaceMember.ts (46 lines)
+            events/
+              MembershipDomainEvent.ts (20 lines)
+            repositories/
+              WorkspaceMemberRepository.ts (15 lines)
+            index.ts (0 lines)
+        orchestration/
+          adapters/
+            inbound/
+              http/
+                OrchestrationController.ts (6 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreJobRepository.ts (28 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              OrchestrationDTO.ts (3 lines)
+            machines/
+              task-lifecycle.machine.ts (59 lines)
+            sagas/
+              TaskLifecycleSaga.ts (37 lines)
+            use-cases/
+              OrchestrationUseCases.ts (15 lines)
+              ResumeTaskFlowUseCase.ts (25 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              TaskMaterializationJob.ts (57 lines)
+            events/
+              JobDomainEvent.ts (18 lines)
+            repositories/
+              TaskMaterializationJobRepository.ts (17 lines)
+            index.ts (0 lines)
+        quality/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              index.ts (1 lines)
+            index.ts (0 lines)
+          application/
+            use-cases/
+              QualityUseCases.ts (10 lines)
+            index.ts (0 lines)
+          domain/
+            repositories/
+              QualityTaskRepository.ts (14 lines)
+            index.ts (0 lines)
+        resource/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreQuotaRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              ResourceDTO.ts (5 lines)
+            use-cases/
+              ResourceUseCases.ts (15 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              ResourceQuota.ts (49 lines)
+            events/
+              ResourceQuotaDomainEvent.ts (20 lines)
+            repositories/
+              ResourceQuotaRepository.ts (16 lines)
+            index.ts (0 lines)
+        schedule/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreDemandRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              ScheduleDTO.ts (4 lines)
+            use-cases/
+              ScheduleUseCases.ts (15 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              WorkDemand.ts (48 lines)
+            events/
+              ScheduleDomainEvent.ts (13 lines)
+            repositories/
+              DemandRepository.ts (15 lines)
+            index.ts (0 lines)
+        settlement/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreInvoiceRepository.ts (29 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              SettlementDTO.ts (5 lines)
+            use-cases/
+              CreateInvoiceFromAcceptedTasksUseCase.ts (17 lines)
+              SettlementUseCases.ts (16 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Invoice.ts (45 lines)
+            events/
+              InvoiceDomainEvent.ts (20 lines)
+            repositories/
+              InvoiceRepository.ts (16 lines)
+            value-objects/
+              InvoiceStatus.ts (5 lines)
+            index.ts (0 lines)
+        share/
+          adapters/
+            inbound/
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreShareRepository.ts (26 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              ShareDTO.ts (4 lines)
+            use-cases/
+              ShareUseCases.ts (15 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              WorkspaceShare.ts (42 lines)
+            events/
+              ShareDomainEvent.ts (20 lines)
+            repositories/
+              WorkspaceShareRepository.ts (13 lines)
+            index.ts (0 lines)
+        task/
+          adapters/
+            inbound/
+              http/
+                TaskController.ts (6 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreTaskRepository.ts (39 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              TaskDTO.ts (6 lines)
+            use-cases/
+              TaskUseCases.ts (25 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              Task.ts (65 lines)
+            events/
+              TaskDomainEvent.ts (41 lines)
+            repositories/
+              TaskRepository.ts (16 lines)
+            value-objects/
+              TaskId.ts (5 lines)
+              TaskStatus.ts (14 lines)
+            index.ts (0 lines)
+        task-formation/
+          adapters/
+            inbound/
+              server-actions/
+                task-formation-actions.ts (32 lines)
+              index.ts (0 lines)
+            outbound/
+              callable/
+                FirebaseCallableTaskCandidateExtractor.ts (42 lines)
+              firestore/
+                FirestoreTaskFormationJobRepository.ts (30 lines)
+              genkit/
+                GenkitTaskCandidateExtractor.ts (35 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            dto/
+              TaskFormationDTO.ts (7 lines)
+            machines/
+              task-formation.machine.ts (46 lines)
+            use-cases/
+              TaskFormationUseCases.ts (47 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              TaskFormationJob.ts (62 lines)
+            events/
+              TaskFormationDomainEvent.ts (32 lines)
+            ports/
+              TaskCandidateExtractorPort.ts (21 lines)
+            repositories/
+              TaskFormationJobRepository.ts (17 lines)
+            value-objects/
+              TaskCandidate.ts (11 lines)
+              TaskFormationJobStatus.ts (1 lines)
+            index.ts (0 lines)
+          AGENT.md (166 lines)
+          README.md (220 lines)
+      AGENT.md (75 lines)
+      index.ts (14 lines)
+      README.md (85 lines)
+    AGENT.md (72 lines)
+    README.md (76 lines)
+  AGENT.md (30 lines)
+  README.md (8 lines)
 apphosting.yaml (64 lines)
 components.json (25 lines)
-docs/AGENT.md (39 lines)
-docs/decisions/0001-hexagonal-architecture.md (80 lines)
-docs/decisions/0002-bounded-contexts.md (81 lines)
-docs/decisions/0003-context-map.md (79 lines)
-docs/decisions/0004-ubiquitous-language.md (79 lines)
-docs/decisions/0005-anti-corruption-layer.md (80 lines)
-docs/decisions/0006-domain-event-discriminant-format.md (117 lines)
-docs/decisions/0007-infrastructure-in-api-layer.md (73 lines)
-docs/decisions/0008-repository-interface-placement.md (83 lines)
-docs/decisions/0009-anemic-aggregates.md (81 lines)
-docs/decisions/0010-aggregate-domain-event-emission.md (114 lines)
-docs/decisions/0011-use-case-bundling.md (129 lines)
-docs/decisions/0012-source-to-task-orchestration.md (73 lines)
-docs/decisions/0014-main-domain-resplit.md (46 lines)
-docs/decisions/0015-api-layer-removal.md (76 lines)
-docs/decisions/1100-layer-violation.md (86 lines)
-docs/decisions/1101-layer-violation-crypto-in-domain.md (97 lines)
-docs/decisions/1102-layer-violation-ports-in-application.md (127 lines)
-docs/decisions/1103-layer-violation-firebase-sdk-in-api-layer.md (90 lines)
-docs/decisions/1104-layer-violation-globalthis-crypto-in-application-layer.md (78 lines)
-docs/decisions/1200-boundary-violation.md (107 lines)
-docs/decisions/1201-boundary-violation-business-logic-in-infrastructure.md (119 lines)
-docs/decisions/1300-cyclic-dependency.md (117 lines)
-docs/decisions/1400-dependency-leakage.md (64 lines)
-docs/decisions/1401-dependency-leakage-infrastructure-api-in-platform-api.md (119 lines)
-docs/decisions/1402-dependency-leakage-use-case-classes-in-platform-api.md (124 lines)
-docs/decisions/1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md (81 lines)
-docs/decisions/1404-dependency-leakage-subdomain-api-exports-application-wildcard.md (90 lines)
-docs/decisions/2100-tight-coupling.md (71 lines)
-docs/decisions/2101-tight-coupling-crypto-runtime.md (98 lines)
-docs/decisions/2200-hidden-coupling.md (59 lines)
-docs/decisions/2201-hidden-coupling-workspace-aggregate-no-domain-events.md (162 lines)
-docs/decisions/2300-temporal-coupling.md (63 lines)
-docs/decisions/3100-low-cohesion.md (89 lines)
-docs/decisions/3101-low-cohesion-platform-application-layer.md (105 lines)
-docs/decisions/3200-duplication.md (95 lines)
-docs/decisions/3201-duplication-event-discriminant-format.md (111 lines)
-docs/decisions/3202-duplication-source-dto-reimplements-domain-service.md (68 lines)
-docs/decisions/3203-duplication-shell-quick-create-orphaned-platform-copy.md (143 lines)
-docs/decisions/4100-change-amplification.md (71 lines)
-docs/decisions/4101-change-amplification-uuid-strategy.md (93 lines)
-docs/decisions/4200-inconsistency.md (78 lines)
-docs/decisions/4201-inconsistency-dto-vs-dtos.md (110 lines)
-docs/decisions/4202-inconsistency-uuid-v7-in-workspace-domain-events.md (109 lines)
-docs/decisions/4203-inconsistency-uuid-v7-application-infrastructure-layers.md (126 lines)
-docs/decisions/4300-semantic-drift.md (75 lines)
-docs/decisions/4301-semantic-drift-application-subdirectory-names.md (113 lines)
-docs/decisions/4302-semantic-drift-notion-notebooklm-event-discriminant-format.md (75 lines)
-docs/decisions/4303-semantic-drift-workspace-event-discriminants-use-underscore.md (119 lines)
-docs/decisions/5100-accidental-complexity.md (89 lines)
-docs/decisions/5101-accidental-complexity-platform-domain-stubs.md (144 lines)
-docs/decisions/5200-cognitive-load.md (105 lines)
-docs/decisions/5201-cognitive-load-workspace-workflow-application.md (151 lines)
-docs/decisions/5202-cognitive-load-workspace-dto-mixes-types-and-factory-functions.md (157 lines)
-docs/decisions/5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md (107 lines)
-docs/decisions/6100-migration-gap-registry.md (75 lines)
-docs/decisions/6101-lost-notebooklm-source-subdomain.md (89 lines)
-docs/decisions/6102-lost-notebooklm-synthesis-subdomain.md (80 lines)
-docs/decisions/6103-lost-notebooklm-interfaces-layer.md (76 lines)
-docs/decisions/6104-lost-notion-authoring-subdomain.md (95 lines)
-docs/decisions/6105-lost-notion-knowledge-database-subdomain.md (87 lines)
-docs/decisions/6106-lost-notion-knowledge-subdomain.md (76 lines)
-docs/decisions/6107-lost-platform-domain-model.md (109 lines)
-docs/decisions/6108-lost-platform-api-contracts.md (76 lines)
-docs/decisions/6109-lost-workspace-interfaces-layer.md (82 lines)
-docs/decisions/6110-lost-ai-prompt-pipeline-subdomain.md (102 lines)
-docs/decisions/6111-lost-ai-missing-subdomains.md (108 lines)
-docs/decisions/6112-lost-ai-governance-docs.md (81 lines)
-docs/decisions/6113-lost-packages.md (93 lines)
-docs/decisions/6114-lost-docs-semantic-model.md (113 lines)
-docs/decisions/6115-lost-docs-discussions.md (99 lines)
-docs/decisions/6116-gained-shell-ui-components.md (60 lines)
-docs/decisions/6117-gained-packages-ui-shadcn.md (62 lines)
-docs/decisions/6118-gained-modules-template.md (69 lines)
-docs/decisions/6119-gained-workspace-new-subdomains.md (91 lines)
-docs/decisions/6120-gained-platform-new-subdomains.md (76 lines)
-docs/decisions/6121-gained-ai-restructured-subdomains.md (73 lines)
-docs/decisions/README.md (214 lines)
-docs/decisions/SMELL-INDEX.md (121 lines)
-docs/examples/.gitkeep (0 lines)
-docs/examples/ai/.gitkeep (0 lines)
-docs/examples/architecture/.gitkeep (0 lines)
-docs/examples/data/.gitkeep (0 lines)
-docs/examples/domain/.gitkeep (0 lines)
-docs/examples/end-to-end/.gitkeep (0 lines)
-docs/examples/end-to-end/deliveries/AGENT.md (8 lines)
-docs/examples/end-to-end/deliveries/README.md (10 lines)
-docs/examples/end-to-end/deliveries/upload-parse-to-task-flow.md (77 lines)
-docs/examples/modules/.gitkeep (0 lines)
-docs/examples/modules/feature/AGENT.md (8 lines)
-docs/examples/modules/feature/notebooklm-source-processing-task-flow.md (86 lines)
-docs/examples/modules/feature/py-fn-ts-capability-bridge.md (387 lines)
-docs/examples/modules/feature/README.md (12 lines)
-docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md (241 lines)
-docs/README.md (158 lines)
-docs/structure/.gitkeep (0 lines)
-docs/structure/contexts/_template.md (144 lines)
-docs/structure/contexts/ai/AGENT.md (95 lines)
-docs/structure/contexts/ai/bounded-contexts.md (61 lines)
-docs/structure/contexts/ai/context-map.md (50 lines)
-docs/structure/contexts/ai/cross-runtime-contracts.md (99 lines)
-docs/structure/contexts/ai/ddd-strategic-design.md (119 lines)
-docs/structure/contexts/ai/README.md (73 lines)
-docs/structure/contexts/ai/subdomains.md (91 lines)
-docs/structure/contexts/ai/ubiquitous-language.md (49 lines)
-docs/structure/contexts/analytics/AGENT.md (68 lines)
-docs/structure/contexts/analytics/bounded-contexts.md (11 lines)
-docs/structure/contexts/analytics/context-map.md (16 lines)
-docs/structure/contexts/analytics/README.md (27 lines)
-docs/structure/contexts/analytics/subdomains.md (20 lines)
-docs/structure/contexts/analytics/ubiquitous-language.md (15 lines)
-docs/structure/contexts/billing/AGENT.md (68 lines)
-docs/structure/contexts/billing/bounded-contexts.md (11 lines)
-docs/structure/contexts/billing/context-map.md (14 lines)
-docs/structure/contexts/billing/README.md (27 lines)
-docs/structure/contexts/billing/subdomains.md (18 lines)
-docs/structure/contexts/billing/ubiquitous-language.md (15 lines)
-docs/structure/contexts/iam/AGENT.md (74 lines)
-docs/structure/contexts/iam/bounded-contexts.md (12 lines)
-docs/structure/contexts/iam/context-map.md (16 lines)
-docs/structure/contexts/iam/README.md (27 lines)
-docs/structure/contexts/iam/subdomains.md (28 lines)
-docs/structure/contexts/iam/ubiquitous-language.md (17 lines)
-docs/structure/contexts/notebooklm/AGENT.md (92 lines)
-docs/structure/contexts/notebooklm/bounded-contexts.md (83 lines)
-docs/structure/contexts/notebooklm/context-map.md (79 lines)
-docs/structure/contexts/notebooklm/README.md (113 lines)
-docs/structure/contexts/notebooklm/subdomains.md (68 lines)
-docs/structure/contexts/notebooklm/ubiquitous-language.md (94 lines)
-docs/structure/contexts/notion/AGENT.md (112 lines)
-docs/structure/contexts/notion/bounded-contexts.md (83 lines)
-docs/structure/contexts/notion/context-map.md (80 lines)
-docs/structure/contexts/notion/README.md (117 lines)
-docs/structure/contexts/notion/subdomains.md (72 lines)
-docs/structure/contexts/notion/ubiquitous-language.md (94 lines)
-docs/structure/contexts/platform/AGENT.md (108 lines)
-docs/structure/contexts/platform/bounded-contexts.md (89 lines)
-docs/structure/contexts/platform/context-map.md (80 lines)
-docs/structure/contexts/platform/README.md (133 lines)
-docs/structure/contexts/platform/subdomains.md (89 lines)
-docs/structure/contexts/platform/ubiquitous-language.md (141 lines)
-docs/structure/contexts/workspace/AGENT.md (100 lines)
-docs/structure/contexts/workspace/bounded-contexts.md (93 lines)
-docs/structure/contexts/workspace/context-map.md (79 lines)
-docs/structure/contexts/workspace/README.md (126 lines)
-docs/structure/contexts/workspace/subdomains.md (80 lines)
-docs/structure/contexts/workspace/ubiquitous-language.md (120 lines)
-docs/structure/domain/bounded-context-subdomain-template.md (203 lines)
-docs/structure/domain/bounded-contexts.md (280 lines)
-docs/structure/domain/ddd-strategic-design.md (218 lines)
-docs/structure/domain/event-driven-design.md (189 lines)
-docs/structure/domain/subdomains.md (279 lines)
-docs/structure/domain/ubiquitous-language.md (166 lines)
-docs/structure/system/architecture-overview.md (137 lines)
-docs/structure/system/context-map.md (121 lines)
-docs/structure/system/hard-rules-consolidated.md (459 lines)
-docs/structure/system/integration-guidelines.md (112 lines)
-docs/structure/system/module-graph.system-wide.md (135 lines)
-docs/structure/system/project-delivery-milestones.md (109 lines)
-docs/structure/system/source-to-task-flow.md (94 lines)
-docs/structure/system/strategic-patterns.md (81 lines)
-docs/structure/system/ui-ux-closed-loop.md (134 lines)
-docs/tooling/.gitkeep (0 lines)
-docs/tooling/ci-cd/.gitkeep (0 lines)
-docs/tooling/cli/.gitkeep (0 lines)
-docs/tooling/commands-reference.md (54 lines)
-docs/tooling/firebase/.gitkeep (0 lines)
-docs/tooling/firebase/firebase-architecture.md (197 lines)
-docs/tooling/firestore/.gitkeep (0 lines)
-docs/tooling/genkit/.gitkeep (0 lines)
-docs/tooling/genkit/genkit-flow-standards.md (229 lines)
-docs/tooling/knowledge-base-reference.md (41 lines)
-docs/tooling/nextjs/.gitkeep (0 lines)
-docs/tooling/nextjs/state-machine-model.md (186 lines)
 eslint.config.mjs (9 lines)
 firebase.apphosting.json (13 lines)
 firebase.json (60 lines)
@@ -279,182 +2289,7 @@ firestore.rules (9 lines)
 llms.txt (82 lines)
 next.config.ts (7 lines)
 package.json (126 lines)
-packages/AGENT.md (59 lines)
-packages/integration-firebase/AGENTS.md (53 lines)
-packages/integration-firebase/auth.ts (14 lines)
-packages/integration-firebase/auth/.gitkeep (0 lines)
-packages/integration-firebase/client.ts (6 lines)
-packages/integration-firebase/firestore.ts (28 lines)
-packages/integration-firebase/firestore/.gitkeep (0 lines)
-packages/integration-firebase/functions.ts (9 lines)
-packages/integration-firebase/functions/.gitkeep (0 lines)
-packages/integration-firebase/index.ts (4 lines)
-packages/integration-firebase/README.md (48 lines)
-packages/integration-firebase/storage.ts (19 lines)
-packages/integration-firebase/storage/.gitkeep (0 lines)
-packages/README.md (82 lines)
-packages/ui-shadcn/AGENTS.md (69 lines)
-packages/ui-shadcn/hooks/use-mobile.ts (3 lines)
-packages/ui-shadcn/index.ts (15 lines)
-packages/ui-shadcn/lib/utils.ts (4 lines)
-packages/ui-shadcn/provider/theme-provider.tsx (12 lines)
-packages/ui-shadcn/README.md (86 lines)
-packages/ui-shadcn/ui-custom/form/.gitkeep (0 lines)
-packages/ui-shadcn/ui-custom/modal/.gitkeep (0 lines)
-packages/ui-shadcn/ui-custom/table/.gitkeep (0 lines)
-packages/ui-shadcn/ui/accordion.tsx (20 lines)
-packages/ui-shadcn/ui/alert-dialog.tsx (27 lines)
-packages/ui-shadcn/ui/alert.tsx (5 lines)
-packages/ui-shadcn/ui/aspect-ratio.tsx (3 lines)
-packages/ui-shadcn/ui/avatar.tsx (5 lines)
-packages/ui-shadcn/ui/badge.tsx (12 lines)
-packages/ui-shadcn/ui/breadcrumb.tsx (9 lines)
-packages/ui-shadcn/ui/button-group.tsx (10 lines)
-packages/ui-shadcn/ui/button.tsx (6 lines)
-packages/ui-shadcn/ui/calendar.tsx (12 lines)
-packages/ui-shadcn/ui/card.tsx (3 lines)
-packages/ui-shadcn/ui/carousel.tsx (42 lines)
-packages/ui-shadcn/ui/chart.tsx (30 lines)
-packages/ui-shadcn/ui/checkbox.tsx (6 lines)
-packages/ui-shadcn/ui/collapsible.tsx (5 lines)
-packages/ui-shadcn/ui/combobox.tsx (19 lines)
-packages/ui-shadcn/ui/command.tsx (17 lines)
-packages/ui-shadcn/ui/context-menu.tsx (15 lines)
-packages/ui-shadcn/ui/dialog.tsx (7 lines)
-packages/ui-shadcn/ui/direction.tsx (0 lines)
-packages/ui-shadcn/ui/drawer.tsx (5 lines)
-packages/ui-shadcn/ui/dropdown-menu.tsx (6 lines)
-packages/ui-shadcn/ui/empty.tsx (5 lines)
-packages/ui-shadcn/ui/field.tsx (8 lines)
-packages/ui-shadcn/ui/hover-card.tsx (5 lines)
-packages/ui-shadcn/ui/input-group.tsx (10 lines)
-packages/ui-shadcn/ui/input-otp.tsx (7 lines)
-packages/ui-shadcn/ui/input.tsx (5 lines)
-packages/ui-shadcn/ui/item.tsx (8 lines)
-packages/ui-shadcn/ui/kbd.tsx (3 lines)
-packages/ui-shadcn/ui/label.tsx (3 lines)
-packages/ui-shadcn/ui/menubar.tsx (22 lines)
-packages/ui-shadcn/ui/native-select.tsx (14 lines)
-packages/ui-shadcn/ui/navigation-menu.tsx (13 lines)
-packages/ui-shadcn/ui/pagination.tsx (29 lines)
-packages/ui-shadcn/ui/popover.tsx (5 lines)
-packages/ui-shadcn/ui/progress.tsx (12 lines)
-packages/ui-shadcn/ui/radio-group.tsx (8 lines)
-packages/ui-shadcn/ui/resizable.tsx (1 lines)
-packages/ui-shadcn/ui/scroll-area.tsx (15 lines)
-packages/ui-shadcn/ui/select.tsx (40 lines)
-packages/ui-shadcn/ui/separator.tsx (5 lines)
-packages/ui-shadcn/ui/sheet.tsx (7 lines)
-packages/ui-shadcn/ui/sidebar.tsx (73 lines)
-packages/ui-shadcn/ui/skeleton.tsx (3 lines)
-packages/ui-shadcn/ui/slider.tsx (5 lines)
-packages/ui-shadcn/ui/sonner.tsx (3 lines)
-packages/ui-shadcn/ui/spinner.tsx (4 lines)
-packages/ui-shadcn/ui/switch.tsx (13 lines)
-packages/ui-shadcn/ui/table.tsx (3 lines)
-packages/ui-shadcn/ui/tabs.tsx (6 lines)
-packages/ui-shadcn/ui/textarea.tsx (3 lines)
-packages/ui-shadcn/ui/toggle-group.tsx (30 lines)
-packages/ui-shadcn/ui/toggle.tsx (6 lines)
-packages/ui-shadcn/ui/tooltip.tsx (19 lines)
 postcss.config.mjs (0 lines)
-py_fn/.gitignore (6 lines)
-py_fn/.serena/.gitkeep (0 lines)
-py_fn/AGENT.md (32 lines)
-py_fn/docs/.gitkeep (0 lines)
-py_fn/main.py (43 lines)
-py_fn/README.md (265 lines)
-py_fn/requirements-dev.txt (2 lines)
-py_fn/requirements.txt (23 lines)
-py_fn/src/app/__init__.py (5 lines)
-py_fn/src/app/bootstrap/__init__.py (7 lines)
-py_fn/src/app/config/.gitkeep (0 lines)
-py_fn/src/app/container/.gitkeep (0 lines)
-py_fn/src/app/container/runtime_dependencies.py (41 lines)
-py_fn/src/app/settings/.gitkeep (0 lines)
-py_fn/src/application/__init__.py (1 lines)
-py_fn/src/application/dto/__init__.py (3 lines)
-py_fn/src/application/dto/.gitkeep (0 lines)
-py_fn/src/application/dto/chunk_job.py (31 lines)
-py_fn/src/application/dto/embedding_job.py (24 lines)
-py_fn/src/application/dto/rag.py (11 lines)
-py_fn/src/application/mappers/.gitkeep (0 lines)
-py_fn/src/application/ports/input/.gitkeep (0 lines)
-py_fn/src/application/ports/output/.gitkeep (0 lines)
-py_fn/src/application/ports/output/gateways.py (3 lines)
-py_fn/src/application/services/.gitkeep (0 lines)
-py_fn/src/application/services/document_pipeline.py (1 lines)
-py_fn/src/application/use_cases/__init__.py (3 lines)
-py_fn/src/application/use_cases/rag_ingestion.py (30 lines)
-py_fn/src/application/use_cases/rag_query.py (46 lines)
-py_fn/src/core/__init__.py (1 lines)
-py_fn/src/core/config.py (56 lines)
-py_fn/src/core/constants/.gitkeep (0 lines)
-py_fn/src/core/exceptions/.gitkeep (0 lines)
-py_fn/src/core/security/.gitkeep (0 lines)
-py_fn/src/core/types/.gitkeep (0 lines)
-py_fn/src/core/utils/.gitkeep (0 lines)
-py_fn/src/domain/__init__.py (1 lines)
-py_fn/src/domain/aggregate/__init__.py (1 lines)
-py_fn/src/domain/aggregate/.gitkeep (0 lines)
-py_fn/src/domain/entities/__init__.py (1 lines)
-py_fn/src/domain/entities/.gitkeep (0 lines)
-py_fn/src/domain/events/__init__.py (1 lines)
-py_fn/src/domain/events/.gitkeep (0 lines)
-py_fn/src/domain/exceptions/__init__.py (1 lines)
-py_fn/src/domain/exceptions/.gitkeep (0 lines)
-py_fn/src/domain/repositories/__init__.py (3 lines)
-py_fn/src/domain/repositories/.gitkeep (0 lines)
-py_fn/src/domain/repositories/rag.py (61 lines)
-py_fn/src/domain/services/__init__.py (3 lines)
-py_fn/src/domain/services/.gitkeep (0 lines)
-py_fn/src/domain/services/rag_ingestion_text.py (41 lines)
-py_fn/src/domain/services/rag_result_filter.py (55 lines)
-py_fn/src/domain/value_objects/__init__.py (3 lines)
-py_fn/src/domain/value_objects/.gitkeep (0 lines)
-py_fn/src/domain/value_objects/rag.py (62 lines)
-py_fn/src/infrastructure/__init__.py (1 lines)
-py_fn/src/infrastructure/audit/qstash.py (3 lines)
-py_fn/src/infrastructure/cache/rag_query_cache.py (8 lines)
-py_fn/src/infrastructure/config/.gitkeep (0 lines)
-py_fn/src/infrastructure/external/__init__.py (1 lines)
-py_fn/src/infrastructure/external/documentai/__init__.py (1 lines)
-py_fn/src/infrastructure/external/documentai/client.py (73 lines)
-py_fn/src/infrastructure/external/openai/__init__.py (3 lines)
-py_fn/src/infrastructure/external/openai/client.py (16 lines)
-py_fn/src/infrastructure/external/openai/embeddings.py (36 lines)
-py_fn/src/infrastructure/external/openai/llm.py (18 lines)
-py_fn/src/infrastructure/external/openai/rag_query.py (3 lines)
-py_fn/src/infrastructure/external/upstash/__init__.py (1 lines)
-py_fn/src/infrastructure/external/upstash/_base.py (18 lines)
-py_fn/src/infrastructure/external/upstash/clients.py (13 lines)
-py_fn/src/infrastructure/external/upstash/qstash_client.py (33 lines)
-py_fn/src/infrastructure/external/upstash/rag_query.py (3 lines)
-py_fn/src/infrastructure/external/upstash/redis_client.py (41 lines)
-py_fn/src/infrastructure/external/upstash/search_client.py (73 lines)
-py_fn/src/infrastructure/external/upstash/vector_client.py (40 lines)
-py_fn/src/infrastructure/logging/.gitkeep (0 lines)
-py_fn/src/infrastructure/persistence/__init__.py (1 lines)
-py_fn/src/infrastructure/persistence/firestore/__init__.py (1 lines)
-py_fn/src/infrastructure/persistence/firestore/document_repository.py (89 lines)
-py_fn/src/infrastructure/persistence/storage/__init__.py (1 lines)
-py_fn/src/infrastructure/persistence/storage/client.py (68 lines)
-py_fn/src/infrastructure/repositories/.gitkeep (0 lines)
-py_fn/src/interface/__init__.py (1 lines)
-py_fn/src/interface/controllers/.gitkeep (0 lines)
-py_fn/src/interface/handlers/__init__.py (3 lines)
-py_fn/src/interface/handlers/_https_helpers.py (40 lines)
-py_fn/src/interface/handlers/https.py (12 lines)
-py_fn/src/interface/handlers/parse_document.py (59 lines)
-py_fn/src/interface/handlers/rag_query_handler.py (31 lines)
-py_fn/src/interface/handlers/rag_reindex_handler.py (37 lines)
-py_fn/src/interface/handlers/storage.py (100 lines)
-py_fn/src/interface/middleware/.gitkeep (0 lines)
-py_fn/src/interface/routes/.gitkeep (0 lines)
-py_fn/src/interface/schemas/.gitkeep (0 lines)
-py_fn/tests/conftest.py (1 lines)
-py_fn/tests/test_domain_repository_gateways.py (47 lines)
-py_fn/tests/test_parse_document_handler.py (44 lines)
 repomix-ai.config.json (102 lines)
 repomix-analytics.config.json (102 lines)
 repomix-billing.config.json (102 lines)
@@ -468,903 +2303,6 @@ repomix-py_fn.config.json (82 lines)
 repomix-src.config.json (98 lines)
 repomix-workspace.config.json (102 lines)
 repomix.config.json (127 lines)
-src/AGENT.md (30 lines)
-src/app/(public)/page.tsx (3 lines)
-src/app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx (5 lines)
-src/app/(shell)/layout.tsx (5 lines)
-src/app/AGENT.md (40 lines)
-src/app/globals.css (47 lines)
-src/app/layout.tsx (9 lines)
-src/app/README.md (55 lines)
-src/modules/AGENT.md (72 lines)
-src/modules/ai/AGENT.md (76 lines)
-src/modules/ai/index.ts (24 lines)
-src/modules/ai/orchestration/index.ts (3 lines)
-src/modules/ai/README.md (111 lines)
-src/modules/ai/shared/errors/index.ts (1 lines)
-src/modules/ai/shared/events/index.ts (1 lines)
-src/modules/ai/shared/index.ts (0 lines)
-src/modules/ai/shared/types/index.ts (1 lines)
-src/modules/ai/subdomains/chunk/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/chunk/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts (34 lines)
-src/modules/ai/subdomains/chunk/adapters/outbound/index.ts (1 lines)
-src/modules/ai/subdomains/chunk/adapters/outbound/memory/InMemoryChunkRepository.ts (18 lines)
-src/modules/ai/subdomains/chunk/application/index.ts (0 lines)
-src/modules/ai/subdomains/chunk/application/use-cases/ChunkUseCases.ts (17 lines)
-src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts (49 lines)
-src/modules/ai/subdomains/chunk/domain/index.ts (0 lines)
-src/modules/ai/subdomains/chunk/domain/repositories/ChunkRepository.ts (26 lines)
-src/modules/ai/subdomains/citation/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/citation/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/citation/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/citation/application/index.ts (2 lines)
-src/modules/ai/subdomains/citation/application/use-cases/CitationUseCases.ts (1 lines)
-src/modules/ai/subdomains/citation/domain/entities/Citation.ts (26 lines)
-src/modules/ai/subdomains/citation/domain/index.ts (2 lines)
-src/modules/ai/subdomains/context/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/context/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/context/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/context/application/index.ts (2 lines)
-src/modules/ai/subdomains/context/application/use-cases/ContextUseCases.ts (11 lines)
-src/modules/ai/subdomains/context/domain/entities/ContextSession.ts (44 lines)
-src/modules/ai/subdomains/context/domain/index.ts (2 lines)
-src/modules/ai/subdomains/context/domain/repositories/ContextSessionRepository.ts (13 lines)
-src/modules/ai/subdomains/embedding/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/embedding/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts (32 lines)
-src/modules/ai/subdomains/embedding/adapters/outbound/index.ts (1 lines)
-src/modules/ai/subdomains/embedding/application/index.ts (0 lines)
-src/modules/ai/subdomains/embedding/application/use-cases/EmbeddingUseCases.ts (15 lines)
-src/modules/ai/subdomains/embedding/domain/entities/Embedding.ts (44 lines)
-src/modules/ai/subdomains/embedding/domain/index.ts (0 lines)
-src/modules/ai/subdomains/embedding/domain/repositories/EmbeddingRepository.ts (19 lines)
-src/modules/ai/subdomains/evaluation/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/evaluation/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/evaluation/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/evaluation/application/index.ts (2 lines)
-src/modules/ai/subdomains/evaluation/application/use-cases/EvaluationUseCases.ts (1 lines)
-src/modules/ai/subdomains/evaluation/domain/entities/EvaluationResult.ts (37 lines)
-src/modules/ai/subdomains/evaluation/domain/index.ts (2 lines)
-src/modules/ai/subdomains/generation/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/generation/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/generation/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/generation/application/index.ts (0 lines)
-src/modules/ai/subdomains/generation/application/use-cases/GenerationUseCases.ts (29 lines)
-src/modules/ai/subdomains/generation/domain/index.ts (0 lines)
-src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts (83 lines)
-src/modules/ai/subdomains/memory/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/memory/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/memory/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/memory/application/index.ts (2 lines)
-src/modules/ai/subdomains/memory/application/use-cases/MemoryUseCases.ts (1 lines)
-src/modules/ai/subdomains/memory/domain/entities/MemoryItem.ts (22 lines)
-src/modules/ai/subdomains/memory/domain/index.ts (2 lines)
-src/modules/ai/subdomains/pipeline/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/pipeline/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/pipeline/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/pipeline/application/index.ts (2 lines)
-src/modules/ai/subdomains/pipeline/application/use-cases/PipelineUseCases.ts (1 lines)
-src/modules/ai/subdomains/pipeline/domain/entities/PromptTemplate.ts (35 lines)
-src/modules/ai/subdomains/pipeline/domain/index.ts (2 lines)
-src/modules/ai/subdomains/retrieval/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/retrieval/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/retrieval/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/retrieval/application/index.ts (2 lines)
-src/modules/ai/subdomains/retrieval/application/use-cases/RetrievalUseCases.ts (7 lines)
-src/modules/ai/subdomains/retrieval/domain/index.ts (2 lines)
-src/modules/ai/subdomains/retrieval/domain/ports/RetrievalPorts.ts (39 lines)
-src/modules/ai/subdomains/tool-calling/adapters/inbound/index.ts (2 lines)
-src/modules/ai/subdomains/tool-calling/adapters/index.ts (1 lines)
-src/modules/ai/subdomains/tool-calling/adapters/outbound/index.ts (2 lines)
-src/modules/ai/subdomains/tool-calling/application/index.ts (2 lines)
-src/modules/ai/subdomains/tool-calling/application/use-cases/ToolCallingUseCases.ts (1 lines)
-src/modules/ai/subdomains/tool-calling/domain/entities/AiTool.ts (27 lines)
-src/modules/ai/subdomains/tool-calling/domain/index.ts (2 lines)
-src/modules/analytics/AGENT.md (51 lines)
-src/modules/analytics/index.ts (18 lines)
-src/modules/analytics/orchestration/index.ts (3 lines)
-src/modules/analytics/README.md (64 lines)
-src/modules/analytics/shared/errors/index.ts (1 lines)
-src/modules/analytics/shared/events/index.ts (1 lines)
-src/modules/analytics/shared/index.ts (0 lines)
-src/modules/analytics/shared/types/index.ts (1 lines)
-src/modules/analytics/subdomains/event-contracts/adapters/inbound/index.ts (2 lines)
-src/modules/analytics/subdomains/event-contracts/adapters/index.ts (1 lines)
-src/modules/analytics/subdomains/event-contracts/adapters/outbound/index.ts (2 lines)
-src/modules/analytics/subdomains/event-contracts/adapters/outbound/memory/InMemoryAnalyticsEventRepository.ts (15 lines)
-src/modules/analytics/subdomains/event-contracts/application/index.ts (0 lines)
-src/modules/analytics/subdomains/event-contracts/application/use-cases/AnalyticsEventUseCases.ts (22 lines)
-src/modules/analytics/subdomains/event-contracts/domain/entities/AnalyticsEvent.ts (33 lines)
-src/modules/analytics/subdomains/event-contracts/domain/events/AnalyticsDomainEvent.ts (13 lines)
-src/modules/analytics/subdomains/event-contracts/domain/index.ts (0 lines)
-src/modules/analytics/subdomains/event-contracts/domain/repositories/AnalyticsEventRepository.ts (25 lines)
-src/modules/analytics/subdomains/event-contracts/domain/value-objects/EventName.ts (5 lines)
-src/modules/analytics/subdomains/event-ingestion/adapters/inbound/index.ts (2 lines)
-src/modules/analytics/subdomains/event-ingestion/adapters/index.ts (1 lines)
-src/modules/analytics/subdomains/event-ingestion/adapters/outbound/index.ts (2 lines)
-src/modules/analytics/subdomains/event-ingestion/application/index.ts (2 lines)
-src/modules/analytics/subdomains/event-ingestion/application/use-cases/IngestionUseCases.ts (10 lines)
-src/modules/analytics/subdomains/event-ingestion/domain/entities/IngestionBatch.ts (22 lines)
-src/modules/analytics/subdomains/event-ingestion/domain/events/IngestionDomainEvent.ts (19 lines)
-src/modules/analytics/subdomains/event-ingestion/domain/index.ts (2 lines)
-src/modules/analytics/subdomains/event-projection/adapters/inbound/index.ts (2 lines)
-src/modules/analytics/subdomains/event-projection/adapters/index.ts (1 lines)
-src/modules/analytics/subdomains/event-projection/adapters/outbound/index.ts (2 lines)
-src/modules/analytics/subdomains/event-projection/application/index.ts (2 lines)
-src/modules/analytics/subdomains/event-projection/application/use-cases/ProjectionUseCases.ts (2 lines)
-src/modules/analytics/subdomains/event-projection/domain/entities/EventProjection.ts (23 lines)
-src/modules/analytics/subdomains/event-projection/domain/index.ts (2 lines)
-src/modules/analytics/subdomains/experimentation/adapters/inbound/index.ts (2 lines)
-src/modules/analytics/subdomains/experimentation/adapters/index.ts (1 lines)
-src/modules/analytics/subdomains/experimentation/adapters/outbound/index.ts (2 lines)
-src/modules/analytics/subdomains/experimentation/application/index.ts (2 lines)
-src/modules/analytics/subdomains/experimentation/application/use-cases/ExperimentUseCases.ts (1 lines)
-src/modules/analytics/subdomains/experimentation/domain/entities/Experiment.ts (26 lines)
-src/modules/analytics/subdomains/experimentation/domain/index.ts (2 lines)
-src/modules/analytics/subdomains/insights/adapters/inbound/index.ts (2 lines)
-src/modules/analytics/subdomains/insights/adapters/index.ts (1 lines)
-src/modules/analytics/subdomains/insights/adapters/outbound/index.ts (2 lines)
-src/modules/analytics/subdomains/insights/application/index.ts (2 lines)
-src/modules/analytics/subdomains/insights/application/use-cases/InsightUseCases.ts (2 lines)
-src/modules/analytics/subdomains/insights/domain/entities/Insight.ts (23 lines)
-src/modules/analytics/subdomains/insights/domain/index.ts (2 lines)
-src/modules/analytics/subdomains/metrics/adapters/inbound/index.ts (2 lines)
-src/modules/analytics/subdomains/metrics/adapters/index.ts (1 lines)
-src/modules/analytics/subdomains/metrics/adapters/outbound/index.ts (2 lines)
-src/modules/analytics/subdomains/metrics/adapters/outbound/memory/InMemoryMetricRepository.ts (14 lines)
-src/modules/analytics/subdomains/metrics/application/index.ts (0 lines)
-src/modules/analytics/subdomains/metrics/application/use-cases/MetricUseCases.ts (17 lines)
-src/modules/analytics/subdomains/metrics/domain/entities/Metric.ts (43 lines)
-src/modules/analytics/subdomains/metrics/domain/index.ts (0 lines)
-src/modules/analytics/subdomains/metrics/domain/repositories/MetricRepository.ts (25 lines)
-src/modules/analytics/subdomains/metrics/domain/value-objects/MetricName.ts (5 lines)
-src/modules/analytics/subdomains/realtime-insights/adapters/inbound/index.ts (2 lines)
-src/modules/analytics/subdomains/realtime-insights/adapters/index.ts (1 lines)
-src/modules/analytics/subdomains/realtime-insights/adapters/outbound/index.ts (2 lines)
-src/modules/analytics/subdomains/realtime-insights/application/index.ts (2 lines)
-src/modules/analytics/subdomains/realtime-insights/application/use-cases/RealtimeInsightUseCases.ts (2 lines)
-src/modules/analytics/subdomains/realtime-insights/domain/entities/RealtimeMetric.ts (26 lines)
-src/modules/analytics/subdomains/realtime-insights/domain/index.ts (2 lines)
-src/modules/billing/AGENT.md (46 lines)
-src/modules/billing/index.ts (10 lines)
-src/modules/billing/orchestration/index.ts (3 lines)
-src/modules/billing/README.md (57 lines)
-src/modules/billing/shared/errors/index.ts (1 lines)
-src/modules/billing/shared/events/index.ts (1 lines)
-src/modules/billing/shared/index.ts (0 lines)
-src/modules/billing/shared/types/index.ts (1 lines)
-src/modules/billing/subdomains/entitlement/adapters/inbound/http/EntitlementController.ts (25 lines)
-src/modules/billing/subdomains/entitlement/adapters/inbound/index.ts (2 lines)
-src/modules/billing/subdomains/entitlement/adapters/index.ts (3 lines)
-src/modules/billing/subdomains/entitlement/adapters/outbound/firestore/FirestoreEntitlementGrantRepository.ts (29 lines)
-src/modules/billing/subdomains/entitlement/adapters/outbound/index.ts (2 lines)
-src/modules/billing/subdomains/entitlement/application/dto/EntitlementDTO.ts (9 lines)
-src/modules/billing/subdomains/entitlement/application/index.ts (5 lines)
-src/modules/billing/subdomains/entitlement/application/ports/outbound/EntitlementRepositoryPort.ts (3 lines)
-src/modules/billing/subdomains/entitlement/application/use-cases/EntitlementUseCases.ts (29 lines)
-src/modules/billing/subdomains/entitlement/domain/entities/EntitlementGrant.ts (50 lines)
-src/modules/billing/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts (46 lines)
-src/modules/billing/subdomains/entitlement/domain/index.ts (7 lines)
-src/modules/billing/subdomains/entitlement/domain/repositories/EntitlementGrantRepository.ts (21 lines)
-src/modules/billing/subdomains/entitlement/domain/value-objects/EntitlementId.ts (5 lines)
-src/modules/billing/subdomains/entitlement/domain/value-objects/EntitlementStatus.ts (7 lines)
-src/modules/billing/subdomains/entitlement/domain/value-objects/FeatureKey.ts (5 lines)
-src/modules/billing/subdomains/subscription/adapters/inbound/http/SubscriptionController.ts (29 lines)
-src/modules/billing/subdomains/subscription/adapters/inbound/index.ts (0 lines)
-src/modules/billing/subdomains/subscription/adapters/index.ts (3 lines)
-src/modules/billing/subdomains/subscription/adapters/outbound/firestore/FirestoreSubscriptionRepository.ts (26 lines)
-src/modules/billing/subdomains/subscription/adapters/outbound/index.ts (0 lines)
-src/modules/billing/subdomains/subscription/application/dto/SubscriptionDTO.ts (11 lines)
-src/modules/billing/subdomains/subscription/application/index.ts (5 lines)
-src/modules/billing/subdomains/subscription/application/ports/outbound/SubscriptionRepositoryPort.ts (3 lines)
-src/modules/billing/subdomains/subscription/application/use-cases/SubscriptionUseCases.ts (30 lines)
-src/modules/billing/subdomains/subscription/domain/entities/Subscription.ts (56 lines)
-src/modules/billing/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts (49 lines)
-src/modules/billing/subdomains/subscription/domain/index.ts (7 lines)
-src/modules/billing/subdomains/subscription/domain/repositories/SubscriptionRepository.ts (15 lines)
-src/modules/billing/subdomains/subscription/domain/value-objects/BillingCycle.ts (5 lines)
-src/modules/billing/subdomains/subscription/domain/value-objects/PlanCode.ts (7 lines)
-src/modules/billing/subdomains/subscription/domain/value-objects/SubscriptionId.ts (5 lines)
-src/modules/billing/subdomains/subscription/domain/value-objects/SubscriptionStatus.ts (7 lines)
-src/modules/billing/subdomains/usage-metering/adapters/inbound/index.ts (2 lines)
-src/modules/billing/subdomains/usage-metering/adapters/index.ts (1 lines)
-src/modules/billing/subdomains/usage-metering/adapters/outbound/index.ts (2 lines)
-src/modules/billing/subdomains/usage-metering/adapters/outbound/memory/InMemoryUsageRecordRepository.ts (12 lines)
-src/modules/billing/subdomains/usage-metering/application/index.ts (2 lines)
-src/modules/billing/subdomains/usage-metering/application/use-cases/UsageMeteringUseCases.ts (22 lines)
-src/modules/billing/subdomains/usage-metering/domain/entities/UsageRecord.ts (41 lines)
-src/modules/billing/subdomains/usage-metering/domain/index.ts (2 lines)
-src/modules/billing/subdomains/usage-metering/domain/repositories/UsageRecordRepository.ts (22 lines)
-src/modules/iam/adapters/inbound/react/AuthContext.tsx (67 lines)
-src/modules/iam/adapters/inbound/react/IamSessionProvider.tsx (9 lines)
-src/modules/iam/adapters/inbound/react/index.ts (8 lines)
-src/modules/iam/adapters/inbound/react/PublicLandingView.tsx (28 lines)
-src/modules/iam/adapters/outbound/firebase-composition.ts (140 lines)
-src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts (91 lines)
-src/modules/iam/adapters/outbound/FirebaseAuthIdentityRepository.ts (51 lines)
-src/modules/iam/AGENT.md (62 lines)
-src/modules/iam/index.ts (26 lines)
-src/modules/iam/orchestration/index.ts (3 lines)
-src/modules/iam/README.md (83 lines)
-src/modules/iam/shared/errors/index.ts (15 lines)
-src/modules/iam/shared/events/index.ts (1 lines)
-src/modules/iam/shared/index.ts (0 lines)
-src/modules/iam/shared/types/index.ts (1 lines)
-src/modules/iam/subdomains/access-control/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/access-control/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/access-control/adapters/outbound/index.ts (2 lines)
-src/modules/iam/subdomains/access-control/adapters/outbound/memory/InMemoryAccessPolicyRepository.ts (20 lines)
-src/modules/iam/subdomains/access-control/application/dto/AccessControlDTO.ts (12 lines)
-src/modules/iam/subdomains/access-control/application/index.ts (0 lines)
-src/modules/iam/subdomains/access-control/application/use-cases/AccessControlUseCases.ts (47 lines)
-src/modules/iam/subdomains/access-control/domain/aggregates/AccessPolicy.ts (53 lines)
-src/modules/iam/subdomains/access-control/domain/events/AccessPolicyDomainEvent.ts (36 lines)
-src/modules/iam/subdomains/access-control/domain/index.ts (0 lines)
-src/modules/iam/subdomains/access-control/domain/repositories/AccessPolicyRepository.ts (23 lines)
-src/modules/iam/subdomains/access-control/domain/value-objects/PolicyEffect.ts (3 lines)
-src/modules/iam/subdomains/access-control/domain/value-objects/ResourceRef.ts (9 lines)
-src/modules/iam/subdomains/access-control/domain/value-objects/SubjectRef.ts (8 lines)
-src/modules/iam/subdomains/account/adapters/inbound/http/AccountController.ts (31 lines)
-src/modules/iam/subdomains/account/adapters/inbound/index.ts (0 lines)
-src/modules/iam/subdomains/account/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository.ts (50 lines)
-src/modules/iam/subdomains/account/adapters/outbound/index.ts (0 lines)
-src/modules/iam/subdomains/account/application/dto/AccountDTO.ts (0 lines)
-src/modules/iam/subdomains/account/application/index.ts (5 lines)
-src/modules/iam/subdomains/account/application/ports/outbound/AccountRepositoryPort.ts (12 lines)
-src/modules/iam/subdomains/account/application/use-cases/AccountPolicyUseCases.ts (29 lines)
-src/modules/iam/subdomains/account/application/use-cases/AccountUseCases.ts (69 lines)
-src/modules/iam/subdomains/account/domain/entities/Account.ts (87 lines)
-src/modules/iam/subdomains/account/domain/entities/AccountPolicy.ts (38 lines)
-src/modules/iam/subdomains/account/domain/entities/AccountProfile.ts (17 lines)
-src/modules/iam/subdomains/account/domain/events/AccountDomainEvent.ts (78 lines)
-src/modules/iam/subdomains/account/domain/index.ts (9 lines)
-src/modules/iam/subdomains/account/domain/ports/TokenRefreshPort.ts (13 lines)
-src/modules/iam/subdomains/account/domain/repositories/AccountPolicyRepository.ts (17 lines)
-src/modules/iam/subdomains/account/domain/repositories/AccountQueryRepository.ts (71 lines)
-src/modules/iam/subdomains/account/domain/repositories/AccountRepository.ts (55 lines)
-src/modules/iam/subdomains/account/domain/value-objects/AccountId.ts (5 lines)
-src/modules/iam/subdomains/account/domain/value-objects/AccountStatus.ts (7 lines)
-src/modules/iam/subdomains/account/domain/value-objects/AccountType.ts (5 lines)
-src/modules/iam/subdomains/account/domain/value-objects/index.ts (0 lines)
-src/modules/iam/subdomains/account/domain/value-objects/WalletAmount.ts (5 lines)
-src/modules/iam/subdomains/authentication/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/authentication/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/authentication/adapters/outbound/index.ts (2 lines)
-src/modules/iam/subdomains/authentication/application/index.ts (0 lines)
-src/modules/iam/subdomains/authentication/application/use-cases/AuthenticationUseCases.ts (11 lines)
-src/modules/iam/subdomains/authentication/domain/index.ts (27 lines)
-src/modules/iam/subdomains/authorization/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/authorization/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/authorization/adapters/outbound/index.ts (2 lines)
-src/modules/iam/subdomains/authorization/application/index.ts (0 lines)
-src/modules/iam/subdomains/authorization/application/use-cases/AuthorizationUseCases.ts (17 lines)
-src/modules/iam/subdomains/authorization/domain/index.ts (17 lines)
-src/modules/iam/subdomains/federation/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/federation/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/federation/adapters/outbound/index.ts (2 lines)
-src/modules/iam/subdomains/federation/application/index.ts (0 lines)
-src/modules/iam/subdomains/federation/application/use-cases/FederationUseCases.ts (15 lines)
-src/modules/iam/subdomains/federation/domain/index.ts (22 lines)
-src/modules/iam/subdomains/identity/adapters/inbound/http/IdentityController.ts (21 lines)
-src/modules/iam/subdomains/identity/adapters/inbound/index.ts (0 lines)
-src/modules/iam/subdomains/identity/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/identity/adapters/outbound/firestore/FirestoreIdentityRepository.ts (35 lines)
-src/modules/iam/subdomains/identity/adapters/outbound/index.ts (0 lines)
-src/modules/iam/subdomains/identity/application/dto/IdentityDTO.ts (0 lines)
-src/modules/iam/subdomains/identity/application/index.ts (3 lines)
-src/modules/iam/subdomains/identity/application/use-cases/IdentityUseCases.ts (25 lines)
-src/modules/iam/subdomains/identity/application/use-cases/TokenRefreshUseCases.ts (9 lines)
-src/modules/iam/subdomains/identity/domain/entities/Identity.ts (20 lines)
-src/modules/iam/subdomains/identity/domain/entities/TokenRefreshSignal.ts (11 lines)
-src/modules/iam/subdomains/identity/domain/entities/UserIdentity.ts (59 lines)
-src/modules/iam/subdomains/identity/domain/events/IdentityDomainEvent.ts (64 lines)
-src/modules/iam/subdomains/identity/domain/index.ts (9 lines)
-src/modules/iam/subdomains/identity/domain/repositories/IdentityRepository.ts (19 lines)
-src/modules/iam/subdomains/identity/domain/repositories/TokenRefreshRepository.ts (9 lines)
-src/modules/iam/subdomains/identity/domain/value-objects/DisplayName.ts (5 lines)
-src/modules/iam/subdomains/identity/domain/value-objects/Email.ts (7 lines)
-src/modules/iam/subdomains/identity/domain/value-objects/IdentityStatus.ts (5 lines)
-src/modules/iam/subdomains/identity/domain/value-objects/index.ts (0 lines)
-src/modules/iam/subdomains/identity/domain/value-objects/UserId.ts (7 lines)
-src/modules/iam/subdomains/organization/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/organization/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts (159 lines)
-src/modules/iam/subdomains/organization/adapters/outbound/index.ts (2 lines)
-src/modules/iam/subdomains/organization/adapters/outbound/memory/InMemoryOrganizationRepository.ts (48 lines)
-src/modules/iam/subdomains/organization/application/dto/OrganizationDTO.ts (0 lines)
-src/modules/iam/subdomains/organization/application/index.ts (0 lines)
-src/modules/iam/subdomains/organization/application/use-cases/OrganizationLifecycleUseCases.ts (27 lines)
-src/modules/iam/subdomains/organization/application/use-cases/OrganizationMemberUseCases.ts (20 lines)
-src/modules/iam/subdomains/organization/application/use-cases/OrganizationTeamUseCases.ts (18 lines)
-src/modules/iam/subdomains/organization/domain/aggregates/Organization.ts (72 lines)
-src/modules/iam/subdomains/organization/domain/aggregates/OrganizationTeam.ts (40 lines)
-src/modules/iam/subdomains/organization/domain/entities/Organization.ts (111 lines)
-src/modules/iam/subdomains/organization/domain/events/OrganizationDomainEvent.ts (56 lines)
-src/modules/iam/subdomains/organization/domain/events/OrganizationTeamDomainEvent.ts (15 lines)
-src/modules/iam/subdomains/organization/domain/index.ts (0 lines)
-src/modules/iam/subdomains/organization/domain/repositories/OrganizationRepository.ts (57 lines)
-src/modules/iam/subdomains/organization/domain/repositories/OrgPolicyRepository.ts (17 lines)
-src/modules/iam/subdomains/organization/domain/value-objects/MemberRole.ts (7 lines)
-src/modules/iam/subdomains/organization/domain/value-objects/OrganizationId.ts (5 lines)
-src/modules/iam/subdomains/organization/domain/value-objects/OrganizationStatus.ts (5 lines)
-src/modules/iam/subdomains/organization/domain/value-objects/TeamId.ts (5 lines)
-src/modules/iam/subdomains/organization/domain/value-objects/TeamType.ts (3 lines)
-src/modules/iam/subdomains/security-policy/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/security-policy/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/security-policy/adapters/outbound/index.ts (0 lines)
-src/modules/iam/subdomains/security-policy/adapters/outbound/memory/InMemorySecurityPolicyRepository.ts (7 lines)
-src/modules/iam/subdomains/security-policy/application/index.ts (0 lines)
-src/modules/iam/subdomains/security-policy/application/use-cases/SecurityPolicyUseCases.ts (13 lines)
-src/modules/iam/subdomains/security-policy/domain/index.ts (22 lines)
-src/modules/iam/subdomains/session/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/session/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/session/adapters/outbound/index.ts (0 lines)
-src/modules/iam/subdomains/session/adapters/outbound/memory/InMemorySessionRepository.ts (13 lines)
-src/modules/iam/subdomains/session/application/index.ts (0 lines)
-src/modules/iam/subdomains/session/application/use-cases/SessionUseCases.ts (19 lines)
-src/modules/iam/subdomains/session/domain/index.ts (26 lines)
-src/modules/iam/subdomains/tenant/adapters/inbound/index.ts (2 lines)
-src/modules/iam/subdomains/tenant/adapters/index.ts (1 lines)
-src/modules/iam/subdomains/tenant/adapters/outbound/index.ts (0 lines)
-src/modules/iam/subdomains/tenant/adapters/outbound/memory/InMemoryTenantRepository.ts (7 lines)
-src/modules/iam/subdomains/tenant/application/index.ts (0 lines)
-src/modules/iam/subdomains/tenant/application/use-cases/TenantUseCases.ts (12 lines)
-src/modules/iam/subdomains/tenant/domain/index.ts (24 lines)
-src/modules/notebooklm/adapters/inbound/react/index.ts (4 lines)
-src/modules/notebooklm/adapters/inbound/react/NotebooklmAiChatSection.tsx (25 lines)
-src/modules/notebooklm/adapters/inbound/react/NotebooklmNotebookSection.tsx (18 lines)
-src/modules/notebooklm/adapters/inbound/react/NotebooklmResearchSection.tsx (27 lines)
-src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx (55 lines)
-src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts (30 lines)
-src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts (27 lines)
-src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts (59 lines)
-src/modules/notebooklm/adapters/outbound/firebase-composition.ts (72 lines)
-src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts (23 lines)
-src/modules/notebooklm/AGENT.md (59 lines)
-src/modules/notebooklm/index.ts (12 lines)
-src/modules/notebooklm/orchestration/index.ts (2 lines)
-src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts (107 lines)
-src/modules/notebooklm/orchestration/TaskMaterializationWorkflowPort.ts (36 lines)
-src/modules/notebooklm/README.md (70 lines)
-src/modules/notebooklm/shared/errors/index.ts (1 lines)
-src/modules/notebooklm/shared/events/index.ts (1 lines)
-src/modules/notebooklm/shared/index.ts (0 lines)
-src/modules/notebooklm/shared/types/index.ts (1 lines)
-src/modules/notebooklm/subdomains/conversation/adapters/inbound/index.ts (2 lines)
-src/modules/notebooklm/subdomains/conversation/adapters/index.ts (1 lines)
-src/modules/notebooklm/subdomains/conversation/adapters/outbound/index.ts (2 lines)
-src/modules/notebooklm/subdomains/conversation/adapters/outbound/memory/InMemoryConversationRepository.ts (14 lines)
-src/modules/notebooklm/subdomains/conversation/application/index.ts (0 lines)
-src/modules/notebooklm/subdomains/conversation/application/use-cases/ConversationUseCases.ts (21 lines)
-src/modules/notebooklm/subdomains/conversation/domain/entities/Conversation.ts (51 lines)
-src/modules/notebooklm/subdomains/conversation/domain/index.ts (0 lines)
-src/modules/notebooklm/subdomains/conversation/domain/repositories/ConversationRepository.ts (15 lines)
-src/modules/notebooklm/subdomains/document/adapters/inbound/index.ts (2 lines)
-src/modules/notebooklm/subdomains/document/adapters/index.ts (1 lines)
-src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository.ts (97 lines)
-src/modules/notebooklm/subdomains/document/adapters/outbound/index.ts (2 lines)
-src/modules/notebooklm/subdomains/document/adapters/outbound/memory/InMemoryDocumentRepository.ts (14 lines)
-src/modules/notebooklm/subdomains/document/application/index.ts (0 lines)
-src/modules/notebooklm/subdomains/document/application/use-cases/DocumentUseCases.ts (17 lines)
-src/modules/notebooklm/subdomains/document/domain/entities/Document.ts (62 lines)
-src/modules/notebooklm/subdomains/document/domain/index.ts (0 lines)
-src/modules/notebooklm/subdomains/document/domain/repositories/DocumentRepository.ts (24 lines)
-src/modules/notebooklm/subdomains/notebook/adapters/inbound/index.ts (2 lines)
-src/modules/notebooklm/subdomains/notebook/adapters/index.ts (1 lines)
-src/modules/notebooklm/subdomains/notebook/adapters/outbound/index.ts (2 lines)
-src/modules/notebooklm/subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository.ts (14 lines)
-src/modules/notebooklm/subdomains/notebook/application/index.ts (0 lines)
-src/modules/notebooklm/subdomains/notebook/application/use-cases/NotebookUseCases.ts (24 lines)
-src/modules/notebooklm/subdomains/notebook/domain/entities/Notebook.ts (52 lines)
-src/modules/notebooklm/subdomains/notebook/domain/index.ts (0 lines)
-src/modules/notebooklm/subdomains/notebook/domain/ports/NotebookGenerationPort.ts (15 lines)
-src/modules/notebooklm/subdomains/notebook/domain/repositories/NotebookRepository.ts (15 lines)
-src/modules/notion/adapters/inbound/react/index.ts (4 lines)
-src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx (24 lines)
-src/modules/notion/adapters/inbound/react/NotionKnowledgeSection.tsx (19 lines)
-src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx (28 lines)
-src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx (16 lines)
-src/modules/notion/adapters/inbound/server-actions/database-actions.ts (14 lines)
-src/modules/notion/adapters/inbound/server-actions/page-actions.ts (18 lines)
-src/modules/notion/adapters/inbound/server-actions/template-actions.ts (13 lines)
-src/modules/notion/adapters/outbound/firebase-composition.ts (36 lines)
-src/modules/notion/adapters/outbound/notion-page-stub.ts (25 lines)
-src/modules/notion/AGENT.md (62 lines)
-src/modules/notion/index.ts (16 lines)
-src/modules/notion/orchestration/index.ts (3 lines)
-src/modules/notion/README.md (60 lines)
-src/modules/notion/shared/errors/index.ts (1 lines)
-src/modules/notion/shared/events/index.ts (1 lines)
-src/modules/notion/shared/index.ts (0 lines)
-src/modules/notion/shared/types/index.ts (1 lines)
-src/modules/notion/subdomains/block/adapters/inbound/index.ts (2 lines)
-src/modules/notion/subdomains/block/adapters/index.ts (1 lines)
-src/modules/notion/subdomains/block/adapters/outbound/index.ts (2 lines)
-src/modules/notion/subdomains/block/adapters/outbound/memory/InMemoryBlockRepository.ts (18 lines)
-src/modules/notion/subdomains/block/application/index.ts (0 lines)
-src/modules/notion/subdomains/block/application/use-cases/BlockUseCases.ts (17 lines)
-src/modules/notion/subdomains/block/domain/entities/Block.ts (68 lines)
-src/modules/notion/subdomains/block/domain/index.ts (0 lines)
-src/modules/notion/subdomains/block/domain/repositories/BlockRepository.ts (19 lines)
-src/modules/notion/subdomains/collaboration/adapters/inbound/index.ts (2 lines)
-src/modules/notion/subdomains/collaboration/adapters/index.ts (1 lines)
-src/modules/notion/subdomains/collaboration/adapters/outbound/index.ts (2 lines)
-src/modules/notion/subdomains/collaboration/application/index.ts (2 lines)
-src/modules/notion/subdomains/collaboration/application/use-cases/CollaborationUseCases.ts (1 lines)
-src/modules/notion/subdomains/collaboration/domain/entities/Comment.ts (34 lines)
-src/modules/notion/subdomains/collaboration/domain/index.ts (2 lines)
-src/modules/notion/subdomains/database/adapters/inbound/index.ts (2 lines)
-src/modules/notion/subdomains/database/adapters/index.ts (1 lines)
-src/modules/notion/subdomains/database/adapters/outbound/index.ts (2 lines)
-src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts (14 lines)
-src/modules/notion/subdomains/database/application/index.ts (0 lines)
-src/modules/notion/subdomains/database/application/use-cases/DatabaseUseCases.ts (13 lines)
-src/modules/notion/subdomains/database/domain/entities/Database.ts (57 lines)
-src/modules/notion/subdomains/database/domain/index.ts (0 lines)
-src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts (15 lines)
-src/modules/notion/subdomains/page/adapters/inbound/index.ts (2 lines)
-src/modules/notion/subdomains/page/adapters/index.ts (1 lines)
-src/modules/notion/subdomains/page/adapters/outbound/index.ts (2 lines)
-src/modules/notion/subdomains/page/adapters/outbound/memory/InMemoryPageRepository.ts (16 lines)
-src/modules/notion/subdomains/page/application/index.ts (0 lines)
-src/modules/notion/subdomains/page/application/use-cases/PageUseCases.ts (21 lines)
-src/modules/notion/subdomains/page/domain/entities/Page.ts (60 lines)
-src/modules/notion/subdomains/page/domain/index.ts (0 lines)
-src/modules/notion/subdomains/page/domain/repositories/PageRepository.ts (26 lines)
-src/modules/notion/subdomains/template/adapters/inbound/index.ts (2 lines)
-src/modules/notion/subdomains/template/adapters/index.ts (1 lines)
-src/modules/notion/subdomains/template/adapters/outbound/index.ts (2 lines)
-src/modules/notion/subdomains/template/application/index.ts (2 lines)
-src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts (1 lines)
-src/modules/notion/subdomains/template/domain/entities/Template.ts (36 lines)
-src/modules/notion/subdomains/template/domain/index.ts (2 lines)
-src/modules/notion/subdomains/view/adapters/inbound/index.ts (2 lines)
-src/modules/notion/subdomains/view/adapters/index.ts (1 lines)
-src/modules/notion/subdomains/view/adapters/outbound/index.ts (2 lines)
-src/modules/notion/subdomains/view/application/index.ts (2 lines)
-src/modules/notion/subdomains/view/application/use-cases/ViewUseCases.ts (1 lines)
-src/modules/notion/subdomains/view/domain/entities/View.ts (41 lines)
-src/modules/notion/subdomains/view/domain/index.ts (2 lines)
-src/modules/platform/adapters/inbound/react/AccountScopeProvider.tsx (28 lines)
-src/modules/platform/adapters/inbound/react/AppContext.tsx (106 lines)
-src/modules/platform/adapters/inbound/react/index.ts (6 lines)
-src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx (190 lines)
-src/modules/platform/adapters/inbound/react/PlatformBootstrap.tsx (21 lines)
-src/modules/platform/adapters/inbound/react/shell/AccountSwitcher.tsx (61 lines)
-src/modules/platform/adapters/inbound/react/shell/CreateOrganizationDialog.tsx (48 lines)
-src/modules/platform/adapters/inbound/react/shell/index.ts (6 lines)
-src/modules/platform/adapters/inbound/react/shell/shell-quick-create.ts (22 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx (86 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellContextNavSection.tsx (36 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellDashboardSidebar.tsx (58 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellGuard.tsx (30 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellLanguageSwitcher.tsx (53 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellRootLayout.tsx (58 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellSidebarBody.tsx (56 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellSidebarHeader.tsx (21 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellSidebarNavData.tsx (57 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellThemeToggle.tsx (15 lines)
-src/modules/platform/adapters/inbound/react/shell/ShellUserAvatar.tsx (42 lines)
-src/modules/platform/adapters/inbound/react/ShellFrame.tsx (6 lines)
-src/modules/platform/adapters/inbound/react/useAccountRouteContext.ts (77 lines)
-src/modules/platform/adapters/inbound/react/useAccountScope.ts (8 lines)
-src/modules/platform/adapters/inbound/server-actions/file-actions.ts (34 lines)
-src/modules/platform/adapters/outbound/firebase-composition.ts (53 lines)
-src/modules/platform/AGENT.md (58 lines)
-src/modules/platform/index.ts (4 lines)
-src/modules/platform/orchestration/index.ts (21 lines)
-src/modules/platform/README.md (84 lines)
-src/modules/platform/shared/errors/index.ts (9 lines)
-src/modules/platform/shared/events/index.ts (27 lines)
-src/modules/platform/shared/index.ts (0 lines)
-src/modules/platform/shared/types/index.ts (5 lines)
-src/modules/platform/subdomains/background-job/adapters/inbound/index.ts (0 lines)
-src/modules/platform/subdomains/background-job/adapters/index.ts (1 lines)
-src/modules/platform/subdomains/background-job/adapters/outbound/firestore-like/InMemoryBackgroundJobRepository.ts (20 lines)
-src/modules/platform/subdomains/background-job/adapters/outbound/index.ts (0 lines)
-src/modules/platform/subdomains/background-job/application/index.ts (0 lines)
-src/modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts (50 lines)
-src/modules/platform/subdomains/background-job/domain/entities/BackgroundJob.ts (22 lines)
-src/modules/platform/subdomains/background-job/domain/entities/JobChunk.ts (13 lines)
-src/modules/platform/subdomains/background-job/domain/entities/JobDocument.ts (10 lines)
-src/modules/platform/subdomains/background-job/domain/events/BackgroundJobDomainEvent.ts (44 lines)
-src/modules/platform/subdomains/background-job/domain/index.ts (0 lines)
-src/modules/platform/subdomains/background-job/domain/repositories/BackgroundJobRepository.ts (29 lines)
-src/modules/platform/subdomains/cache/adapters/inbound/index.ts (0 lines)
-src/modules/platform/subdomains/cache/adapters/index.ts (1 lines)
-src/modules/platform/subdomains/cache/adapters/outbound/index.ts (0 lines)
-src/modules/platform/subdomains/cache/adapters/outbound/memory/InMemoryCacheRepository.ts (10 lines)
-src/modules/platform/subdomains/cache/application/index.ts (0 lines)
-src/modules/platform/subdomains/cache/application/use-cases/CacheUseCases.ts (30 lines)
-src/modules/platform/subdomains/cache/domain/entities/CacheEntry.ts (7 lines)
-src/modules/platform/subdomains/cache/domain/index.ts (0 lines)
-src/modules/platform/subdomains/cache/domain/repositories/CacheRepository.ts (11 lines)
-src/modules/platform/subdomains/file-storage/adapters/inbound/index.ts (0 lines)
-src/modules/platform/subdomains/file-storage/adapters/index.ts (1 lines)
-src/modules/platform/subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts (26 lines)
-src/modules/platform/subdomains/file-storage/adapters/outbound/index.ts (0 lines)
-src/modules/platform/subdomains/file-storage/application/index.ts (0 lines)
-src/modules/platform/subdomains/file-storage/application/use-cases/FileStorageUseCases.ts (41 lines)
-src/modules/platform/subdomains/file-storage/domain/entities/StoredFile.ts (10 lines)
-src/modules/platform/subdomains/file-storage/domain/index.ts (0 lines)
-src/modules/platform/subdomains/file-storage/domain/repositories/FileStorageRepository.ts (13 lines)
-src/modules/platform/subdomains/notification/adapters/inbound/index.ts (0 lines)
-src/modules/platform/subdomains/notification/adapters/index.ts (1 lines)
-src/modules/platform/subdomains/notification/adapters/outbound/index.ts (0 lines)
-src/modules/platform/subdomains/notification/adapters/outbound/memory/InMemoryNotificationRepository.ts (15 lines)
-src/modules/platform/subdomains/notification/adapters/outbound/memory/InMemoryWorkspaceNotificationPreferenceRepository.ts (12 lines)
-src/modules/platform/subdomains/notification/application/dto/notification.dto.ts (0 lines)
-src/modules/platform/subdomains/notification/application/index.ts (0 lines)
-src/modules/platform/subdomains/notification/application/queries/notification.queries.ts (12 lines)
-src/modules/platform/subdomains/notification/application/queries/workspace-notification-preferences.queries.ts (16 lines)
-src/modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts (17 lines)
-src/modules/platform/subdomains/notification/application/use-cases/workspace-notification-preferences.use-case.ts (31 lines)
-src/modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts (35 lines)
-src/modules/platform/subdomains/notification/domain/entities/Notification.ts (22 lines)
-src/modules/platform/subdomains/notification/domain/entities/WorkspaceNotificationPreference.ts (31 lines)
-src/modules/platform/subdomains/notification/domain/events/NotificationDomainEvent.ts (37 lines)
-src/modules/platform/subdomains/notification/domain/index.ts (0 lines)
-src/modules/platform/subdomains/notification/domain/repositories/NotificationRepository.ts (15 lines)
-src/modules/platform/subdomains/notification/domain/repositories/WorkspaceNotificationPreferenceRepository.ts (11 lines)
-src/modules/platform/subdomains/notification/domain/value-objects/WorkspaceNotificationEventType.ts (5 lines)
-src/modules/platform/subdomains/platform-config/adapters/inbound/index.ts (0 lines)
-src/modules/platform/subdomains/platform-config/adapters/index.ts (1 lines)
-src/modules/platform/subdomains/platform-config/adapters/outbound/index.ts (0 lines)
-src/modules/platform/subdomains/platform-config/application/index.ts (0 lines)
-src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts (94 lines)
-src/modules/platform/subdomains/platform-config/domain/index.ts (20 lines)
-src/modules/platform/subdomains/search/adapters/inbound/index.ts (0 lines)
-src/modules/platform/subdomains/search/adapters/index.ts (1 lines)
-src/modules/platform/subdomains/search/adapters/outbound/index.ts (0 lines)
-src/modules/platform/subdomains/search/application/index.ts (0 lines)
-src/modules/platform/subdomains/search/application/services/shell-command-catalog.ts (29 lines)
-src/modules/platform/subdomains/search/domain/index.ts (14 lines)
-src/modules/README.md (76 lines)
-src/modules/shared/index.ts (107 lines)
-src/modules/template/AGENT.md (99 lines)
-src/modules/template/index.ts (20 lines)
-src/modules/template/orchestration/TemplateCoordinator.ts (39 lines)
-src/modules/template/orchestration/TemplateFacade.ts (26 lines)
-src/modules/template/README.md (266 lines)
-src/modules/template/shared/application/index.ts (3 lines)
-src/modules/template/shared/config/index.ts (15 lines)
-src/modules/template/shared/constants/index.ts (1 lines)
-src/modules/template/shared/domain/index.ts (4 lines)
-src/modules/template/shared/errors/index.ts (20 lines)
-src/modules/template/shared/events/index.ts (22 lines)
-src/modules/template/shared/infrastructure/index.ts (4 lines)
-src/modules/template/shared/types/index.ts (18 lines)
-src/modules/template/shared/utils/index.ts (12 lines)
-src/modules/template/subdomains/document/adapters/inbound/http/routes.ts (16 lines)
-src/modules/template/subdomains/document/adapters/inbound/http/TemplateController.ts (18 lines)
-src/modules/template/subdomains/document/adapters/inbound/index.ts (3 lines)
-src/modules/template/subdomains/document/adapters/inbound/queue/TemplateQueueHandler.ts (12 lines)
-src/modules/template/subdomains/document/adapters/index.ts (3 lines)
-src/modules/template/subdomains/document/adapters/outbound/cache/TemplateCacheAdapter.ts (18 lines)
-src/modules/template/subdomains/document/adapters/outbound/external-api/TemplateApiClient.ts (10 lines)
-src/modules/template/subdomains/document/adapters/outbound/firestore/FirestoreMapper.ts (22 lines)
-src/modules/template/subdomains/document/adapters/outbound/firestore/FirestoreTemplateRepository.ts (31 lines)
-src/modules/template/subdomains/document/adapters/outbound/index.ts (5 lines)
-src/modules/template/subdomains/document/application/dto/CreateTemplateDTO.ts (7 lines)
-src/modules/template/subdomains/document/application/dto/TemplateResponseDTO.ts (10 lines)
-src/modules/template/subdomains/document/application/dto/UpdateTemplateDTO.ts (8 lines)
-src/modules/template/subdomains/document/application/index.ts (7 lines)
-src/modules/template/subdomains/document/application/ports/inbound/CreateTemplatePort.ts (11 lines)
-src/modules/template/subdomains/document/application/ports/outbound/CachePort.ts (12 lines)
-src/modules/template/subdomains/document/application/ports/outbound/ExternalApiPort.ts (9 lines)
-src/modules/template/subdomains/document/application/ports/outbound/TemplateRepositoryPort.ts (7 lines)
-src/modules/template/subdomains/document/application/use-cases/CreateTemplateUseCase.ts (15 lines)
-src/modules/template/subdomains/document/application/use-cases/DeleteTemplateUseCase.ts (11 lines)
-src/modules/template/subdomains/document/application/use-cases/UpdateTemplateUseCase.ts (14 lines)
-src/modules/template/subdomains/document/domain/entities/Template.ts (40 lines)
-src/modules/template/subdomains/document/domain/events/TemplateCreatedEvent.ts (12 lines)
-src/modules/template/subdomains/document/domain/events/TemplateUpdatedEvent.ts (12 lines)
-src/modules/template/subdomains/document/domain/index.ts (9 lines)
-src/modules/template/subdomains/document/domain/repositories/TemplateRepository.ts (16 lines)
-src/modules/template/subdomains/document/domain/services/TemplateDomainService.ts (16 lines)
-src/modules/template/subdomains/document/domain/value-objects/TemplateId.ts (15 lines)
-src/modules/template/subdomains/document/domain/value-objects/TemplateName.ts (13 lines)
-src/modules/template/subdomains/generation/adapters/inbound/http/GenerationController.ts (18 lines)
-src/modules/template/subdomains/generation/adapters/inbound/http/routes.ts (15 lines)
-src/modules/template/subdomains/generation/adapters/inbound/index.ts (0 lines)
-src/modules/template/subdomains/generation/adapters/inbound/queue/GenerationQueueHandler.ts (11 lines)
-src/modules/template/subdomains/generation/adapters/index.ts (2 lines)
-src/modules/template/subdomains/generation/adapters/outbound/ai/AiGenerationAdapter.ts (18 lines)
-src/modules/template/subdomains/generation/adapters/outbound/firestore/FirestoreGenerationRepository.ts (50 lines)
-src/modules/template/subdomains/generation/adapters/outbound/index.ts (0 lines)
-src/modules/template/subdomains/generation/application/dto/GenerateTemplateDTO.ts (13 lines)
-src/modules/template/subdomains/generation/application/dto/GenerationResultDTO.ts (9 lines)
-src/modules/template/subdomains/generation/application/index.ts (3 lines)
-src/modules/template/subdomains/generation/application/ports/inbound/GenerateTemplatePort.ts (12 lines)
-src/modules/template/subdomains/generation/application/ports/outbound/AiGenerationPort.ts (10 lines)
-src/modules/template/subdomains/generation/application/ports/outbound/GenerationRepositoryPort.ts (7 lines)
-src/modules/template/subdomains/generation/application/use-cases/GenerateTemplateUseCase.ts (18 lines)
-src/modules/template/subdomains/generation/domain/entities/GeneratedTemplate.ts (30 lines)
-src/modules/template/subdomains/generation/domain/events/GenerationCompletedEvent.ts (7 lines)
-src/modules/template/subdomains/generation/domain/index.ts (0 lines)
-src/modules/template/subdomains/generation/domain/repositories/GenerationRepository.ts (16 lines)
-src/modules/template/subdomains/generation/domain/services/GenerationDomainService.ts (14 lines)
-src/modules/template/subdomains/generation/domain/value-objects/GenerationId.ts (15 lines)
-src/modules/template/subdomains/ingestion/adapters/inbound/http/IngestionController.ts (11 lines)
-src/modules/template/subdomains/ingestion/adapters/inbound/http/routes.ts (0 lines)
-src/modules/template/subdomains/ingestion/adapters/inbound/index.ts (0 lines)
-src/modules/template/subdomains/ingestion/adapters/inbound/queue/IngestionQueueHandler.ts (11 lines)
-src/modules/template/subdomains/ingestion/adapters/index.ts (2 lines)
-src/modules/template/subdomains/ingestion/adapters/outbound/firestore/FirestoreIngestionJobRepository.ts (28 lines)
-src/modules/template/subdomains/ingestion/adapters/outbound/index.ts (0 lines)
-src/modules/template/subdomains/ingestion/adapters/outbound/storage/CloudStorageAdapter.ts (9 lines)
-src/modules/template/subdomains/ingestion/application/dto/IngestionJobResponseDTO.ts (8 lines)
-src/modules/template/subdomains/ingestion/application/dto/StartIngestionDTO.ts (4 lines)
-src/modules/template/subdomains/ingestion/application/index.ts (2 lines)
-src/modules/template/subdomains/ingestion/application/ports/inbound/StartIngestionPort.ts (9 lines)
-src/modules/template/subdomains/ingestion/application/ports/outbound/IngestionRepositoryPort.ts (4 lines)
-src/modules/template/subdomains/ingestion/application/ports/outbound/StoragePort.ts (9 lines)
-src/modules/template/subdomains/ingestion/application/use-cases/StartIngestionUseCase.ts (17 lines)
-src/modules/template/subdomains/ingestion/domain/entities/IngestionJob.ts (39 lines)
-src/modules/template/subdomains/ingestion/domain/events/IngestionJobEvents.ts (13 lines)
-src/modules/template/subdomains/ingestion/domain/index.ts (0 lines)
-src/modules/template/subdomains/ingestion/domain/repositories/IngestionJobRepository.ts (15 lines)
-src/modules/template/subdomains/ingestion/domain/services/IngestionDomainService.ts (9 lines)
-src/modules/template/subdomains/ingestion/domain/value-objects/IngestionId.ts (15 lines)
-src/modules/template/subdomains/workflow/adapters/inbound/http/routes.ts (0 lines)
-src/modules/template/subdomains/workflow/adapters/inbound/http/WorkflowController.ts (11 lines)
-src/modules/template/subdomains/workflow/adapters/inbound/index.ts (0 lines)
-src/modules/template/subdomains/workflow/adapters/index.ts (2 lines)
-src/modules/template/subdomains/workflow/adapters/outbound/firestore/FirestoreWorkflowRepository.ts (26 lines)
-src/modules/template/subdomains/workflow/adapters/outbound/index.ts (0 lines)
-src/modules/template/subdomains/workflow/application/dto/InitiateWorkflowDTO.ts (4 lines)
-src/modules/template/subdomains/workflow/application/dto/WorkflowResponseDTO.ts (8 lines)
-src/modules/template/subdomains/workflow/application/index.ts (2 lines)
-src/modules/template/subdomains/workflow/application/ports/inbound/InitiateWorkflowPort.ts (9 lines)
-src/modules/template/subdomains/workflow/application/ports/outbound/WorkflowRepositoryPort.ts (4 lines)
-src/modules/template/subdomains/workflow/application/use-cases/InitiateWorkflowUseCase.ts (17 lines)
-src/modules/template/subdomains/workflow/domain/entities/TemplateWorkflow.ts (47 lines)
-src/modules/template/subdomains/workflow/domain/events/WorkflowEvents.ts (13 lines)
-src/modules/template/subdomains/workflow/domain/index.ts (0 lines)
-src/modules/template/subdomains/workflow/domain/repositories/TemplateWorkflowRepository.ts (13 lines)
-src/modules/template/subdomains/workflow/domain/services/WorkflowDomainService.ts (10 lines)
-src/modules/template/subdomains/workflow/domain/value-objects/WorkflowId.ts (16 lines)
-src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx (63 lines)
-src/modules/workspace/adapters/inbound/react/index.ts (6 lines)
-src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts (8 lines)
-src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts (174 lines)
-src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx (83 lines)
-src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx (175 lines)
-src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx (18 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceApprovalSection.tsx (18 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx (23 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceContext.tsx (47 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx (78 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx (65 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx (28 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx (18 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceOverviewSection.tsx (71 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceQualitySection.tsx (18 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx (20 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx (39 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceSettingsSection.tsx (27 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx (19 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx (66 lines)
-src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx (28 lines)
-src/modules/workspace/adapters/outbound/firebase-composition.ts (91 lines)
-src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts (60 lines)
-src/modules/workspace/AGENT.md (75 lines)
-src/modules/workspace/index.ts (14 lines)
-src/modules/workspace/orchestration/index.ts (4 lines)
-src/modules/workspace/README.md (85 lines)
-src/modules/workspace/shared/errors/index.ts (15 lines)
-src/modules/workspace/shared/events/index.ts (1 lines)
-src/modules/workspace/shared/index.ts (0 lines)
-src/modules/workspace/shared/types/index.ts (15 lines)
-src/modules/workspace/subdomains/activity/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/activity/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/activity/adapters/outbound/firestore/FirestoreActivityRepository.ts (22 lines)
-src/modules/workspace/subdomains/activity/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/activity/application/dto/ActivityDTO.ts (3 lines)
-src/modules/workspace/subdomains/activity/application/index.ts (0 lines)
-src/modules/workspace/subdomains/activity/application/use-cases/ActivityUseCases.ts (11 lines)
-src/modules/workspace/subdomains/activity/domain/entities/ActivityEvent.ts (44 lines)
-src/modules/workspace/subdomains/activity/domain/events/ActivityDomainEvent.ts (13 lines)
-src/modules/workspace/subdomains/activity/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/activity/domain/repositories/ActivityRepository.ts (11 lines)
-src/modules/workspace/subdomains/api-key/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/api-key/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/api-key/adapters/outbound/firestore/FirestoreApiKeyRepository.ts (26 lines)
-src/modules/workspace/subdomains/api-key/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/api-key/application/dto/ApiKeyDTO.ts (3 lines)
-src/modules/workspace/subdomains/api-key/application/index.ts (0 lines)
-src/modules/workspace/subdomains/api-key/application/use-cases/ApiKeyUseCases.ts (14 lines)
-src/modules/workspace/subdomains/api-key/domain/entities/ApiKey.ts (46 lines)
-src/modules/workspace/subdomains/api-key/domain/events/ApiKeyDomainEvent.ts (18 lines)
-src/modules/workspace/subdomains/api-key/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/api-key/domain/repositories/ApiKeyRepository.ts (15 lines)
-src/modules/workspace/subdomains/api-key/domain/value-objects/ApiKeyId.ts (5 lines)
-src/modules/workspace/subdomains/approval/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/approval/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/approval/adapters/outbound/index.ts (1 lines)
-src/modules/workspace/subdomains/approval/application/index.ts (0 lines)
-src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts (20 lines)
-src/modules/workspace/subdomains/approval/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/approval/domain/repositories/ApprovalRepository.ts (33 lines)
-src/modules/workspace/subdomains/audit/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/audit/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository.ts (22 lines)
-src/modules/workspace/subdomains/audit/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/audit/application/dto/AuditDTO.ts (5 lines)
-src/modules/workspace/subdomains/audit/application/index.ts (0 lines)
-src/modules/workspace/subdomains/audit/application/use-cases/AuditUseCases.ts (11 lines)
-src/modules/workspace/subdomains/audit/domain/entities/AuditEntry.ts (59 lines)
-src/modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts (19 lines)
-src/modules/workspace/subdomains/audit/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts (11 lines)
-src/modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts (5 lines)
-src/modules/workspace/subdomains/audit/domain/value-objects/AuditSeverity.ts (7 lines)
-src/modules/workspace/subdomains/feed/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/feed/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository.ts (33 lines)
-src/modules/workspace/subdomains/feed/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/feed/application/dto/FeedDTO.ts (3 lines)
-src/modules/workspace/subdomains/feed/application/index.ts (0 lines)
-src/modules/workspace/subdomains/feed/application/use-cases/FeedUseCases.ts (11 lines)
-src/modules/workspace/subdomains/feed/domain/entities/FeedPost.ts (47 lines)
-src/modules/workspace/subdomains/feed/domain/events/FeedDomainEvent.ts (13 lines)
-src/modules/workspace/subdomains/feed/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/feed/domain/repositories/FeedPostRepository.ts (15 lines)
-src/modules/workspace/subdomains/invitation/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/invitation/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/invitation/adapters/outbound/firestore/FirestoreInvitationRepository.ts (28 lines)
-src/modules/workspace/subdomains/invitation/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/invitation/application/dto/InvitationDTO.ts (3 lines)
-src/modules/workspace/subdomains/invitation/application/index.ts (0 lines)
-src/modules/workspace/subdomains/invitation/application/use-cases/InvitationUseCases.ts (19 lines)
-src/modules/workspace/subdomains/invitation/domain/entities/WorkspaceInvitation.ts (48 lines)
-src/modules/workspace/subdomains/invitation/domain/events/InvitationDomainEvent.ts (18 lines)
-src/modules/workspace/subdomains/invitation/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/invitation/domain/repositories/InvitationRepository.ts (15 lines)
-src/modules/workspace/subdomains/issue/adapters/inbound/http/IssueController.ts (6 lines)
-src/modules/workspace/subdomains/issue/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/issue/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository.ts (46 lines)
-src/modules/workspace/subdomains/issue/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/issue/application/dto/IssueDTO.ts (6 lines)
-src/modules/workspace/subdomains/issue/application/index.ts (0 lines)
-src/modules/workspace/subdomains/issue/application/use-cases/IssueUseCases.ts (21 lines)
-src/modules/workspace/subdomains/issue/domain/entities/Issue.ts (48 lines)
-src/modules/workspace/subdomains/issue/domain/events/IssueDomainEvent.ts (52 lines)
-src/modules/workspace/subdomains/issue/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/issue/domain/repositories/IssueRepository.ts (23 lines)
-src/modules/workspace/subdomains/issue/domain/value-objects/IssueId.ts (5 lines)
-src/modules/workspace/subdomains/issue/domain/value-objects/IssueStage.ts (1 lines)
-src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus.ts (11 lines)
-src/modules/workspace/subdomains/lifecycle/adapters/inbound/http/WorkspaceController.ts (6 lines)
-src/modules/workspace/subdomains/lifecycle/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/lifecycle/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository.ts (26 lines)
-src/modules/workspace/subdomains/lifecycle/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/lifecycle/application/dto/WorkspaceDTO.ts (4 lines)
-src/modules/workspace/subdomains/lifecycle/application/index.ts (0 lines)
-src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.ts (19 lines)
-src/modules/workspace/subdomains/lifecycle/domain/entities/Workspace.ts (50 lines)
-src/modules/workspace/subdomains/lifecycle/domain/events/WorkspaceDomainEvent.ts (26 lines)
-src/modules/workspace/subdomains/lifecycle/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/lifecycle/domain/repositories/WorkspaceRepository.ts (13 lines)
-src/modules/workspace/subdomains/membership/adapters/inbound/http/MembershipController.ts (6 lines)
-src/modules/workspace/subdomains/membership/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/membership/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository.ts (28 lines)
-src/modules/workspace/subdomains/membership/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/membership/application/dto/MembershipDTO.ts (5 lines)
-src/modules/workspace/subdomains/membership/application/index.ts (0 lines)
-src/modules/workspace/subdomains/membership/application/use-cases/MembershipUseCases.ts (19 lines)
-src/modules/workspace/subdomains/membership/domain/entities/WorkspaceMember.ts (46 lines)
-src/modules/workspace/subdomains/membership/domain/events/MembershipDomainEvent.ts (20 lines)
-src/modules/workspace/subdomains/membership/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/membership/domain/repositories/WorkspaceMemberRepository.ts (15 lines)
-src/modules/workspace/subdomains/orchestration/adapters/inbound/http/OrchestrationController.ts (6 lines)
-src/modules/workspace/subdomains/orchestration/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/orchestration/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/orchestration/adapters/outbound/firestore/FirestoreJobRepository.ts (28 lines)
-src/modules/workspace/subdomains/orchestration/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/orchestration/application/dto/OrchestrationDTO.ts (3 lines)
-src/modules/workspace/subdomains/orchestration/application/index.ts (0 lines)
-src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts (59 lines)
-src/modules/workspace/subdomains/orchestration/application/sagas/TaskLifecycleSaga.ts (37 lines)
-src/modules/workspace/subdomains/orchestration/application/use-cases/OrchestrationUseCases.ts (15 lines)
-src/modules/workspace/subdomains/orchestration/application/use-cases/ResumeTaskFlowUseCase.ts (25 lines)
-src/modules/workspace/subdomains/orchestration/domain/entities/TaskMaterializationJob.ts (57 lines)
-src/modules/workspace/subdomains/orchestration/domain/events/JobDomainEvent.ts (18 lines)
-src/modules/workspace/subdomains/orchestration/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/orchestration/domain/repositories/TaskMaterializationJobRepository.ts (17 lines)
-src/modules/workspace/subdomains/quality/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/quality/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/quality/adapters/outbound/index.ts (1 lines)
-src/modules/workspace/subdomains/quality/application/index.ts (0 lines)
-src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts (10 lines)
-src/modules/workspace/subdomains/quality/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/quality/domain/repositories/QualityTaskRepository.ts (14 lines)
-src/modules/workspace/subdomains/resource/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/resource/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/resource/adapters/outbound/firestore/FirestoreQuotaRepository.ts (26 lines)
-src/modules/workspace/subdomains/resource/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/resource/application/dto/ResourceDTO.ts (5 lines)
-src/modules/workspace/subdomains/resource/application/index.ts (0 lines)
-src/modules/workspace/subdomains/resource/application/use-cases/ResourceUseCases.ts (15 lines)
-src/modules/workspace/subdomains/resource/domain/entities/ResourceQuota.ts (49 lines)
-src/modules/workspace/subdomains/resource/domain/events/ResourceQuotaDomainEvent.ts (20 lines)
-src/modules/workspace/subdomains/resource/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts (16 lines)
-src/modules/workspace/subdomains/schedule/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/schedule/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository.ts (26 lines)
-src/modules/workspace/subdomains/schedule/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/schedule/application/dto/ScheduleDTO.ts (4 lines)
-src/modules/workspace/subdomains/schedule/application/index.ts (0 lines)
-src/modules/workspace/subdomains/schedule/application/use-cases/ScheduleUseCases.ts (15 lines)
-src/modules/workspace/subdomains/schedule/domain/entities/WorkDemand.ts (48 lines)
-src/modules/workspace/subdomains/schedule/domain/events/ScheduleDomainEvent.ts (13 lines)
-src/modules/workspace/subdomains/schedule/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/schedule/domain/repositories/DemandRepository.ts (15 lines)
-src/modules/workspace/subdomains/settlement/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/settlement/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository.ts (29 lines)
-src/modules/workspace/subdomains/settlement/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/settlement/application/dto/SettlementDTO.ts (5 lines)
-src/modules/workspace/subdomains/settlement/application/index.ts (0 lines)
-src/modules/workspace/subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase.ts (17 lines)
-src/modules/workspace/subdomains/settlement/application/use-cases/SettlementUseCases.ts (16 lines)
-src/modules/workspace/subdomains/settlement/domain/entities/Invoice.ts (45 lines)
-src/modules/workspace/subdomains/settlement/domain/events/InvoiceDomainEvent.ts (20 lines)
-src/modules/workspace/subdomains/settlement/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/settlement/domain/repositories/InvoiceRepository.ts (16 lines)
-src/modules/workspace/subdomains/settlement/domain/value-objects/InvoiceStatus.ts (5 lines)
-src/modules/workspace/subdomains/share/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/share/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/share/adapters/outbound/firestore/FirestoreShareRepository.ts (26 lines)
-src/modules/workspace/subdomains/share/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/share/application/dto/ShareDTO.ts (4 lines)
-src/modules/workspace/subdomains/share/application/index.ts (0 lines)
-src/modules/workspace/subdomains/share/application/use-cases/ShareUseCases.ts (15 lines)
-src/modules/workspace/subdomains/share/domain/entities/WorkspaceShare.ts (42 lines)
-src/modules/workspace/subdomains/share/domain/events/ShareDomainEvent.ts (20 lines)
-src/modules/workspace/subdomains/share/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/share/domain/repositories/WorkspaceShareRepository.ts (13 lines)
-src/modules/workspace/subdomains/task-formation/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions.ts (32 lines)
-src/modules/workspace/subdomains/task-formation/adapters/index.ts (0 lines)
-src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts (42 lines)
-src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository.ts (30 lines)
-src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts (35 lines)
-src/modules/workspace/subdomains/task-formation/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/task-formation/AGENT.md (166 lines)
-src/modules/workspace/subdomains/task-formation/application/dto/TaskFormationDTO.ts (7 lines)
-src/modules/workspace/subdomains/task-formation/application/index.ts (0 lines)
-src/modules/workspace/subdomains/task-formation/application/machines/task-formation.machine.ts (46 lines)
-src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases.ts (47 lines)
-src/modules/workspace/subdomains/task-formation/domain/entities/TaskFormationJob.ts (62 lines)
-src/modules/workspace/subdomains/task-formation/domain/events/TaskFormationDomainEvent.ts (32 lines)
-src/modules/workspace/subdomains/task-formation/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/task-formation/domain/ports/TaskCandidateExtractorPort.ts (21 lines)
-src/modules/workspace/subdomains/task-formation/domain/repositories/TaskFormationJobRepository.ts (17 lines)
-src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate.ts (11 lines)
-src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskFormationJobStatus.ts (1 lines)
-src/modules/workspace/subdomains/task-formation/README.md (220 lines)
-src/modules/workspace/subdomains/task/adapters/inbound/http/TaskController.ts (6 lines)
-src/modules/workspace/subdomains/task/adapters/inbound/index.ts (0 lines)
-src/modules/workspace/subdomains/task/adapters/index.ts (1 lines)
-src/modules/workspace/subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository.ts (39 lines)
-src/modules/workspace/subdomains/task/adapters/outbound/index.ts (0 lines)
-src/modules/workspace/subdomains/task/application/dto/TaskDTO.ts (6 lines)
-src/modules/workspace/subdomains/task/application/index.ts (0 lines)
-src/modules/workspace/subdomains/task/application/use-cases/TaskUseCases.ts (25 lines)
-src/modules/workspace/subdomains/task/domain/entities/Task.ts (65 lines)
-src/modules/workspace/subdomains/task/domain/events/TaskDomainEvent.ts (41 lines)
-src/modules/workspace/subdomains/task/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/task/domain/repositories/TaskRepository.ts (16 lines)
-src/modules/workspace/subdomains/task/domain/value-objects/TaskId.ts (5 lines)
-src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus.ts (14 lines)
-src/README.md (8 lines)
 storage.rules (9 lines)
 tailwind.config.ts (2 lines)
 tsconfig.json (45 lines)
