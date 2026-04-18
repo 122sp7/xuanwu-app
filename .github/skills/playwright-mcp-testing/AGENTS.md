@@ -22,7 +22,7 @@ Load [SKILL.md](SKILL.md) when:
 npm run dev
 ```
 
-Then use the [playwright-mcp-test prompt](../../.github/prompts/playwright-mcp-test.prompt.md) or [playwright-mcp-inspect prompt](../../.github/prompts/playwright-mcp-inspect.prompt.md).
+Then use the [playwright-mcp-test prompt](../../prompts/playwright-mcp-test.prompt.md) or [playwright-mcp-inspect prompt](../../prompts/playwright-mcp-inspect.prompt.md).
 
 ## Tools in This Skill
 
