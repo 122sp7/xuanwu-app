@@ -5839,6 +5839,251 @@ export async function createTaskAction(rawInput: unknown): Promise<CommandResult
 8. 補 lint rule（Rule 20）。
 ````
 
+## File: docs/decisions/architecture/gaps/GAP-06-workspace-governance-tabs-disconnected.md
+````markdown
+# GAP-06 workspace.members / workspace.quality / workspace.approval / workspace.settings 未接線
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-06 |
+| 類型 | 功能缺口 |
+| 優先級 | P1 |
+| 影響範圍 | `workspace.members` / `workspace.quality` / `workspace.approval` / `workspace.settings` |
+| 狀態 | 🔴 Open |
+
+## 現況證據
+
+- `WorkspaceMembersSection.tsx`、`WorkspaceQualitySection.tsx`、`WorkspaceApprovalSection.tsx`、`WorkspaceSettingsSection.tsx` 為靜態/disabled UI。
+- `quality-actions.ts`、`approval-actions.ts` 已存在 use case 入口，但 UI 完全未呼叫。
+- `workspace` 已有 membership/quality/approval 子域與 use cases，能力未被啟用到導航頁。
+
+## 14 architecture criteria mapping
+
+### Proper Domain Segmentation (Bounded Context): defines system boundaries
+- 邊界正確：membership/quality/approval 屬 workspace bounded context。
+- 缺口在 interfaces 層未串接，不是 domain ownership 問題。
+
+### Complete Aggregate Design (Aggregate Design): maintains data consistency and invariants
+- aggregate 已定義（member/quality/approval），但前端流程未觸發，導致 invariant 無法在實際操作中生效。
+
+### Proper Hexagonal Architecture (Hexagonal Architecture): decouples domain from external dependencies
+- 目前 UI 直接停在 stub，未走 inbound action → use case → repository 路徑。
+- 修補需保持 UI 只呼叫 server actions，不直接碰 infrastructure SDK。
+
+### Consistent Data Flow & Transaction Strategy (Consistency / Transaction Strategy): ensures correct cross-boundary data movement
+- 目前資料流中斷於 UI；必須恢復 `section -> action -> use case -> repo` 單向流。
+
+### Strict Data Contract (Contract / Schema): prevents invalid data from entering the system
+- quality/approval actions已有 Zod，但 members/settings 尚無一致 inbound schema。
+- 需補齊 members/settings action schema，統一 unknown input parse。
+
+### Explicit State Model (State Model / FSM): restricts valid state transitions
+- quality/approval UI 顯示固定 0，未反映 review/decision 狀態機。
+- 必須將 domain state 映射到 UI filter/status，而非硬編碼。
+
+### Observability Design (Observability): enables understanding of system behavior and runtime state
+- 目前無載入/操作 trace 欄位（tab、workspaceId、actorId、result）。
+- 建議導入 traceId + action outcome 的結構化 log。
+
+### Robust Failure Strategy (Failure Strategy): ensures recoverability without system corruption
+- 現況是 silent empty/disabled，不可區分「真無資料」與「呼叫失敗」。
+- 需顯式錯誤態（retry/提示）與可觀測失敗碼。
+
+### Explicit Authorization & Security Boundaries (Authorization / Security): controls data access and operation scope
+- 接線時必須沿用 GAP-05 的 auth gate（requireAuth + permission check），避免開功能同時擴大風險面。
+
+### Testability & Specification (Testability / Specification): ensures behavior is automatically verifiable and continuously constrained
+- 需新增 section→action integration tests（loaded/error/empty/non-empty）與 role-based access 測試。
+
+### Automated Governance & Static Constraints (Lint / Policy as Code): prevents architectural violations at compile and commit time
+- 需加 policy 檢查：workspace governance tabs 不可再以 hard-coded `0` 或永久 disabled action 交付。
+
+### Design Activation Rules: enables architecture only when real complexity appears, preventing over-engineering
+- 本次僅啟用既有子域能力，不新增新子域/新流程引擎。
+
+### Single Responsibility & No Redundancy Principle (Single Responsibility / No Redundancy): prevents duplicated modeling across layers and avoids architectural bloat
+- 避免在 UI 再造「審核狀態模型」；應直接映射 domain snapshot。
+
+### Minimum Necessary Design Principle (Minimum Necessary Design / YAGNI Enforcement): ensures all abstractions map to existing requirements, not speculative extensions
+- 先完成 list/create/transition 主鏈路與錯誤態，不預先導入複雜批次審批設計。
+
+## 最小修補路徑
+
+1. 將 Members/Quality/Approval/Settings 改為真實讀取（至少 list）。
+2. Quality/Approval section 接 `list*Action` 與 status 映射，不再硬編碼 0。
+3. Members/Settings 補 inbound actions + Zod schema + auth gate。
+4. 補 observability 欄位與 integration tests。
+
+## Context7 alignment
+
+- `/colinhacks/zod`: 使用 strict object + parse/safeParse 邊界策略。
+- `/statelyai/xstate`: 狀態轉換應顯式 guard，避免 UI 任意跳轉。
+- `/open-telemetry/opentelemetry-js`: action/screen 流程補 span attributes 與 error status。
+- `/eslint/eslint`: 以 flat config custom rule 落實 stub 交付防線。
+````
+
+## File: docs/decisions/architecture/gaps/GAP-07-notebooklm-conversation-model-not-activated.md
+````markdown
+# GAP-07 notebooklm.ai-chat 未啟用 conversation domain model
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-07 |
+| 類型 | 業務缺口 |
+| 優先級 | P0 |
+| 影響範圍 | `notebooklm.ai-chat`、`subdomains/conversation/*` |
+| 狀態 | 🔴 Open |
+
+## 現況證據
+
+- `NotebooklmAiChatSection.tsx` 以 local `useState(messages)` 維持對話，未持久化。
+- `notebook-actions.ts` 只呼叫 `ragQueryAction`，未使用 conversation use cases。
+- `subdomains/conversation/domain` 與 `application/use-cases` 已存在，但 inbound/outbound adapters 仍 placeholder。
+
+## 14 architecture criteria mapping
+
+### Proper Domain Segmentation (Bounded Context): defines system boundaries
+- notebooklm 已清楚定義 notebook/document/conversation 子域。
+- 缺口：AI Chat 直接走 callable，繞過 conversation 子域語意邊界。
+
+### Complete Aggregate Design (Aggregate Design): maintains data consistency and invariants
+- Conversation aggregate 提供 start/addMessage 等規則，但 UI 未使用，導致「thread 一致性」無法保證。
+
+### Proper Hexagonal Architecture (Hexagonal Architecture): decouples domain from external dependencies
+- 目前 inbound action 直接呼叫 callable（外部依賴），缺少 conversation port 編排。
+- 需改為 use case 驅動，callable 僅位於 outbound adapter。
+
+### Consistent Data Flow & Transaction Strategy (Consistency / Transaction Strategy): ensures correct cross-boundary data movement
+- 目前資料流：UI -> callable -> UI（短路），沒有 conversation persistence。
+- 需調整為：UI -> conversation action -> use case -> repo + rag port。
+
+### Strict Data Contract (Contract / Schema): prevents invalid data from entering the system
+- `ragQueryAction` 有 schema，但 conversation message contract 未作入口驗證。
+- 需在 conversation actions 補 message/thread schema。
+
+### Explicit State Model (State Model / FSM): restricts valid state transitions
+- chat lifecycle（idle/querying/responded/failed）未被明確建模；只靠 isPending + catch。
+- 建議以 XState 或等價 FSM 明確限制轉換。
+
+### Observability Design (Observability): enables understanding of system behavior and runtime state
+- 缺 traceId、conversationId、query latency、failure classification。
+- 需記錄每輪問答 span 與 conversation correlation。
+
+### Robust Failure Strategy (Failure Strategy): ensures recoverability without system corruption
+- 目前失敗只顯示 generic 文案，沒有 retry policy / dead-letter / partial recovery。
+- 需定義 query timeout、可重試錯誤、不可重試錯誤分流。
+
+### Explicit Authorization & Security Boundaries (Authorization / Security): controls data access and operation scope
+- inbound actions 無明確 auth gate；需繼承 GAP-05 要求，避免跨 workspace 問答資料外洩。
+
+### Testability & Specification (Testability / Specification): ensures behavior is automatically verifiable and continuously constrained
+- 缺少 conversation use case 與 ai-chat action 的契約測試（message ordering、引用回傳、失敗重試）。
+
+### Automated Governance & Static Constraints (Lint / Policy as Code): prevents architectural violations at compile and commit time
+- 需新增規則禁止 ai-chat 路由層直接依賴 callable adapter，強制經 conversation/application。
+
+### Design Activation Rules: enables architecture only when real complexity appears, preventing over-engineering
+- conversation 子域已存在且需求真實（thread-based RAG），啟用是必要，不是過度設計。
+
+### Single Responsibility & No Redundancy Principle (Single Responsibility / No Redundancy): prevents duplicated modeling across layers and avoids architectural bloat
+- 不應同時維持「UI本地 messages 模型」與「domain conversation 模型」兩套真相來源。
+
+### Minimum Necessary Design Principle (Minimum Necessary Design / YAGNI Enforcement): ensures all abstractions map to existing requirements, not speculative extensions
+- 先落地最小閉環：start conversation、append message、record answer/citations；不先做多會話分享等進階功能。
+
+## 最小修補路徑
+
+1. 建立 conversation server actions（start/add/list）。
+2. 將 ai-chat 改為呼叫 conversation actions，不再直連 callable。
+3. 將 rag query 回傳寫入 conversation message/event。
+4. 補 auth + observability + failure taxonomy + tests。
+
+## Context7 alignment
+
+- `/statelyai/xstate`: FSM + guards 作為多步驟 chat lifecycle 基線。
+- `/colinhacks/zod`: conversation message 與引用資料 schema 嚴格驗證。
+- `/open-telemetry/opentelemetry-js`: 每輪問答 span、error status、attributes。
+- `/eslint/eslint`: flat-config 規則禁止 route 直連外部 callable。
+````
+
+## File: docs/decisions/architecture/gaps/GAP-08-platform-account-governance-routes-stubbed.md
+````markdown
+# GAP-08 Account governance routes 仍為 platform-ui-stubs
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-08 |
+| 類型 | 業務缺口 |
+| 優先級 | P1 |
+| 影響範圍 | `/organization` `/members` `/teams` `/permissions` `/workspaces` `/daily` `/schedule` `/schedule/dispatcher` `/audit` `/dashboard` |
+| 狀態 | 🔴 Open |
+
+## 現況證據
+
+- `AccountRouteDispatcher.tsx` 將上述 route 全數導向 `platform-ui-stubs.tsx` screen exports。
+- `platform-ui-stubs.tsx` 檔頭明示「remaining stubs」，多數頁面為 static counts / disabled actions。
+- shell route catalogs 已完成（`shell-command-catalog.ts`, `shell-navigation-catalog.ts`），但能力頁仍未接入實際 use case。
+
+## 14 architecture criteria mapping
+
+### Proper Domain Segmentation (Bounded Context): defines system boundaries
+- account/org governance 正確屬 platform bounded context。
+- 缺口在「已宣告路由契約」未對應「可執行能力」。
+
+### Complete Aggregate Design (Aggregate Design): maintains data consistency and invariants
+- organization/member/team/permission aggregate 的操作不在頁面上可執行，invariant 僅停留於潛在設計。
+
+### Proper Hexagonal Architecture (Hexagonal Architecture): decouples domain from external dependencies
+- 當前頁面停留在 UI stub，未形成完整 interfaces -> application -> domain 路徑。
+
+### Consistent Data Flow & Transaction Strategy (Consistency / Transaction Strategy): ensures correct cross-boundary data movement
+- 導航可到達但資料流不可用，造成「路由有、交易無」的不一致體驗。
+
+### Strict Data Contract (Contract / Schema): prevents invalid data from entering the system
+- stubs 無 inbound schema，正式落地時需在 server action 邊界以 Zod 嚴格 parse。
+
+### Explicit State Model (State Model / FSM): restricts valid state transitions
+- governance flows（邀請、審批、排程調度）未顯式建模狀態轉換，現況僅靜態文案。
+
+### Observability Design (Observability): enables understanding of system behavior and runtime state
+- 因未接線，無法追蹤 route-level query latency / failure / action audit。
+
+### Robust Failure Strategy (Failure Strategy): ensures recoverability without system corruption
+- 現況沒有失敗路徑設計（只有 disabled UI）。正式能力需定義 retry、衝突處理與補償策略。
+
+### Explicit Authorization & Security Boundaries (Authorization / Security): controls data access and operation scope
+- 這些 route 為治理面，必須先於功能落地定義 org-scope 權限矩陣與 actor role gate。
+
+### Testability & Specification (Testability / Specification): ensures behavior is automatically verifiable and continuously constrained
+- 需建立 route contract tests（route exists + action availability + authorization matrix）。
+
+### Automated Governance & Static Constraints (Lint / Policy as Code): prevents architectural violations at compile and commit time
+- 需加政策：進入 shell 主導航的 route 不得永遠指向 stub screen。
+
+### Design Activation Rules: enables architecture only when real complexity appears, preventing over-engineering
+- 先啟用核心治理能力（members/teams/permissions/workspaces），再擴展進階報表。
+
+### Single Responsibility & No Redundancy Principle (Single Responsibility / No Redundancy): prevents duplicated modeling across layers and avoids architectural bloat
+- 避免在每個 route screen 重複定義權限規則；集中於 platform Permission API。
+
+### Minimum Necessary Design Principle (Minimum Necessary Design / YAGNI Enforcement): ensures all abstractions map to existing requirements, not speculative extensions
+- 優先交付可用的 CRUD + 權限守門；不預先導入複雜跨組織流程引擎。
+
+## 最小修補路徑
+
+1. 以 route 為單位逐步替換 stubs（members/teams/permissions/workspaces 優先）。
+2. 每條 route 都以 server action + auth/permission + Zod 契約接線。
+3. daily/schedule/audit/dispatcher 再以事件/查詢模型逐步接入，不一次大改。
+4. 建立「main-nav route 不可長期 stub」治理規則。
+
+## Context7 alignment
+
+- `/colinhacks/zod`: route action 嚴格契約。
+- `/statelyai/xstate`: 治理流程轉換 guard。
+- `/open-telemetry/opentelemetry-js`: route/action traceability。
+- `/eslint/eslint`: flat-config custom architectural policy。
+````
+
 ## File: docs/decisions/architecture/.gitkeep
 ````
 
@@ -5928,6 +6173,41 @@ Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
 
 - [歷史版本 overview（v1）](../2026-04-18-workspace-notion-notebooklm-gap-analysis.md)
 - [Decisions README](../../README.md)
+````
+
+## File: docs/decisions/architecture/2026-04-18-navigation-capability-gap-index-v3.md
+````markdown
+# 2026-04-18 Navigation Capability Gap Index (v3 — 14 Criteria)
+
+> Scope: only **new/non-duplicate** gaps found from current tab/route catalog after `npm run repomix:skill` refresh.
+> Excludes existing GAP-01~GAP-05 in `docs/decisions/architecture/gaps/`.
+
+## Coverage baseline
+
+- Workspace tabs: `workspace.overview` ~ `workspace.issues`
+- Notion tabs: `notion.knowledge` / `notion.pages` / `notion.database` / `notion.templates`
+- NotebookLM tabs: `notebooklm.notebook` / `notebooklm.ai-chat` / `notebooklm.sources` / `notebooklm.research`
+- Account routes: `/organization` `/members` `/teams` `/permissions` `/workspaces` `/daily` `/schedule` `/schedule/dispatcher` `/audit` `/workspace` `/dashboard`
+
+## Non-duplicate gaps (new set)
+
+| Gap ID | Type | Priority | Scope | Decision File |
+|---|---|---|---|---|
+| GAP-06 | 功能缺口 | P1 | `workspace.members` / `workspace.quality` / `workspace.approval` / `workspace.settings` | [GAP-06](./gaps/GAP-06-workspace-governance-tabs-disconnected.md) |
+| GAP-07 | 業務缺口 | P0 | `notebooklm.ai-chat` + conversation subdomain | [GAP-07](./gaps/GAP-07-notebooklm-conversation-model-not-activated.md) |
+| GAP-08 | 業務缺口 | P1 | Account governance routes (`/organization` `/members` `/teams` `/permissions` `/workspaces` `/daily` `/schedule` `/schedule/dispatcher` `/audit` `/dashboard`) | [GAP-08](./gaps/GAP-08-platform-account-governance-routes-stubbed.md) |
+
+## Context7-verified best-practice anchors
+
+- Zod (`/colinhacks/zod`): strict object boundary + parse/safeParse split
+- XState (`/statelyai/xstate`): explicit finite-state transitions with guard composition
+- OpenTelemetry JS (`/open-telemetry/opentelemetry-js`): trace/span attributes, error status, span lifecycle
+- ESLint (`/eslint/eslint`): flat-config custom rule/plugin for architecture policy-as-code
+
+## Relationship to existing decisions
+
+- GAP-01~GAP-05 remain authoritative for schedule/audit/settlement, templates stub, notebooklm→workspace materialization, extractor fallback, and auth boundary.
+- This v3 set only records newly verified gaps not already tracked as independent remediation units.
 ````
 
 ## File: docs/decisions/architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md
@@ -6173,23 +6453,6 @@ Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
 ## File: docs/decisions/platform/.gitkeep
 ````
 
-````
-
-## File: docs/decisions/README.md
-````markdown
-# Decisions Index
-
-## 2026
-
-### 缺口分析系列
-
-- [2026-04-18 缺口分析索引（v2 — 20 準則 × 5 缺口）](./architecture/2026-04-18-gap-analysis-index.md) ← **主要入口**
-  - [GAP-01 schedule/audit/settlement UI empty-state](./architecture/gaps/GAP-01-schedule-audit-settlement-ui-only.md)
-  - [GAP-02 notion templates placeholder](./architecture/gaps/GAP-02-notion-templates-placeholder.md)
-  - [GAP-03 notebooklm task materialization stub](./architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md)
-  - [GAP-04 task-formation extractor weak fallback](./architecture/gaps/GAP-04-task-formation-extractor-weak-fallback.md)
-  - [GAP-05 authorization boundary missing](./architecture/gaps/GAP-05-authorization-boundary-missing.md)
-- [2026-04-18 Workspace / Notion / NotebookLM 功能缺口盤點（v1，歷史版本）](./architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md)
 ````
 
 ## File: docs/examples/ai/.gitkeep
@@ -15414,6 +15677,112 @@ import { runGenkitFlow } from '@integration-ai'
 ```ts
 import { ... } from '@integration-ai'
 ```
+````
+
+## File: packages/integration-ai/genkit.ts
+````typescript
+/**
+ * Genkit singleton.
+ *
+ * Initialises one shared `genkit` instance with the Google AI plugin.
+ * Import this only in infrastructure AI adapter files — never in
+ * domain or application layers.
+ *
+ * Required env var: GOOGLE_GENAI_API_KEY (or GOOGLE_API_KEY)
+ */
+⋮----
+import { genkit, z } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
+import { DEFAULT_AI_MODEL } from "./index";
+⋮----
+/** Re-export z for infrastructure adapters — avoids separate zod import. */
+⋮----
+/**
+ * Shared Genkit AI instance.
+ *
+ * @example
+ * ```ts
+ * import { ai } from '@integration-ai/genkit';
+ *
+ * export const myFlow = ai.defineFlow(
+ *   {
+ *     name: 'notebooklm.synthesis',
+ *     inputSchema: z.object({ query: z.string() }),
+ *     outputSchema: z.object({ answer: z.string() }),
+ *   },
+ *   async ({ query }) => {
+ *     const { text } = await ai.generate({
+ *       model: googleAI.model('gemini-2.5-flash'),
+ *       prompt: query,
+ *     });
+ *     return { answer: text };
+ *   },
+ * );
+ * ```
+ */
+⋮----
+/** Default model — use googleAI.model() helper (Context7-preferred over string ID). */
+````
+
+## File: packages/integration-ai/index.ts
+````typescript
+/**
+ * @module integration-ai
+ * AI 服務整合層：Genkit singleton factory、flow 執行合約、共用 AI 型別。
+ *
+ * Context7 基線：/genkit-ai/genkit
+ * - flow/tool 必須有 inputSchema 與 outputSchema（Zod）。
+ * - 結果在返回 application layer 前必須驗證（outputSchema.parse）。
+ * - 環境憑證只來自 env vars（GOOGLE_GENAI_API_KEY / GOOGLE_API_KEY）。
+ * - 使用 googleAI.model() helper 優先於字串 ID（Context7 推薦）。
+ */
+⋮----
+// ─── Model constants ──────────────────────────────────────────────────────────
+⋮----
+/** 系統預設 AI 模型。單一來源，genkit.ts 與 infrastructure adapters 共用此常數。 */
+⋮----
+// ─── Shared contract types ────────────────────────────────────────────────────
+⋮----
+export interface AiGenerateTextInput {
+  prompt: string;
+  systemPrompt?: string;
+  model?: string;
+  metadata?: Record<string, string>;
+}
+⋮----
+export interface AiGenerateTextResult {
+  text: string;
+  model: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+  };
+}
+⋮----
+export interface AiTextClient {
+  generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
+}
+⋮----
+generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
+⋮----
+// ─── Error types ─────────────────────────────────────────────────────────────
+⋮----
+export class IntegrationAiConfigurationError extends Error
+⋮----
+constructor(message: string)
+⋮----
+export class IntegrationAiFlowError extends Error
+⋮----
+constructor(
+    message: string,
+    public readonly flowName: string,
+    public readonly cause?: unknown,
+)
+⋮----
+// ─── Unconfigured fallback ────────────────────────────────────────────────────
+⋮----
+/** Development / test stub that throws on use when no provider is configured. */
+export const createUnconfiguredAiClient = (): AiTextClient => (
 ````
 
 ## File: packages/integration-ai/README.md
@@ -39128,108 +39497,23 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 }
 ````
 
-## File: packages/integration-ai/genkit.ts
-````typescript
-/**
- * Genkit singleton.
- *
- * Initialises one shared `genkit` instance with the Google AI plugin.
- * Import this only in infrastructure AI adapter files — never in
- * domain or application layers.
- *
- * Required env var: GOOGLE_GENAI_API_KEY (or GOOGLE_API_KEY)
- */
-⋮----
-import { genkit, z } from "genkit";
-import { googleAI } from "@genkit-ai/google-genai";
-import { DEFAULT_AI_MODEL } from "./index";
-⋮----
-/** Re-export z for infrastructure adapters — avoids separate zod import. */
-⋮----
-/**
- * Shared Genkit AI instance.
- *
- * @example
- * ```ts
- * import { ai } from '@integration-ai/genkit';
- *
- * export const myFlow = ai.defineFlow(
- *   {
- *     name: 'notebooklm.synthesis',
- *     inputSchema: z.object({ query: z.string() }),
- *     outputSchema: z.object({ answer: z.string() }),
- *   },
- *   async ({ query }) => {
- *     const { text } = await ai.generate({
- *       model: googleAI.model('gemini-2.5-flash'),
- *       prompt: query,
- *     });
- *     return { answer: text };
- *   },
- * );
- * ```
- */
-⋮----
-/** Default model — use googleAI.model() helper (Context7-preferred over string ID). */
-````
+## File: docs/decisions/README.md
+````markdown
+# Decisions Index
 
-## File: packages/integration-ai/index.ts
-````typescript
-/**
- * @module integration-ai
- * AI 服務整合層：Genkit singleton factory、flow 執行合約、共用 AI 型別。
- *
- * Context7 基線：/genkit-ai/genkit
- * - flow/tool 必須有 inputSchema 與 outputSchema（Zod）。
- * - 結果在返回 application layer 前必須驗證（outputSchema.parse）。
- * - 環境憑證只來自 env vars（GOOGLE_GENAI_API_KEY / GOOGLE_API_KEY）。
- * - 使用 googleAI.model() helper 優先於字串 ID（Context7 推薦）。
- */
-⋮----
-// ─── Model constants ──────────────────────────────────────────────────────────
-⋮----
-/** 系統預設 AI 模型。單一來源，genkit.ts 與 infrastructure adapters 共用此常數。 */
-⋮----
-// ─── Shared contract types ────────────────────────────────────────────────────
-⋮----
-export interface AiGenerateTextInput {
-  prompt: string;
-  systemPrompt?: string;
-  model?: string;
-  metadata?: Record<string, string>;
-}
-⋮----
-export interface AiGenerateTextResult {
-  text: string;
-  model: string;
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-  };
-}
-⋮----
-export interface AiTextClient {
-  generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
-}
-⋮----
-generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
-⋮----
-// ─── Error types ─────────────────────────────────────────────────────────────
-⋮----
-export class IntegrationAiConfigurationError extends Error
-⋮----
-constructor(message: string)
-⋮----
-export class IntegrationAiFlowError extends Error
-⋮----
-constructor(
-    message: string,
-    public readonly flowName: string,
-    public readonly cause?: unknown,
-)
-⋮----
-// ─── Unconfigured fallback ────────────────────────────────────────────────────
-⋮----
-/** Development / test stub that throws on use when no provider is configured. */
-export const createUnconfiguredAiClient = (): AiTextClient => (
+## 2026
+
+### 缺口分析系列
+
+- [2026-04-18 缺口分析索引（v2 — 20 準則 × 5 缺口）](./architecture/2026-04-18-gap-analysis-index.md) ← **主要入口**
+  - [GAP-01 schedule/audit/settlement UI empty-state](./architecture/gaps/GAP-01-schedule-audit-settlement-ui-only.md)
+  - [GAP-02 notion templates placeholder](./architecture/gaps/GAP-02-notion-templates-placeholder.md)
+  - [GAP-03 notebooklm task materialization stub](./architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md)
+  - [GAP-04 task-formation extractor weak fallback](./architecture/gaps/GAP-04-task-formation-extractor-weak-fallback.md)
+  - [GAP-05 authorization boundary missing](./architecture/gaps/GAP-05-authorization-boundary-missing.md)
+- [2026-04-18 Navigation Capability 缺口索引（v3 — 14 準則 × 3 非重複缺口）](./architecture/2026-04-18-navigation-capability-gap-index-v3.md)
+  - [GAP-06 workspace governance tabs disconnected](./architecture/gaps/GAP-06-workspace-governance-tabs-disconnected.md)
+  - [GAP-07 notebooklm conversation model not activated](./architecture/gaps/GAP-07-notebooklm-conversation-model-not-activated.md)
+  - [GAP-08 platform account governance routes stubbed](./architecture/gaps/GAP-08-platform-account-governance-routes-stubbed.md)
+- [2026-04-18 Workspace / Notion / NotebookLM 功能缺口盤點（v1，歷史版本）](./architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md)
 ````
