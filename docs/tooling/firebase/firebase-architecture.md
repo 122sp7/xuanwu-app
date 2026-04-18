@@ -190,8 +190,8 @@ match /workspace_workspaces/{workspaceId} {
 
 ## Document Network
 
-- [genkit-flow-standards.md](./genkit-flow-standards.md)
-- [event-driven-design.md](./event-driven-design.md)
-- [`../.github/instructions/firestore-schema.instructions.md`](../../.github/instructions/firestore-schema.instructions.md)
-- [`../.github/instructions/security-rules.instructions.md`](../../.github/instructions/security-rules.instructions.md)
-- [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md)
+- [genkit-flow-standards.md](../genkit/genkit-flow-standards.md)
+- [event-driven-design.md](../../structure/domain/event-driven-design.md)
+- [`../.github/instructions/firestore-schema.instructions.md`](../../../.github/instructions/firestore-schema.instructions.md)
+- [`../.github/instructions/security-rules.instructions.md`](../../../.github/instructions/security-rules.instructions.md)
+- [`docs/structure/system/hard-rules-consolidated.md`](../../structure/system/hard-rules-consolidated.md)

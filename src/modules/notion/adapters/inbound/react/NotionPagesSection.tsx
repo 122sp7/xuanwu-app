@@ -7,11 +7,11 @@
  * Each page can be sent to workspace.task-formation as a task generation source.
  */
 
+import { Button, Input } from "@packages";
 import { FileText, Plus, ListPlus } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
+
 import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
 import { queryPagesAction, createPageAction } from "../server-actions/page-actions";
 

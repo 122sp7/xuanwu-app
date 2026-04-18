@@ -1,4 +1,4 @@
-# Genkit Flow Standards
+﻿# Genkit Flow Standards
 
 AI orchestration 基線採 **Genkit**。所有 AI 能力（Flow、Tool Calling、Prompt Pipeline）視為外部能力，由 `platform` 主域的 `ai` 子域統一治理。`notebooklm` 使用這些能力，`notion` 對 AI 一無所知。
 
@@ -221,9 +221,9 @@ ${input.query}
 
 ## Document Network
 
-- [state-machine-model.md](./state-machine-model.md)
-- [event-driven-design.md](./event-driven-design.md)
-- [firebase-architecture.md](./firebase-architecture.md)
-- [`../.github/instructions/genkit-flow.instructions.md`](../../.github/instructions/genkit-flow.instructions.md)
-- [`docs/structure/contexts/platform/README.md`](../contexts/platform/README.md)
-- [`docs/structure/contexts/notebooklm/README.md`](../contexts/notebooklm/README.md)
+- [state-machine-model.md](../nextjs/state-machine-model.md)
+- [event-driven-design.md](../../structure/domain/event-driven-design.md)
+- [firebase-architecture.md](../firebase/firebase-architecture.md)
+- [`../.github/instructions/genkit-flow.instructions.md`](../../../.github/instructions/genkit-flow.instructions.md)
+- [`docs/structure/contexts/platform/README.md`](../../structure/contexts/platform/README.md)
+- [`docs/structure/contexts/notebooklm/README.md`](../../structure/contexts/notebooklm/README.md)

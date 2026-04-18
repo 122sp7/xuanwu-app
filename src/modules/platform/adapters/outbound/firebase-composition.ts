@@ -14,7 +14,7 @@
  * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
  */
 
-import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
 import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
 import {
   CreateStoredFileUseCase,

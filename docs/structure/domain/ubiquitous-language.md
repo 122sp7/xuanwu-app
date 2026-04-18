@@ -1,4 +1,4 @@
-# Ubiquitous Language
+﻿# Ubiquitous Language
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
 
@@ -158,7 +158,7 @@ flowchart LR
 - [contexts/notebooklm/ubiquitous-language.md](../contexts/notebooklm/ubiquitous-language.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](../system/project-delivery-milestones.md)
-- [decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+- decisions/0004-ubiquitous-language.md
 
 ## Conflict Resolution
 

@@ -1,4 +1,4 @@
-# State Management Model
+﻿# State Management Model
 
 前端狀態依責任切分為兩層：**Zustand** 承接輕量 client state，**XState** 承接有明確狀態轉換圖的有限狀態工作流。兩者職責互斥，不可混用。
 
@@ -180,7 +180,7 @@ useEffect(() => { setWorkspaceInStore(data); }, [data]);
 
 ## Document Network
 
-- [firebase-architecture.md](./firebase-architecture.md)
-- [event-driven-design.md](./event-driven-design.md)
-- [genkit-flow-standards.md](./genkit-flow-standards.md)
-- [`../.github/instructions/event-driven-state.instructions.md`](../../.github/instructions/event-driven-state.instructions.md)
+- [firebase-architecture.md](../firebase/firebase-architecture.md)
+- [event-driven-design.md](../../structure/domain/event-driven-design.md)
+- [genkit-flow-standards.md](../genkit/genkit-flow-standards.md)
+- [`../.github/instructions/event-driven-state.instructions.md`](../../../.github/instructions/event-driven-state.instructions.md)

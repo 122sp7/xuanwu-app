@@ -11,7 +11,8 @@
 | Firebase App 初始化 | `client.ts` — singleton `firebaseClientApp` |
 | Firebase Auth 操作 | `auth.ts` — `getFirebaseAuth`, `onFirebaseAuthStateChanged`, `signOutFirebase` |
 | Firestore 操作原語 | `firestore.ts` — `firestoreApi`, `getFirebaseFirestore` |
-| Firebase Storage 操作 | 新增 `storage.ts`（遵循同樣封裝模式）|
+| Firebase Functions 操作 | `functions.ts` — `getFirebaseFunctions`, `httpsCallable` |
+| Firebase Storage 操作 | `storage.ts` — `getFirebaseStorage`, `ref`, `uploadBytes`, `getDownloadURL` |
 | 新增 Firebase 服務封裝 | 在此套件新增對應 `.ts` 並從 `index.ts` re-export |
 
 ## Route Elsewhere（不放這裡）
@@ -39,6 +40,16 @@ import { firestoreApi, getFirebaseFirestore } from '@integration-firebase'
 - 不得 import `src/modules/*` 任何路徑
 - 不得在此套件處理認證 session 狀態（由 iam module 負責）
 - 環境設定只能來自 `NEXT_PUBLIC_FIREBASE_*` env vars
+
+---
+
+## Context7 官方基線
+
+- 文件來源：`/firebase/firebase-js-sdk`
+- 必守準則：
+  - 維持 modular API 用法，避免 namespaced 舊寫法。
+  - App 初始化保持 singleton（`getApps/getApp/initializeApp`）。
+  - `index.ts` 僅 re-export SDK 封裝，不洩漏業務語意。
 
 ---
 

@@ -5,10 +5,10 @@
  * Input a question → AI retrieves from indexed documents → displays answer + citations.
  */
 
+import { Button, Input } from "@packages";
 import { Brain, Search } from "lucide-react";
 import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
+
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
 import { ragQueryAction } from "../server-actions/notebook-actions";
 

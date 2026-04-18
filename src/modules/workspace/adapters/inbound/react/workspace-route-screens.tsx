@@ -12,11 +12,10 @@
  * workspace-owned.
  */
 
+import { Badge, Button } from "@packages";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 
 import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
 import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";

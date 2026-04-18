@@ -6,6 +6,7 @@
  * is allowed per ESLint boundary rules (src/modules/<context>/adapters/outbound/**).
  */
 
+import { firebaseClientApp } from "@packages";
 import {
   getFirestore,
   doc,
@@ -18,7 +19,7 @@ import {
   onSnapshot,
   type Timestamp,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+
 import type {
   AccountQueryRepository,
   WalletBalanceSnapshot,

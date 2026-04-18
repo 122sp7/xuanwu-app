@@ -1,4 +1,4 @@
-# Workspace
+﻿# Workspace
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
@@ -87,7 +87,5 @@ flowchart LR
 - [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)

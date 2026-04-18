@@ -5,10 +5,10 @@
  * Calls py_fn rag_query callable via ragQueryAction server action.
  */
 
+import { Button, Input } from "@packages";
 import { MessageSquare, Send } from "lucide-react";
 import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
+
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
 import { ragQueryAction } from "../server-actions/notebook-actions";
 

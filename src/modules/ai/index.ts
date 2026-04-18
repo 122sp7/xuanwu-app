@@ -33,7 +33,20 @@ export type { ContextSessionRepository } from "./subdomains/context/domain/repos
 export { CreateContextSessionUseCase, AddContextMessageUseCase } from "./subdomains/context/application/use-cases/ContextUseCases";
 
 // pipeline
-export type { PromptTemplate, PromptTemplateRepository, RenderedPrompt, PromptRenderPort } from "./subdomains/pipeline/domain/entities/PromptTemplate";
+export type {
+  PromptTemplate,
+  PromptTemplateRepository,
+  RenderedPrompt,
+  PromptRenderPort,
+  AiOrchestrationInput,
+  AiOrchestrationResult,
+  AiOrchestrationPort,
+} from "./subdomains/pipeline/domain";
+
+// prompt registry
+export type { PromptRegistryPort } from "./prompts/registry/PromptRegistry";
+export type { PromptKey, PromptRegistryInput, PromptRegistryResult, PromptRunner } from "./prompts/registry/prompt-types";
+export { PROMPT_KEYS } from "./prompts/versions";
 
 // citation
 export type { Citation, CitationSource, CitationRepository } from "./subdomains/citation/domain/entities/Citation";

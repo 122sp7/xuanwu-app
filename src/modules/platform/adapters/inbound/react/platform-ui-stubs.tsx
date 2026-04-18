@@ -12,6 +12,7 @@
  * to the workspace bounded context.
  */
 
+import { Badge, Button } from "@packages";
 import { useState } from "react";
 import {
   Activity,
@@ -36,8 +37,6 @@ import {
   UserPlus,
   Zap,
 } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 
 // ── Shell theme toggle + language switcher ────────────────────────────────────
 // Imported locally so they can be composed in ShellHeaderControls below,

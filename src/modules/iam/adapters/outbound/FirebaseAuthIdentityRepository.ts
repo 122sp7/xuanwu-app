@@ -8,6 +8,7 @@
  * Domain and application layers are isolated from Firebase via this adapter.
  */
 
+import { firebaseClientApp } from "@packages";
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -18,7 +19,7 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { firebaseClientApp } from "@integration-firebase/client";
+
 import type { IdentityRepository } from "../../subdomains/identity/domain/repositories/IdentityRepository";
 import type {
   IdentityEntity,

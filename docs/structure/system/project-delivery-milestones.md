@@ -1,4 +1,4 @@
-# Project Delivery Milestones
+﻿# Project Delivery Milestones
 
 本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為專案從零到交付的里程碑文件，不主張反映現況實作。
 
@@ -97,10 +97,10 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [integration-guidelines.md](./integration-guidelines.md)
 - [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
-- [decisions/README.md](../../decisions/README.md)
-- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- decisions/README.md
+- decisions/0001-hexagonal-architecture.md
+- decisions/0002-bounded-contexts.md
+- decisions/0003-context-map.md
 
 ## Constraints
 

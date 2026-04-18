@@ -4,9 +4,8 @@
  * WorkspaceMembersSection — workspace.members tab — team member list.
  */
 
+import { Badge, Button } from "@packages";
 import { Users, UserPlus } from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
 
 interface WorkspaceMembersSectionProps {
   workspaceId: string;

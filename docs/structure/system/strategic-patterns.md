@@ -1,4 +1,4 @@
-# Strategic Patterns
+﻿# Strategic Patterns
 
 ## Selected Patterns
 
@@ -68,12 +68,12 @@ flowchart LR
 - [integration-guidelines.md](./integration-guidelines.md)
 - [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+- decisions/0003-context-map.md
+- decisions/0005-anti-corruption-layer.md
 
 ## Decision References
 
-- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+- decisions/0001-hexagonal-architecture.md
+- decisions/0002-bounded-contexts.md
+- decisions/0003-context-map.md
+- decisions/0005-anti-corruption-layer.md

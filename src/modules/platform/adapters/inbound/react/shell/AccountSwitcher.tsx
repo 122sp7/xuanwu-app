@@ -16,18 +16,9 @@
  * (ShellRootLayout, ShellAppRail) need no changes.
  */
 
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@packages";
 import { useState } from "react";
 import { Building2, Check, ChevronsUpDown, Plus, UserRound } from "lucide-react";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
 
 import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";
 import type { AccountEntity } from "../AppContext";

@@ -1,3 +1,2 @@
-// pipeline — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-export {};
+export type { PromptTemplate, PromptTemplateRepository, RenderedPrompt, PromptRenderPort } from "./entities/PromptTemplate";
+export type { AiOrchestrationInput, AiOrchestrationResult, AiOrchestrationPort } from "./ports/AiOrchestrationPort";

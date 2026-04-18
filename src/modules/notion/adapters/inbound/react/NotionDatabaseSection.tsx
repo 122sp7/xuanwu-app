@@ -7,10 +7,11 @@
  * milestones, personnel). Each database can be sent to workspace.task-formation.
  */
 
+import { Button } from "@packages";
 import { LayoutGrid, ListPlus } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
+
 import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
 import { queryDatabasesAction } from "../server-actions/database-actions";
 

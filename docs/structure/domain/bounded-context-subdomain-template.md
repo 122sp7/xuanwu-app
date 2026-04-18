@@ -1,4 +1,4 @@
-# Bounded Context Subdomain Template
+﻿# Bounded Context Subdomain Template
 
 本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `src/modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
 
@@ -192,9 +192,9 @@ flowchart LR
 - [integration-guidelines.md](../system/integration-guidelines.md)
 - [strategic-patterns.md](../system/strategic-patterns.md)
 - [contexts/_template.md](../contexts/_template.md)
-- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- decisions/0001-hexagonal-architecture.md
+- decisions/0002-bounded-contexts.md
+- decisions/0003-context-map.md
 
 ## Constraints
 

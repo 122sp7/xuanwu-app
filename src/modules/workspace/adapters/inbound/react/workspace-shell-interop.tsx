@@ -16,6 +16,7 @@
  * workspace-nav-model.ts — import from there for non-React consumers.
  */
 
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input } from "@packages";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -40,16 +41,6 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
 
 import type { WorkspaceEntity } from "./WorkspaceContext";
 import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";

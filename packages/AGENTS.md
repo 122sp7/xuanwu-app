@@ -67,6 +67,18 @@ import { getFirestore } from 'firebase/firestore'
 - 每個套件的 `index.ts` 是唯一公開入口
 - 不得洩漏第三方 SDK 型別至消費端（能 wrap 就 wrap）
 
+## 公開匯出規則
+
+- 所有子套件需維持各自 `index.ts` 作為公開入口
+- `packages/index.ts` 必須具名匯出所有套件（`infra-*`、`integration-*`、`ui-*`）
+- 新增套件時，需同步更新本檔、`packages/README.md`、`packages/index.ts`
+
+## Context7 文件對齊規則
+
+- 涉及下列套件時，先以 Context7 查核官方文件再實作：`infra/state`、`infra/trpc`、`infra/uuid`、`infra/zod`、`integration-ai`、`integration-firebase`、`integration-queue`、`ui-markdown`、`ui-shadcn`。
+- 基線文件清單與實作準則以 `packages/README.md` 的「Context7 官方文件基線（repomix:packages）」為準。
+- 若升級相依版本造成 API 差異，需先更新基線文件再改程式碼。
+
 ---
 
 ## 每個套件都有自己的 AGENTS.md

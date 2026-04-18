@@ -1,4 +1,4 @@
-# Notion
+﻿# Notion
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
@@ -73,8 +73,6 @@ flowchart LR
 - [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)

@@ -1,4 +1,4 @@
-# Context Map
+﻿# Context Map
 
 本文件在本次任務限制下，僅依 Context7 驗證的 context map 與 strategic design 原則重建，不主張反映現況實作。
 
@@ -117,5 +117,5 @@ flowchart LR
 - [strategic-patterns.md](./strategic-patterns.md)
 - [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+- decisions/0003-context-map.md
+- decisions/0005-anti-corruption-layer.md

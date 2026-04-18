@@ -1,7 +1,8 @@
+import { ThemeProvider } from "@packages";
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { cn } from "@/packages/ui-shadcn";
-import { ThemeProvider } from "@ui-shadcn/provider/theme-provider";
+
 import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react";
 import "./globals.css";
 

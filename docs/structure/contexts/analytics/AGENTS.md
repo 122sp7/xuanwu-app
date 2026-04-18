@@ -1,4 +1,4 @@
-# Analytics Context — Agent Guide
+﻿# Analytics Context — Agent Guide
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
@@ -63,6 +63,21 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../domain/subdomains.md](../../domain/subdomains.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    

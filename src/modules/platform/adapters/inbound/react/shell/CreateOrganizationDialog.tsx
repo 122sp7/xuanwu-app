@@ -12,16 +12,9 @@
  * AccountSwitcher refreshes without an explicit refetch.
  */
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@packages";
 import { useState, useMemo } from "react";
 import { Building2, Loader2 } from "lucide-react";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@ui-shadcn/ui/dialog";
 
 import { createClientOrganizationUseCases } from "../../../../../iam/adapters/outbound/firebase-composition";
 import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";

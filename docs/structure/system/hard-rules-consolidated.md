@@ -373,12 +373,12 @@ Each module enforces its own subset of these rules. Key mapping:
 
 ## 📚 Document Network
 
-- [AGENTS.md](../AGENTS.md) — Strategic ownership & anti-patterns
-- [.github/instructions/architecture-core.instructions.md](../.github/instructions/architecture-core.instructions.md) — Layer responsibility
-- [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
-- [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
+- [AGENTS.md](../../AGENTS.md) — Strategic ownership & anti-patterns
+- [.github/instructions/architecture-core.instructions.md](../../../.github/instructions/architecture-core.instructions.md) — Layer responsibility
+- [.github/instructions/event-driven-state.instructions.md](../../../.github/instructions/event-driven-state.instructions.md) — Event bus & async
+- [.github/instructions/security-rules.instructions.md](../../../.github/instructions/security-rules.instructions.md) — File/data/permission
 - [docs/structure/system/context-map.md](./context-map.md) — Cross-module contracts
-- [src/modules/platform/AGENTS.md](../src/modules/platform/AGENTS.md) — Platform constraints
-- [src/modules/workspace/AGENTS.md](../src/modules/workspace/AGENTS.md) — Workspace constraints
-- [src/modules/notion/AGENTS.md](../src/modules/notion/AGENTS.md) — Notion constraints
-- [src/modules/notebooklm/AGENTS.md](../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints
+- [src/modules/platform/AGENTS.md](../../../src/modules/platform/AGENTS.md) — Platform constraints
+- [src/modules/workspace/AGENTS.md](../../../src/modules/workspace/AGENTS.md) — Workspace constraints
+- [src/modules/notion/AGENTS.md](../../../src/modules/notion/AGENTS.md) — Notion constraints
+- [src/modules/notebooklm/AGENTS.md](../../../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints

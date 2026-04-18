@@ -15,6 +15,7 @@
  *  - Timestamps may arrive as Firestore Timestamp objects or ISO strings — both handled.
  */
 
+import { firebaseClientApp } from "@packages";
 import {
   getFirestore,
   collection,
@@ -23,7 +24,7 @@ import {
   onSnapshot,
   type Timestamp,
 } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+
 import type {
   WorkspaceSnapshot,
   WorkspaceLifecycleState,

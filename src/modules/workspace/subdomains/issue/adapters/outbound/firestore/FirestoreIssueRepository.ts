@@ -30,6 +30,13 @@ export class FirestoreIssueRepository implements IssueRepository {
     return docs as unknown as IssueSnapshot[];
   }
 
+  async findByWorkspaceId(workspaceId: string): Promise<IssueSnapshot[]> {
+    const docs = await this.db.query(this.collection, [
+      { field: "workspaceId", op: "==", value: workspaceId },
+    ]);
+    return docs as unknown as IssueSnapshot[];
+  }
+
   async findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]> {
     const docs = await this.db.query(this.collection, [
       { field: "taskId", op: "==", value: taskId },

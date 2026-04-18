@@ -4,10 +4,10 @@
  * WorkspaceTasksSection — workspace.tasks tab — task list with status filters.
  */
 
+import { Badge, Button } from "@packages";
 import { CheckSquare, Plus, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
+
 import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
 import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
 import type { TaskStatus } from "@/src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus";

@@ -6,6 +6,7 @@ import type { IssueDomainEventType } from "../events/IssueDomainEvent";
 
 export interface IssueSnapshot {
   readonly id: string;
+  readonly workspaceId: string;
   readonly taskId: string;
   readonly stage: IssueStage;
   readonly title: string;
@@ -19,6 +20,7 @@ export interface IssueSnapshot {
 }
 
 export interface OpenIssueInput {
+  readonly workspaceId: string;
   readonly taskId: string;
   readonly stage: IssueStage;
   readonly title: string;
@@ -36,6 +38,7 @@ export class Issue {
     const now = new Date().toISOString();
     const issue = new Issue({
       id,
+      workspaceId: input.workspaceId,
       taskId: input.taskId,
       stage: input.stage,
       title: input.title,

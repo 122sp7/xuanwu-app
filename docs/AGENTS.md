@@ -36,4 +36,4 @@
 - [subdomains.md](structure/domain/subdomains.md) — 子域清單
 - [context-map.md](structure/system/context-map.md) — 主域關係方向
 - [ubiquitous-language.md](structure/domain/ubiquitous-language.md) — 戰略術語
-- [decisions/README.md](decisions/README.md) — ADR 索引
+- decisions/README.md — ADR 索引

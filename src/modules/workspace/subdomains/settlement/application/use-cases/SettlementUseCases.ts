@@ -2,7 +2,6 @@ import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
 import { Invoice } from "../../domain/entities/Invoice";
-import { canTransitionInvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
 import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
 
 export class CreateInvoiceUseCase {
@@ -26,11 +25,10 @@ export class TransitionInvoiceStatusUseCase {
     try {
       const snapshot = await this.invoiceRepo.findById(invoiceId);
       if (!snapshot) return commandFailureFrom("SETTLEMENT_NOT_FOUND", "Invoice not found.");
-      if (!canTransitionInvoiceStatus(snapshot.status, to)) {
-        return commandFailureFrom("SETTLEMENT_INVALID_TRANSITION", `Cannot transition invoice from '${snapshot.status}' to '${to}'.`);
-      }
-      const updated = await this.invoiceRepo.transitionStatus(invoiceId, to, new Date().toISOString());
-      if (!updated) return commandFailureFrom("SETTLEMENT_NOT_FOUND", "Invoice not found after update.");
+      const invoice = Invoice.reconstitute(snapshot);
+      // Aggregate enforces FSM guard — throws on invalid transition (Rule 6, 7, 18)
+      invoice.transition(to);
+      await this.invoiceRepo.save(invoice.getSnapshot());
       return commandSuccess(invoiceId, Date.now());
     } catch (err) {
       return commandFailureFrom("SETTLEMENT_TRANSITION_FAILED", err instanceof Error ? err.message : "Failed to transition invoice.");

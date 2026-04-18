@@ -4,9 +4,10 @@
  * NotionTemplatesSection — notion.templates tab — template library.
  */
 
+import { Button } from "@packages";
 import { Layout } from "lucide-react";
 import { useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
+
 import type { Template } from "../../../subdomains/template/domain/entities/Template";
 import { queryTemplatesAction } from "../server-actions/template-actions";
 

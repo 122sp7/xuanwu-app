@@ -9,15 +9,7 @@
  * src/modules/iam/adapters/outbound/ which matches the permitted glob.
  */
 
-import {
-  getFirebaseAuth,
-  onFirebaseAuthStateChanged,
-  signOutFirebase,
-  getFirebaseFirestore,
-  firestoreApi,
-  type User,
-} from "@integration-firebase";
-
+import { getFirebaseAuth, onFirebaseAuthStateChanged, signOutFirebase, getFirebaseFirestore, firestoreApi, type User } from "@packages";
 import { FirebaseAuthIdentityRepository } from "./FirebaseAuthIdentityRepository";
 import { FirebaseAccountQueryRepository } from "./FirebaseAccountQueryRepository";
 import {

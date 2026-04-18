@@ -11,7 +11,7 @@
  *   mode: COLLECTION
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
+import { getFirebaseFirestore, firestoreApi } from "@packages";
 import type { StoredFile } from "../../../domain/entities/StoredFile";
 import type { FileStorageRepository } from "../../../domain/repositories/FileStorageRepository";
 

@@ -6,6 +6,7 @@ export interface IssueRepository {
   findById(issueId: string): Promise<IssueSnapshot | null>;
   findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
   findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>;
+  findByWorkspaceId(workspaceId: string): Promise<IssueSnapshot[]>;
   countOpenByTaskId(taskId: string): Promise<number>;
   countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>;
   save(issue: IssueSnapshot): Promise<void>;

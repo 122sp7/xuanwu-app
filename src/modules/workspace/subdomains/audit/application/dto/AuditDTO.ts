@@ -1,14 +1,14 @@
 import { z } from "zod";
-import { AUDIT_ACTIONS } from "../../domain/value-objects/AuditAction";
-import { AUDIT_SEVERITIES } from "../../domain/value-objects/AuditSeverity";
+import { AuditActionSchema } from "../../domain/value-objects/AuditAction";
+import { AuditSeveritySchema } from "../../domain/value-objects/AuditSeverity";
 
 export const RecordAuditEntrySchema = z.object({
   workspaceId: z.string().uuid(),
   actorId: z.string(),
-  action: z.enum(AUDIT_ACTIONS),
+  action: AuditActionSchema,
   resourceType: z.string().min(1),
   resourceId: z.string(),
-  severity: z.enum(AUDIT_SEVERITIES),
+  severity: AuditSeveritySchema,
   detail: z.string(),
   source: z.enum(["workspace", "finance", "notification", "system"]),
   changes: z.array(z.object({ field: z.string(), oldValue: z.unknown(), newValue: z.unknown() })).optional(),
