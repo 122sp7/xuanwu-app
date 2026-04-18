@@ -105,18 +105,18 @@ docs/
       .gitkeep (0 lines)
     architecture/
       gaps/
-        GAP-01-schedule-audit-settlement-ui-only.md (204 lines)
-        GAP-02-notion-templates-placeholder.md (207 lines)
-        GAP-03-notebooklm-task-materialization-stub.md (221 lines)
-        GAP-04-task-formation-extractor-weak-fallback.md (219 lines)
-        GAP-05-authorization-boundary-missing.md (218 lines)
+        GAP-01-schedule-audit-settlement-ui-only.md (227 lines)
+        GAP-02-notion-templates-placeholder.md (229 lines)
+        GAP-03-notebooklm-task-materialization-stub.md (244 lines)
+        GAP-04-task-formation-extractor-weak-fallback.md (242 lines)
+        GAP-05-authorization-boundary-missing.md (240 lines)
         GAP-06-workspace-governance-tabs-disconnected.md (79 lines)
         GAP-07-notebooklm-conversation-model-not-activated.md (80 lines)
         GAP-08-platform-account-governance-routes-stubbed.md (74 lines)
       .gitkeep (0 lines)
-      2026-04-18-gap-analysis-index.md (82 lines)
+      2026-04-18-gap-analysis-index.md (95 lines)
       2026-04-18-navigation-capability-gap-index-v3.md (31 lines)
-      2026-04-18-workspace-notion-notebooklm-gap-analysis.md (221 lines)
+      2026-04-18-workspace-notion-notebooklm-gap-analysis.md (264 lines)
     data/
       .gitkeep (0 lines)
     domain/

@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1227 files | 34,610 lines
+1227 files | 34,779 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 735 | 10,026 |
-| Markdown | 243 | 17,812 |
+| Markdown | 243 | 17,981 |
 | TypeScript (TSX) | 107 | 2,948 |
 | Python | 63 | 1,459 |
 | No Extension | 50 | 55 |
@@ -66,6 +66,6 @@ This skill contains the following reference files:
 - `docs/structure/domain/bounded-contexts.md` (278 lines)
 - `src/modules/template/README.md` (266 lines)
 - `py_fn/README.md` (265 lines)
-- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
-- `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
-- `docs/decisions/architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md` (221 lines)
+- `docs/decisions/architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md` (264 lines)
+- `docs/decisions/architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md` (244 lines)
+- `docs/decisions/architecture/gaps/GAP-04-task-formation-extractor-weak-fallback.md` (242 lines)
