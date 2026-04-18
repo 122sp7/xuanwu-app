@@ -32,8 +32,8 @@
 ## 文件網絡
 
 - [README.md](README.md) — 文件索引
-- [bounded-contexts.md](bounded-contexts.md) — 主域所有權地圖
-- [subdomains.md](subdomains.md) — 子域清單
-- [context-map.md](context-map.md) — 主域關係方向
-- [ubiquitous-language.md](ubiquitous-language.md) — 戰略術語
+- [bounded-contexts.md](structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [subdomains.md](structure/domain/subdomains.md) — 子域清單
+- [context-map.md](structure/system/context-map.md) — 主域關係方向
+- [ubiquitous-language.md](structure/domain/ubiquitous-language.md) — 戰略術語
 - [decisions/README.md](decisions/README.md) — ADR 索引
