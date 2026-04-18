@@ -5,7 +5,7 @@
  */
 
 import { CheckSquare, Plus, Loader2 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
@@ -54,15 +54,22 @@ export function WorkspaceTasksSection({
 }: WorkspaceTasksSectionProps): React.ReactElement {
   const [filter, setFilter] = useState<TaskFilter>("全部");
   const [tasks, setTasks] = useState<TaskSnapshot[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const isLoading = loadedWorkspaceId !== workspaceId;
+
+  const loadTasks = useCallback(
+    (targetWorkspaceId: string) =>
+      listTasksByWorkspaceAction(targetWorkspaceId)
+        .then(setTasks)
+        .catch(() => setTasks([]))
+        .finally(() => setLoadedWorkspaceId(targetWorkspaceId)),
+    [],
+  );
 
   useEffect(() => {
-    setIsLoading(true);
-    listTasksByWorkspaceAction(workspaceId)
-      .then(setTasks)
-      .finally(() => setIsLoading(false));
-  }, [workspaceId]);
+    loadTasks(workspaceId);
+  }, [loadTasks, workspaceId]);
 
   const filteredTasks = tasks.filter((t) =>
     STATUS_FILTER_MAP[filter].includes(t.status),
@@ -70,7 +77,7 @@ export function WorkspaceTasksSection({
 
   const handleRefresh = () => {
     startTransition(() => {
-      listTasksByWorkspaceAction(workspaceId).then(setTasks);
+      loadTasks(workspaceId);
     });
   };
 
@@ -157,4 +164,3 @@ export function WorkspaceTasksSection({
     </div>
   ) as React.ReactElement;
 }
-
