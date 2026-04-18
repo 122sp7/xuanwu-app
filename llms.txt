@@ -7,8 +7,8 @@ This file is the AI-first documentation router for the repository. Read this bef
 ## Primary repository truths
 
 - `.github/copilot-instructions.md` — Copilot workspace guidance (always-on baseline)
-- `.github/agents/knowledge-base.md` — Hexagonal DDD architecture, module boundaries, package aliases
-- `.github/agents/commands.md` — Build, lint, test, and deployment workflows
+- `docs/tooling/knowledge-base-reference.md` — Hexagonal DDD architecture, module boundaries, package aliases
+- `docs/tooling/commands-reference.md` — Build, lint, test, and deployment workflows
 - `.github/instructions/` — Behavioral constraints (branching, commit, ubiquitous language, bounded contexts)
 - `docs/ubiquitous-language.md` — Strategic DDD terminology authority
 - `docs/bounded-contexts.md` — Bounded context map and responsibilities
@@ -21,8 +21,8 @@ Read from high level to detail:
 
 1. This file (`llms.txt`)
 2. `.github/copilot-instructions.md` (Copilot session contract)
-3. `.github/agents/knowledge-base.md` (Hexagonal DDD foundation)
-4. `.github/agents/commands.md` (Validation and deployment)
+3. `docs/tooling/knowledge-base-reference.md` (Hexagonal DDD foundation)
+4. `docs/tooling/commands-reference.md` (Validation and deployment)
 5. `.github/instructions/docs-authority-and-language.instructions.md` (Terminology and docs authority rules)
 6. `.github/instructions/architecture-core.instructions.md` (Module isolation and dependency rules)
 7. `docs/ubiquitous-language.md` (Canonical terminology)
@@ -38,8 +38,8 @@ Read from high level to detail:
 | Module boundaries & dependency rules | `.github/instructions/architecture-core.instructions.md` |
 | Terminology and naming conventions | `.github/instructions/docs-authority-and-language.instructions.md` |
 | Commit and branching strategy | `.github/instructions/` |
-| Architecture overview & MDDD patterns | `.github/agents/knowledge-base.md` |
-| Build, lint, test commands | `.github/agents/commands.md` |
+| Architecture overview & MDDD patterns | `docs/tooling/knowledge-base-reference.md` |
+| Build, lint, test commands | `docs/tooling/commands-reference.md` |
 | Skill and MCP workflows | `.github/skills/` (serena-mcp, context7, xuanwu-skill, hexagonal-ddd) |
 | Strategic DDD routing (subdomains) | `docs/subdomains.md` |
 | Bounded context boundaries | `docs/bounded-contexts.md` |
@@ -53,8 +53,8 @@ Read from high level to detail:
   - `.github/copilot-instructions.md`
   - `.github/instructions/` (behavioral constraints)
 - **Foundation layer:**
-  - `.github/agents/knowledge-base.md`
-  - `.github/agents/commands.md`
+  - `docs/tooling/knowledge-base-reference.md`
+  - `docs/tooling/commands-reference.md`
   - `docs/ubiquitous-language.md`
   - `docs/bounded-contexts.md`
   - `docs/subdomains.md`
