@@ -19,7 +19,6 @@ import {
   CalendarRange,
   CheckCircle2,
   Circle,
-  Clock,
   DollarSign,
   Flag,
   MapPin,
@@ -170,7 +169,7 @@ function StaffingPanel() {
       <div className="grid grid-cols-3 gap-2">
         <StatPill label="成員數" value="0" />
         <StatPill label="今日出勤" value="0" color="text-emerald-600" />
-        <StatPill label="請假中" value="0" color="text-amber-500" />
+        <StatPill label="總出勤" value="0" color="text-blue-600" />
       </div>
       <EmptyState label="指派成員後出勤資料將顯示於此" />
     </SectionCard>
@@ -248,19 +247,12 @@ function LiveStatusPanel() {
       icon={<Radio className="size-4 text-primary" />}
       title="即時狀態"
     >
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2">
         <div className="flex items-center gap-2 rounded-lg border border-border/30 px-3 py-2.5">
           <span className="size-2 rounded-full bg-emerald-500" />
           <div>
             <p className="text-xs text-muted-foreground">工作區狀態</p>
             <p className="text-sm font-medium">正常</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg border border-border/30 px-3 py-2.5">
-          <Clock className="size-3.5 text-muted-foreground" />
-          <div>
-            <p className="text-xs text-muted-foreground">今日工時</p>
-            <p className="text-sm font-medium">0h</p>
           </div>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border/30 px-3 py-2.5">
