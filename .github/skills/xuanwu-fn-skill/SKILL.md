@@ -1,5 +1,5 @@
 ---
-name: xuanwu-fn-skill
+name: xuanwu-py_fn-skill
 description: Reference codebase for Xuanwu App. Use this skill when you need to understand the structure, implementation patterns, or code details of the Xuanwu App project.
 ---
 
