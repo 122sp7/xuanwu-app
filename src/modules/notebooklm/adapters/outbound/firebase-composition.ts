@@ -8,7 +8,7 @@
  */
 
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
-import { getFirebaseStorage, ref, uploadBytes } from "@integration-firebase/storage";
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
 import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
 import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
 import {
@@ -111,6 +111,18 @@ export async function uploadDocumentToStorage(
   };
   await uploadBytes(storageRef, file, metadata);
   return path;
+}
+
+/**
+ * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
+ * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
+ *
+ * Accepts both gs://bucket/path and relative paths like uploads/...
+ */
+export async function getDocumentDownloadUrl(storageUrl: string): Promise<string> {
+  const storage = getFirebaseStorage();
+  const storageRef = ref(storage, storageUrl);
+  return getDownloadURL(storageRef);
 }
 
 // keep firestore & firestoreApi accessible within this composition module

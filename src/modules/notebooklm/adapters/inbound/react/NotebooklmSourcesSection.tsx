@@ -6,15 +6,17 @@
  *
  * Closed-loop design: uploaded documents are the entry point of the data loop.
  * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
+ *
+ * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
  */
 
-import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus } from "lucide-react";
+import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { Button } from "@ui-shadcn/ui/button";
 import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
 import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
-import { uploadDocumentToStorage } from "../../../adapters/outbound/firebase-composition";
+import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -28,6 +30,20 @@ const STATUS_LABELS: Record<string, string> = {
   deleted: "已刪除",
 };
 
+/** MIME types renderable via Google Doc Viewer */
+const PREVIEWABLE_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/tiff",
+  "image/tif",
+]);
+
+function googleDocViewerUrl(downloadUrl: string): string {
+  return `https://docs.google.com/viewer?url=${encodeURIComponent(downloadUrl)}&embedded=true`;
+}
+
 export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
@@ -38,6 +54,12 @@ export function NotebooklmSourcesSection({
   const [isUploading, startUpload] = useTransition();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Preview state
+  const [previewDoc, setPreviewDoc] = useState<DocumentSnapshot | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const load = () => {
     startRefresh(async () => {
@@ -75,6 +97,29 @@ export function NotebooklmSourcesSection({
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     });
+  };
+
+  const handlePreview = async (doc: DocumentSnapshot) => {
+    if (!doc.storageUrl) return;
+    setPreviewDoc(doc);
+    setPreviewUrl(null);
+    setPreviewError(null);
+    setPreviewLoading(true);
+    try {
+      const url = await getDocumentDownloadUrl(doc.storageUrl);
+      setPreviewUrl(url);
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "無法取得預覽連結");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setPreviewDoc(null);
+    setPreviewUrl(null);
+    setPreviewError(null);
+    setPreviewLoading(false);
   };
 
   const isPending = isRefreshing || isUploading;
@@ -165,17 +210,30 @@ export function NotebooklmSourcesSection({
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium">{doc.name}</span>
-                <span
-                  className={`rounded px-1.5 py-0.5 text-xs ${
-                    doc.status === "active"
-                      ? "bg-green-500/10 text-green-600"
-                      : doc.status === "processing"
-                        ? "bg-yellow-500/10 text-yellow-600"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {STATUS_LABELS[doc.status] ?? doc.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  {doc.storageUrl && PREVIEWABLE_TYPES.has(doc.mimeType) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => void handlePreview(doc)}
+                    >
+                      <Eye className="size-3 mr-1" />
+                      預覽
+                    </Button>
+                  )}
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-xs ${
+                      doc.status === "active"
+                        ? "bg-green-500/10 text-green-600"
+                        : doc.status === "processing"
+                          ? "bg-yellow-500/10 text-yellow-600"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {STATUS_LABELS[doc.status] ?? doc.status}
+                  </span>
+                </div>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {doc.mimeType} · {(doc.sizeBytes / 1024).toFixed(1)} KB
@@ -210,6 +268,57 @@ export function NotebooklmSourcesSection({
             <ListPlus className="size-3.5" />
             任務形成
           </Link>
+        </div>
+      )}
+
+      {/* PDF / image preview overlay — Google Doc Viewer */}
+      {previewDoc && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`預覽：${previewDoc.name}`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) closePreview(); }}
+          onKeyDown={(e) => { if (e.key === "Escape") closePreview(); }}
+        >
+          <div className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <Eye className="size-4 text-primary" />
+                <span className="text-sm font-medium truncate max-w-xs">{previewDoc.name}</span>
+                <span className="text-xs text-muted-foreground">{previewDoc.mimeType}</span>
+              </div>
+              <Button size="sm" variant="ghost" onClick={closePreview} className="h-7 w-7 p-0">
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            {/* Body */}
+            <div className="relative flex-1 overflow-hidden">
+              {previewLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {previewError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
+                  <p className="text-sm text-destructive">{previewError}</p>
+                  <Button size="sm" variant="outline" onClick={() => void handlePreview(previewDoc)}>
+                    重試
+                  </Button>
+                </div>
+              )}
+              {previewUrl && (
+                <iframe
+                  src={googleDocViewerUrl(previewUrl)}
+                  className="h-full w-full border-0"
+                  title={`預覽：${previewDoc.name}`}
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
