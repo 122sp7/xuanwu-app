@@ -8,3 +8,4 @@
 ## Current Feature Write-ups
 
 - [notebooklm-source-processing-task-flow.md](./notebooklm-source-processing-task-flow.md) — `notebooklm/source` 的 parse / RAG / Knowledge Page / Task Flow 單一功能說明。
+- [workspace-nav-notion-notebooklm-implementation-guide.md](./workspace-nav-notion-notebooklm-implementation-guide.md) — Notion & NotebookLM workspace nav tab 三層模型設計與後續實作指南（Data / Behavior / UI）。
