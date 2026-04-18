@@ -8,8 +8,12 @@
  * Required env var: GOOGLE_GENAI_API_KEY (or GOOGLE_API_KEY)
  */
 
-import { genkit } from "genkit";
+import { genkit, z } from "genkit";
 import { googleAI } from "@genkit-ai/google-genai";
+import { DEFAULT_AI_MODEL } from "./index";
+
+/** Re-export z for infrastructure adapters — avoids separate zod import. */
+export { z };
 
 /**
  * Shared Genkit AI instance.
@@ -36,4 +40,6 @@ import { googleAI } from "@genkit-ai/google-genai";
  */
 export const ai = genkit({
   plugins: [googleAI()],
+  /** Default model — use googleAI.model() helper (Context7-preferred over string ID). */
+  model: googleAI.model(DEFAULT_AI_MODEL),
 });
