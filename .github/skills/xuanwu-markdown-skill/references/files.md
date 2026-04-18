@@ -26026,30 +26026,6 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
-## File: .github/instructions/ci-cd.instructions.md
-````markdown
----
-description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
-applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt,firebase.json,apphosting.yaml}'
----
-
-# CI CD
-
-## Required Checks
-
-- `npm run lint`
-- `npm run build`
-- `cd py_fn && python -m compileall -q .`
-- `cd py_fn && python -m pytest tests/ -v`
-
-## Rules
-
-- Do not skip failing mandatory checks.
-- Report unrelated baseline failures separately.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
 ## File: .github/instructions/cloud-functions.instructions.md
 ````markdown
 ---
@@ -26108,24 +26084,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse
 #use skill liteparse
-````
-
-## File: .github/instructions/hosting-deploy.instructions.md
-````markdown
----
-description: 'Hosting deploy guardrails for Firebase App Hosting and release safety.'
-applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
----
-
-# Hosting Deploy
-
-## Rules
-
-- Validate build and config before deployment.
-- Keep deploy scope explicit (hosting, rules, indexes, functions).
-- Record rollback path for production-impacting changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
 ## File: .github/instructions/playwright-mcp-testing.instructions.md
@@ -33856,6 +33814,30 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill next-devtools-mcp
 ````
 
+## File: .github/instructions/ci-cd.instructions.md
+````markdown
+---
+description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
+applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt}'
+---
+
+# CI CD
+
+## Required Checks
+
+- `npm run lint`
+- `npm run build`
+- `cd py_fn && python -m compileall -q .`
+- `cd py_fn && python -m pytest tests/ -v`
+
+## Rules
+
+- Do not skip failing mandatory checks.
+- Report unrelated baseline failures separately.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
 ## File: .github/instructions/genkit-flow.instructions.md
 ````markdown
 ---
@@ -33879,33 +33861,6 @@ applyTo: '{src/modules/platform/**/*.{ts,tsx,js,jsx},src/modules/notebooklm/**/*
 - Never use `any`, `unknown`, or untyped objects for flow I/O.
 - Flow name convention: `<module-name>.<action>` (e.g. `notebooklm.synthesis`, `notebooklm.retrieval`).
 - Flow files live in `src/modules/<context>/infrastructure/ai/<name>.flow.ts`.
-
-```typescript
-// ✅ Correct: typed flow with Zod schemas
-import { defineFlow } from '@genkit-ai/core';
-import { z } from 'zod';
-
-const RetrievalInputSchema = z.object({
-  query: z.string().min(1).max(2000),
-  notebookId: z.string().uuid(),
-  limit: z.number().int().min(1).max(20).default(5),
-});
-
-const RetrievalOutputSchema = z.object({
-  chunks: z.array(z.object({
-    chunkId: z.string().uuid(),
-    content: z.string(),
-    score: z.number().min(0).max(1),
-    sourceRef: z.string(),
-  })),
-  retrievedAt: z.string().datetime(),
-});
-
-export const retrievalFlow = defineFlow(
-  { name: 'notebooklm.retrieval', inputSchema: RetrievalInputSchema, outputSchema: RetrievalOutputSchema },
-  async (input) => { /* ... */ }
-);
-```
 
 ## AI Output Validation Rule
 
@@ -34017,6 +33972,24 @@ applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
+````
+
+## File: .github/instructions/hosting-deploy.instructions.md
+````markdown
+---
+description: 'Hosting deploy guardrails for Firebase App Hosting and release safety.'
+applyTo: '{apphosting.yaml,firebase.json}'
+---
+
+# Hosting Deploy
+
+## Rules
+
+- Validate build and config before deployment.
+- Keep deploy scope explicit (hosting, rules, indexes, functions).
+- Record rollback path for production-impacting changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
 ## File: .github/instructions/lint-format.instructions.md
@@ -34190,29 +34163,9 @@ One module must not import another module's store directly. If two modules share
 ### Slice Pattern (Mandatory)
 
 Every store must split **state** and **actions** into two slices to minimise re-renders:
-
-```typescript
-// src/modules/workspace/interfaces/stores/panel.store.ts
-import { create } from 'zustand';
-
-interface PanelState {
-  activePanelId: string | null;
-}
-
-interface PanelActions {
-  setActivePanel: (id: string | null) => void;
-  clearPanel: () => void;
-}
-
-export const usePanelStore = create<PanelState & PanelActions>((set) => ({
-  // State slice
-  activePanelId: null,
-
-  // Action slice
-  setActivePanel: (id) => set({ activePanelId: id }),
-  clearPanel: () => set({ activePanelId: null }),
-}));
-```
+- Define `<Noun>State` interface (data fields only).
+- Define `<Noun>Actions` interface (setter/clear functions only).
+- Export `use<Noun>Store = create<State & Actions>(...)` as the combined hook.
 
 ### Naming Rules
 
@@ -34256,38 +34209,10 @@ Name states with business semantics, not technical or UI language:
 ### Machine + Server Action Integration
 
 Machine `invoke.src` actors call Server Actions; results map back via `onDone` / `onError`:
-
-```typescript
-// src/modules/workspace/application/machines/workspace-creation.machine.ts
-import { createMachine, assign } from 'xstate';
-
-export const workspaceCreationMachine = createMachine({
-  id: 'workspaceCreation',
-  initial: 'idle',
-  context: {
-    workspaceId: null as string | null,
-    error: null as string | null,
-  },
-  states: {
-    idle: { on: { SUBMIT: 'creating' } },
-    creating: {
-      invoke: {
-        src: 'createWorkspaceAction',
-        onDone: {
-          target: 'ready',
-          actions: assign({ workspaceId: ({ event }) => event.output.aggregateId }),
-        },
-        onError: {
-          target: 'failed',
-          actions: assign({ error: ({ event }) => String(event.error) }),
-        },
-      },
-    },
-    ready: {},
-    failed: { on: { RETRY: 'idle' } },
-  },
-});
-```
+- Declare a `creating` state with `invoke.src` pointing to the Server Action name.
+- Use `onDone` to transition to `ready` and `assign` the result (e.g. `aggregateId`).
+- Use `onError` to transition to `failed` and `assign` the error string.
+- Provide `RETRY: 'idle'` transition from `failed` for user-initiated retries.
 
 ### Anti-Patterns
 
@@ -36647,56 +36572,6 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 - 每次狀態修改必須產生對應的**領域事件**並存入 `_domainEvents` 私有陣列。
 - 使用 `pullDomainEvents()` 方法提取並清空待發布事件。
 - `getSnapshot()` 回傳 `Readonly<State>`，防止外部直接修改狀態。
-
-```typescript
-// 聚合根標準結構
-export class MyAggregate {
-  private readonly _id: MyId;
-  private _state: MyState;
-  private _domainEvents: DomainEvent[] = [];
-
-  private constructor(id: MyId, state: MyState) {
-    this._id = id;
-    this._state = state;
-  }
-
-  // 工廠方法：新建
-  public static create(id: MyId, /* ...inputs */): MyAggregate {
-    const aggregate = new MyAggregate(id, { /* 初始狀態 */ });
-    aggregate._domainEvents.push({ /* MyAggregateCreated 事件 */ });
-    return aggregate;
-  }
-
-  // 工廠方法：從持久化資料重建
-  public static reconstitute(snapshot: MySnapshot): MyAggregate {
-    return new MyAggregate(snapshot.id as MyId, snapshot);
-  }
-
-  // 業務方法
-  public doSomething(input: string): void {
-    // 1. 驗證不變數
-    if (this._state.status === 'archived') {
-      throw new Error('Cannot modify an archived aggregate.');
-    }
-    // 2. 更新狀態
-    this._state = { ...this._state, field: input };
-    // 3. 記錄領域事件
-    this._domainEvents.push({ type: 'my-context.something-done', /* ... */ });
-  }
-
-  public get id(): MyId { return this._id; }
-
-  public getSnapshot(): Readonly<MyState> {
-    return Object.freeze({ ...this._state });
-  }
-
-  public pullDomainEvents(): DomainEvent[] {
-    const events = [...this._domainEvents];
-    this._domainEvents = [];
-    return events;
-  }
-}
-```
 
 ## 值對象 (Value Object)
 

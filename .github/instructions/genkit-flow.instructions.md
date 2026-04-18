@@ -20,33 +20,6 @@ applyTo: '{src/modules/platform/**/*.{ts,tsx,js,jsx},src/modules/notebooklm/**/*
 - Flow name convention: `<module-name>.<action>` (e.g. `notebooklm.synthesis`, `notebooklm.retrieval`).
 - Flow files live in `src/modules/<context>/infrastructure/ai/<name>.flow.ts`.
 
-```typescript
-// ✅ Correct: typed flow with Zod schemas
-import { defineFlow } from '@genkit-ai/core';
-import { z } from 'zod';
-
-const RetrievalInputSchema = z.object({
-  query: z.string().min(1).max(2000),
-  notebookId: z.string().uuid(),
-  limit: z.number().int().min(1).max(20).default(5),
-});
-
-const RetrievalOutputSchema = z.object({
-  chunks: z.array(z.object({
-    chunkId: z.string().uuid(),
-    content: z.string(),
-    score: z.number().min(0).max(1),
-    sourceRef: z.string(),
-  })),
-  retrievedAt: z.string().datetime(),
-});
-
-export const retrievalFlow = defineFlow(
-  { name: 'notebooklm.retrieval', inputSchema: RetrievalInputSchema, outputSchema: RetrievalOutputSchema },
-  async (input) => { /* ... */ }
-);
-```
-
 ## AI Output Validation Rule
 
 - AI output must be validated with `outputSchema.parse()` or Genkit's built-in schema validation before entering any use case.
