@@ -42,30 +42,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1298 files | 36,692 lines
+1325 files | 38,137 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 806 | 10,185 |
-| Markdown | 279 | 20,877 |
-| TypeScript (TSX) | 85 | 1,951 |
+| TypeScript | 807 | 10,359 |
+| Markdown | 288 | 22,000 |
+| TypeScript (TSX) | 87 | 1,992 |
 | Python | 63 | 1,459 |
-| No Extension | 37 | 42 |
-| JSON | 19 | 1,910 |
+| No Extension | 52 | 57 |
+| JSON | 19 | 2,024 |
 | Text | 3 | 107 |
 | RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 32 |
+| JavaScript (ESM) | 2 | 10 |
 | YAML | 1 | 64 |
 | Other | 1 | 47 |
 
 **Largest files:**
-- `docs/hard-rules-consolidated.md` (459 lines)
+- `docs/structure/system/hard-rules-consolidated.md` (459 lines)
 - `firestore.indexes.json` (437 lines)
-- `docs/bounded-contexts.md` (280 lines)
-- `docs/subdomains.md` (279 lines)
+- `docs/structure/domain/bounded-contexts.md` (280 lines)
+- `docs/structure/domain/subdomains.md` (279 lines)
 - `src/modules/template/README.md` (266 lines)
 - `py_fn/README.md` (265 lines)
-- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
+- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
+- `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
+- `docs/structure/domain/ddd-strategic-design.md` (218 lines)
 - `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
-- `.github/instructions/architecture.instructions.md` (214 lines)
-- `docs/decisions/README.md` (214 lines)

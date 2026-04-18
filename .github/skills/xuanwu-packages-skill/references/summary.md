@@ -33,7 +33,7 @@ This skill contains the following reference files:
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
 - Only files matching these patterns are included: packages/**/*
-- Files matching these patterns are excluded: __pycache__, venv, tests, .pytest_cache
+- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
