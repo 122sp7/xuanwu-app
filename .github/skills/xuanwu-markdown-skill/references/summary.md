@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-413 files | 37,236 lines
+409 files | 37,256 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 413 | 37,236 |
+| Markdown | 409 | 37,256 |
 
 **Largest files:**
 - `.github/skills/vercel-react-best-practices/AGENTS.md` (3,810 lines)
 - `.github/skills/sleek-design-mobile-apps/SKILL.md` (476 lines)
 - `docs/structure/system/hard-rules-consolidated.md` (459 lines)
 - `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
+- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (387 lines)
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
 - `.github/skills/agent-browser/references/authentication.md` (303 lines)
 - `.github/skills/repomix-explorer/SKILL.md` (301 lines)
 - `.github/skills/shadcn/SKILL.md` (296 lines)
 - `.github/skills/agent-browser/references/commands.md` (295 lines)
-- `.github/skills/zustand-xstate/SKILL.md` (284 lines)

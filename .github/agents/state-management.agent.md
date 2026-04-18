@@ -33,24 +33,6 @@ handoffs:
 - Design XState machines for finite-state workflows aligned to use-case transitions
 - Enforce separation of server state (TanStack Query), client UI state (Zustand), and workflow state (XState)
 
-## Decision Rule
-
-| Is it... | Use |
-|---|---|
-| Cross-component UI preference or toggle? | **Zustand** (`interfaces/stores/`) |
-| Multi-step workflow with defined state transitions? | **XState** (`application/machines/`) |
-| Server data (async fetch result)? | **TanStack Query** — never store in Zustand |
-| Domain aggregate state? | **Firestore via use case** — never cache in frontend store |
-
-## Guardrails
-
-- Zustand stores must not hold server-fetched data or domain aggregates.
-- XState machines must not import Firebase SDK or call repositories directly.
-- Machine definitions belong in `application/machines/`, never inline in components.
-- Business rules stay in `domain/`; machines orchestrate transitions only.
-- Store naming: `use<Name>Store`, file: `<name>.store.ts`.
-- Machine naming: `<noun>-<flow>.machine.ts`.
-
 ## Skills Required
 
 `#use skill zustand-xstate`

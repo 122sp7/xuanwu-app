@@ -34,26 +34,6 @@ handoffs:
 - `xuanwu-skill`
 - `repomix`
 
-## Context7 Certainty Gate
-
-- 對任何 library/framework API、版本行為、設定 schema 的把握度只要低於 `99.99%`，一律先查 `context7` 文件再實作或回答。
-- 固定流程：`resolve-library-id` -> `get-library-docs`（必要時翻頁）。
-- 未完成 Context7 驗證前，不可用記憶或猜測替代。
-
-## Repomix Explorer Source Policy
-
-- 優先使用 `.github/skills/xuanwu-skill/references/` 作為第一層索引來源。
-- 若 `xuanwu-skill` 缺失或疑似過期，先執行 `npm run repomix:skill` 再分析。
-- 分析順序固定：`summary.md` -> `project-structure.md` -> `files.md`。
-- 採 search-first：先 pattern search，再讀完整檔案。
-- `--skill-generate` 工作流採非互動模式（`--skill-output` + `--force`），避免互動阻塞。
-
-## Serena Troubleshooting
-
-- 若出現 `Skill not found: serena-mcp`，先確認 `.github/skills/serena-mcp/SKILL.md` frontmatter 合法（`---` 開始與結束）。
-- `serena start-mcp-server`、`activate_project`、`list_memories`、`read_memory` 屬於 Serena MCP 工作流，不是一般聊天語句。
-- 在支援 MCP tool 的客戶端中，應以對應 Serena 工具執行（例如 activate/check/list/read memory 工具）。
-
 ## Workflow
 
 1. Bootstrap Serena, activate project, load memories.

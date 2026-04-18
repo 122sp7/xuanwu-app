@@ -17613,6 +17613,109 @@ Cost:
 - **ADR 0006**: Domain Event Discriminant Format convention
 ````
 
+## File: docs/tooling/commands-reference.md
+````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run test` — Run Vitest unit tests
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
+- Firebase CLI: `npx firebase` (no global install required)
+````
+
+## File: docs/tooling/knowledge-base-reference.md
+````markdown
+# Knowledge Base — Implementation Navigation
+
+> **Authority note**: Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here. Use this file only as a quick implementation-surface lookup.
+
+## Use This File For
+
+- Locating implementation surfaces quickly
+- Recalling boundary-safe import patterns
+- Checking the high-level code layout before reading concrete files
+
+## Docs Authority
+
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/structure/domain/subdomains.md`, `docs/structure/domain/bounded-contexts.md`, `docs/structure/domain/ubiquitous-language.md`, `docs/structure/contexts/<context>/*`
+- Bounded-context scaffolding and root-layer rules: `docs/structure/domain/bounded-context-subdomain-template.md`
+- Delivery sequencing and validation entrypoint: `docs/README.md` and `docs/tooling/commands-reference.md`
+
+## Boundary Summary
+
+- Cross-module imports go through `src/modules/<target>/index.ts` only (not `api/`).
+- Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
+- If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
+
+## Repository Surfaces
+
+- `src/app/`: Next.js route composition, shell UX, providers, and orchestration
+- `src/modules/`: bounded-context and subdomain implementations
+- `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
+- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
+
+## Typical Module Shape
+
+```text
+src/modules/<context>/
+├── index.ts            ← cross-module public boundary (only import this)
+├── application/
+├── domain/
+├── infrastructure/
+├── interfaces/
+└── subdomains/<name>/
+```
+````
+
 ## File: py_fn/README.md
 ````markdown
 # py_fn 架構規範（路徑級依賴版）
@@ -17880,82 +17983,6 @@ HTTP Request
 ## 13. 一句話總結
 
 看完整路徑判斷層級，不看資料夾名稱猜責任。
-````
-
-## File: .github/agents/commands.md
-````markdown
----
-name: Commands Reference
-description: A reference for build, lint, development, deployment, and AI skill generation commands in this repository. Use this as a quick lookup for available npm scripts and their purposes.
-argument-hint: >- 
-  This file is meant to be a quick reference for available commands. For detailed
-  explanations of each command, their configurations, and environment setup, refer
-  to the "Build, Lint & Development Commands" section below.
-tools: [read, search]
-model: GPT-5.4 mini
-handoffs:
-  - label: Update Commands Reference
-    agent: agent
-    prompt: Update the commands reference with any new scripts added to package.json or changes to existing ones.
-    send: true
-    model: GPT-5.4 mini
-
----
-
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- `npm run test` — Run Vitest unit tests
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
-- Firebase CLI: `npx firebase` (no global install required)
 ````
 
 ## File: .github/instructions/README.md
@@ -20879,19 +20906,395 @@ flowchart LR
 這個 feature 的核心不是「直接建任務」，而是把**同一份 source document**安全地推進到多個下游消費能力，同時維持 `notebooklm → notion / workspace` 的邊界清楚。
 ````
 
-## File: docs/examples/modules/feature/README.md
+## File: docs/examples/modules/feature/py-fn-ts-capability-bridge.md
 ````markdown
-# Feature Docs
+# py_fn ↔ TypeScript 能力橋接指南
 
-這裡整理單一 bounded context 內的 use case 文件。
+## 背景：三層模型的真實狀態
 
-重點是說明這個功能做什麼。
-並遵循 Hexagonal + DDD 與 semantic-first 的業務語言設計。
+[workspace-nav-notion-notebooklm-implementation-guide.md](./workspace-nav-notion-notebooklm-implementation-guide.md)
+中的「三層模型對照表」列出了 `notebooklm` 與 `notion` 的資料層與行為層。
+但那份文件對「行為層」的描述是**設計目標**，不是**當前狀態**。
 
-## Current Feature Write-ups
+實際情況是：
 
-- [notebooklm-source-processing-task-flow.md](./notebooklm-source-processing-task-flow.md) — `notebooklm/source` 的 parse / RAG / Knowledge Page / Task Flow 單一功能說明。
-- [workspace-nav-notion-notebooklm-implementation-guide.md](./workspace-nav-notion-notebooklm-implementation-guide.md) — Notion & NotebookLM workspace nav tab 三層模型設計與後續實作指南（Data / Behavior / UI）。
+| 層次 | TypeScript (`src/modules/`) | py_fn |
+|---|---|---|
+| Domain entities | ✅ 存在（`Document.ts`, `Notebook.ts` 等） | ✅ 存在（domain value objects） |
+| Use case stubs | ✅ 存在（InMemory 版，可測試） | ✅ 完整實作 |
+| Infrastructure adapters | ❌ 只有 `InMemoryRepository`，無 Firestore 實作 | ✅ 真實 Firestore + Vector + Storage |
+| HTTP / Callable entry points | ❌ 無 | ✅ Firebase Functions 已部署 |
+
+**本文件的目的**：說明 py_fn 已具備的能力、TypeScript 側缺少什麼、以及如何用最小變動接通兩端。
+
+---
+
+## 1. py_fn 現有能力清單（已部署 Firebase Functions）
+
+### 1.1 Cloud Storage Trigger（自動觸發）
+
+| Function | 觸發條件 | 能力 |
+|---|---|---|
+| `on_document_uploaded` | GCS `uploads/` 前綴有新物件 | 自動啟動完整 parse + RAG 流程 |
+
+**流程步驟**：
+```
+GCS upload (uploads/{accountId}/{file})
+  → init_document()         → Firestore: accounts/{accountId}/documents/{docId} status=processing
+  → process_document_gcs()  → Document AI: 解析 PDF/TIFF/PNG/JPEG → 取得 text + page_count
+  → upload_json()           → GCS: files/ 前綴寫入 parsed JSON
+  → update_parsed()         → Firestore: status=completed, parsed.json_gcs_uri, parsed.page_count
+  → ingest_document_for_rag() → clean → chunk → embed (OpenAI) → upsert (Upstash Vector + Search)
+  → mark_rag_ready()        → Firestore: rag.status=ready, rag.chunk_count, rag.vector_count
+```
+
+### 1.2 HTTPS Callable（前端主動呼叫）
+
+| Callable 名稱 | 用途 | 必填參數 |
+|---|---|---|
+| `parse_document` | 手動觸發單一文件的 Document AI 解析 + RAG | `account_id`, `workspace_id`, `gcs_uri` |
+| `rag_query` | RAG 檢索 + 生成查詢 | `account_id`, `workspace_id`, `query` |
+| `rag_reindex_document` | 重新執行 normalization + chunk + embed | `account_id`, `doc_id` |
+
+### 1.3 Firestore Document Schema（py_fn 寫入）
+
+Collection path: `accounts/{accountId}/documents/{docId}`
+
+```typescript
+// TypeScript 型別對應（用於 Firestore adapter 讀取）
+interface FirestoreDocumentRecord {
+  id: string;
+  title: string;
+  status: "processing" | "completed" | "error";
+  account_id: string;
+  spaceId?: string;          // = workspaceId
+  source: {
+    gcs_uri: string;
+    filename: string;
+    display_name: string;
+    original_filename: string;
+    size_bytes: number;
+    uploaded_at: Timestamp;
+    mime_type: string;
+  };
+  parsed?: {
+    json_gcs_uri: string;
+    page_count: number;
+    parsed_at: Timestamp;
+    extraction_ms: number;
+  };
+  rag?: {
+    status: "ready" | "error";
+    chunk_count: number;
+    vector_count: number;
+    embedding_model: string;
+    embedding_dimensions: number;
+    indexed_at: Timestamp;
+  };
+  error?: {
+    message: string;
+    timestamp: Timestamp;
+  };
+  metadata?: {
+    filename: string;
+    display_name: string;
+    space_id?: string;
+  };
+}
+```
+
+---
+
+## 2. TypeScript 側目前狀態（src/modules/）
+
+### 2.1 已存在（可用）
+
+```
+src/modules/notebooklm/subdomains/document/
+├── domain/entities/Document.ts          ✅ DDD 聚合根（含 create/archive/delete + domain events）
+├── domain/repositories/DocumentRepository.ts  ✅ Repository 介面
+├── application/use-cases/DocumentUseCases.ts  ✅ AddDocument / ArchiveDocument / QueryDocuments
+└── adapters/outbound/memory/InMemoryDocumentRepository.ts  ✅ InMemory 實作（供測試用）
+```
+
+### 2.2 缺少的（需要實作）
+
+```
+src/modules/notebooklm/subdomains/document/
+├── adapters/outbound/firestore/
+│   └── FirestoreDocumentRepository.ts   ❌ 讀取 accounts/{accountId}/documents
+├── adapters/inbound/server-actions/
+│   └── document-actions.ts              ❌ uploadDocument / queryDocuments / triggerParse
+└── adapters/inbound/react/
+    └── NotebooklmSourcesSection.tsx     ❌ UI 組件（Sources tab）
+```
+
+### 2.3 Notebook 子域（notebooklm.notebook tab）
+
+`notebooklm.notebook` 用的是 RAG 查詢能力，需要橋接 `rag_query` callable。
+目前缺：
+
+```
+src/modules/notebooklm/subdomains/notebook/
+├── adapters/outbound/callable/
+│   └── FirebaseRagQueryAdapter.ts       ❌ 呼叫 py_fn rag_query callable
+└── adapters/inbound/server-actions/
+    └── notebook-actions.ts              ❌ ragQuery server action
+```
+
+---
+
+## 3. 橋接模式
+
+### 3.1 模式 A：Firestore 訂閱（即時列表）
+
+用於讀取已存在的資料（Documents 列表、狀態更新）。
+
+```typescript
+// src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository.ts
+import { collection, onSnapshot, query, where, orderBy } from "firebase/firestore";
+import { getFirestore } from "@integration-firebase/firestore";
+import type { DocumentRepository, DocumentQuery } from "../../../domain/repositories/DocumentRepository";
+import type { DocumentSnapshot as DocumentSnap } from "../../../domain/entities/Document";
+
+// 注意：Firestore 寫入的欄位名稱與 TypeScript 型別對應
+function fromFirestore(raw: Record<string, unknown>, id: string): DocumentSnap {
+  return {
+    id,
+    workspaceId: (raw.spaceId ?? raw.metadata?.space_id ?? "") as string,
+    accountId: raw.account_id as string,
+    organizationId: "", // py_fn 不寫 organizationId，從 account 查詢時補填
+    name: raw.title as string,
+    mimeType: (raw.source as any)?.mime_type ?? "",
+    sizeBytes: (raw.source as any)?.size_bytes ?? 0,
+    classification: "other",
+    tags: [],
+    status: mapPyFnStatus(raw.status as string, (raw.rag as any)?.status),
+    storageUrl: (raw.source as any)?.gcs_uri,
+    createdAtISO: ((raw.source as any)?.uploaded_at?.toDate?.() ?? new Date()).toISOString(),
+    updatedAtISO: new Date().toISOString(),
+  };
+}
+
+function mapPyFnStatus(
+  docStatus: string,
+  ragStatus?: string
+): "active" | "processing" | "archived" | "deleted" {
+  if (docStatus === "processing") return "processing";
+  if (ragStatus === "ready") return "active";
+  return "processing"; // completed but rag not yet ready
+}
+
+export class FirestoreDocumentRepository implements DocumentRepository {
+  async query(params: DocumentQuery): Promise<DocumentSnap[]> {
+    const db = getFirestore();
+    const ref = collection(db, "accounts", params.accountId!, "documents");
+    const q = params.workspaceId
+      ? query(ref, where("spaceId", "==", params.workspaceId), orderBy("source.uploaded_at", "desc"))
+      : query(ref, orderBy("source.uploaded_at", "desc"));
+    // ... snapshot read
+  }
+  // save / findById / delete → py_fn 負責寫入，TypeScript 側不需要 write
+}
+```
+
+**邊界規則**：`FirestoreDocumentRepository` 是 **read-only**（只讀）。
+寫入由 py_fn 完成，TypeScript 只監聽 Firestore 狀態變化。
+
+### 3.2 模式 B：HTTPS Callable（觸發工作流）
+
+用於主動觸發 py_fn 操作（上傳後觸發解析、執行 RAG 查詢）。
+
+```typescript
+// src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts
+import { getFunctions, httpsCallable } from "firebase/functions";
+
+export interface RagQueryInput {
+  account_id: string;
+  workspace_id: string;
+  query: string;
+  top_k?: number;
+}
+
+export interface RagQueryOutput {
+  answer: string;
+  citations: Array<{
+    doc_id: string;
+    chunk_id: string;
+    filename: string;
+    score: number;
+  }>;
+  cache: "hit" | "miss";
+  vector_hits: number;
+  search_hits: number;
+}
+
+export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput> {
+  const functions = getFunctions();
+  const fn = httpsCallable<RagQueryInput, RagQueryOutput>(functions, "rag_query");
+  const result = await fn(input);
+  return result.data;
+}
+
+export async function callParseDocument(input: {
+  account_id: string;
+  workspace_id: string;
+  gcs_uri: string;
+  doc_id?: string;
+  filename?: string;
+}) {
+  const functions = getFunctions();
+  const fn = httpsCallable(functions, "parse_document");
+  return fn(input);
+}
+```
+
+### 3.3 模式 C：GCS 上傳 + Storage Trigger（自動流程）
+
+```
+Next.js UI（拖放上傳）
+  → Firebase Storage uploadBytes() → uploads/{accountId}/{workspaceId}/{filename}
+  → Cloud Storage Trigger (on_document_uploaded)
+  → py_fn 自動執行完整 parse + RAG pipeline
+  → Firestore accounts/{accountId}/documents/{docId} 狀態更新
+  → TypeScript Firestore 訂閱收到更新 → UI 即時反映狀態
+```
+
+這是**最推薦的模式**，前端不需要主動呼叫 `parse_document` callable。
+只需要：
+1. 上傳到正確的 GCS 路徑（帶 `account_id` 和 `workspace_id` 作為 custom metadata）
+2. 訂閱 Firestore 文件狀態
+
+---
+
+## 4. 各 Tab 的具體實作路徑
+
+### 4.1 `notebooklm.sources` — 來源文件
+
+**目標**：顯示文件列表（含狀態），支援上傳新文件。
+
+**缺少的實作**：
+
+```
+1. FirestoreDocumentRepository.ts
+   → 讀取 accounts/{accountId}/documents
+   → filter by spaceId (workspaceId)
+
+2. document-actions.ts (Server Action)
+   "use server"
+   → queryDocumentsAction({ accountId, workspaceId })  → 呼叫 QueryDocumentsUseCase
+   → uploadDocumentAction({ accountId, workspaceId, gcsUri, filename }) → Storage.upload 後自動觸發
+
+3. NotebooklmSourcesSection.tsx
+   → 列出文件（名稱、狀態 badge、rag 就緒狀態）
+   → 上傳按鈕 → Firebase Storage uploadBytes 到 uploads/{accountId}/{workspaceId}/
+   → 訂閱 Firestore 狀態更新（useEffect + onSnapshot）
+```
+
+**上傳路徑約定**：
+```
+GCS bucket: [UPLOAD_BUCKET from py_fn config]
+Object path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
+Custom metadata:
+  account_id: {accountId}
+  workspace_id: {workspaceId}
+  filename: {originalFilename}
+```
+
+### 4.2 `notebooklm.notebook` — RAG 查詢
+
+**目標**：輸入查詢 → 顯示 AI 生成答案 + 來源引用。
+
+**缺少的實作**：
+
+```
+1. callRagQuery() (callable adapter)
+   → 呼叫 py_fn rag_query callable
+
+2. notebook-actions.ts (Server Action)
+   "use server"
+   → ragQueryAction({ accountId, workspaceId, query })
+   → 呼叫 callRagQuery() → 回傳 { answer, citations }
+
+3. NotebooklmNotebookSection.tsx
+   → 查詢輸入框 + 提交按鈕
+   → 顯示 answer（Markdown 渲染）
+   → 顯示 citations 列表（filename + score）
+```
+
+### 4.3 `notebooklm.ai-chat` — AI 對話
+
+**目標**：多輪對話，每輪查詢都接上下文傳遞給 RAG。
+
+**缺少的實作**：
+- `Conversation` 聚合根（domain 層已有骨架）
+- Firestore conversation 持久化 adapter
+- Server action 包裝 `rag_query` callable（帶 conversation history 作為 context）
+
+### 4.4 `notebooklm.research` — 研究摘要
+
+**目標**：針對整個 workspace 的文件庫做 synthesis summary。
+
+**實作方式**：  
+呼叫 `rag_query`，但傳入 synthesis prompt（「總結所有文件的主要主題」），
+不需要獨立的 callable，重用現有 `rag_query` 能力。
+
+### 4.5 `notion.*` tabs
+
+Notion 的四個 tabs（knowledge / pages / database / templates）目前 py_fn **沒有對應能力**。
+它們是純 TypeScript DDD 實作，需要建立：
+1. Firestore 寫入路徑（由 TypeScript 側直接負責）
+2. 對應的 Firestore adapter
+3. Server actions
+
+這部分不涉及 py_fn 橋接，按標準 Hexagonal adapter 模式實作即可。
+
+---
+
+## 5. 開發優先順序建議
+
+根據「已有能力最大化」原則（Occam's Razor）：
+
+```
+Phase 1 — 橋接 py_fn 已有能力（highest ROI）
+  ✅ py_fn parse + RAG 已可用
+  → 1. FirestoreDocumentRepository (read-only)
+  → 2. document-actions.ts (upload + query)
+  → 3. NotebooklmSourcesSection.tsx (Sources tab 可見)
+  → 4. ragQueryAction + NotebooklmNotebookSection.tsx (Notebook tab 可用)
+
+Phase 2 — Conversation 持久化
+  → StartConversation / AddMessage use cases 接上 Firestore
+  → AiChat tab 接通
+
+Phase 3 — Notion 純 TypeScript 實作
+  → PageRepository (Firestore)
+  → Knowledge / Pages / Database / Templates tabs
+```
+
+---
+
+## 6. 邊界規則（橋接版本補充）
+
+原有規則（見 implementation-guide 第 5 節）加上以下補充：
+
+| 規則 | 正確做法 | 禁止做法 |
+|---|---|---|
+| py_fn callable 呼叫 | 透過 infrastructure adapter（`adapters/outbound/callable/`） | 在 server action 直接 import firebase/functions SDK |
+| Firestore 讀取（py_fn 寫入的 collection） | TypeScript `FirestoreDocumentRepository` 只讀，映射 py_fn schema | 在 TypeScript 端重複寫入 py_fn 管理的 fields |
+| GCS 上傳路徑 | `uploads/{accountId}/{workspaceId}/{uuid}-{filename}` + custom metadata | 任意路徑（Storage Trigger 依賴 `uploads/` 前綴過濾） |
+| 狀態同步 | Firestore 訂閱（onSnapshot）取得 py_fn 寫入的狀態更新 | 輪詢 callable 或自行維護一份狀態副本 |
+
+---
+
+## 7. 相關文件
+
+- [`workspace-nav-notion-notebooklm-implementation-guide.md`](./workspace-nav-notion-notebooklm-implementation-guide.md) — Tab 導覽模型與三層設計
+- [`notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — Source 文件處理流程細節
+- [`py_fn/README.md`](../../../../py_fn/README.md) — py_fn 架構規範
+- [`py_fn/main.py`](../../../../py_fn/main.py) — Firebase Functions 入口（callable 名稱列表）
+- [`py_fn/src/interface/handlers/`](../../../../py_fn/src/interface/handlers/) — 各 callable 的 handler 實作
+- [`py_fn/src/infrastructure/persistence/firestore/document_repository.py`](../../../../py_fn/src/infrastructure/persistence/firestore/document_repository.py) — Firestore document schema
 ````
 
 ## File: docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md
@@ -24698,497 +25101,6 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/structure/domain/bounded-context-subdomain-template.md
-````markdown
-# Bounded Context Subdomain Template
-
-本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `src/modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
-
-## Purpose
-
-這份模板定義新的 bounded context 與其 subdomains 應以什麼結構交付，讓 Copilot 在建立模組樹、層次與邊界時，先遵守 Hexagonal Architecture with Domain-Driven Design，再決定實作細節。
-
-## Development Order Contract (Domain-First)
-
-- 每個需求都必須先有 use case contract（actor、goal、main success scenario、failure branches），再進入程式碼實作。
-- 新功能一律遵循：Domain -> Application -> Ports -> Infrastructure -> Interface。
-- Domain 先定義「系統是什麼」：聚合、不變條件、值對象與領域事件，不依賴任何框架或外部技術。
-- Application 再定義「系統做什麼」：use case 流程協調、DTO 轉換、交易與事件發布時序。
-- Ports 定義內外協作契約；Infrastructure 只負責實作契約並接入 Firebase、AI 或其他外部系統。
-- Interface（UI / API / Server Action）只做輸入輸出與組裝，不承載領域決策。
-- UI 永遠只能呼叫同 bounded context 的 `application/` 或該 bounded context 的 `index.ts`，不可直接呼叫 `domain/` 或 `infrastructure/`。
-- `domain/` 不可匯入 React、Firebase SDK、HTTP client、ORM model 或 runtime-specific adapter。
-
-## Standard Structure Tree
-
-```text
-src/modules/                                    # 系統所有業務模組（bounded contexts）集合
-└── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
-    ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
-    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
-    ├── index.ts                                # 跨模組公開入口（cross-module entry surface）
-    ├── application/                            # 應用層：負責 use case orchestration
-    │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
-    │   ├── use-cases/                          # 一檔一用例，承擔流程控制與副作用協調
-    │   └── services/                           # Application Service：流程共用輔助，不承載核心業務規則
-    ├── domain/                                 # 領域層：核心商業邏輯與不變條件
-    │   ├── entities/                           # Entity：有 identity，封裝狀態與行為
-    │   ├── value-objects/                      # Value Object：無 identity，以值相等，通常 immutable
-    │   ├── services/                           # Domain Service：不屬於單一 entity 的業務規則
-    │   ├── repositories/                       # Repository 介面（Domain Port）：只定義契約不含實作
-    │   ├── events/                             # Domain Events：已發生的業務事實，用於解耦
-    │   └── ports/                              # 外部依賴抽象（非資料庫），由 infrastructure 實作
-    ├── docs/                                   # 架構文件與治理規範（長期可維護關鍵）
-    │   ├── README.md                           # 文件總覽
-    │   ├── bounded-context.md                  # 邊界責任（負責/不負責）
-    │   ├── context-map.md                      # context 關係圖（ACL/Shared Kernel/Partnership）
-    │   ├── subdomains.md                       # 子域拆分（core/supporting/generic）
-    │   ├── ubiquitous-language.md              # 統一語言與命名詞彙表
-    │   ├── aggregates.md                       # Aggregate 設計（邊界與 root）
-    │   ├── domain-events.md                    # 事件設計規範
-    │   ├── repositories.md                     # repository 設計準則
-    │   ├── application-services.md             # application 層規範
-    │   └── domain-services.md                  # domain 層規範
-    ├── infrastructure/                         # Driven Adapters：實作 domain ports 與外部整合
-    │   ├── <subdomain-a>/                      # 依子域分組的 adapters / persistence / repositories
-    │   └── <subdomain-b>/                      # 只有 context-wide concern 才直接放 root
-    ├── interfaces/                             # Driving Adapters：從 UI/HTTP/Action 進入系統
-    │   ├── <subdomain-a>/                      # 依子域分組的 actions / queries / components / routes
-    │   └── <subdomain-b>/                      # 只有 context-wide composition 才直接放 root
-    └── subdomains/                             # 子域：bounded context 內部能力拆分
-        ├── <subdomain-a>/                      # 單一能力模組（可獨立演化）
-            ├── README.md                       # 子域說明（責任與邊界）
-        │   ├── application/                    # 子域應用層（局部 use-case orchestration）
-        │   │   ├── dto/                        # 子域 DTO（input/output）
-        │   │   ├── use-cases/                  # 子域 use-cases（局部流程）
-        │   │   └── services/                   # 子域 Application Services：只有在共享流程壓力存在時才建立
-        │   ├── domain/                         # 子域領域模型（局部業務核心）
-        │   │   ├── entities/                   # 子域 entity
-        │   │   ├── value-objects/              # 子域 value object
-        │   │   ├── services/                   # 子域 Domain Services（規則）
-        │   │   ├── repositories/               # 子域 repository 介面
-        │   │   ├── events/                     # 子域事件
-        │   │   └── ports/                      # optional：真的需要隔離外部依賴時才建立
-        │   └── infrastructure|interfaces/      # optional：只有符合 mini-module gate 時才在子域內建立
-        └── <subdomain-b>/                      # 另一個子域（相同結構，獨立演化）
-```
-
-## Duplicate Folder Name Notes
-
-- `application` 與 `domain` 在 root 與 subdomain 都可能出現，屬於**刻意重名**。
-- `infrastructure` 與 `interfaces` 預設放在 bounded context 根層，並依 subdomain 名分組；只有符合 mini-module gate 時才會在特定 subdomain 內再出現。
-- 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
-- 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
-- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `index.ts` 邊界或事件契約。
-
-## Layer Responsibilities
-
-| Layer | Responsibility |
-|---|---|
-| `index.ts` | bounded context 對外唯一公開邊界 |
-| `application/` | 協調 use cases、轉換 DTO、執行流程但不承載核心業務規則；若在 bounded context 根層，代表跨 subdomain 的 context-wide orchestration |
-| `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
-| `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；預設在 bounded context 根層，並依 subdomain 名分組 |
-| `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；預設在 bounded context 根層，並依 subdomain 名分組 |
-
-## Service Folder Semantics
-
-- `application/services/`：Application Service，負責流程協調、交易邊界、跨聚合編排與 use case 共用流程；不承載核心業務不變條件。
-- `domain/services/`：Domain Service，負責無法自然落在單一 Entity/Value Object 的領域規則與政策；可承載核心業務邏輯與不變條件。
-
-## Core Clarification
-
-- `<bounded-context>` 本身也應該維持 Hexagonal Architecture with DDD 的依賴方向，而不只是 `subdomains/<name>/` 內部才有六邊形分層。
-- 但 Hexagonal Architecture 的關鍵是**依賴方向與內外邊界**，不是資料夾一定要叫 `core/`。
-- 依 Context7 驗證的參考，Application Core 是概念上的核心，外層依賴向內；ports 可放在 application 或 domain，取決於規則真正屬於哪一層。
-- 因此本模板的預設寫法是用顯式的 `application/`、`domain/`、`infrastructure/`、`interfaces/` 來表達六邊形邊界，而不是再包一層泛用 `core/`；其中 subdomain 預設只保留 core-first 形狀。
-- 如果團隊真的要使用 `core/`，較合理的變體應是 `<bounded-context>/core/application`、`<bounded-context>/core/domain`，必要時加 `core/ports`；**不應**把 `infrastructure/` 或 `interfaces/` 也放進 `core/`，因為它們本來就是外層。
-- 只有當某段邏輯明確屬於整個 bounded context，而不是單一 subdomain 時，才應放在 `<bounded-context>/application|domain|infrastructure|interfaces`；否則優先放回擁有它的 subdomain。
-
-## Template Rules
-
-- `<bounded-context>` 根層允許有自己的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，用來承接 context-wide concern；不要把整個 bounded context 簡化成只剩 `docs/` 與 `subdomains/` 的外殼。
-- 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；adapter/UI 預設由 bounded context 根層承接，並依 subdomain 名分組。
-- subdomain 預設採 core-first：`application/`、`domain/`，`ports/` 視需要建立。
-- subdomain 的 `infrastructure/` 與 `interfaces/` 不是預設必建，只有在存在明確且持續的本地 I/O、runtime、process 或 provider boundary 壓力時才建立。
-- `index.ts` 是 cross-module collaboration 的唯一公開入口，不得暴露內部結構。
-- adapter 只實作 port，不直接被其他層呼叫。
-- port 只在真的需要隔離 I/O、外部系統、侵入式 library 或 legacy model 時建立。
-- 若 domain 核心不需要某個抽象，就不要為了形式完整而先建空的 `service`、`port` 或 `repository`。
-- 不預設建立泛用 `core/` 包裝資料夾來混合內外層；若沒有非常明確的遷移理由，優先使用顯式層次名稱。
-
-## Delivery Checklist
-
-1. 建立 bounded context 的 `README.md`、`AGENT.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
-2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
-3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
-4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。
-5. 先放入 aggregate、domain event、published language 與 context map，再補 adapter 與 persistence 實作。
-6. 只有在交付需要時才建立 `ports/`、`hooks/`、`queries/`、`_actions/` 等細分資料夾。
-
-## Legacy Strangler Pattern Workflow (Outside-In Convergence)
-
-- 舊功能若已 outside-in 成形，不做一次性大改，採用 use case 為單位的漸進式收斂。
-- 每次只選一條 use case 進行重構，並保留舊路徑可回退。
-
-1. 找一條高價值且邊界清楚的 use case，先寫最小 use case contract。
-2. 針對該 use case 重新建 Domain（聚合、不變條件、值對象、事件），先讓核心規則可測。
-3. 在 Application 收斂流程，讓舊 UI 與舊 API 都改由新的 use case 進入。
-4. 以 Ports 隔離舊系統與舊資料模型，避免 legacy 細節回滲到 Domain。
-5. 由 Infrastructure 實作新 Ports，逐步替換舊 adapter。
-6. 確認新路徑穩定後，再移除對應的舊路徑與臨時轉接層。
-
-- 退出條件：該 use case 已滿足 `interfaces -> application -> domain <- infrastructure` 方向，且 UI 不再直連舊 service。
-
-## Anti-Pattern Rules
-
-- 不得把 `infrastructure/` 直接匯入 `domain/` 或 `application/`。
-- 不得把別的 bounded context 的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 當成可直接 import 的依賴。
-- 不得在還沒有 use case contract 的情況下直接新增 UI 與 adapter。
-- 不得讓 UI 或 route handler 直接呼叫 `domain/` 或 `infrastructure/`。
-- 不得讓 `domain/` 匯入任何 runtime 或 framework 專用套件。
-- 不得把所有子域都預設長成同一個巨型骨架，卻沒有對應的 use case 與業務責任。
-- 不得把 `infrastructure/`、`interfaces/` 放進一個泛用 `core/` 目錄，讓六邊形的內外層語義失真。
-- 不得因為「看起來完整」而過度建立 repository port、ACL、DTO、facade 或 service。
-- 不得讓 `interfaces/` 承載業務決策，也不得讓 `application/` 重寫 domain 規則。
-
-## Copilot Generation Rules
-
-- 生成新模組前，先決定 bounded context、subdomain、public API boundary 與依賴方向，再建立資料夾。
-- 若需求屬於 bounded context shared policy、published language、跨 subdomain orchestration，再使用 `<bounded-context>` 根層的 hexagonal layers；否則優先放進擁有責任的 subdomain。
-- 奧卡姆剃刀：若較少的層級、port 或 adapter 已能保護邊界與可測試性，就不要額外新增抽象。
-- 每個子域只建立當前交付需要的最小骨架，不要先把所有可選資料夾填滿。
-- 若需求只是新增一個 use case，優先放進現有 subdomain，而不是新開第二個平行 subdomain。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-    Interfaces["Interfaces"] --> Application["Application"]
-    Application --> Domain["Domain"]
-    Infrastructure["Infrastructure"] --> Domain
-    API["Public API boundary"] --> Application
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-    Requirement["Requirement"] --> Context["Choose bounded context"]
-    Context --> Subdomain["Choose owning subdomain"]
-    Subdomain --> UseCase["Write use case contract first"]
-    UseCase --> Domain["Define domain model and invariants"]
-    Domain --> Application["Orchestrate in use case"]
-    Application --> Ports["Define required ports"]
-    Ports --> Infra["Implement infrastructure adapters"]
-    Infra --> Interface["Wire UI and API at boundary"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [contexts/_template.md](./contexts/_template.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-
-## Constraints
-
-- 本模板是 architecture-first 的交付模板，不代表任何既有模組已完全符合此形狀。
-- `ports/`、`queries/`、`_actions/`、`hooks/`、subdomain-local `infrastructure/`、subdomain-local `interfaces/` 都是按需要建立的可選骨架，不是強制清單。
-- 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
-````
-
-## File: docs/structure/domain/bounded-contexts.md
-````markdown
-# Bounded Contexts
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
-
-## Strategic Bounded Context Model
-
-系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
-
-## Main Domain Map
-
-| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
-|---|---|---|---|
-| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
-| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
-| ai | 共享 AI capability | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing | provider-routing、model-policy |
-| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
-| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
-| workspace | 協作容器與 scope | audit、feed、scheduling、approve、issue、orchestration、quality、settlement、task、task-formation | lifecycle、membership、sharing、presence |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
-| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
-
-## Subdomain Inventory By Main Domain
-
-### iam
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| session | 將 session 與 token lifecycle 收斂為獨立能力 |
-| consent | 將同意與授權治理從泛用平台設定中切開 |
-| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
-
-### billing
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 將可量化商業限制收斂成單一政策語言 |
-
-### ai
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| generation | AI 驅動的文本生成與回覆輸出（Genkit 接縫） |
-| orchestration | 執行圖與多步驟 AI workflow 協調 |
-| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
-| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
-| memory | 對話歷史與跨輪次狀態保存 |
-| context | prompt 上下文組裝與 token 預算管理 |
-| safety | 安全護欄、有害內容過濾與合規保護 |
-| tool-calling | 外部工具調用協調與結果回注 |
-| reasoning | 推理步驟管理（chain-of-thought、反思） |
-| conversation | AI 互動輪次追蹤與歷史管理 |
-| evaluation | 輸出品質評估與回歸基準 |
-| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-### analytics
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-
-### workspace
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| approve | 任務驗收與問題單覆核審批流程 |
-| issue | 問題單生命週期與追蹤管理 |
-| orchestration | 知識頁面→任務物化批次作業編排 |
-| quality | 任務 QA 審查與質檢流程 |
-| settlement | 請款發票生命週期與財務對帳 |
-| task | 任務建立、指派與狀態轉換 |
-| task-formation | AI 輔助任務候選抽取與批次匯入 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
-| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
-
-### platform
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
-
-### notion
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-### notebooklm
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Ownership Rules
-
-- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
-- billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
-- ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
-- analytics 擁有下游報表與 projection，不擁有上游寫入模型。
-- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
-- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
-- notion 擁有正典知識內容，不擁有治理或推理流程。
-- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
-
-## Dependency Direction Guardrail
-
-- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
-- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
-
-## Conflict Resolution
-
-- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
-- 若某能力定義 actor、identity、tenant 或 access decision，優先歸 iam。
-- 若某能力定義 subscription、entitlement、pricing 或 referral，優先歸 billing。
-- 若某能力定義 shared model capability、provider routing、safety 或 prompt orchestration，優先歸 ai。
-- 若某能力只消費事件並形成報表或 read model，優先歸 analytics。
-- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
-- `workflow` 作為 generic 名稱只保留在 platform；workspace 的流程能力已分解為 task、issue、settlement、approve、quality、orchestration 等獨立子域。
-
-## Forbidden Ownership Moves
-
-- 不得讓兩個主域同時宣稱同一正典模型所有權。
-- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
-- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
-- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
-- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
-- 所有權模糊時，先修正文檔邊界，再寫程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Subdomain["Subdomain"]
-	Subdomain --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Ownership["Choose bounded context"]
-	Ownership --> Boundary["Choose API boundary"]
-	Boundary --> Language["Align local language"]
-	Language --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-````
-
 ## File: docs/structure/domain/ddd-strategic-design.md
 ````markdown
 # DDD Strategic Design — Eric Evans Reference
@@ -25411,1093 +25323,6 @@ Generic Domain
 | Core Domain | 集中最強設計能力；不允許基礎設施邏輯污染 |
 ````
 
-## File: docs/structure/domain/subdomains.md
-````markdown
-# Subdomains
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
-
-## Main Domain Inventory
-
-| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
-|---|---|---|
-| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
-| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
-| ai | generation, orchestration, distillation, retrieval, memory, context, safety, tool-calling, reasoning, conversation, evaluation, tracing | provider-routing, model-policy |
-| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
-| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
-| workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
-| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
-| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
-
-## Detailed Subdomain Catalog
-
-### iam
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| session | session、token 與 identity lifecycle 收斂 |
-| consent | 同意與資料使用授權治理收斂 |
-| secret-governance | secret 與 credential access policy 收斂 |
-
-### billing
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 可量化配額與商業限制規則 |
-
-### ai
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| generation | AI 驅動的文本生成與回覆輸出（Genkit 接縫） |
-| orchestration | 執行圖與多步驟 AI workflow 協調 |
-| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
-| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
-| memory | 對話歷史與跨輪次狀態保存 |
-| context | prompt 上下文組裝與 token 預算管理 |
-| safety | 安全護欄、有害內容過濾與合規保護 |
-| tool-calling | 外部工具調用協調與結果回注 |
-| reasoning | 推理步驟管理（chain-of-thought、反思） |
-| conversation | AI 互動輪次追蹤與歷史管理 |
-| evaluation | 輸出品質評估與回歸基準 |
-| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-### analytics
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-
-### workspace
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| approve | 任務驗收與問題單覆核審批流程 |
-| issue | 問題單生命週期與追蹤管理 |
-| orchestration | 知識頁面→任務物化批次作業編排 |
-| quality | 任務 QA 審查與質檢流程 |
-| settlement | 請款發票生命週期與財務對帳 |
-| task | 任務建立、指派與狀態轉換 |
-| task-formation | AI 輔助任務候選抽取與批次匯入 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
-| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
-
-### platform
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
-
-### notion
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-### notebooklm
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Strategic Notes
-
-- baseline subdomains 代表本架構基線中已確立的核心切分。
-- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
-- recommended gap subdomains 不等於已驗證現況實作。
-
-## Ownership Summary
-
-- iam 關心身份、租戶與存取治理。
-- billing 關心商業生命週期與有效權益。
-- ai 關心共享 AI capability 與模型政策。
-- analytics 關心下游分析、指標與 read model 投影。
-- platform 關心 account、organization 與 shared operational services。
-- workspace 關心協作範疇。
-- notion 關心正典知識內容。
-- notebooklm 關心推理與衍生輸出。
-
-## Cross-Domain Duplicate Resolution
-
-| Original Term | Resolution |
-|---|---|
-| ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
-| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-engagement` |
-| entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
-| identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
-| integration | `platform` 保留 generic `integration`；`notion` 保留 `external-knowledge-sync` |
-| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
-| workflow | `platform` 保留 generic `workflow`；workspace 的流程能力已分解為 task、issue、settlement、approve、quality、orchestration 等獨立子域 |
-
-## Subdomain Anti-Patterns
-
-- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
-- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
-- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
-- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
-- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
-- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
-- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
-	MainDomain --> Gap["Recommended gap subdomains"]
-	Baseline --> UseCase["Use case / boundary"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Domain["Choose main domain"]
-	Domain --> Subdomain["Choose owning subdomain"]
-	Subdomain --> Boundary["Choose boundary"]
-	Boundary --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
-- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
-- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
-- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
-````
-
-## File: docs/structure/domain/ubiquitous-language.md
-````markdown
-# Ubiquitous Language
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
-
-## Strategic Terms
-
-| Term | Meaning |
-|---|---|
-| Main Domain | 戰略層級的主要 bounded context 群組 |
-| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
-| Published Language | 跨邊界交換時使用的共同語言 |
-| Upstream | 關係中提供語言或能力的一方 |
-| Downstream | 關係中消費語言或能力的一方 |
-| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
-| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
-| Shared Kernel | 對稱共用模型關係 |
-| Partnership | 對稱共同成功 / 共同失敗關係 |
-| Account Scope | shell 中由 `accountId` 表示的帳號範疇；代碼中的 `AccountType = "user" | "organization"` 會把它映射成 personal account 或 organization account 語意 |
-| Workspace Scope | 由 `workspaceId` 表示的協作容器範疇，必須從屬於某個 account scope |
-| Canonical Route Contract | 只用來表達 composition surface 的正典 URL 形狀，不取代 published language |
-
-## Domain Terms
-
-| Domain | Key Terms |
-|---|---|
-| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy |
-| billing | Subscription, Entitlement, BillingEvent, Referral |
-| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
-| analytics | Metric, Report, Dashboard, Projection |
-| platform | Account, AccountProfile, Organization, NotificationRoute, AuditLog |
-| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
-| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-
-## Route Composition Terms
-
-| Term | Meaning |
-|---|---|
-| accountId | shell route 上的 account scope identifier，不等於 workspaceId，也不直接等於 Tenant 語言 |
-| workspaceId | workspace scope identifier；在 canonical shell URL 中作為 account scope 之下的第二段 |
-| AccountType String Contract | code-level enum `"user" | "organization"`；`"user"` 對應 personal actor account，`"organization"` 對應 organization account |
-| Personal Account | `AccountType = "user"` 對應的 personal actor account 語意 |
-| Organization Account | `AccountType = "organization"` 對應的 organization account 語意 |
-| Canonical Workspace URL | `/{accountId}/{workspaceId}` |
-| Legacy Workspace Redirect Surface | `/{accountId}/workspace/{workspaceId}` |
-| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
-
-## Identifier Contract Glossary
-
-| Identifier | Canonical Role | Notes |
-|---|---|---|
-| accountId | Account scope identifier | shell composition 的 route id；由 `AccountType = "user" | "organization"` 決定它代表 personal account 或 organization account |
-| workspaceId | Workspace scope identifier | 協作容器錨點；在 canonical workspace URL 中是 account scope 之下的第二段 |
-| organizationId | Organization-local identifier | 用於 organization/team/taxonomy/relations/ingestion 等 organization-scoped domain 或 integration contract；不直接取代 shell route 的 `accountId` |
-| userId | Concrete user identifier | 用於 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`、`creatorUserId` 等具體使用者欄位 |
-| actorId | Acting principal identifier | 用於 audit / event / action initiator；可能是 userId，也可能是 system actor，不應假設一定等於 userId |
-| ownerId | Resource owner identifier | 表示資源所有者；不是 shell route id，也不必然等於 `accountId` |
-| tenantId | Tenant isolation identifier | 用於 storage path、security rules、multi-tenant isolation；不等於 `workspaceId`，也不是 shell route param |
-| fileId | File metadata identifier | 檔案 metadata 主鍵；不取代 owner / workspace / tenant scope |
-
-## Context Map Alignment
-
-| Relationship | Published Language Tokens | Upstream Term Source | Downstream Local Terms |
-|---|---|---|---|
-| iam -> workspace | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Workspace, Membership, ShareScope |
-| iam -> notion | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| iam -> notebooklm | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-| billing -> workspace | entitlement signal, subscription capability signal | Subscription, Entitlement | Workspace, Membership, ShareScope |
-| billing -> notion | entitlement signal, subscription capability signal | Subscription, Entitlement | KnowledgeArtifact, Taxonomy, Relation |
-| billing -> notebooklm | entitlement signal, subscription capability signal | Subscription, Entitlement | Notebook, Retrieval, Grounding, Synthesis |
-| ai -> notion | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | KnowledgeArtifact, Publication |
-| ai -> notebooklm | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
-| platform -> workspace | account scope, organization surface, operational service signal | Account, Organization, NotificationRoute | Workspace, Membership, ShareScope |
-| workspace -> notion | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | KnowledgeArtifact, Taxonomy, Relation |
-| workspace -> notebooklm | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | Notebook, Retrieval, Grounding, Synthesis |
-| notion -> notebooklm | knowledge artifact reference, attachment reference, taxonomy hint | KnowledgeArtifact, Taxonomy, Relation | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
-| all contexts -> analytics | domain event, usage signal, projection input | Metric, Report, Dashboard, Projection | Metrics, Reporting, Dashboard |
-
-## Published Language Token Glossary
-
-| Token | Canonical Mapping | Notes |
-|---|---|---|
-| actor reference | iam.Actor | 不以 User 泛稱，避免與 Membership 混名 |
-| organization scope | platform.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
-| tenant scope | iam.Tenant scope | 用於治理邊界，不等於 Workspace scope |
-| access decision | iam.AccessDecision result | 僅傳遞判定結果，不暴露內部 policy 模型 |
-| entitlement signal | billing.Entitlement / Subscription capability signal | 不混同 feature-flag payload |
-| ai capability signal | ai shared capability signal | notion 與 notebooklm 僅消費，不擁有 generic `ai` 子域 |
-| operational service signal | platform operational capability signal | 只表達 shared platform service，不接管治理語言 |
-| workspaceId | Workspace identifier | 不取代 knowledge/notebook 的本地主鍵 |
-| membership scope | Membership constraint | 不混同 Actor 身份語言 |
-| share scope | ShareScope constraint | 不混同一般 permission 欄位集合 |
-| knowledge artifact reference | KnowledgeArtifact reference | 僅引用，不代表內容所有權轉移 |
-| attachment reference | Attachment reference | 提供可追溯引用，不暴露儲存實作 |
-| taxonomy hint | Taxonomy hint | 作為推理輔助語言，不覆蓋 notion 正典 taxonomy |
-
-## Naming Rules
-
-- 不用 User 混指 Actor 與 Membership。
-- 不用 Plan 混指 Subscription 與 Entitlement。
-- 不用 Wiki 混指 KnowledgeArtifact。
-- 不用 Chat 混指 Conversation。
-- 不用 Search 混指 Retrieval。
-- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
-- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-engagement。
-- 不用 Integration 混指 platform integration 與 notion 的 external-knowledge-sync。
-- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
-- 不用 Workflow 混指 platform workflow 與 workspace 內的 task/issue/settlement 流程子域。
-- 不用 accountId 混指 workspaceId。
-- 不用 organizationId 取代 shell route 上的 accountId。
-- 不用 userId 混指 actorId。
-- 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
-- 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
-- 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
-
-## Naming Anti-Patterns
-
-- 用同一個詞同時代表平台治理語言與工作區參與語言。
-- 用內容產品舊名覆蓋 notion 的正典語言。
-- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
-- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
-- 把 route composition contract 誤寫成 cross-context published language。
-- 把 organization-scoped identifier 誤當成 shell composition identifier。
-- 把 actorId、userId、ownerId 三種角色不同的 identifier 混成同一欄位語意。
-- 把 personal account 顯示語言誤當成 code-level `AccountType` literal。
-- 把 legacy redirect surface 誤寫成正典 URL 契約。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
-- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
-- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic terms"] --> Context["Context terms"]
-	Context --> Boundary["Published language / API"]
-	Boundary --> Code["Generated code names"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Term["Select canonical term"]
-	Term --> Context["Map to owning context"]
-	Context --> Boundary["Expose via boundary"]
-	Boundary --> Code["Generate code"]
-```
-
-## Document Network
-
-- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
-- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
-- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
-- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
-
-## Conflict Resolution
-
-- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
-- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
-````
-
-## File: docs/structure/system/architecture-overview.md
-````markdown
-# Architecture Overview
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
-## System Shape
-
-系統以八個主域 / bounded context 組成，每個主域都視為一個有自己語言與規則的邊界：
-
-- iam：身份、租戶、存取判定與安全治理
-- billing：訂閱、權益、推薦與商業生命週期
-- ai：共享 AI capability orchestration、content generation / distillation、context assembly、prompt pipeline、safety 與 quality / observability policy
-- analytics：報表、指標、儀表板與下游 read model 投影
-- platform：account、organization、notification、search、audit 與 operational services
-- workspace：協作容器與工作區範疇
-- notion：正典知識內容生命週期
-- notebooklm：對話、來源處理與推理輸出
-
-## Architectural Baseline
-
-- 主域內部採用 Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）。
-- 領域建模採 semantic-first，優先對齊 business language，再決定資料結構與 adapter 位置。
-- 後端 runtime 基線採 Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting。
-- AI orchestration 基線採 Genkit：AI Flows、Tool Calling、Prompt Pipelines 皆視為外部能力，由 ai context 統一治理。
-- 前端 state 基線採 Zustand 與 XState：Zustand 承接輕量 client state，XState 承接有限狀態工作流。
-- runtime validation 基線採 Zod：所有外部輸入先經 Zod，再進入 application 與 domain。
-- 主域之間只透過 published language、API 邊界或事件互動。
-- 領域核心不直接依賴 framework 與 infrastructure。
-- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
-
-## Main Domains
-
-| Main Domain | Strategic Role | What It Owns |
-|---|---|---|
-| iam | 治理上游 | actor、identity、tenant、access decision、security policy |
-| billing | 商業上游 | subscription、entitlement、billing event、referral |
-| ai | 共享能力上游 | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing；provider-routing / model-policy 為後續治理延伸 |
-| analytics | 分析下游 | reporting、metrics、dashboard、projection read model |
-| platform | 平台營運支撐 | account、organization、team、notification、search、audit-log、observability、operational workflow |
-| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、task、issue、settlement、approve、quality、orchestration |
-| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
-| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
-
-## Relationship Baseline
-
-| Upstream | Downstream | Reason |
-|---|---|---|
-| iam | billing | 提供 actor、tenant 與 access policy 基線 |
-| iam | platform | 提供身份與安全治理基線 |
-| iam | workspace / notion / notebooklm | 提供 actor、tenant、access decision |
-| billing | workspace / notion / notebooklm | 提供 entitlement 與 subscription capability signal |
-| ai | notion / notebooklm | 提供 shared AI capability、prompt orchestration、content distillation / generation support、model policy 與 safety |
-| platform | workspace | 提供 account、organization 與 shared operational surface |
-| workspace | notion / notebooklm | 提供 workspace scope、membership scope、share scope |
-| notion | notebooklm | 提供可引用的正典知識內容來源 |
-| iam / billing / platform / workspace / notion / notebooklm | analytics | 輸出事件與 read model 供分析使用 |
-
-## Contradiction-Free Rules
-
-- 目前採八個主域 / bounded context；若未來再切分，必須用新的 ADR 明確記錄。
-- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
-- iam 是身份與存取治理上游，不是內容或商業正典擁有者。
-- billing 擁有 subscription 與 entitlement 的商業語義，不再把它們掛回 platform。
-- ai 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
-- analytics 是下游 read-model sink，不應反向成為其他主域的 canonical owner。
-- notion 是正典內容擁有者；notebooklm 是衍生推理輸出擁有者。
-
-## System-Wide Dependency Direction
-
-- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域依賴只能透過 published language、public API boundary、events。
-- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
-
-## App Route Composition Contract
-
-- `src/app/(shell)` 是 shell composition 邊界，不承載 business rule。
-- account 是 shell 內的唯一 account-scoped route surface，canonical 入口為 `src/app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx`。
-- `accountId` 代表 account scope；其語意由 `AccountType = "user" | "organization"` 決定，其中 `"user"` 對應 personal actor account，`"organization"` 對應 organization account，不代表 workspace scope。
-- `AccountType = "user" | "organization"` 是目前 domain、use case、validator 與 route composition 共用的字串契約；UI 可顯示 personal account / organization account，但不應把 `"personal"` 當成跨邊界字串值。
-- workspace detail 的 canonical URL 為 `/{accountId}/{workspaceId}`，由 account catch-all dispatcher 解析並轉交 workspace module route screen。
-- `/{accountId}/workspace/{workspaceId}` 僅作為 legacy redirect surface；文件、UI 與新程式碼不應再把它當成 canonical href。
-- account-scoped governance route 採 flattened account surface，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`，不再以 `/{accountId}/organization/*` 作為 canonical URL。
-- route files 只做 composition、redirect 與 query-state 轉譯；module collaboration 仍必須走 `src/modules/*` 的公開匯出邊界。
-
-## System-Wide Anti-Patterns
-
-- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
-- 把主域內部模型直接共享給其他主域，取代 published language。
-- 把治理、內容、推理三種責任重新揉成單一平級主域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
-- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
-- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Workspace["workspace"]
-	Platform --> Notion["notion"]
-	Platform --> NotebookLM["notebooklm"]
-	Workspace --> Notion
-	Workspace --> NotebookLM
-	Notion --> NotebookLM
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-
-## Reading Path
-
-1. [bounded-contexts.md](./bounded-contexts.md)
-2. [context-map.md](./context-map.md)
-3. [subdomains.md](./subdomains.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [integration-guidelines.md](./integration-guidelines.md)
-6. [strategic-patterns.md](./strategic-patterns.md)
-7. [decisions/README.md](./decisions/README.md)
-````
-
-## File: docs/structure/system/context-map.md
-````markdown
-# Context Map
-
-本文件在本次任務限制下，僅依 Context7 驗證的 context map 與 strategic design 原則重建，不主張反映現況實作。
-
-## System Landscape
-
-主域級關係只採用 directed upstream-downstream 模型。
-
-## Directed Relationships
-
-| Upstream | Downstream | Published Language |
-|---|---|---|
-| iam | billing | actor reference、tenant scope、access policy baseline |
-| iam | platform | actor reference、tenant scope、access decision |
-| iam | workspace | actor reference、tenant scope、access decision |
-| iam | notion | actor reference、tenant scope、access decision |
-| iam | notebooklm | actor reference、tenant scope、access decision |
-| billing | workspace | entitlement signal、subscription capability signal |
-| billing | notion | entitlement signal、subscription capability signal |
-| billing | notebooklm | entitlement signal、subscription capability signal |
-| ai | notion | ai capability signal、model policy、safety result |
-| ai | notebooklm | ai capability signal、model policy、safety result |
-| platform | workspace | account scope、organization surface、operational service signal |
-| workspace | notion | workspaceId、membership scope、share scope |
-| workspace | notebooklm | workspaceId、membership scope、share scope |
-| notion | notebooklm | knowledge artifact reference、attachment reference、taxonomy hint |
-| iam / billing / platform / workspace / notion / notebooklm | analytics | domain event、projection input、usage signal |
-
-## Detailed Language Crosswalk
-
-| Relationship | Upstream Canonical Terms | Published Language | Downstream Protected Terms |
-|---|---|---|---|
-| iam -> workspace | Actor, Identity, Tenant, AccessDecision | actor reference, tenant scope, access decision | Workspace, Membership, ShareScope |
-| iam -> notion | Actor, Identity, Tenant, AccessDecision | actor reference, tenant scope, access decision | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| iam -> notebooklm | Actor, Identity, Tenant, AccessDecision | actor reference, tenant scope, access decision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-| billing -> workspace | Subscription, Entitlement | entitlement signal, subscription capability signal | Workspace, Membership, ShareScope |
-| billing -> notion | Subscription, Entitlement | entitlement signal, subscription capability signal | KnowledgeArtifact, Taxonomy, Relation |
-| billing -> notebooklm | Subscription, Entitlement | entitlement signal, subscription capability signal | Notebook, Retrieval, Grounding, Synthesis |
-| ai -> notion | AICapability, ModelPolicy, SafetyGuardrail | ai capability signal, model policy, safety result | KnowledgeArtifact, Publication |
-| ai -> notebooklm | AICapability, ModelPolicy, SafetyGuardrail | ai capability signal, model policy, safety result | Retrieval, Grounding, Synthesis, Evaluation |
-| platform -> workspace | AccountScope, OrganizationSurface, NotificationRoute | account scope, organization surface, operational service signal | Workspace, Membership, ShareScope |
-| workspace -> notion | Workspace, Membership, ShareScope | workspaceId, membership scope, share scope | KnowledgeArtifact, Taxonomy, Relation |
-| workspace -> notebooklm | Workspace, Membership, ShareScope | workspaceId, membership scope, share scope | Notebook, Retrieval, Grounding, Synthesis |
-| notion -> notebooklm | KnowledgeArtifact, Taxonomy, Relation | knowledge artifact reference, attachment reference, taxonomy hint | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
-| all business and operational contexts -> analytics | DomainEvent, UsageSignal, ProjectionInput | domain event, usage signal, projection input | Metrics, Reporting, Dashboard |
-
-## Relationship Notes
-
-- `iam` 只提供身份、租戶與 access decision，不接管商業、內容或推理語言。
-- `billing` 只提供 entitlement 與 subscription capability signal，不接管 workspace、knowledge 或 notebook 的正典模型。
-- `ai` 提供共享 AI capability、model policy 與 safety result，但不移轉內容或推理所有權。
-- `platform` 保留 account、organization 與 operational surface，不再作為所有治理能力的總擁有者。
-- `workspace -> notion` 與 `workspace -> notebooklm` 只提供 scope 與 membership 邊界，不輸出 workspace 內部模型。
-- `notion -> notebooklm` 僅提供可引用內容語言，不允許 notebooklm 直接回寫 notion 正典內容。
-- `analytics` 只消費投影與訊號，不反向成為上游 canonical owner。
-
-## Pattern Rules
-
-- ACL 與 Conformist 只允許出現在 downstream 端。
-- ACL 與 Conformist 互斥，不能同時套用在同一整合。
-- Shared Kernel 與 Partnership 不用於主域級關係。
-- 若未來真的需要共享模型，必須先抽出新的 bounded context，而不是把對稱關係塞回主域之間。
-
-## Dependency Direction Guardrail
-
-- 主域級方向只允許 upstream -> downstream，不允許同時宣稱對稱依賴。
-- downstream 整合上游時，先決定 published language，再決定 ACL 或 Conformist。
-- 上游提供語言與能力，下游決定如何保護自己的語言。
-
-## Strategic Consequences
-
-- 關係方向清楚後，published language、local DTO 與 ACL 才能一致。
-- 主域級文檔可以避免同時出現互相矛盾的 supplier / consumer 敘事。
-
-## Contradictions Removed
-
-- 不再同時把主域級關係描述成 directed relationship 與 symmetric relationship。
-- 不再把 ACL 寫成 upstream 的責任。
-- 不再把 shared technical libraries 誤寫為主域級 Shared Kernel。
-
-## Forbidden Relationship Patterns
-
-- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混寫在同一關係。
-- 不得把 direct model sharing 寫成 published language。
-- 不得把下游的轉譯責任倒灌回上游。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先畫清 upstream / downstream，再安排 API boundary、published language、ACL 或 Conformist。
-- 奧卡姆剃刀：若單一 published language 與單一 translation step 足夠，就不要再加第二層整合流程。
-- 不確定關係方向時，先修正文檔，不直接生成跨主域耦合程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
-	Downstream -->|ACL or Conformist| LocalModel["Local domain model"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Workspace["workspace"]
-	Platform --> Notion["notion"]
-	Platform --> NotebookLM["notebooklm"]
-	Workspace --> Notion
-	Workspace --> NotebookLM
-	Notion --> NotebookLM
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/structure/system/integration-guidelines.md
-````markdown
-# Integration Guidelines
-
-本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
-
-## Boundary Contract
-
-跨主域整合只能使用：
-
-- published language
-- public API boundary
-- domain / integration events
-- local DTO
-- downstream ACL 或 downstream Conformist
-
-## Pattern Selection Rules
-
-| Situation | Pattern |
-|---|---|
-| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
-| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
-| 只是跨主域資料交換 | Published Language + Local DTO |
-
-## Hard Rules
-
-- ACL 與 Conformist 只能由 downstream 選擇。
-- ACL 與 Conformist 互斥。
-- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
-- 不可把 shared technical package 誤當成 strategic shared kernel。
-- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
-
-## Domain-Specific Guidance
-
-- workspace 消費 iam、billing 或 platform 時，優先保護自己的 membership、sharing、presence 語言。
-- notion 消費 iam、billing、ai 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
-- notebooklm 消費 notion、iam、billing 或 ai 時，優先保護自己的 retrieval、grounding、synthesis 語言。
-- analytics 消費其他主域時，應以 event projection 與 local read model 為主，不回寫上游 canonical model。
-
-## App Router Boundary Guidance
-
-- App Router path shape 是 composition contract，不是跨主域 published language 的替代品。
-- 即使 path 以 `/{accountId}/{workspaceId}` 呈現，platform 與 workspace 之間的語意交換仍必須走 API boundary、published language 或 events。
-- shell 內所有 workspace detail href 應優先輸出 canonical `/{accountId}/{workspaceId}`，而不是 `/{accountId}/workspace/{workspaceId}`。
-- legacy redirect path 可以短期保留作為 compatibility surface，但文件、設計稿與新程式碼不應再以 legacy path 當作正典契約。
-- route redirect、query-state 正規化與 URL composition 屬於 interfaces / app composition concern，不應回滲為 domain rule 或跨主域契約。
-
-## Identifier Boundary Rules
-
-- `accountId` 只用於 shell / composition 層的 account scope，或 account-scoped downstream input；不要把它直接當成 `workspaceId`、`organizationId` 或 `userId`。
-- `workspaceId` 只表示協作容器 scope；跨主域 published language 若需要 workspace context，應明確傳遞 `workspaceId`，不要讓 notion / notebooklm 猜測 route segment。
-- `organizationId` 只用於 organization-scoped domain 或 integration contract；若某 flow 由 organization account 的 `accountId` 進入，需在 application / mapper 層顯式轉成 `organizationId`。
-- `userId` 用於具體使用者欄位，例如 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`；`actorId` 用於行為主體 metadata，不保證一定是 user。
-- `ownerId` 表示資源所有者；`tenantId` 表示租戶隔離鍵；兩者都不是 canonical route param。
-- `fileId` 是檔案 metadata 主鍵；不能取代 owner / workspace / tenant scope，也不能單獨表示授權邊界。
-
-## Integration Checklist
-
-1. 先確認 upstream / downstream 方向。
-2. 先列出 published language。
-3. 判斷是否語義一致。
-4. 一致則考慮 conformist，不一致則建立 ACL。
-5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
-
-## Integration Anti-Patterns
-
-- 直接傳遞上游 aggregate、entity、repository 給下游使用。
-- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
-- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
-- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
-- 只有在上游語義真的會污染本地語言時，才建立 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
-	Boundary --> Translation["Local DTO / ACL / Conformist"]
-	Translation --> Application["Application"]
-	Application --> Domain["Domain"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
-	Direction --> PL["Define published language"]
-	PL --> Decision["Need protection?"]
-	Decision -->|Yes| ACL["ACL"]
-	Decision -->|No| DTO["Local DTO / Conformist"]
-	ACL --> Domain["Downstream domain"]
-	DTO --> Domain
-```
-
-## Document Network
-
-- [context-map.md](./context-map.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-
-## Conflict Resolution
-
-- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
-- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
-````
-
-## File: docs/structure/system/module-graph.system-wide.md
-````markdown
-# System-Wide Module Graph
-
-本圖反映 [0014-main-domain-resplit.md](./decisions/0014-main-domain-resplit.md) 確立的八主域重切 baseline。
-
-凡例：
-  subdomain          = Baseline subdomain（已基線化）
-  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
-  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
-
----
-
-## Upstream → Downstream Dependency Map
-
-  Upstream     │  Downstream
-  ─────────────┼───────────────────────────────────────────────────────────
-  iam          │  billing · platform · workspace · notion · notebooklm
-  billing      │  workspace · notion · notebooklm
-  ai           │  notion · notebooklm
-  platform     │  workspace
-  workspace    │  notion · notebooklm
-  notion       │  notebooklm
-  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
-
----
-
-## Domain + Subdomain Inventory
-
-─────────────────────────────────────────────────────────────────────────────
-T0  IAM                     BILLING                 AI
-    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
-─────────────────────────────────────────────────────────────────────────────
-
-    identity                billing                 generation
-    access-control          subscription            orchestration
-    tenant                  entitlement             distillation
-    security-policy         referral                retrieval
-                                                     memory
-                                                     context
-                                                     safety
-                                                     tool-calling
-                                                     reasoning
-                                                     conversation
-                                                     evaluation
-                                                     tracing
-
-    [session]               [pricing]               [provider-routing]
-    [consent]               [invoice]               [model-policy]
-    [secret-governance]     [quota-policy]
-
-─────────────────────────────────────────────────────────────────────────────
-T1  PLATFORM
-    平台營運支撐
-─────────────────────────────────────────────────────────────────────────────
-
-    account                 notification            audit-log
-    account-profile         background-job          observability
-    organization            content                 support
-    team                    search                  workflow
-    platform-config         compliance
-    feature-flag            integration
-    onboarding
-
-    [consent]               [secret-management]     [operational-catalog]
-
-─────────────────────────────────────────────────────────────────────────────
-T2  WORKSPACE
-    協作容器與工作區範疇
-─────────────────────────────────────────────────────────────────────────────
-
-    audit                   issue                   settlement
-    feed                    orchestration           task
-    scheduling              quality                 task-formation
-    approve
-
-    [lifecycle]             [membership]
-    [sharing]               [presence]
-
-─────────────────────────────────────────────────────────────────────────────
-T3  NOTION
-    正典知識內容
-─────────────────────────────────────────────────────────────────────────────
-
-    knowledge               automation
-    authoring               external-knowledge-sync
-    collaboration           notes
-    knowledge-database      templates
-    knowledge-engagement     knowledge-versioning
-    attachments
-
-    [taxonomy]              [relations]             [publishing]
-
-─────────────────────────────────────────────────────────────────────────────
-T4  NOTEBOOKLM
-    對話與推理輸出
-─────────────────────────────────────────────────────────────────────────────
-
-    conversation            source
-    note                    synthesis
-    notebook                conversation-versioning
-
-    [ingestion]             [retrieval]
-    [grounding]             [evaluation]
-
-─────────────────────────────────────────────────────────────────────────────
-SINK  ANALYTICS
-      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
-─────────────────────────────────────────────────────────────────────────────
-
-    reporting               telemetry-projection
-    metrics
-    dashboards
-
-    [experimentation]       [decision-support]
-
----
-
-## Ownership Rules（速查）
-
-  iam         → 身份、tenant、access decision；不擁有商業、內容、推理正典
-  billing     → subscription、entitlement；不擁有身份治理或內容正典
-  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
-  platform    → account、organization、operational services；不再是所有治理的總擁有者
-  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
-  notion      → 正典知識內容；不擁有治理或推理流程
-  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
-  analytics   → 下游 read model sink；不反向成為上游 canonical owner
-
----
-
-## Document Network
-
-  architecture-overview.md  — 全域架構與主域關係
-  bounded-contexts.md        — 主域與子域所有權詳目
-  context-map.md             — Upstream/Downstream published language 對照
-  ubiquitous-language.md     — 戰略術語權威
-````
-
-## File: docs/structure/system/project-delivery-milestones.md
-````markdown
-# Project Delivery Milestones
-
-本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為專案從零到交付的里程碑文件，不主張反映現況實作。
-
-## Purpose
-
-這份文件把 architecture-first 的專案交付拆成可檢查的里程碑，讓 Copilot 在規劃與生成程式碼前，先知道應先完成哪些決策、文件與邊界，而不是直接跳進實作。
-
-## Milestone Map
-
-| Milestone | Goal | Outputs | Exit Criteria |
-|---|---|---|---|
-| M0 Problem Framing | 對齊目標、角色與成功條件 | 問題敘事、交付範圍、名詞初稿 | 團隊知道要解哪一類問題，而不是只知道要寫哪些檔案 |
-| M1 Ubiquitous Language | 建立共同語言 | 術語表、命名規則、避免詞彙 | 主要名詞不再互相衝突 |
-| M2 Strategic Design | 切出主域、bounded context、subdomain | subdomains、bounded-contexts、context-map 文件 | 所有權、上下游與 published language 有明確方向 |
-| M3 Decision Baseline | 記錄架構與整合決策 | ADR / decisions 條目 | 關鍵決策已寫下 context、decision、consequences |
-| M4 Module Skeleton | 建立 bounded context 與 subdomain 樹 | 模組骨架、API boundary、docs 入口 | 模組樹能表達邊界，且未洩漏實作依賴 |
-| M5 Domain Modeling | 建立聚合、值對象、領域事件與不變條件 | aggregates、domain-events、repositories、domain model | 核心規則可在 domain 層表達，不依賴外部技術 |
-| M6 Use Cases And Ports | 定義應用流程與必要 port | use-cases、DTO、必要 ports | application 能協調流程但不重寫 domain 規則 |
-| M7 Adapters And Integration | 實作 persistence、external API、UI adapters | infrastructure adapters、interfaces adapters、published language | adapter 只透過 ports 或 public API boundary 協作 |
-| M8 Verification And Hardening | 驗證邊界、流程與交付品質 | 測試、lint/build 證據、文件回補 | 核心路徑可驗證，且文件與決策同步 |
-| M9 Release Delivery | 完成交付與後續演進入口 | release note、handoff note、下一輪 backlog | 本輪可交付，同時為下一輪演進保留清楚入口 |
-
-## Milestone Rules
-
-- 沒有完成 M1 到 M3 前，不應直接大規模生成 `application/`、`domain/`、`infrastructure/` 實作。
-- M4 應先建立邊界與文件，再建立大量程式碼。
-- M5 與 M6 是核心，若這兩步不清楚，後續 adapter 與 UI 很容易反向污染 domain。
-- M7 的 published language 與 ACL / Conformist 選擇必須由 context map 決定。
-- 只要出現關鍵架構選擇、整合分歧或交付取捨，就應補 ADR，而不是把理由埋進 commit 或程式碼裡。
-
-## Delivery Sequence Guidance
-
-1. 先定義語言與邊界，再定義模組樹。
-2. 先定義 domain 核心與 use case，再實作 adapter。
-3. 先確認 upstream / downstream 關係，再決定 Published Language、ACL 或 Conformist。
-4. 先把本輪交付切成最小可交付增量，再決定是否需要新增抽象。
-
-## Legacy Convergence Guidance (Strangler Pattern)
-
-- 既有 outside-in 功能不得一次性推倒重練，必須以單一 use case 為單位收斂。
-- 每條 legacy use case 的收斂順序固定為：
-1. 定義 use case contract（actor、goal、success scenario、failure branches）。
-2. 先重建該 use case 的 domain 模型與不變條件。
-3. 由 application 接管流程協調，讓舊入口改走新 use case。
-4. 以 ports 隔離 legacy service 或資料模型。
-5. 在 infrastructure 實作新 ports，並漸進切換舊 adapter。
-6. 新路徑穩定後再移除舊路徑。
-
-- 每次收斂只允許處理一條 use case，避免跨多條流程的大爆炸式重寫。
-
-## Anti-Pattern Rules
-
-- 不得把里程碑順序反過來，先寫大量 adapter 或 UI，再回頭猜 domain。
-- 不得以「全面重構」為由跳過 use-case-by-use-case 的漸進式收斂。
-- 不得把每個規劃點都升級成 ADR；只有架構上有持續影響的決策才寫 ADR。
-- 不得在 M4 就預建所有可能的 port、repository、service 與子域，只為了追求骨架完整。
-- 不得跳過 context map 與 published language，直接用另一個 context 的內部模型來省事。
-- 不得把 lint 或 build 通過誤當成架構完成的證據。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先判斷目前需求位於哪個 milestone；不要把 M2 問題當成 M7 問題處理。
-- 奧卡姆剃刀：若現有 milestone 產物已足夠支撐下一步，就不要平行開第二套流程或第二份模板。
-- 規劃新功能時，先補足缺失的術語、context map 或 ADR，再進入模組骨架與程式碼生成。
-- 若任務只需要修正單一 use case，不要回頭擴張整個 bounded context 結構。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-    Language["Ubiquitous language"] --> Strategy["Strategic design"]
-    Strategy --> Decisions["ADR / decisions"]
-    Decisions --> Skeleton["Module skeleton"]
-    Skeleton --> Domain["Domain and use cases"]
-    Domain --> Adapters["Adapters and integration"]
-    Adapters --> Verification["Verification and release"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-    Request["Delivery request"] --> Milestone["Locate current milestone"]
-    Milestone --> Gap["Identify missing artifact"]
-    Gap --> Decision["Write or update docs / ADR if needed"]
-    Decision --> Build["Generate minimal next increment"]
-    Build --> Verify["Validate before moving to next milestone"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [decisions/README.md](./decisions/README.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-
-## Constraints
-
-- 本里程碑文件是 architecture-first 的交付路線，不代表任何既有 repo 已依此順序演進。
-- 里程碑是交付順序指引，不是 waterfall 式一次性階段牆；必要時可以小步迭代，但不可跳過核心決策產物。
-- 若需求很小，可以在同一次交付內完成多個相鄰里程碑，但仍需保留對應產物。
-````
-
 ## File: docs/structure/system/source-to-task-flow.md
 ````markdown
 # Source To Task Flow Architecture
@@ -26594,91 +25419,6 @@ sequenceDiagram
 ## Result
 
 這個設計讓 `upload → parse → task` 不是一條臨時 shortcut，而是一條**符合 DDD ownership、Hexagonal boundary、API-only collaboration、platform-owned infra** 的正式系統路徑。
-````
-
-## File: docs/structure/system/strategic-patterns.md
-````markdown
-# Strategic Patterns
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD strategic design 與 context map 原則重建，不主張反映現況實作。
-
-## Selected Patterns
-
-| Pattern | Usage In This Architecture |
-|---|---|
-| Bounded Context | 八個主域 / bounded context 與其子域切分的核心模式 |
-| Upstream-Downstream | 主域級關係的唯一基線模式 |
-| Published Language | 所有跨主域交換的共同語言 |
-| Anti-Corruption Layer | downstream 語言需要保護時使用 |
-| Conformist | downstream 語言與 upstream 高度一致時的例外策略 |
-
-## Patterns Not Used At Main-Domain Level
-
-| Pattern | Why Not Used |
-|---|---|
-| Shared Kernel | 主域級共用模型會快速放大耦合與責任混淆 |
-| Partnership | 主域級互相綁定會破壞 supplier / consumer 的清楚方向 |
-
-## Recommended Strategic Posture
-
-- platform 作為治理 supplier。
-- workspace 作為協作 scope supplier。
-- notion 作為知識內容 supplier。
-- notebooklm 作為推理輸出與引用整合者。
-
-## Pattern Conflicts Avoided
-
-- 不把 ACL 與 Conformist 混用。
-- 不把 Shared Kernel 與 directed relationship 混用。
-- 不把 technical shared libraries 混寫成 strategic shared kernel。
-
-## Strategic Anti-Patterns
-
-- 以 shared technical package 取代真正的 bounded context 關係設計。
-- 以對稱關係語言掩蓋其實存在的上下游依賴。
-- 以實作方便為由，直接共享內部模型而不定 published language。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先選對戰略模式，再選對技術形狀。
-- 奧卡姆剃刀：優先使用最少但足夠的戰略模式，不要同時堆疊多個彼此衝突的模式。
-- 若一段整合沒有真正的語義污染，就不要硬加 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	BoundedContext["Bounded Context"] --> UpstreamDownstream["Upstream / Downstream"]
-	UpstreamDownstream --> PublishedLanguage["Published Language"]
-	PublishedLanguage --> ACLCF["ACL or Conformist"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	PatternChoice["Choose pattern"] --> Relationship["Set relationship direction"]
-	Relationship --> Language["Define published language"]
-	Language --> Protection["Apply ACL or Conformist if needed"]
-	Protection --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [context-map.md](./context-map.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-
-## Decision References
-
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
 ````
 
 ## File: docs/tooling/nextjs/state-machine-model.md
@@ -27192,6 +25932,194 @@ RootLayout (layout.tsx)           ← html / body / global metadata
 ## File: src/modules/AGENT.md
 ````markdown
 
+````
+
+## File: .github/agents/hexagonal-convergence-enforcer.agent.md
+````markdown
+---
+name: Hexagonal Convergence Enforcer
+description: Drive repo-wide architecture smell detection and complexity reduction with root-cause refactors and anti-regression safeguards.
+argument-hint: Provide target scope (default full-repo), risk constraints, and optional priority contexts.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'shadcn/*', 'next-devtools/*', 'repomix/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Verify App Router Impact
+    agent: App Router Agent
+    prompt: Validate route ownership, App Router behavior, and runtime regression risk after convergence refactors.
+  - label: Refine UI Boundaries
+    agent: Shadcn Composer
+    prompt: Refactor UI smells with shadcn patterns while preserving API-only module boundaries and state isolation.
+  - label: Final Risk Review
+    agent: Quality Lead
+    prompt: Review residual boundary risks, missing safeguards, and validation evidence for release confidence.
+
+---
+
+# Hexagonal Convergence Enforcer
+
+## Mission
+
+在 full-repo 範圍偵測架構怪味道並執行根因修復，持續降低複雜度、心智負擔與認知負擔。
+
+## Required Skills
+
+- `context7`
+- `shadcn`（alias keyword: `cshadcn`）
+- `next-devtools-mcp`（alias: `cnext-devtools-mcp`）
+- `serena-mcp`
+- `hexagonal-ddd`
+- `occams-razor`
+- `xuanwu-skill`
+- `repomix`
+
+## Workflow
+
+1. Bootstrap Serena, activate project, load memories.
+2. Bootstrap Repomix evidence source via `xuanwu-skill` (refresh if stale).
+3. Build violation and smell index for full repo.
+4. Classify issues by architecture, layer, dependency inversion, boundary, and convention.
+5. Identify root causes and reject symptom patches.
+6. Fix end-to-end across Domain -> Application -> Ports -> Infrastructure -> Interface.
+7. Run Occam reduction pass to remove redundant abstractions and merge duplicate flows.
+8. Add anti-regression guardrails (type constraints, lint/custom rules, template/codegen, boundary tests).
+9. Sync Serena memory and index.
+
+## Execution Depth Gate
+
+- 不可只做結構式規則掃描即結束。
+- 若 `violations_before=0` 且 `smells_before=0`，必須進入第二階段語意審計後才能結案。
+- 第二階段至少覆蓋四大主域：`platform`、`workspace`、`notion`、`notebooklm`。
+- 每個主域至少抽查一條完整鏈路：`domain -> application -> infrastructure -> interfaces`。
+- 每個主域至少抽查一個 `index.ts` 公開邊界與一個跨模組依賴點。
+
+## No Early Exit Rule
+
+- 禁止以「若你要我可以再掃」作為結尾。
+- 在無違規時也必須提交完整覆蓋證據與剩餘風險分級。
+- 僅在「工具不可用且無可替代流程」時可標記 blocked。
+
+## Fallback Policy
+
+- 若 `serena-mcp` 技能或流程不可用，改以可用的 code search/read tools 完成同等覆蓋。
+- 若 `shadcn` 或 `next-devtools-mcp` 不可用，不得中止；改以現有 repo 規則與程式碼證據完成掃描。
+
+## Smell Baseline
+
+- God object/service/use case
+- Anemic domain model
+- Feature envy or inappropriate intimacy
+- Shotgun surgery or divergent change
+- Layer skipping
+- Boundary leakage
+- Duplicate workflow abstractions
+- Dead abstractions or unused interfaces
+
+## Output Contract
+
+- `violations_before` / `violations_after`
+- `smells_before` / `smells_after`
+- `repomix_source_used`（`xuanwu-skill|fresh-generated`）
+- `complexity_delta`（`file_count`, `call_chain_depth`, `cognitive_surface`）
+- `tech_debt_removed`（per fix item）
+- `residual_risk`（if any）
+- `scan_coverage_report`（domain, subdomain, sampled_chain, api_boundary, evidence_file）
+- `semantic_audit_status`（`completed|blocked`）
+
+Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
+#use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-skill
+#use skill repomix
+````
+
+## File: .github/agents/kb-architect.agent.md
+````markdown
+---
+name: KB Architect
+description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
+argument-hint: Provide doc scope or target area, restructuring goal, and deduplication constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Refine Prompt Contracts
+    agent: Prompt Engineer
+    prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
+  - label: Align Support Playbooks
+    agent: Support Architect
+    prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
+
+---
+
+# KB Architect
+
+## Target Scope
+
+- `docs/**`
+- `.github/prompts/**`
+- `.github/instructions/**`
+
+## Focus
+
+- Information hierarchy for docs and references
+- Cross-document deduplication
+- Stable glossary and index links
+
+## Execution Pattern
+
+- Process docs in leaf-to-root order when restructuring large doc trees.
+- Prefer lint/compress/dedup/structure updates before index regeneration.
+- Keep token usage efficient without changing technical meaning.
+
+## Guardrails
+
+- Do not change technical meaning while restructuring docs.
+- Keep docs aligned with current module boundaries and contracts.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/prompt-engineer.agent.md
+````markdown
+---
+name: Prompt Engineer
+description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
+argument-hint: Provide prompt goal, target agent or workflow, and required input/output contract.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Organize Knowledge Base
+    agent: KB Architect
+    prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
+  - label: Refine Tool Strategy
+    agent: Tool Caller
+    prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
+
+---
+
+# Prompt Engineer
+
+## Target Scope
+
+- `.github/prompts/**`
+- `.github/instructions/**`
+- `.github/agents/**`
+
+## Focus
+
+- Reusable prompt skeletons
+- Clear input and output contracts
+- Low-noise, high-precision instruction design
+
+## Guardrails
+
+- Keep prompts task-focused and testable.
+- Avoid broad ambiguous directives.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
 ## File: .github/instructions/ci-cd.instructions.md
@@ -30622,6 +29550,513 @@ platform/subdomains/file-storage/
 - **6112** ai governance docs：重組後的子域邊界規格需要重新撰寫 `AGENT.md`。
 ````
 
+## File: docs/examples/modules/feature/README.md
+````markdown
+# Feature Docs
+
+這裡整理單一 bounded context 內的 use case 文件。
+
+重點是說明這個功能做什麼。
+並遵循 Hexagonal + DDD 與 semantic-first 的業務語言設計。
+
+## Current Feature Write-ups
+
+- [notebooklm-source-processing-task-flow.md](./notebooklm-source-processing-task-flow.md) — `notebooklm/source` 的 parse / RAG / Knowledge Page / Task Flow 單一功能說明。
+- [workspace-nav-notion-notebooklm-implementation-guide.md](./workspace-nav-notion-notebooklm-implementation-guide.md) — Notion & NotebookLM workspace nav tab 三層模型設計與後續實作指南（Data / Behavior / UI）。
+- [py-fn-ts-capability-bridge.md](./py-fn-ts-capability-bridge.md) — **gap 分析**：py_fn 已有的真實能力（parse_document, rag_query callables, Firestore document schema）與 TypeScript `src/modules/notebooklm` 側現有 stubs 的對照，以及三種橋接模式（Firestore 訂閱 / HTTPS Callable / GCS 上傳觸發）與各 tab 的優先實作路徑。
+````
+
+## File: docs/structure/domain/bounded-context-subdomain-template.md
+````markdown
+# Bounded Context Subdomain Template
+
+本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為 `src/modules/<bounded-context>/subdomains/*` 的交付標準模板，不主張反映現況實作。
+
+## Purpose
+
+這份模板定義新的 bounded context 與其 subdomains 應以什麼結構交付，讓 Copilot 在建立模組樹、層次與邊界時，先遵守 Hexagonal Architecture with Domain-Driven Design，再決定實作細節。
+
+## Development Order Contract (Domain-First)
+
+- 每個需求都必須先有 use case contract（actor、goal、main success scenario、failure branches），再進入程式碼實作。
+- 新功能一律遵循：Domain -> Application -> Ports -> Infrastructure -> Interface。
+- Domain 先定義「系統是什麼」：聚合、不變條件、值對象與領域事件，不依賴任何框架或外部技術。
+- Application 再定義「系統做什麼」：use case 流程協調、DTO 轉換、交易與事件發布時序。
+- Ports 定義內外協作契約；Infrastructure 只負責實作契約並接入 Firebase、AI 或其他外部系統。
+- Interface（UI / API / Server Action）只做輸入輸出與組裝，不承載領域決策。
+- UI 永遠只能呼叫同 bounded context 的 `application/` 或該 bounded context 的 `index.ts`，不可直接呼叫 `domain/` 或 `infrastructure/`。
+- `domain/` 不可匯入 React、Firebase SDK、HTTP client、ORM model 或 runtime-specific adapter。
+
+## Standard Structure Tree
+
+```text
+src/modules/                                    # 系統所有業務模組（bounded contexts）集合
+└── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
+    ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
+    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
+    ├── index.ts                                # 跨模組公開入口（cross-module entry surface）
+    ├── application/                            # 應用層：負責 use case orchestration
+    │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
+    │   ├── use-cases/                          # 一檔一用例，承擔流程控制與副作用協調
+    │   └── services/                           # Application Service：流程共用輔助，不承載核心業務規則
+    ├── domain/                                 # 領域層：核心商業邏輯與不變條件
+    │   ├── entities/                           # Entity：有 identity，封裝狀態與行為
+    │   ├── value-objects/                      # Value Object：無 identity，以值相等，通常 immutable
+    │   ├── services/                           # Domain Service：不屬於單一 entity 的業務規則
+    │   ├── repositories/                       # Repository 介面（Domain Port）：只定義契約不含實作
+    │   ├── events/                             # Domain Events：已發生的業務事實，用於解耦
+    │   └── ports/                              # 外部依賴抽象（非資料庫），由 infrastructure 實作
+    ├── docs/                                   # 架構文件與治理規範（長期可維護關鍵）
+    │   ├── README.md                           # 文件總覽
+    │   ├── bounded-context.md                  # 邊界責任（負責/不負責）
+    │   ├── context-map.md                      # context 關係圖（ACL/Shared Kernel/Partnership）
+    │   ├── subdomains.md                       # 子域拆分（core/supporting/generic）
+    │   ├── ubiquitous-language.md              # 統一語言與命名詞彙表
+    │   ├── aggregates.md                       # Aggregate 設計（邊界與 root）
+    │   ├── domain-events.md                    # 事件設計規範
+    │   ├── repositories.md                     # repository 設計準則
+    │   ├── application-services.md             # application 層規範
+    │   └── domain-services.md                  # domain 層規範
+    ├── infrastructure/                         # Driven Adapters：實作 domain ports 與外部整合
+    │   ├── <subdomain-a>/                      # 依子域分組的 adapters / persistence / repositories
+    │   └── <subdomain-b>/                      # 只有 context-wide concern 才直接放 root
+    ├── interfaces/                             # Driving Adapters：從 UI/HTTP/Action 進入系統
+    │   ├── <subdomain-a>/                      # 依子域分組的 actions / queries / components / routes
+    │   └── <subdomain-b>/                      # 只有 context-wide composition 才直接放 root
+    └── subdomains/                             # 子域：bounded context 內部能力拆分
+        ├── <subdomain-a>/                      # 單一能力模組（可獨立演化）
+            ├── README.md                       # 子域說明（責任與邊界）
+        │   ├── application/                    # 子域應用層（局部 use-case orchestration）
+        │   │   ├── dto/                        # 子域 DTO（input/output）
+        │   │   ├── use-cases/                  # 子域 use-cases（局部流程）
+        │   │   └── services/                   # 子域 Application Services：只有在共享流程壓力存在時才建立
+        │   ├── domain/                         # 子域領域模型（局部業務核心）
+        │   │   ├── entities/                   # 子域 entity
+        │   │   ├── value-objects/              # 子域 value object
+        │   │   ├── services/                   # 子域 Domain Services（規則）
+        │   │   ├── repositories/               # 子域 repository 介面
+        │   │   ├── events/                     # 子域事件
+        │   │   └── ports/                      # optional：真的需要隔離外部依賴時才建立
+        │   └── infrastructure|interfaces/      # optional：只有符合 mini-module gate 時才在子域內建立
+        └── <subdomain-b>/                      # 另一個子域（相同結構，獨立演化）
+```
+
+## Duplicate Folder Name Notes
+
+- `application` 與 `domain` 在 root 與 subdomain 都可能出現，屬於**刻意重名**。
+- `infrastructure` 與 `interfaces` 預設放在 bounded context 根層，並依 subdomain 名分組；只有符合 mini-module gate 時才會在特定 subdomain 內再出現。
+- 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
+- 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
+- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `index.ts` 邊界或事件契約。
+
+## Layer Responsibilities
+
+| Layer | Responsibility |
+|---|---|
+| `index.ts` | bounded context 對外唯一公開邊界 |
+| `application/` | 協調 use cases、轉換 DTO、執行流程但不承載核心業務規則；若在 bounded context 根層，代表跨 subdomain 的 context-wide orchestration |
+| `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
+| `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；預設在 bounded context 根層，並依 subdomain 名分組 |
+| `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；預設在 bounded context 根層，並依 subdomain 名分組 |
+
+## Service Folder Semantics
+
+- `application/services/`：Application Service，負責流程協調、交易邊界、跨聚合編排與 use case 共用流程；不承載核心業務不變條件。
+- `domain/services/`：Domain Service，負責無法自然落在單一 Entity/Value Object 的領域規則與政策；可承載核心業務邏輯與不變條件。
+
+## Core Clarification
+
+- `<bounded-context>` 本身也應該維持 Hexagonal Architecture with DDD 的依賴方向，而不只是 `subdomains/<name>/` 內部才有六邊形分層。
+- 但 Hexagonal Architecture 的關鍵是**依賴方向與內外邊界**，不是資料夾一定要叫 `core/`。
+- 依 Context7 驗證的參考，Application Core 是概念上的核心，外層依賴向內；ports 可放在 application 或 domain，取決於規則真正屬於哪一層。
+- 因此本模板的預設寫法是用顯式的 `application/`、`domain/`、`infrastructure/`、`interfaces/` 來表達六邊形邊界，而不是再包一層泛用 `core/`；其中 subdomain 預設只保留 core-first 形狀。
+- 如果團隊真的要使用 `core/`，較合理的變體應是 `<bounded-context>/core/application`、`<bounded-context>/core/domain`，必要時加 `core/ports`；**不應**把 `infrastructure/` 或 `interfaces/` 也放進 `core/`，因為它們本來就是外層。
+- 只有當某段邏輯明確屬於整個 bounded context，而不是單一 subdomain 時，才應放在 `<bounded-context>/application|domain|infrastructure|interfaces`；否則優先放回擁有它的 subdomain。
+
+## Template Rules
+
+- `<bounded-context>` 根層允許有自己的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，用來承接 context-wide concern；不要把整個 bounded context 簡化成只剩 `docs/` 與 `subdomains/` 的外殼。
+- 每個 subdomain 都必須能獨立表達自己的 use case 與 domain model；adapter/UI 預設由 bounded context 根層承接，並依 subdomain 名分組。
+- subdomain 預設採 core-first：`application/`、`domain/`，`ports/` 視需要建立。
+- subdomain 的 `infrastructure/` 與 `interfaces/` 不是預設必建，只有在存在明確且持續的本地 I/O、runtime、process 或 provider boundary 壓力時才建立。
+- `index.ts` 是 cross-module collaboration 的唯一公開入口，不得暴露內部結構。
+- adapter 只實作 port，不直接被其他層呼叫。
+- port 只在真的需要隔離 I/O、外部系統、侵入式 library 或 legacy model 時建立。
+- 若 domain 核心不需要某個抽象，就不要為了形式完整而先建空的 `service`、`port` 或 `repository`。
+- 不預設建立泛用 `core/` 包裝資料夾來混合內外層；若沒有非常明確的遷移理由，優先使用顯式層次名稱。
+
+## Delivery Checklist
+
+1. 建立 bounded context 的 `README.md`、`AGENT.md`、`index.ts`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
+2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
+3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
+4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。
+5. 先放入 aggregate、domain event、published language 與 context map，再補 adapter 與 persistence 實作。
+6. 只有在交付需要時才建立 `ports/`、`hooks/`、`queries/`、`_actions/` 等細分資料夾。
+
+## Legacy Strangler Pattern Workflow (Outside-In Convergence)
+
+- 舊功能若已 outside-in 成形，不做一次性大改，採用 use case 為單位的漸進式收斂。
+- 每次只選一條 use case 進行重構，並保留舊路徑可回退。
+
+1. 找一條高價值且邊界清楚的 use case，先寫最小 use case contract。
+2. 針對該 use case 重新建 Domain（聚合、不變條件、值對象、事件），先讓核心規則可測。
+3. 在 Application 收斂流程，讓舊 UI 與舊 API 都改由新的 use case 進入。
+4. 以 Ports 隔離舊系統與舊資料模型，避免 legacy 細節回滲到 Domain。
+5. 由 Infrastructure 實作新 Ports，逐步替換舊 adapter。
+6. 確認新路徑穩定後，再移除對應的舊路徑與臨時轉接層。
+
+- 退出條件：該 use case 已滿足 `interfaces -> application -> domain <- infrastructure` 方向，且 UI 不再直連舊 service。
+
+## Anti-Pattern Rules
+
+- 不得把 `infrastructure/` 直接匯入 `domain/` 或 `application/`。
+- 不得把別的 bounded context 的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 當成可直接 import 的依賴。
+- 不得在還沒有 use case contract 的情況下直接新增 UI 與 adapter。
+- 不得讓 UI 或 route handler 直接呼叫 `domain/` 或 `infrastructure/`。
+- 不得讓 `domain/` 匯入任何 runtime 或 framework 專用套件。
+- 不得把所有子域都預設長成同一個巨型骨架，卻沒有對應的 use case 與業務責任。
+- 不得把 `infrastructure/`、`interfaces/` 放進一個泛用 `core/` 目錄，讓六邊形的內外層語義失真。
+- 不得因為「看起來完整」而過度建立 repository port、ACL、DTO、facade 或 service。
+- 不得讓 `interfaces/` 承載業務決策，也不得讓 `application/` 重寫 domain 規則。
+
+## Copilot Generation Rules
+
+- 生成新模組前，先決定 bounded context、subdomain、public API boundary 與依賴方向，再建立資料夾。
+- 若需求屬於 bounded context shared policy、published language、跨 subdomain orchestration，再使用 `<bounded-context>` 根層的 hexagonal layers；否則優先放進擁有責任的 subdomain。
+- 奧卡姆剃刀：若較少的層級、port 或 adapter 已能保護邊界與可測試性，就不要額外新增抽象。
+- 每個子域只建立當前交付需要的最小骨架，不要先把所有可選資料夾填滿。
+- 若需求只是新增一個 use case，優先放進現有 subdomain，而不是新開第二個平行 subdomain。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+    Interfaces["Interfaces"] --> Application["Application"]
+    Application --> Domain["Domain"]
+    Infrastructure["Infrastructure"] --> Domain
+    API["Public API boundary"] --> Application
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+    Requirement["Requirement"] --> Context["Choose bounded context"]
+    Context --> Subdomain["Choose owning subdomain"]
+    Subdomain --> UseCase["Write use case contract first"]
+    UseCase --> Domain["Define domain model and invariants"]
+    Domain --> Application["Orchestrate in use case"]
+    Application --> Ports["Define required ports"]
+    Ports --> Infra["Implement infrastructure adapters"]
+    Infra --> Interface["Wire UI and API at boundary"]
+```
+
+## Document Network
+
+- [README.md](../../README.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)
+- [contexts/_template.md](../contexts/_template.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+
+## Constraints
+
+- 本模板是 architecture-first 的交付模板，不代表任何既有模組已完全符合此形狀。
+- `ports/`、`queries/`、`_actions/`、`hooks/`、subdomain-local `infrastructure/`、subdomain-local `interfaces/` 都是按需要建立的可選骨架，不是強制清單。
+- 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
+````
+
+## File: docs/structure/domain/bounded-contexts.md
+````markdown
+# Bounded Contexts
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
+
+## Strategic Bounded Context Model
+
+系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
+
+## Main Domain Map
+
+| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
+|---|---|---|---|
+| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
+| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
+| ai | 共享 AI capability | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing | provider-routing、model-policy |
+| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
+| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
+| workspace | 協作容器與 scope | audit、feed、scheduling、approve、issue、orchestration、quality、settlement、task、task-formation | lifecycle、membership、sharing、presence |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
+
+## Subdomain Inventory By Main Domain
+
+### iam
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| session | 將 session 與 token lifecycle 收斂為獨立能力 |
+| consent | 將同意與授權治理從泛用平台設定中切開 |
+| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
+
+### billing
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 將可量化商業限制收斂成單一政策語言 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| generation | AI 驅動的文本生成與回覆輸出（Genkit 接縫） |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+
+### workspace
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| approve | 任務驗收與問題單覆核審批流程 |
+| issue | 問題單生命週期與追蹤管理 |
+| orchestration | 知識頁面→任務物化批次作業編排 |
+| quality | 任務 QA 審查與質檢流程 |
+| settlement | 請款發票生命週期與財務對帳 |
+| task | 任務建立、指派與狀態轉換 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
+| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
+| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
+| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
+
+### platform
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| team | Organization 內部成員分組治理 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| support | 客服工單、支援知識與處理流程 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
+
+### notion
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| knowledge-database | 結構化資料多視圖管理 |
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+### notebooklm
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
+
+## Ownership Rules
+
+- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
+- billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
+- ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
+- analytics 擁有下游報表與 projection，不擁有上游寫入模型。
+- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
+- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
+- notion 擁有正典知識內容，不擁有治理或推理流程。
+- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
+
+## Dependency Direction Guardrail
+
+- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
+- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
+
+## Conflict Resolution
+
+- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
+- 若某能力定義 actor、identity、tenant 或 access decision，優先歸 iam。
+- 若某能力定義 subscription、entitlement、pricing 或 referral，優先歸 billing。
+- 若某能力定義 shared model capability、provider routing、safety 或 prompt orchestration，優先歸 ai。
+- 若某能力只消費事件並形成報表或 read model，優先歸 analytics。
+- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
+- `workflow` 作為 generic 名稱只保留在 platform；workspace 的流程能力已分解為 task、issue、settlement、approve、quality、orchestration 等獨立子域。
+
+## Forbidden Ownership Moves
+
+- 不得讓兩個主域同時宣稱同一正典模型所有權。
+- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
+- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
+- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
+- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
+- 所有權模糊時，先修正文檔邊界，再寫程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main domain"] --> Subdomain["Subdomain"]
+	Subdomain --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Ownership["Choose bounded context"]
+	Ownership --> Boundary["Choose API boundary"]
+	Boundary --> Language["Align local language"]
+	Language --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](../system/architecture-overview.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](../system/context-map.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](../system/project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
 ## File: docs/structure/domain/event-driven-design.md
 ````markdown
 # Event-Driven Design
@@ -30813,6 +30248,725 @@ occurredAt: Timestamp.now()            // Firestore Timestamp（domain 不能有
 - [state-machine-model.md](./state-machine-model.md)
 - [`../.github/instructions/event-driven-state.instructions.md`](../../.github/instructions/event-driven-state.instructions.md)
 - [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md)
+````
+
+## File: docs/structure/domain/subdomains.md
+````markdown
+# Subdomains
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
+
+## Main Domain Inventory
+
+| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
+|---|---|---|
+| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
+| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
+| ai | generation, orchestration, distillation, retrieval, memory, context, safety, tool-calling, reasoning, conversation, evaluation, tracing | provider-routing, model-policy |
+| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
+| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
+| workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
+| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
+| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
+
+## Detailed Subdomain Catalog
+
+### iam
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| access-control | 主體現在能做什麼的授權判定 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
+| security-policy | 安全規則定義、版本化與發佈 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| session | session、token 與 identity lifecycle 收斂 |
+| consent | 同意與資料使用授權治理收斂 |
+| secret-governance | secret 與 credential access policy 收斂 |
+
+### billing
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、配額與續期治理 |
+| entitlement | 有效權益與功能可用性統一解算 |
+| referral | 推薦關係與獎勵追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| pricing | 價格模型與方案矩陣治理 |
+| invoice | 帳單、請款與對帳流程 |
+| quota-policy | 可量化配額與商業限制規則 |
+
+### ai
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| generation | AI 驅動的文本生成與回覆輸出（Genkit 接縫） |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
+
+### analytics
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| reporting | 報表輸出與查詢整理 |
+| metrics | 指標定義與聚合 |
+| dashboards | 儀表板呈現語義 |
+| telemetry-projection | 事件投影與 read model 匯總 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| experimentation | 實驗分析與對照觀測 |
+| decision-support | 決策輔助與洞察輸出 |
+
+### workspace
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| approve | 任務驗收與問題單覆核審批流程 |
+| issue | 問題單生命週期與追蹤管理 |
+| orchestration | 知識頁面→任務物化批次作業編排 |
+| quality | 任務 QA 審查與質檢流程 |
+| settlement | 請款發票生命週期與財務對帳 |
+| task | 任務建立、指派與狀態轉換 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
+| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
+| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
+| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
+
+### platform
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| team | Organization 內部成員分組治理 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| support | 客服工單、支援知識與處理流程 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| consent | 將同意與資料使用授權從 compliance 中切開 |
+| secret-management | 將憑證、token、rotation 從 integration 中切開 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
+
+### notion
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| knowledge-database | 結構化資料多視圖管理 |
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+### notebooklm
+
+#### Baseline Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
+
+#### Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
+
+## Strategic Notes
+
+- baseline subdomains 代表本架構基線中已確立的核心切分。
+- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
+- recommended gap subdomains 不等於已驗證現況實作。
+
+## Ownership Summary
+
+- iam 關心身份、租戶與存取治理。
+- billing 關心商業生命週期與有效權益。
+- ai 關心共享 AI capability 與模型政策。
+- analytics 關心下游分析、指標與 read model 投影。
+- platform 關心 account、organization 與 shared operational services。
+- workspace 關心協作範疇。
+- notion 關心正典知識內容。
+- notebooklm 關心推理與衍生輸出。
+
+## Cross-Domain Duplicate Resolution
+
+| Original Term | Resolution |
+|---|---|
+| ai | `ai` context 擁有 generic AI capability；`notion` 與 `notebooklm` 僅為 consumer |
+| analytics | `analytics` context 擁有 generic analytics；`notion` 保留 `knowledge-engagement` |
+| entitlement | `billing` 擁有 entitlement；其他主域只消費 capability signal |
+| identity | `iam` 擁有 identity 與 access-control；其他主域不再各自宣稱 |
+| integration | `platform` 保留 generic `integration`；`notion` 保留 `external-knowledge-sync` |
+| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
+| workflow | `platform` 保留 generic `workflow`；workspace 的流程能力已分解為 task、issue、settlement、approve、quality、orchestration 等獨立子域 |
+
+## Subdomain Anti-Patterns
+
+- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
+- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
+- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
+- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
+- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
+- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
+- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
+	MainDomain --> Gap["Recommended gap subdomains"]
+	Baseline --> UseCase["Use case / boundary"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Domain["Choose main domain"]
+	Domain --> Subdomain["Choose owning subdomain"]
+	Subdomain --> Boundary["Choose boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](../system/architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](../system/project-delivery-milestones.md)
+- [contexts/workspace/subdomains.md](../contexts/workspace/subdomains.md)
+- [contexts/platform/subdomains.md](../contexts/platform/subdomains.md)
+- [contexts/notion/subdomains.md](../contexts/notion/subdomains.md)
+- [contexts/notebooklm/subdomains.md](../contexts/notebooklm/subdomains.md)
+````
+
+## File: docs/structure/domain/ubiquitous-language.md
+````markdown
+# Ubiquitous Language
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
+
+## Strategic Terms
+
+| Term | Meaning |
+|---|---|
+| Main Domain | 戰略層級的主要 bounded context 群組 |
+| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
+| Published Language | 跨邊界交換時使用的共同語言 |
+| Upstream | 關係中提供語言或能力的一方 |
+| Downstream | 關係中消費語言或能力的一方 |
+| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
+| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
+| Shared Kernel | 對稱共用模型關係 |
+| Partnership | 對稱共同成功 / 共同失敗關係 |
+| Account Scope | shell 中由 `accountId` 表示的帳號範疇；代碼中的 `AccountType = "user" | "organization"` 會把它映射成 personal account 或 organization account 語意 |
+| Workspace Scope | 由 `workspaceId` 表示的協作容器範疇，必須從屬於某個 account scope |
+| Canonical Route Contract | 只用來表達 composition surface 的正典 URL 形狀，不取代 published language |
+
+## Domain Terms
+
+| Domain | Key Terms |
+|---|---|
+| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy |
+| billing | Subscription, Entitlement, BillingEvent, Referral |
+| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
+| analytics | Metric, Report, Dashboard, Projection |
+| platform | Account, AccountProfile, Organization, NotificationRoute, AuditLog |
+| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
+| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+
+## Route Composition Terms
+
+| Term | Meaning |
+|---|---|
+| accountId | shell route 上的 account scope identifier，不等於 workspaceId，也不直接等於 Tenant 語言 |
+| workspaceId | workspace scope identifier；在 canonical shell URL 中作為 account scope 之下的第二段 |
+| AccountType String Contract | code-level enum `"user" | "organization"`；`"user"` 對應 personal actor account，`"organization"` 對應 organization account |
+| Personal Account | `AccountType = "user"` 對應的 personal actor account 語意 |
+| Organization Account | `AccountType = "organization"` 對應的 organization account 語意 |
+| Canonical Workspace URL | `/{accountId}/{workspaceId}` |
+| Legacy Workspace Redirect Surface | `/{accountId}/workspace/{workspaceId}` |
+| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
+
+## Identifier Contract Glossary
+
+| Identifier | Canonical Role | Notes |
+|---|---|---|
+| accountId | Account scope identifier | shell composition 的 route id；由 `AccountType = "user" | "organization"` 決定它代表 personal account 或 organization account |
+| workspaceId | Workspace scope identifier | 協作容器錨點；在 canonical workspace URL 中是 account scope 之下的第二段 |
+| organizationId | Organization-local identifier | 用於 organization/team/taxonomy/relations/ingestion 等 organization-scoped domain 或 integration contract；不直接取代 shell route 的 `accountId` |
+| userId | Concrete user identifier | 用於 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`、`creatorUserId` 等具體使用者欄位 |
+| actorId | Acting principal identifier | 用於 audit / event / action initiator；可能是 userId，也可能是 system actor，不應假設一定等於 userId |
+| ownerId | Resource owner identifier | 表示資源所有者；不是 shell route id，也不必然等於 `accountId` |
+| tenantId | Tenant isolation identifier | 用於 storage path、security rules、multi-tenant isolation；不等於 `workspaceId`，也不是 shell route param |
+| fileId | File metadata identifier | 檔案 metadata 主鍵；不取代 owner / workspace / tenant scope |
+
+## Context Map Alignment
+
+| Relationship | Published Language Tokens | Upstream Term Source | Downstream Local Terms |
+|---|---|---|---|
+| iam -> workspace | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Workspace, Membership, ShareScope |
+| iam -> notion | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| iam -> notebooklm | actor reference, tenant scope, access decision | Actor, Identity, Tenant, AccessDecision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+| billing -> workspace | entitlement signal, subscription capability signal | Subscription, Entitlement | Workspace, Membership, ShareScope |
+| billing -> notion | entitlement signal, subscription capability signal | Subscription, Entitlement | KnowledgeArtifact, Taxonomy, Relation |
+| billing -> notebooklm | entitlement signal, subscription capability signal | Subscription, Entitlement | Notebook, Retrieval, Grounding, Synthesis |
+| ai -> notion | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | KnowledgeArtifact, Publication |
+| ai -> notebooklm | ai capability signal, model policy, safety result | AICapability, ModelPolicy, SafetyGuardrail | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+| platform -> workspace | account scope, organization surface, operational service signal | Account, Organization, NotificationRoute | Workspace, Membership, ShareScope |
+| workspace -> notion | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | KnowledgeArtifact, Taxonomy, Relation |
+| workspace -> notebooklm | workspaceId, membership scope, share scope | Workspace, Membership, ShareScope | Notebook, Retrieval, Grounding, Synthesis |
+| notion -> notebooklm | knowledge artifact reference, attachment reference, taxonomy hint | KnowledgeArtifact, Taxonomy, Relation | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+| all contexts -> analytics | domain event, usage signal, projection input | Metric, Report, Dashboard, Projection | Metrics, Reporting, Dashboard |
+
+## Published Language Token Glossary
+
+| Token | Canonical Mapping | Notes |
+|---|---|---|
+| actor reference | iam.Actor | 不以 User 泛稱，避免與 Membership 混名 |
+| organization scope | platform.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
+| tenant scope | iam.Tenant scope | 用於治理邊界，不等於 Workspace scope |
+| access decision | iam.AccessDecision result | 僅傳遞判定結果，不暴露內部 policy 模型 |
+| entitlement signal | billing.Entitlement / Subscription capability signal | 不混同 feature-flag payload |
+| ai capability signal | ai shared capability signal | notion 與 notebooklm 僅消費，不擁有 generic `ai` 子域 |
+| operational service signal | platform operational capability signal | 只表達 shared platform service，不接管治理語言 |
+| workspaceId | Workspace identifier | 不取代 knowledge/notebook 的本地主鍵 |
+| membership scope | Membership constraint | 不混同 Actor 身份語言 |
+| share scope | ShareScope constraint | 不混同一般 permission 欄位集合 |
+| knowledge artifact reference | KnowledgeArtifact reference | 僅引用，不代表內容所有權轉移 |
+| attachment reference | Attachment reference | 提供可追溯引用，不暴露儲存實作 |
+| taxonomy hint | Taxonomy hint | 作為推理輔助語言，不覆蓋 notion 正典 taxonomy |
+
+## Naming Rules
+
+- 不用 User 混指 Actor 與 Membership。
+- 不用 Plan 混指 Subscription 與 Entitlement。
+- 不用 Wiki 混指 KnowledgeArtifact。
+- 不用 Chat 混指 Conversation。
+- 不用 Search 混指 Retrieval。
+- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-engagement。
+- 不用 Integration 混指 platform integration 與 notion 的 external-knowledge-sync。
+- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
+- 不用 Workflow 混指 platform workflow 與 workspace 內的 task/issue/settlement 流程子域。
+- 不用 accountId 混指 workspaceId。
+- 不用 organizationId 取代 shell route 上的 accountId。
+- 不用 userId 混指 actorId。
+- 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
+- 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
+- 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
+
+## Naming Anti-Patterns
+
+- 用同一個詞同時代表平台治理語言與工作區參與語言。
+- 用內容產品舊名覆蓋 notion 的正典語言。
+- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
+- 把 route composition contract 誤寫成 cross-context published language。
+- 把 organization-scoped identifier 誤當成 shell composition identifier。
+- 把 actorId、userId、ownerId 三種角色不同的 identifier 混成同一欄位語意。
+- 把 personal account 顯示語言誤當成 code-level `AccountType` literal。
+- 把 legacy redirect surface 誤寫成正典 URL 契約。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
+- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
+- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic terms"] --> Context["Context terms"]
+	Context --> Boundary["Published language / API"]
+	Boundary --> Code["Generated code names"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Term["Select canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose via boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [contexts/workspace/ubiquitous-language.md](../contexts/workspace/ubiquitous-language.md)
+- [contexts/platform/ubiquitous-language.md](../contexts/platform/ubiquitous-language.md)
+- [contexts/notion/ubiquitous-language.md](../contexts/notion/ubiquitous-language.md)
+- [contexts/notebooklm/ubiquitous-language.md](../contexts/notebooklm/ubiquitous-language.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](../system/project-delivery-milestones.md)
+- [decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+
+## Conflict Resolution
+
+- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
+- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
+````
+
+## File: docs/structure/system/architecture-overview.md
+````markdown
+# Architecture Overview
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
+
+## System Shape
+
+系統以八個主域 / bounded context 組成，每個主域都視為一個有自己語言與規則的邊界：
+
+- iam：身份、租戶、存取判定與安全治理
+- billing：訂閱、權益、推薦與商業生命週期
+- ai：共享 AI capability orchestration、content generation / distillation、context assembly、prompt pipeline、safety 與 quality / observability policy
+- analytics：報表、指標、儀表板與下游 read model 投影
+- platform：account、organization、notification、search、audit 與 operational services
+- workspace：協作容器與工作區範疇
+- notion：正典知識內容生命週期
+- notebooklm：對話、來源處理與推理輸出
+
+## Architectural Baseline
+
+- 主域內部採用 Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）。
+- 領域建模採 semantic-first，優先對齊 business language，再決定資料結構與 adapter 位置。
+- 後端 runtime 基線採 Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting。
+- AI orchestration 基線採 Genkit：AI Flows、Tool Calling、Prompt Pipelines 皆視為外部能力，由 ai context 統一治理。
+- 前端 state 基線採 Zustand 與 XState：Zustand 承接輕量 client state，XState 承接有限狀態工作流。
+- runtime validation 基線採 Zod：所有外部輸入先經 Zod，再進入 application 與 domain。
+- 主域之間只透過 published language、API 邊界或事件互動。
+- 領域核心不直接依賴 framework 與 infrastructure。
+- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
+
+## Main Domains
+
+| Main Domain | Strategic Role | What It Owns |
+|---|---|---|
+| iam | 治理上游 | actor、identity、tenant、access decision、security policy |
+| billing | 商業上游 | subscription、entitlement、billing event、referral |
+| ai | 共享能力上游 | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing；provider-routing / model-policy 為後續治理延伸 |
+| analytics | 分析下游 | reporting、metrics、dashboard、projection read model |
+| platform | 平台營運支撐 | account、organization、team、notification、search、audit-log、observability、operational workflow |
+| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、task、issue、settlement、approve、quality、orchestration |
+| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
+| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
+
+## Relationship Baseline
+
+| Upstream | Downstream | Reason |
+|---|---|---|
+| iam | billing | 提供 actor、tenant 與 access policy 基線 |
+| iam | platform | 提供身份與安全治理基線 |
+| iam | workspace / notion / notebooklm | 提供 actor、tenant、access decision |
+| billing | workspace / notion / notebooklm | 提供 entitlement 與 subscription capability signal |
+| ai | notion / notebooklm | 提供 shared AI capability、prompt orchestration、content distillation / generation support、model policy 與 safety |
+| platform | workspace | 提供 account、organization 與 shared operational surface |
+| workspace | notion / notebooklm | 提供 workspace scope、membership scope、share scope |
+| notion | notebooklm | 提供可引用的正典知識內容來源 |
+| iam / billing / platform / workspace / notion / notebooklm | analytics | 輸出事件與 read model 供分析使用 |
+
+## Contradiction-Free Rules
+
+- 目前採八個主域 / bounded context；若未來再切分，必須用新的 ADR 明確記錄。
+- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
+- iam 是身份與存取治理上游，不是內容或商業正典擁有者。
+- billing 擁有 subscription 與 entitlement 的商業語義，不再把它們掛回 platform。
+- ai 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
+- analytics 是下游 read-model sink，不應反向成為其他主域的 canonical owner。
+- notion 是正典內容擁有者；notebooklm 是衍生推理輸出擁有者。
+
+## System-Wide Dependency Direction
+
+- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域依賴只能透過 published language、public API boundary、events。
+- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
+
+## App Route Composition Contract
+
+- `src/app/(shell)` 是 shell composition 邊界，不承載 business rule。
+- account 是 shell 內的唯一 account-scoped route surface，canonical 入口為 `src/app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx`。
+- `accountId` 代表 account scope；其語意由 `AccountType = "user" | "organization"` 決定，其中 `"user"` 對應 personal actor account，`"organization"` 對應 organization account，不代表 workspace scope。
+- `AccountType = "user" | "organization"` 是目前 domain、use case、validator 與 route composition 共用的字串契約；UI 可顯示 personal account / organization account，但不應把 `"personal"` 當成跨邊界字串值。
+- workspace detail 的 canonical URL 為 `/{accountId}/{workspaceId}`，由 account catch-all dispatcher 解析並轉交 workspace module route screen。
+- `/{accountId}/workspace/{workspaceId}` 僅作為 legacy redirect surface；文件、UI 與新程式碼不應再把它當成 canonical href。
+- account-scoped governance route 採 flattened account surface，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`，不再以 `/{accountId}/organization/*` 作為 canonical URL。
+- route files 只做 composition、redirect 與 query-state 轉譯；module collaboration 仍必須走 `src/modules/*` 的公開匯出邊界。
+
+## System-Wide Anti-Patterns
+
+- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
+- 把主域內部模型直接共享給其他主域，取代 published language。
+- 把治理、內容、推理三種責任重新揉成單一平級主域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
+- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
+- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Workspace["workspace"]
+	Platform --> Notion["notion"]
+	Platform --> NotebookLM["notebooklm"]
+	Workspace --> Notion
+	Workspace --> NotebookLM
+	Notion --> NotebookLM
+```
+
+## Document Network
+
+- [README.md](../../README.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](../domain/subdomains.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+
+## Reading Path
+
+1. [bounded-contexts.md](../domain/bounded-contexts.md)
+2. [context-map.md](./context-map.md)
+3. [subdomains.md](../domain/subdomains.md)
+4. [ubiquitous-language.md](../domain/ubiquitous-language.md)
+5. [integration-guidelines.md](./integration-guidelines.md)
+6. [strategic-patterns.md](./strategic-patterns.md)
+7. [decisions/README.md](../../decisions/README.md)
+````
+
+## File: docs/structure/system/context-map.md
+````markdown
+# Context Map
+
+本文件在本次任務限制下，僅依 Context7 驗證的 context map 與 strategic design 原則重建，不主張反映現況實作。
+
+## System Landscape
+
+主域級關係只採用 directed upstream-downstream 模型。
+
+## Directed Relationships
+
+| Upstream | Downstream | Published Language |
+|---|---|---|
+| iam | billing | actor reference、tenant scope、access policy baseline |
+| iam | platform | actor reference、tenant scope、access decision |
+| iam | workspace | actor reference、tenant scope、access decision |
+| iam | notion | actor reference、tenant scope、access decision |
+| iam | notebooklm | actor reference、tenant scope、access decision |
+| billing | workspace | entitlement signal、subscription capability signal |
+| billing | notion | entitlement signal、subscription capability signal |
+| billing | notebooklm | entitlement signal、subscription capability signal |
+| ai | notion | ai capability signal、model policy、safety result |
+| ai | notebooklm | ai capability signal、model policy、safety result |
+| platform | workspace | account scope、organization surface、operational service signal |
+| workspace | notion | workspaceId、membership scope、share scope |
+| workspace | notebooklm | workspaceId、membership scope、share scope |
+| notion | notebooklm | knowledge artifact reference、attachment reference、taxonomy hint |
+| iam / billing / platform / workspace / notion / notebooklm | analytics | domain event、projection input、usage signal |
+
+## Detailed Language Crosswalk
+
+| Relationship | Upstream Canonical Terms | Published Language | Downstream Protected Terms |
+|---|---|---|---|
+| iam -> workspace | Actor, Identity, Tenant, AccessDecision | actor reference, tenant scope, access decision | Workspace, Membership, ShareScope |
+| iam -> notion | Actor, Identity, Tenant, AccessDecision | actor reference, tenant scope, access decision | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| iam -> notebooklm | Actor, Identity, Tenant, AccessDecision | actor reference, tenant scope, access decision | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+| billing -> workspace | Subscription, Entitlement | entitlement signal, subscription capability signal | Workspace, Membership, ShareScope |
+| billing -> notion | Subscription, Entitlement | entitlement signal, subscription capability signal | KnowledgeArtifact, Taxonomy, Relation |
+| billing -> notebooklm | Subscription, Entitlement | entitlement signal, subscription capability signal | Notebook, Retrieval, Grounding, Synthesis |
+| ai -> notion | AICapability, ModelPolicy, SafetyGuardrail | ai capability signal, model policy, safety result | KnowledgeArtifact, Publication |
+| ai -> notebooklm | AICapability, ModelPolicy, SafetyGuardrail | ai capability signal, model policy, safety result | Retrieval, Grounding, Synthesis, Evaluation |
+| platform -> workspace | AccountScope, OrganizationSurface, NotificationRoute | account scope, organization surface, operational service signal | Workspace, Membership, ShareScope |
+| workspace -> notion | Workspace, Membership, ShareScope | workspaceId, membership scope, share scope | KnowledgeArtifact, Taxonomy, Relation |
+| workspace -> notebooklm | Workspace, Membership, ShareScope | workspaceId, membership scope, share scope | Notebook, Retrieval, Grounding, Synthesis |
+| notion -> notebooklm | KnowledgeArtifact, Taxonomy, Relation | knowledge artifact reference, attachment reference, taxonomy hint | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+| all business and operational contexts -> analytics | DomainEvent, UsageSignal, ProjectionInput | domain event, usage signal, projection input | Metrics, Reporting, Dashboard |
+
+## Relationship Notes
+
+- `iam` 只提供身份、租戶與 access decision，不接管商業、內容或推理語言。
+- `billing` 只提供 entitlement 與 subscription capability signal，不接管 workspace、knowledge 或 notebook 的正典模型。
+- `ai` 提供共享 AI capability、model policy 與 safety result，但不移轉內容或推理所有權。
+- `platform` 保留 account、organization 與 operational surface，不再作為所有治理能力的總擁有者。
+- `workspace -> notion` 與 `workspace -> notebooklm` 只提供 scope 與 membership 邊界，不輸出 workspace 內部模型。
+- `notion -> notebooklm` 僅提供可引用內容語言，不允許 notebooklm 直接回寫 notion 正典內容。
+- `analytics` 只消費投影與訊號，不反向成為上游 canonical owner。
+
+## Pattern Rules
+
+- ACL 與 Conformist 只允許出現在 downstream 端。
+- ACL 與 Conformist 互斥，不能同時套用在同一整合。
+- Shared Kernel 與 Partnership 不用於主域級關係。
+- 若未來真的需要共享模型，必須先抽出新的 bounded context，而不是把對稱關係塞回主域之間。
+
+## Dependency Direction Guardrail
+
+- 主域級方向只允許 upstream -> downstream，不允許同時宣稱對稱依賴。
+- downstream 整合上游時，先決定 published language，再決定 ACL 或 Conformist。
+- 上游提供語言與能力，下游決定如何保護自己的語言。
+
+## Strategic Consequences
+
+- 關係方向清楚後，published language、local DTO 與 ACL 才能一致。
+- 主域級文檔可以避免同時出現互相矛盾的 supplier / consumer 敘事。
+
+## Contradictions Removed
+
+- 不再同時把主域級關係描述成 directed relationship 與 symmetric relationship。
+- 不再把 ACL 寫成 upstream 的責任。
+- 不再把 shared technical libraries 誤寫為主域級 Shared Kernel。
+
+## Forbidden Relationship Patterns
+
+- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混寫在同一關係。
+- 不得把 direct model sharing 寫成 published language。
+- 不得把下游的轉譯責任倒灌回上游。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先畫清 upstream / downstream，再安排 API boundary、published language、ACL 或 Conformist。
+- 奧卡姆剃刀：若單一 published language 與單一 translation step 足夠，就不要再加第二層整合流程。
+- 不確定關係方向時，先修正文檔，不直接生成跨主域耦合程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
+	Downstream -->|ACL or Conformist| LocalModel["Local domain model"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Workspace["workspace"]
+	Platform --> Notion["notion"]
+	Platform --> NotebookLM["notebooklm"]
+	Workspace --> Notion
+	Workspace --> NotebookLM
+	Notion --> NotebookLM
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
 ## File: docs/structure/system/hard-rules-consolidated.md
@@ -31276,6 +31430,459 @@ Each module should have its own constraints section, such as:
 - [src/modules/workspace/AGENT.md](../src/modules/workspace/AGENT.md) — Workspace constraints
 - [src/modules/notion/AGENT.md](../src/modules/notion/AGENT.md) — Notion constraints
 - [src/modules/notebooklm/AGENT.md](../src/modules/notebooklm/AGENT.md) — NotebookLM constraints
+````
+
+## File: docs/structure/system/integration-guidelines.md
+````markdown
+# Integration Guidelines
+
+本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
+
+## Boundary Contract
+
+跨主域整合只能使用：
+
+- published language
+- public API boundary
+- domain / integration events
+- local DTO
+- downstream ACL 或 downstream Conformist
+
+## Pattern Selection Rules
+
+| Situation | Pattern |
+|---|---|
+| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
+| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
+| 只是跨主域資料交換 | Published Language + Local DTO |
+
+## Hard Rules
+
+- ACL 與 Conformist 只能由 downstream 選擇。
+- ACL 與 Conformist 互斥。
+- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
+- 不可把 shared technical package 誤當成 strategic shared kernel。
+- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
+
+## Domain-Specific Guidance
+
+- workspace 消費 iam、billing 或 platform 時，優先保護自己的 membership、sharing、presence 語言。
+- notion 消費 iam、billing、ai 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
+- notebooklm 消費 notion、iam、billing 或 ai 時，優先保護自己的 retrieval、grounding、synthesis 語言。
+- analytics 消費其他主域時，應以 event projection 與 local read model 為主，不回寫上游 canonical model。
+
+## App Router Boundary Guidance
+
+- App Router path shape 是 composition contract，不是跨主域 published language 的替代品。
+- 即使 path 以 `/{accountId}/{workspaceId}` 呈現，platform 與 workspace 之間的語意交換仍必須走 API boundary、published language 或 events。
+- shell 內所有 workspace detail href 應優先輸出 canonical `/{accountId}/{workspaceId}`，而不是 `/{accountId}/workspace/{workspaceId}`。
+- legacy redirect path 可以短期保留作為 compatibility surface，但文件、設計稿與新程式碼不應再以 legacy path 當作正典契約。
+- route redirect、query-state 正規化與 URL composition 屬於 interfaces / app composition concern，不應回滲為 domain rule 或跨主域契約。
+
+## Identifier Boundary Rules
+
+- `accountId` 只用於 shell / composition 層的 account scope，或 account-scoped downstream input；不要把它直接當成 `workspaceId`、`organizationId` 或 `userId`。
+- `workspaceId` 只表示協作容器 scope；跨主域 published language 若需要 workspace context，應明確傳遞 `workspaceId`，不要讓 notion / notebooklm 猜測 route segment。
+- `organizationId` 只用於 organization-scoped domain 或 integration contract；若某 flow 由 organization account 的 `accountId` 進入，需在 application / mapper 層顯式轉成 `organizationId`。
+- `userId` 用於具體使用者欄位，例如 `createdByUserId`、`verifiedByUserId`、`submittedByUserId`、`assignedUserId`；`actorId` 用於行為主體 metadata，不保證一定是 user。
+- `ownerId` 表示資源所有者；`tenantId` 表示租戶隔離鍵；兩者都不是 canonical route param。
+- `fileId` 是檔案 metadata 主鍵；不能取代 owner / workspace / tenant scope，也不能單獨表示授權邊界。
+
+## Integration Checklist
+
+1. 先確認 upstream / downstream 方向。
+2. 先列出 published language。
+3. 判斷是否語義一致。
+4. 一致則考慮 conformist，不一致則建立 ACL。
+5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
+
+## Integration Anti-Patterns
+
+- 直接傳遞上游 aggregate、entity、repository 給下游使用。
+- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
+- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
+- 只有在上游語義真的會污染本地語言時，才建立 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
+	Boundary --> Translation["Local DTO / ACL / Conformist"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
+	Direction --> PL["Define published language"]
+	PL --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| DTO["Local DTO / Conformist"]
+	ACL --> Domain["Downstream domain"]
+	DTO --> Domain
+```
+
+## Document Network
+
+- [context-map.md](./context-map.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+
+## Conflict Resolution
+
+- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
+- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
+````
+
+## File: docs/structure/system/module-graph.system-wide.md
+````markdown
+# System-Wide Module Graph
+
+本圖反映 [0014-main-domain-resplit.md](../../decisions/0014-main-domain-resplit.md) 確立的八主域重切 baseline。
+
+凡例：
+  subdomain          = Baseline subdomain（已基線化）
+  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
+  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
+
+---
+
+## Upstream → Downstream Dependency Map
+
+  Upstream     │  Downstream
+  ─────────────┼───────────────────────────────────────────────────────────
+  iam          │  billing · platform · workspace · notion · notebooklm
+  billing      │  workspace · notion · notebooklm
+  ai           │  notion · notebooklm
+  platform     │  workspace
+  workspace    │  notion · notebooklm
+  notion       │  notebooklm
+  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
+
+---
+
+## Domain + Subdomain Inventory
+
+─────────────────────────────────────────────────────────────────────────────
+T0  IAM                     BILLING                 AI
+    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
+─────────────────────────────────────────────────────────────────────────────
+
+    identity                billing                 generation
+    access-control          subscription            orchestration
+    tenant                  entitlement             distillation
+    security-policy         referral                retrieval
+                                                     memory
+                                                     context
+                                                     safety
+                                                     tool-calling
+                                                     reasoning
+                                                     conversation
+                                                     evaluation
+                                                     tracing
+
+    [session]               [pricing]               [provider-routing]
+    [consent]               [invoice]               [model-policy]
+    [secret-governance]     [quota-policy]
+
+─────────────────────────────────────────────────────────────────────────────
+T1  PLATFORM
+    平台營運支撐
+─────────────────────────────────────────────────────────────────────────────
+
+    account                 notification            audit-log
+    account-profile         background-job          observability
+    organization            content                 support
+    team                    search                  workflow
+    platform-config         compliance
+    feature-flag            integration
+    onboarding
+
+    [consent]               [secret-management]     [operational-catalog]
+
+─────────────────────────────────────────────────────────────────────────────
+T2  WORKSPACE
+    協作容器與工作區範疇
+─────────────────────────────────────────────────────────────────────────────
+
+    audit                   issue                   settlement
+    feed                    orchestration           task
+    scheduling              quality                 task-formation
+    approve
+
+    [lifecycle]             [membership]
+    [sharing]               [presence]
+
+─────────────────────────────────────────────────────────────────────────────
+T3  NOTION
+    正典知識內容
+─────────────────────────────────────────────────────────────────────────────
+
+    knowledge               automation
+    authoring               external-knowledge-sync
+    collaboration           notes
+    knowledge-database      templates
+    knowledge-engagement     knowledge-versioning
+    attachments
+
+    [taxonomy]              [relations]             [publishing]
+
+─────────────────────────────────────────────────────────────────────────────
+T4  NOTEBOOKLM
+    對話與推理輸出
+─────────────────────────────────────────────────────────────────────────────
+
+    conversation            source
+    note                    synthesis
+    notebook                conversation-versioning
+
+    [ingestion]             [retrieval]
+    [grounding]             [evaluation]
+
+─────────────────────────────────────────────────────────────────────────────
+SINK  ANALYTICS
+      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
+─────────────────────────────────────────────────────────────────────────────
+
+    reporting               telemetry-projection
+    metrics
+    dashboards
+
+    [experimentation]       [decision-support]
+
+---
+
+## Ownership Rules（速查）
+
+  iam         → 身份、tenant、access decision；不擁有商業、內容、推理正典
+  billing     → subscription、entitlement；不擁有身份治理或內容正典
+  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
+  platform    → account、organization、operational services；不再是所有治理的總擁有者
+  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
+  notion      → 正典知識內容；不擁有治理或推理流程
+  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
+  analytics   → 下游 read model sink；不反向成為上游 canonical owner
+
+---
+
+## Document Network
+
+  architecture-overview.md  — 全域架構與主域關係
+  bounded-contexts.md        — 主域與子域所有權詳目
+  context-map.md             — Upstream/Downstream published language 對照
+  ubiquitous-language.md     — 戰略術語權威
+````
+
+## File: docs/structure/system/project-delivery-milestones.md
+````markdown
+# Project Delivery Milestones
+
+本文件在本次任務限制下，僅依 Context7 驗證的 Hexagonal Architecture、DDD、Context Map 與 ADR 參考建立，作為專案從零到交付的里程碑文件，不主張反映現況實作。
+
+## Purpose
+
+這份文件把 architecture-first 的專案交付拆成可檢查的里程碑，讓 Copilot 在規劃與生成程式碼前，先知道應先完成哪些決策、文件與邊界，而不是直接跳進實作。
+
+## Milestone Map
+
+| Milestone | Goal | Outputs | Exit Criteria |
+|---|---|---|---|
+| M0 Problem Framing | 對齊目標、角色與成功條件 | 問題敘事、交付範圍、名詞初稿 | 團隊知道要解哪一類問題，而不是只知道要寫哪些檔案 |
+| M1 Ubiquitous Language | 建立共同語言 | 術語表、命名規則、避免詞彙 | 主要名詞不再互相衝突 |
+| M2 Strategic Design | 切出主域、bounded context、subdomain | subdomains、bounded-contexts、context-map 文件 | 所有權、上下游與 published language 有明確方向 |
+| M3 Decision Baseline | 記錄架構與整合決策 | ADR / decisions 條目 | 關鍵決策已寫下 context、decision、consequences |
+| M4 Module Skeleton | 建立 bounded context 與 subdomain 樹 | 模組骨架、API boundary、docs 入口 | 模組樹能表達邊界，且未洩漏實作依賴 |
+| M5 Domain Modeling | 建立聚合、值對象、領域事件與不變條件 | aggregates、domain-events、repositories、domain model | 核心規則可在 domain 層表達，不依賴外部技術 |
+| M6 Use Cases And Ports | 定義應用流程與必要 port | use-cases、DTO、必要 ports | application 能協調流程但不重寫 domain 規則 |
+| M7 Adapters And Integration | 實作 persistence、external API、UI adapters | infrastructure adapters、interfaces adapters、published language | adapter 只透過 ports 或 public API boundary 協作 |
+| M8 Verification And Hardening | 驗證邊界、流程與交付品質 | 測試、lint/build 證據、文件回補 | 核心路徑可驗證，且文件與決策同步 |
+| M9 Release Delivery | 完成交付與後續演進入口 | release note、handoff note、下一輪 backlog | 本輪可交付，同時為下一輪演進保留清楚入口 |
+
+## Milestone Rules
+
+- 沒有完成 M1 到 M3 前，不應直接大規模生成 `application/`、`domain/`、`infrastructure/` 實作。
+- M4 應先建立邊界與文件，再建立大量程式碼。
+- M5 與 M6 是核心，若這兩步不清楚，後續 adapter 與 UI 很容易反向污染 domain。
+- M7 的 published language 與 ACL / Conformist 選擇必須由 context map 決定。
+- 只要出現關鍵架構選擇、整合分歧或交付取捨，就應補 ADR，而不是把理由埋進 commit 或程式碼裡。
+
+## Delivery Sequence Guidance
+
+1. 先定義語言與邊界，再定義模組樹。
+2. 先定義 domain 核心與 use case，再實作 adapter。
+3. 先確認 upstream / downstream 關係，再決定 Published Language、ACL 或 Conformist。
+4. 先把本輪交付切成最小可交付增量，再決定是否需要新增抽象。
+
+## Legacy Convergence Guidance (Strangler Pattern)
+
+- 既有 outside-in 功能不得一次性推倒重練，必須以單一 use case 為單位收斂。
+- 每條 legacy use case 的收斂順序固定為：
+1. 定義 use case contract（actor、goal、success scenario、failure branches）。
+2. 先重建該 use case 的 domain 模型與不變條件。
+3. 由 application 接管流程協調，讓舊入口改走新 use case。
+4. 以 ports 隔離 legacy service 或資料模型。
+5. 在 infrastructure 實作新 ports，並漸進切換舊 adapter。
+6. 新路徑穩定後再移除舊路徑。
+
+- 每次收斂只允許處理一條 use case，避免跨多條流程的大爆炸式重寫。
+
+## Anti-Pattern Rules
+
+- 不得把里程碑順序反過來，先寫大量 adapter 或 UI，再回頭猜 domain。
+- 不得以「全面重構」為由跳過 use-case-by-use-case 的漸進式收斂。
+- 不得把每個規劃點都升級成 ADR；只有架構上有持續影響的決策才寫 ADR。
+- 不得在 M4 就預建所有可能的 port、repository、service 與子域，只為了追求骨架完整。
+- 不得跳過 context map 與 published language，直接用另一個 context 的內部模型來省事。
+- 不得把 lint 或 build 通過誤當成架構完成的證據。
+
+## Copilot Generation Rules
+
+- 生成程式碼前，先判斷目前需求位於哪個 milestone；不要把 M2 問題當成 M7 問題處理。
+- 奧卡姆剃刀：若現有 milestone 產物已足夠支撐下一步，就不要平行開第二套流程或第二份模板。
+- 規劃新功能時，先補足缺失的術語、context map 或 ADR，再進入模組骨架與程式碼生成。
+- 若任務只需要修正單一 use case，不要回頭擴張整個 bounded context 結構。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+    Language["Ubiquitous language"] --> Strategy["Strategic design"]
+    Strategy --> Decisions["ADR / decisions"]
+    Decisions --> Skeleton["Module skeleton"]
+    Skeleton --> Domain["Domain and use cases"]
+    Domain --> Adapters["Adapters and integration"]
+    Adapters --> Verification["Verification and release"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+    Request["Delivery request"] --> Milestone["Locate current milestone"]
+    Milestone --> Gap["Identify missing artifact"]
+    Gap --> Decision["Write or update docs / ADR if needed"]
+    Decision --> Build["Generate minimal next increment"]
+    Build --> Verify["Validate before moving to next milestone"]
+```
+
+## Document Network
+
+- [README.md](../../README.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
+- [context-map.md](./context-map.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [decisions/README.md](../../decisions/README.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+
+## Constraints
+
+- 本里程碑文件是 architecture-first 的交付路線，不代表任何既有 repo 已依此順序演進。
+- 里程碑是交付順序指引，不是 waterfall 式一次性階段牆；必要時可以小步迭代，但不可跳過核心決策產物。
+- 若需求很小，可以在同一次交付內完成多個相鄰里程碑，但仍需保留對應產物。
+````
+
+## File: docs/structure/system/strategic-patterns.md
+````markdown
+# Strategic Patterns
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD strategic design 與 context map 原則重建，不主張反映現況實作。
+
+## Selected Patterns
+
+| Pattern | Usage In This Architecture |
+|---|---|
+| Bounded Context | 八個主域 / bounded context 與其子域切分的核心模式 |
+| Upstream-Downstream | 主域級關係的唯一基線模式 |
+| Published Language | 所有跨主域交換的共同語言 |
+| Anti-Corruption Layer | downstream 語言需要保護時使用 |
+| Conformist | downstream 語言與 upstream 高度一致時的例外策略 |
+
+## Patterns Not Used At Main-Domain Level
+
+| Pattern | Why Not Used |
+|---|---|
+| Shared Kernel | 主域級共用模型會快速放大耦合與責任混淆 |
+| Partnership | 主域級互相綁定會破壞 supplier / consumer 的清楚方向 |
+
+## Recommended Strategic Posture
+
+- platform 作為治理 supplier。
+- workspace 作為協作 scope supplier。
+- notion 作為知識內容 supplier。
+- notebooklm 作為推理輸出與引用整合者。
+
+## Pattern Conflicts Avoided
+
+- 不把 ACL 與 Conformist 混用。
+- 不把 Shared Kernel 與 directed relationship 混用。
+- 不把 technical shared libraries 混寫成 strategic shared kernel。
+
+## Strategic Anti-Patterns
+
+- 以 shared technical package 取代真正的 bounded context 關係設計。
+- 以對稱關係語言掩蓋其實存在的上下游依賴。
+- 以實作方便為由，直接共享內部模型而不定 published language。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先選對戰略模式，再選對技術形狀。
+- 奧卡姆剃刀：優先使用最少但足夠的戰略模式，不要同時堆疊多個彼此衝突的模式。
+- 若一段整合沒有真正的語義污染，就不要硬加 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	BoundedContext["Bounded Context"] --> UpstreamDownstream["Upstream / Downstream"]
+	UpstreamDownstream --> PublishedLanguage["Published Language"]
+	PublishedLanguage --> ACLCF["ACL or Conformist"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	PatternChoice["Choose pattern"] --> Relationship["Set relationship direction"]
+	Relationship --> Language["Define published language"]
+	Language --> Protection["Apply ACL or Conformist if needed"]
+	Protection --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [context-map.md](./context-map.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+
+## Decision References
+
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+- [decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
 ## File: docs/tooling/firebase/firebase-architecture.md
@@ -31805,6 +32412,388 @@ import { ... } from '@integration-firebase/firestore'
 詳細架構規範見 [README.md](README.md)。
 ````
 
+## File: src/modules/ai/README.md
+````markdown
+# AI Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
+> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
+| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
+| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
+| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
+| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
+| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
+| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
+| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
+| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
+| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
+
+---
+
+## task-formation 歸屬決策
+
+| 子域 | 歸屬 | 理由 |
+|---|---|---|
+| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/ai/
+  index.ts                      ← 模組對外唯一入口（具名匯出）
+  README.md
+  AGENT.md
+  orchestration/
+    AiFacade.ts                 ← 對外統一 Facade
+    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
+  shared/
+    domain/index.ts
+    application/index.ts
+    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
+    errors/index.ts
+    types/index.ts
+  subdomains/
+    embedding/
+      domain/
+      application/
+      adapters/outbound/
+    pipeline/
+      domain/
+      application/
+      adapters/outbound/
+    evaluation/
+    generation/
+    chunk/
+    retrieval/
+    context/
+    citation/
+    memory/
+    tool-calling/
+```
+
+---
+
+## 依賴方向
+
+```
+subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
+                                                                    ↑
+                               subdomains/*/adapters/outbound  ───┘
+                                                    ↑
+                                             shared/domain
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
+
+---
+
+## 子域邊界示意（ai vs notebooklm）
+
+```
+notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
+notebooklm/document      ←使用→  ai/embedding（向量化文件）
+notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
+notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
+notebooklm/document      ─切塊→  ai/chunk（分塊計算）
+```
+
+ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
+| 在 ai 定義使用者對話 UX | 屬 notebooklm |
+| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/analytics/README.md
+````markdown
+# Analytics Module
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
+| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
+| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
+| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
+| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
+| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
+| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/analytics/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+  shared/
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    event-projection/
+      domain/
+      application/
+      adapters/outbound/
+    metrics/
+    event-ingestion/
+    event-contracts/
+    experimentation/
+    insights/
+    realtime-insights/
+```
+
+---
+
+## 依賴方向
+
+```
+adapters/inbound → application → domain ← adapters/outbound
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/billing/README.md
+````markdown
+# Billing Module
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
+| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
+| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
+
+**術語提醒：**
+- `Subscription` = 計費計劃（billing plan）
+- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/billing/
+  index.ts
+  README.md
+  AGENT.md
+  shared/
+    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
+    types/index.ts
+  subdomains/
+    entitlement/
+      domain/
+      application/
+      adapters/outbound/
+    subscription/
+      domain/
+      application/
+      adapters/outbound/
+    usage-metering/
+      domain/
+      application/
+      adapters/outbound/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/README.md
+````markdown
+# NotebookLM Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
+| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
+| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
+
+---
+
+## 子域邊界示意（notebooklm vs ai）
+
+```
+notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
+notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
+notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
+notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
+notebooklm/conversation ─引用取得→  ai/citation（標注來源）
+```
+
+notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/notebooklm/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotebooklmFacade.ts
+    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
+  shared/
+    domain/index.ts
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    document/
+      domain/
+      application/
+      adapters/outbound/
+    conversation/
+    notebook/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
+| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
+| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
+| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notion/README.md
+````markdown
+# Notion Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
+| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
+| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
+| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
+| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
+| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/notion/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotionFacade.ts
+  shared/
+    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    page/
+      domain/
+      application/
+      adapters/outbound/
+    block/
+    database/
+    view/
+    collaboration/
+    template/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
+| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
+| 在 barrel 使用 `export *` | 破壞可追蹤性 |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
 ## File: src/README.md
 ````markdown
 # src
@@ -31918,6 +32907,178 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
+## File: .github/agents/chunk-strategist.agent.md
+````markdown
+---
+name: Chunk Strategist
+description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
+argument-hint: Provide source document format, target chunk policy (size/overlap/metadata), and downstream retrieval constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Align Ingestion Inputs
+    agent: Doc Ingest Agent
+    prompt: Align document normalization and source attribution with the chunking strategy described above.
+  - label: Configure Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
+  - label: Review RAG Contract
+    agent: RAG Lead
+    prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
+
+---
+
+# Chunk Strategist
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when source segmentation depends on canonical content structure
+- `src/modules/platform/**` when chunk metadata or model constraints depend on shared `platform.ai` capability
+
+## Focus
+
+- Chunk size and overlap policy
+- Metadata fields for retrieval and attribution
+- Domain-specific segmentation rules
+- Ownership alignment across `notion` source contracts, `notebooklm` retrieval semantics, and shared `platform.ai` constraints
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/doc-ingest.agent.md
+````markdown
+---
+name: Doc Ingest Agent
+description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
+argument-hint: Provide source format, file paths or collection, and normalization quality constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Design Chunk Strategy
+    agent: Chunk Strategist
+    prompt: Design the chunking policy and metadata boundaries for the normalized artifacts described above.
+  - label: Write Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review embedding generation and metadata writes for this ingestion output.
+  - label: Review RAG Flow
+    agent: RAG Lead
+    prompt: Review this ingestion change for retrieval quality, runtime boundaries, and contract alignment.
+
+---
+
+# Doc Ingest Agent
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when normalized artifacts depend on canonical source/reference shape
+- `src/modules/platform/**` when ingestion constraints depend on shared `platform.ai` capability or entitlement policy
+
+## Rules
+
+- Keep conversion and normalization deterministic.
+- Preserve source attribution fields.
+- Align outputs with chunk and embedding contracts.
+- Flag notable format-loss risk when source conversion may affect downstream retrieval.
+- Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval pipeline semantics.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/e2e-qa.agent.md
+````markdown
+---
+name: E2E QA Agent
+description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
+argument-hint: Provide target URL or route, user flow, and acceptance criteria.
+tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
+  - label: Expand Test Coverage
+    agent: Test Scenario Writer
+    prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
+  - label: Capture Support Follow-up
+    agent: Support Architect
+    prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
+
+---
+
+# E2E QA Agent
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `debug/**`
+
+## Workflow
+
+1. Build scenarios from acceptance criteria and user paths.
+2. Execute browser interactions and capture runtime evidence.
+3. Separate confirmed failures from improvement suggestions.
+
+## Rules
+
+- Capture clear reproduction steps.
+- Separate confirmed failures from improvement ideas.
+- Report console and network evidence when relevant.
+
+## Output
+
+- Scenarios executed
+- Evidence collected
+- Confirmed failures
+- Release recommendation: ready | ready-with-risk | blocked
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/embedding-writer.agent.md
+````markdown
+---
+name: Embedding Writer
+description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
+argument-hint: Provide chunk source, embedding model, storage target, and retrieval compatibility requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Chunk Inputs
+    agent: Chunk Strategist
+    prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
+  - label: Refine Flow Integration
+    agent: Genkit Flow Agent
+    prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this embedding change for deterministic metadata, compatibility, and regression risk.
+
+---
+
+# Embedding Writer
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when vector metadata depends on canonical source/reference contracts
+- `src/modules/platform/**` when embedding provider, quota, or policy constraints come from shared `platform.ai`
+
+## Responsibilities
+
+- Define embedding payload shape.
+- Ensure consistent vector metadata.
+- Validate write path and retrieval compatibility.
+- Keep ownership aligned: `notebooklm` owns retrieval-facing semantics, while shared provider capability is consumed from `platform.ai`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
 ## File: .github/agents/firebase-guardian.agent.md
 ````markdown
 ---
@@ -31960,36 +33121,6 @@ handoffs:
 - `.github/instructions/security-rules.instructions.md`
 - `.github/instructions/cloud-functions.instructions.md`
 
-## 核心防線（Hard Rules）
-
-1. **Firebase 只能在 `infrastructure/` adapter 層** — `domain/` 與 `application/` 嚴禁直接 import Firebase SDK
-2. **Firestore 必須透過 repository access** — 不允許在 use case 或 route 直接呼叫 `firestore.collection()`
-3. **Cloud Functions 不含 domain logic** — `py_fn/` 函式只負責 I/O 協調；業務規則在 Next.js domain layer
-4. **workspace 不直接呼叫 Firestore** — 必須透過 `platform/api` 的 FileAPI / PermissionAPI 等 Service API
-5. **Security Rules 必須含 tenant isolation** — `orgId` / `workspaceId` 必須在規則中強制隔離
-
-## 審查清單
-
-### Firebase Import 位置
-- [ ] `src/modules/**/domain/` 無任何 `firebase` import？
-- [ ] `src/modules/**/application/` 無任何 `firebase` import？
-- [ ] `src/app/` route files 無直接 Firestore / Storage import？
-- [ ] Firebase import 集中在 `src/modules/**/infrastructure/` 與 `src/modules/platform/`？
-
-### Firestore Schema
-- [ ] Collection 所有權歸屬 bounded context 明確？
-- [ ] Breaking schema change 有 migration 步驟？
-- [ ] 新 query pattern 有對應 index 更新？
-
-### Security Rules
-- [ ] Firestore rules 包含 `request.auth != null` 驗證？
-- [ ] 每個 collection 有 organization / workspace isolation 條件？
-- [ ] 無寬泛 wildcard allow（`allow read, write: if true`）？
-
-### Cloud Functions（py_fn）
-- [ ] `py_fn/` 函式不包含 browser-facing auth / session logic？
-- [ ] `py_fn/` 的 Firestore 寫入使用 Admin SDK（非 client SDK）？
-
 ## 輸出格式
 
 1. **Firebase 使用安全評估**：通過 / 需修正
@@ -32003,297 +33134,402 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill firebase-rules
 ````
 
-## File: .github/agents/genkit-orchestrator.agent.md
+## File: .github/agents/firestore-schema.agent.md
 ````markdown
 ---
-name: Genkit Orchestrator
-description: AI Flow 控制器（Genkit 專屬）：管理 AI flow 設計、tool calling / prompt pipeline，驗證 AI output 安全性，控制 AI 與 domain interaction 邊界。
-argument-hint: 提供 AI flow 名稱、業務目標、inputs/outputs、目標 runtime（Next.js / py_fn），以及是否涉及 retrieval / grounding。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo']
+name: Firestore Schema Agent
+description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
+argument-hint: Provide collection name, document fields, query access patterns, and migration constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Refine Flow Contract
-    agent: Genkit Flow Agent
-    prompt: 根據此次 AI flow 設計細化 flow 合約、tool orchestration 邊界與 fallback 行為。
-  - label: Review RAG Boundary
-    agent: RAG Lead
-    prompt: 審查此 AI flow 對 retrieval / worker 邊界的影響，確認 ingestion 與 grounding 合約安全。
+  - label: Plan Migration
+    agent: Schema Migration Agent
+    prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
+  - label: Review Security Rules
+    agent: Security Rules Agent
+    prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
   - label: Run Quality Review
     agent: Quality Lead
-    prompt: 對此 Genkit flow 變更進行最終品質把關，確認 fallback 安全、contract 穩定、驗證覆蓋完整。
+    prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
 
 ---
 
-# Genkit Orchestrator
+# Firestore Schema Agent
 
-## 目標範圍 (Target Scope)
+## Target Scope
 
-- `src/modules/platform/subdomains/ai/**`
-- `src/modules/notebooklm/**` — reasoning / synthesis / retrieval flows
-- `src/app/**` — Next.js 端 AI orchestration
-- `py_fn/**` — worker-side ingestion / embedding pipeline
+- `src/modules/**/infrastructure/**`
+- `firestore.indexes.json`
+- `firestore.rules`
 
-## 使命 (Mission)
+## Responsibilities
 
-管理並守護全系統的 Genkit AI Flow 設計，確保 AI 作為「外部不可信任 actor」正確接入，AI output 必須通過 Zod 驗證閘道後才能影響 domain state，AI 不得直接寫入資料庫或 bypass 任何驗證邊界。
-
-## 必讀來源
-
-- `.github/instructions/genkit-flow.instructions.md`
-- `.github/instructions/rag-architecture.instructions.md`
-- `.github/instructions/embedding-pipeline.instructions.md`
-- `.github/instructions/architecture-runtime.instructions.md`
-
-## 禁止事項（Hard Rules）
-
-- ❌ AI flow 直接寫入 Firestore（必須透過 domain use case）
-- ❌ AI output 未經 Zod 驗證就進入 system
-- ❌ AI flow 直接修改 domain state（必須透過 application layer）
-- ❌ `notion` 或 `notebooklm` 自行定義 `ai` subdomain（AI capability 屬 `platform.ai`，下游只消費）
-- ❌ 重 AI 計算邏輯放在 Next.js（應移至 `py_fn/` worker）
-- ❌ Genkit flow 繞過 `platform.ai` 的 quota / safety policy
-
-## AI Flow 設計審查清單
-
-### Flow Contract
-- [ ] Flow input / output 型別明確？（使用 Zod schema 定義）
-- [ ] Failure modes 與 fallback behavior 已定義？
-- [ ] Flow 不修改 domain state，只回傳 output？
-
-### Runtime Boundary
-- [ ] User-facing orchestration（chat / routing）在 Next.js？
-- [ ] Heavy computation（parsing / chunking / embedding）在 `py_fn/`？
-- [ ] Cross-runtime handoff 有明確 QStash / event contract？
-
-### AI Output Validation Gate
-- [ ] AI output 通過 Zod 驗證後才進入 use case？
-- [ ] Validation 失敗時有 graceful fallback（不 crash domain）？
-
-### Platform.AI 消費路徑
-- [ ] `notion` / `notebooklm` 消費 `platform.ai` 的 AIAPI？
-- [ ] 無 notion / notebooklm 直接呼叫 Genkit SDK？
-
-### Tool Definitions
-- [ ] Tool 職責單一，無跨業務邊界的 god tool？
-- [ ] Tool 名稱使用業務語言，非技術名稱？
-
-## 輸出格式
-
-1. **AI Flow 安全性評估**：通過 / 需修正
-2. **違規清單**：`[CRITICAL|HIGH|MEDIUM]` + 描述 + 修正建議
-3. **Flow 設計建議**（如需新建）：含 input/output contract、tool list、fallback 路徑
-4. **驗證結果**：`npm run lint` + `npm run build`
+- Model collections and documents for bounded contexts.
+- Keep schema and index plans aligned with read and write paths.
+- Track migration impact and backward compatibility.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill genkit-ai
-#use skill xuanwu-rag-runtime-boundary
-#use skill next-devtools-mcp
 ````
 
-## File: .github/agents/hexagonal-convergence-enforcer.agent.md
+## File: .github/agents/frontend-lead.agent.md
 ````markdown
 ---
-name: Hexagonal Convergence Enforcer
-description: Drive repo-wide architecture smell detection and complexity reduction with root-cause refactors and anti-regression safeguards.
-argument-hint: Provide target scope (default full-repo), risk constraints, and optional priority contexts.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'shadcn/*', 'next-devtools/*', 'repomix/*']
+name: Frontend Lead
+description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
+argument-hint: Provide route or feature scope, composition goal, and boundary constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Verify App Router Impact
+  - label: Diagnose Route Behavior
     agent: App Router Agent
-    prompt: Validate route ownership, App Router behavior, and runtime regression risk after convergence refactors.
-  - label: Refine UI Boundaries
+    prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
+  - label: Compose UI Primitives
     agent: Shadcn Composer
-    prompt: Refactor UI smells with shadcn patterns while preserving API-only module boundaries and state isolation.
-  - label: Final Risk Review
+    prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
+  - label: Run Quality Review
     agent: Quality Lead
-    prompt: Review residual boundary risks, missing safeguards, and validation evidence for release confidence.
+    prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
 
 ---
 
-# Hexagonal Convergence Enforcer
+# Frontend Lead
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `packages/ui-*/**`
 
 ## Mission
 
-在 full-repo 範圍偵測架構怪味道並執行根因修復，持續降低複雜度、心智負擔與認知負擔。
-
-## Required Skills
-
-- `context7`
-- `shadcn`（alias keyword: `cshadcn`）
-- `next-devtools-mcp`（alias: `cnext-devtools-mcp`）
-- `serena-mcp`
-- `hexagonal-ddd`
-- `occams-razor`
-- `xuanwu-skill`
-- `repomix`
-
-## Context7 Certainty Gate
-
-- 對任何 library/framework API、版本行為、設定 schema 的把握度只要低於 `99.99%`，一律先查 `context7` 文件再實作或回答。
-- 固定流程：`resolve-library-id` -> `get-library-docs`（必要時翻頁）。
-- 未完成 Context7 驗證前，不可用記憶或猜測替代。
-
-## Repomix Explorer Source Policy
-
-- 優先使用 `.github/skills/xuanwu-skill/references/` 作為第一層索引來源。
-- 若 `xuanwu-skill` 缺失或疑似過期，先執行 `npm run repomix:skill` 再分析。
-- 分析順序固定：`summary.md` -> `project-structure.md` -> `files.md`。
-- 採 search-first：先 pattern search，再讀完整檔案。
-- `--skill-generate` 工作流採非互動模式（`--skill-output` + `--force`），避免互動阻塞。
-
-## Serena Troubleshooting
-
-- 若出現 `Skill not found: serena-mcp`，先確認 `.github/skills/serena-mcp/SKILL.md` frontmatter 合法（`---` 開始與結束）。
-- `serena start-mcp-server`、`activate_project`、`list_memories`、`read_memory` 屬於 Serena MCP 工作流，不是一般聊天語句。
-- 在支援 MCP tool 的客戶端中，應以對應 Serena 工具執行（例如 activate/check/list/read memory 工具）。
-
-## Workflow
-
-1. Bootstrap Serena, activate project, load memories.
-2. Bootstrap Repomix evidence source via `xuanwu-skill` (refresh if stale).
-3. Build violation and smell index for full repo.
-4. Classify issues by architecture, layer, dependency inversion, boundary, and convention.
-5. Identify root causes and reject symptom patches.
-6. Fix end-to-end across Domain -> Application -> Ports -> Infrastructure -> Interface.
-7. Run Occam reduction pass to remove redundant abstractions and merge duplicate flows.
-8. Add anti-regression guardrails (type constraints, lint/custom rules, template/codegen, boundary tests).
-9. Sync Serena memory and index.
-
-## Execution Depth Gate
-
-- 不可只做結構式規則掃描即結束。
-- 若 `violations_before=0` 且 `smells_before=0`，必須進入第二階段語意審計後才能結案。
-- 第二階段至少覆蓋四大主域：`platform`、`workspace`、`notion`、`notebooklm`。
-- 每個主域至少抽查一條完整鏈路：`domain -> application -> infrastructure -> interfaces`。
-- 每個主域至少抽查一個 `index.ts` 公開邊界與一個跨模組依賴點。
-
-## No Early Exit Rule
-
-- 禁止以「若你要我可以再掃」作為結尾。
-- 在無違規時也必須提交完整覆蓋證據與剩餘風險分級。
-- 僅在「工具不可用且無可替代流程」時可標記 blocked。
-
-## Fallback Policy
-
-- 若 `serena-mcp` 技能或流程不可用，改以可用的 code search/read tools 完成同等覆蓋。
-- 若 `shadcn` 或 `next-devtools-mcp` 不可用，不得中止；改以現有 repo 規則與程式碼證據完成掃描。
-
-## Smell Baseline
-
-- God object/service/use case
-- Anemic domain model
-- Feature envy or inappropriate intimacy
-- Shotgun surgery or divergent change
-- Layer skipping
-- Boundary leakage
-- Duplicate workflow abstractions
-- Dead abstractions or unused interfaces
-
-## Output Contract
-
-- `violations_before` / `violations_after`
-- `smells_before` / `smells_after`
-- `repomix_source_used`（`xuanwu-skill|fresh-generated`）
-- `complexity_delta`（`file_count`, `call_chain_depth`, `cognitive_surface`）
-- `tech_debt_removed`（per fix item）
-- `residual_risk`（if any）
-- `scan_coverage_report`（domain, subdomain, sampled_chain, api_boundary, evidence_file）
-- `semantic_audit_status`（`completed|blocked`）
-
-Tags: #use skill context7 #use skill shadcn #use skill next-devtools-mcp
-#use skill serena-mcp #use skill hexagonal-ddd #use skill occams-razor #use skill xuanwu-skill
-#use skill repomix
-````
-
-## File: .github/agents/kb-architect.agent.md
-````markdown
----
-name: KB Architect
-description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
-argument-hint: Provide doc scope or target area, restructuring goal, and deduplication constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refine Prompt Contracts
-    agent: Prompt Engineer
-    prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
-  - label: Align Support Playbooks
-    agent: Support Architect
-    prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
-
----
-
-# KB Architect
-
-## Target Scope
-
-- `docs/**`
-- `.github/prompts/**`
-- `.github/instructions/**`
-
-## Focus
-
-- Information hierarchy for docs and references
-- Cross-document deduplication
-- Stable glossary and index links
-
-## Execution Pattern
-
-- Process docs in leaf-to-root order when restructuring large doc trees.
-- Prefer lint/compress/dedup/structure updates before index regeneration.
-- Keep token usage efficient without changing technical meaning.
+Deliver route-level UI slices with clear ownership and predictable data flow.
 
 ## Guardrails
 
-- Do not change technical meaning while restructuring docs.
-- Keep docs aligned with current module boundaries and contracts.
+- Keep app routes thin and composition-focused.
+- Consume module behavior via module api only.
+- Prefer server components unless client interactivity is required.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
-## File: .github/agents/prompt-engineer.agent.md
+## File: .github/agents/hexagonal-ddd-architect.agent.md
 ````markdown
 ---
-name: Prompt Engineer
-description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
-argument-hint: Provide prompt goal, target agent or workflow, and required input/output contract.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+name: Hexagonal DDD Architect
+description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
+argument-hint: Provide module name, operation type (create/refactor/split/merge), and migration constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'repomix/*']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Organize Knowledge Base
-    agent: KB Architect
-    prompt: Organize the surrounding knowledge-base structure, deduplication, and glossary alignment for this prompt work.
-  - label: Refine Tool Strategy
-    agent: Tool Caller
-    prompt: Refine the tool sequencing, least-privilege access, and evidence flow expected by this prompt.
+  - label: Confirm Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the public DTO and contract surface affected by this module refactor.
   - label: Run Quality Review
     agent: Quality Lead
-    prompt: Review this prompt or workflow contract for ambiguity, missing constraints, and validation gaps.
+    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
 
 ---
 
-# Prompt Engineer
+# Hexagonal DDD Architect
 
 ## Target Scope
 
-- `.github/prompts/**`
-- `.github/instructions/**`
-- `.github/agents/**`
+- `src/modules/**`
+- `src/modules/shared/**`
+- `src/modules/shared/**`
 
-## Focus
+## Mission
 
-- Reusable prompt skeletons
-- Clear input and output contracts
-- Low-noise, high-precision instruction design
+Shape module structures without breaking bounded contexts.
+
+## Rules
+
+- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
+- Cross-module access must go through modules target api only.
+- Keep domain framework-free.
+- Run lint and build when boundaries or exports move.
+
+## Module Lifecycle Operations
+
+- Support create/refactor/split/merge/delete with explicit ownership mapping.
+- Preserve public API compatibility or document migration steps in the same change.
+- Replace internal cross-module imports with API contracts or event-driven collaboration.
+
+## Output
+
+- Ownership decision
+- Boundary impact
+- Files changed
+- Validation evidence
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/lint-rule-enforcer.agent.md
+````markdown
+---
+name: Lint Rule Enforcer
+description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
+argument-hint: Provide violation source (file path or npm run lint output), root cause hypothesis, and scope boundary.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Check Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
+  - label: Review Frontend Impact
+    agent: Frontend Lead
+    prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
+  - label: Summarize Quality Risk
+    agent: Quality Lead
+    prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
+
+---
+
+# Lint Rule Enforcer
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
+
+## Mission
+
+Keep rule compliance high while minimizing churn.
 
 ## Guardrails
 
-- Keep prompts task-focused and testable.
-- Avoid broad ambiguous directives.
+- Fix root causes, not symptoms.
+- Preserve existing architecture boundaries.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/quality-lead.agent.md
+````markdown
+---
+name: Quality Lead
+description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
+argument-hint: Provide changed files or PR diff, risk areas, and release criteria.
+tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Enforce Lint Rules
+    agent: Lint Rule Enforcer
+    prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
+  - label: Verify Browser Flows
+    agent: E2E QA Agent
+    prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
+  - label: Expand Test Scenarios
+    agent: Test Scenario Writer
+    prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
+
+---
+
+# Quality Lead
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**`
+- `packages/**`
+- `providers/**`
+- `py_fn/**`
+
+## Mission
+
+Verify correctness, boundary safety, and release readiness.
+
+## Review Lenses
+
+1. Correctness and behavioral regression risk
+2. Ownership and boundary integrity
+3. Validation completeness
+4. Documentation completeness for changed behavior
+
+## Workflow
+
+1. Build scenario list from requirements and change scope.
+2. Execute happy path, boundary, negative, and error scenarios.
+3. Report findings by severity before summaries.
+
+## Output
+
+- Findings ordered by severity
+- Evidence and reproduction details
+- Residual risks and recommendation: ready, ready-with-risk, blocked
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/rag-lead.agent.md
+````markdown
+---
+name: RAG Lead
+description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
+argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/py_fn), and quality constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Normalize Ingestion
+    agent: Doc Ingest Agent
+    prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
+  - label: Design Chunk Strategy
+    agent: Chunk Strategist
+    prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
+  - label: Write Embeddings
+    agent: Embedding Writer
+    prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
+
+---
+
+# RAG Lead
+
+## Target Scope
+
+- `py_fn/**`
+- `src/modules/notebooklm/**`
+- `src/modules/notion/**` when canonical source contracts or source references change
+- `src/modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
+
+## Focus
+
+- Ingestion contract alignment
+- Retrieval quality and index consistency
+- Runtime split between app orchestration and worker processing
+- Ownership alignment: `notebooklm` owns ingestion / retrieval / grounding / evaluation semantics, `notion` provides canonical sources, and shared model/provider capability is consumed from `platform.ai`
+
+## Guardrails
+
+- Validate contract alignment before changing ingestion shape.
+- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
+- Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/schema-migration.agent.md
+````markdown
+---
+name: Schema Migration Agent
+description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
+argument-hint: Provide source schema, target schema, rollout timeline, and rollback constraints.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Firestore Model
+    agent: Firestore Schema Agent
+    prompt: Review the source and target schema shape, query impact, and index needs for this migration plan.
+  - label: Review Security Rules
+    agent: Security Rules Agent
+    prompt: Review the security-rule impact and access-policy compatibility for this migration plan.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this migration plan for rollout risk, rollback gaps, and validation completeness.
+
+---
+
+# Schema Migration Agent
+
+## Target Scope
+
+- `src/modules/**/infrastructure/**`
+- `firestore.indexes.json`
+- `firestore.rules`
+
+## Workflow
+
+1. Define source and target schema.
+2. Plan compatibility and cutover phases.
+3. Validate reads and writes before and after migration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/security-rules.agent.md
+````markdown
+---
+name: Security Rules Agent
+description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
+argument-hint: Provide actor roles, access scenarios, constrained collections/paths, and tenancy isolation requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Firestore Schema
+    agent: Firestore Schema Agent
+    prompt: Review the data model and access paths that this security-rules change must protect.
+  - label: Verify Browser Impact
+    agent: E2E QA Agent
+    prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
+
+---
+
+# Security Rules Agent
+
+## Target Scope
+
+- `firestore.rules`
+- `storage.rules`
+- `src/modules/**/infrastructure/**`
+
+## Mission
+
+Prevent unauthorized access while preserving required product flows.
+
+## Guardrails
+
+- Enforce organization and workspace isolation.
+- Prefer explicit allow conditions with clear actor checks.
+- Pair rule changes with validation scenarios.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/server-action-writer.agent.md
+````markdown
+---
+name: Server Action Writer
+description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
+argument-hint: Provide action intent, input shape, target use case, and validation requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the DTO and command-result contracts used by this server action.
+  - label: Review Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
+
+---
+
+# Server Action Writer
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**/interfaces/**`
+- `src/modules/**/application/**`
+
+## Guardrails
+
+- Keep actions thin and orchestration-only.
+- Place business rules in module use cases.
+- Preserve consistent command-result response shape.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
@@ -32340,6 +33576,180 @@ handoffs:
 - Validate interactive states and accessibility basics.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/state-management.agent.md
+````markdown
+---
+name: State Management Agent
+description: Design and implement Zustand stores and XState machines with correct placement, slice patterns, and finite-state workflow contracts.
+argument-hint: Provide workflow name or store scope, owning module, state transitions, and whether XState or Zustand is appropriate.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Wire to Server Action
+    agent: Server Action Writer
+    prompt: Wire the state machine or store to the corresponding server action and return stable command results.
+  - label: Confirm Domain Boundary
+    agent: Domain Lead
+    prompt: Confirm that the state transition logic stays in XState machines and does not leak business rules into the store or component.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this state management change for store isolation, machine correctness, and regression risk.
+
+---
+
+# State Management Agent
+
+## Target Scope
+
+- `src/modules/**/interfaces/stores/**`
+- `src/modules/**/application/machines/**`
+- `src/app/(shell)/stores/**`
+- `src/app/**` (client components using Zustand / XState hooks)
+
+## Responsibilities
+
+- Decide between Zustand and XState based on responsibility
+- Design Zustand store slice patterns with correct naming and placement
+- Design XState machines for finite-state workflows aligned to use-case transitions
+- Enforce separation of server state (TanStack Query), client UI state (Zustand), and workflow state (XState)
+
+## Skills Required
+
+`#use skill zustand-xstate`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+#use skill zustand-xstate
+````
+
+## File: .github/agents/test-scenario-writer.agent.md
+````markdown
+---
+name: Test Scenario Writer
+description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
+argument-hint: Provide module or feature scope, happy path, known risk areas, and test coverage targets.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Quality Risk
+    agent: Quality Lead
+    prompt: Review these scenarios against the highest-risk behaviors, missing coverage, and release concerns.
+  - label: Verify Browser Flows
+    agent: E2E QA Agent
+    prompt: Execute the E2E scenarios from this suite in the browser and collect runtime evidence.
+  - label: Check Lint And Rules
+    agent: Lint Rule Enforcer
+    prompt: Check whether any structural or lint rule changes are needed to support the scenarios described above.
+
+---
+
+# Test Scenario Writer
+
+## Target Scope
+
+- `src/app/**`
+- `src/modules/**`
+- `py_fn/tests/**`
+
+## Scope
+
+- Happy path
+- Boundary and negative paths
+- Error handling and regression-sensitive paths
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/ts-interface-writer.agent.md
+````markdown
+---
+name: TS Interface Writer
+description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
+argument-hint: Provide interface or DTO name, owning module, field changes, and consumer compatibility requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Review Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and public API boundary for these contract changes.
+  - label: Write Server Action
+    agent: Server Action Writer
+    prompt: Update the server action orchestration that consumes or returns these contract changes.
+  - label: Review Firestore Shape
+    agent: Firestore Schema Agent
+    prompt: Review the persistence and index implications of these contract changes.
+
+---
+
+# TS Interface Writer
+
+## Target Scope
+
+- `src/modules/**/application/dto/**`
+- `src/modules/**/application/dto/**`
+- `src/modules/shared/**`
+
+## Focus
+
+- Domain and application DTO contracts
+- Backward-safe type evolution
+- Explicit optional and required field transitions
+
+## Guardrails
+
+- Keep module interface and API contracts explicit and minimal.
+- Do not leak private infrastructure/entity internals into public API contracts.
+- Coordinate contract changes with consumer updates in the same change.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+````
+
+## File: .github/agents/zod-validator.agent.md
+````markdown
+---
+name: Zod Validator Agent
+description: Enforce Zod validation at all three system boundaries — external input, domain value objects, and infrastructure output — without leaking validation responsibility across layers.
+argument-hint: Provide validation target (Server Action/value object/Firestore adapter), owning module, and schema requirements.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Fix Domain Model
+    agent: Domain Lead
+    prompt: Update or review domain value object and aggregate schema definitions to align with the corrected Zod validation boundary.
+  - label: Fix Infrastructure Adapter
+    agent: Hexagonal DDD Architect
+    prompt: Add or correct Zod validation in the infrastructure adapter for external system output before it reaches the application layer.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this validation change for missing boundary checks, schema drift, and regression risk.
+
+---
+
+# Zod Validator Agent
+
+## Target Scope
+
+- `src/modules/**/interfaces/**` (Server Actions, route handlers — Level 1 boundary)
+- `src/modules/**/domain/value-objects/**` (brand types — Level 2)
+- `src/modules/**/domain/events/**` (event payload schemas — Level 2)
+- `src/modules/**/infrastructure/**` (Firestore/AI output validation — Level 3)
+
+## Three Validation Levels
+
+| Level | Location | Purpose |
+|---|---|---|
+| 1 — External Input | `interfaces/` Server Action / route | Parse and reject invalid input before use case |
+| 2 — Domain Types | `domain/value-objects/`, `domain/events/` | Brand types and event payload schemas |
+| 3 — External Output | `infrastructure/` adapters | Validate Firestore reads and AI responses |
+
+## Skills Required
+
+`#use skill zod-validation`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+#use skill zod-validation
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/architecture-runtime.instructions.md
@@ -32405,6 +33815,26 @@ applyTo: '{src/modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.
 
 - Verify read/write paths remain compatible.
 - Confirm index coverage for new query patterns.
+
+## Firebase Layer Hard Rules
+
+The following are CRITICAL violations if violated:
+
+1. **Firebase 只能在 `infrastructure/` adapter 層** — `domain/` 與 `application/` 嚴禁直接 import Firebase SDK
+2. **Firestore 必須透過 repository access** — 不允許在 use case 或 route 直接呼叫 `firestore.collection()`
+3. **Cloud Functions 不含 domain logic** — `py_fn/` 函式只負責 I/O 協調；業務規則在 Next.js domain layer
+4. **workspace 不直接呼叫 Firestore** — 必須透過 `platform/api` 的 FileAPI / PermissionAPI 等 Service API
+5. **Security Rules 必須含 tenant isolation** — `orgId` / `workspaceId` 必須在規則中強制隔離
+
+## Firebase Import 審查清單
+
+- [ ] `src/modules/**/domain/` 無任何 `firebase` import？
+- [ ] `src/modules/**/application/` 無任何 `firebase` import？
+- [ ] `src/app/` route files 無直接 Firestore / Storage import？
+- [ ] Firebase import 集中在 `src/modules/**/infrastructure/` 與 `src/modules/platform/`？
+- [ ] Collection 所有權歸屬 bounded context 明確？
+- [ ] Breaking schema change 有 migration 步驟？
+- [ ] 新 query pattern 有對應 index 更新？
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill xuanwu-development-contracts
@@ -32705,6 +34135,17 @@ applyTo: '{firestore.rules,storage.rules,src/modules/**/infrastructure/**/*.{ts,
 
 - Broad wildcard allows without actor checks.
 - Hidden coupling to UI-side assumptions.
+
+## Security Rules Audit Checklist
+
+### Firestore / Storage Security Rules
+- [ ] Firestore rules 包含 `request.auth != null` 驗證？
+- [ ] 每個 collection 有 organization / workspace isolation 條件？
+- [ ] 無寬泛 wildcard allow（`allow read, write: if true`）？
+
+### Cloud Functions（py_fn）
+- [ ] `py_fn/` 函式不包含 browser-facing auth / session logic？
+- [ ] `py_fn/` 的 Firestore 寫入使用 Admin SDK（非 client SDK）？
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill xuanwu-development-contracts
@@ -33899,6 +35340,487 @@ import { getFirestore } from 'firebase/firestore'
 - [docs/README.md](../docs/README.md) — 架構文件索引
 ````
 
+## File: src/modules/ai/AGENT.md
+````markdown
+# AI Module — Agent Guide
+
+## Purpose
+
+`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
+
+> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
+| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
+| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
+| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
+| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
+| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
+| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
+| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
+| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
+| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
+> - `document`（來源文件管理）→ `notebooklm` 所有  
+> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
+- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
+- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
+- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
+
+## task-formation 歸屬決策
+
+`task-formation` 子域屬於 **`workspace`**，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 觸發者（使用者指定生成任務）是 workspace 層業務流程
+- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
+
+## Route Here When
+
+- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
+- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
+- 需要 `src/modules/ai/` 層的骨架結構作為起點。
+
+## Route Elsewhere When
+
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
+- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
+- 知識文件 / Page 管理 → `src/modules/notion/`
+- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
+- 跨模組 API boundary → `src/modules/ai/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
+| 跨模組 API boundary | `src/modules/ai/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
+- ❌ 在 barrel 使用 `export *`
+- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
+- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/analytics/AGENT.md
+````markdown
+# Analytics Module — Agent Guide
+
+## Purpose
+
+`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
+| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
+| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
+| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
+| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
+| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
+| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 Analytics 的新 use case、entity、adapter 實作。
+- 實作事件投影、指標計算 port 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
+- 跨模組 API boundary → `src/modules/analytics/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
+| 跨模組 API boundary | `src/modules/analytics/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/billing/AGENT.md
+````markdown
+# Billing Module — Agent Guide
+
+## Purpose
+
+`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
+| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
+| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
+- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
+
+## Route Here When
+
+- 撰寫 Billing 的新 use case、entity、adapter 實作。
+- 實作 entitlement check port、subscription repository 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/billing/AGENT.md`
+- 跨模組 API boundary → `src/modules/billing/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
+| 跨模組 API boundary | `src/modules/billing/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/iam/README.md
+````markdown
+# IAM Module
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `account` | ✅ 完成 | AccountProfile read-model |
+| `access-control` | ✅ 完成 | 存取控制規則 |
+| `authentication` | ✅ 完成 | 認證流程 |
+| `authorization` | ✅ 完成 | 授權決策 |
+| `federation` | ✅ 完成 | SSO / 聯合身份 |
+| `identity` | ✅ 完成 | 身份核心（Actor）|
+| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
+| `security-policy` | ✅ 完成 | 安全策略 |
+| `session` | ✅ 完成 | 會話管理 |
+| `tenant` | ✅ 完成 | 租戶隔離 |
+
+### account / organization 遷入說明
+
+`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
+- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
+
+---
+
+## 目錄結構
+
+```
+src/modules/iam/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    IamFacade.ts
+    IamCoordinator.ts
+  shared/
+    domain/index.ts             ← Actor value object（跨子域共用）
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    account/
+      domain/
+      application/
+      adapters/outbound/
+    organization/
+      domain/
+      application/
+      adapters/outbound/
+    authentication/
+    authorization/
+    access-control/
+    session/
+    tenant/
+    identity/
+    security-policy/
+    federation/
+```
+
+---
+
+## 依賴方向
+
+```
+adapters/inbound → application → domain ← adapters/outbound
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
+| 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Module — Agent Guide
+
+## Purpose
+
+`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
+
+> **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
+> AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
+| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
+| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
+> - AI 機制（embedding、retrieval、generation）屬 `ai` 模組；notebooklm 透過 Port 注入消費  
+> - `conversation`（AI 模型上下文管理）屬 `ai/context`；`conversation`（使用者對話 UX）屬本模組  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
+- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
+- `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 NotebookLM 的新 use case、entity、adapter 實作。
+- 實作 document ingestion、conversation 管理、notebook lifecycle 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
+- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
+- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
+- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
+| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
+- ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notion/AGENT.md
+````markdown
+# Notion Module — Agent Guide
+
+## Purpose
+
+`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
+
+> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
+| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
+| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
+| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
+| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
+| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
+> - `relations`（關聯圖）以 `view` 呈現；Page 間的關聯是 View 的一種形式  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
+- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
+- `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+
+## Route Here When
+
+- 撰寫 notion 的新 use case、entity、adapter 實作。
+- 實作 page authoring、database CRUD、collaboration、template 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/notion/AGENT.md`
+- 跨模組 API boundary → `src/modules/notion/index.ts`
+- RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
+- AI 生成輔助 → `src/modules/ai/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
+| 跨模組 API boundary | `src/modules/notion/index.ts` |
+
+**嚴禁事項：**
+- ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
+- ❌ 在 barrel 使用 `export *`
+- ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
+- ❌ 在 notion 模組定義 AI 生成能力（屬 ai）
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/README.md
+````markdown
+# src/modules — 模組實作層
+
+## 模組清單與子域對照
+
+| 模組 | 狀態 | 子域清單 |
+|---|---|---|
+| `template/` | ✅ 完整骨架，可複製 | document、generation、ingestion、workflow |
+| `iam/` | ✅ 完成 | account、access-control、authentication、authorization、federation、identity、organization、security-policy、session、tenant |
+| `platform/` | ✅ 完成 | background-job、notification、platform-config、search（account / org 已移至 iam）|
+| `workspace/` | 🔨 骨架建立，實作進行中 | approval、audit、feed、issue、lifecycle、membership、orchestration、quality、schedule、settlement、share、task、task-formation |
+| `notion/` | 🔨 骨架建立，實作進行中 | page、block、database、view、collaboration、template |
+| `notebooklm/` | 🔨 骨架建立，實作進行中 | document、conversation、notebook |
+| `ai/` | 🔨 骨架建立，實作進行中 | chunk、embedding、retrieval、context、generation、citation、evaluation、pipeline |
+| `analytics/` | 🔨 骨架建立，實作進行中 | event-contracts、event-ingestion、event-projection、insights、metrics、realtime-insights |
+| `billing/` | 🔨 骨架建立，實作進行中 | entitlement、subscription |
+
+---
+
+## 路由決策規則
+
+```
+需要：                                  去哪裡
+────────────────────────────────────────────────────────────────
+讀取邊界規則 / published language       src/modules/<context>/AGENT.md
+撰寫新 use case / entity / adapter      src/modules/<context>/
+                                        以 src/modules/template 為骨架
+了解模組目錄與實作狀態                  src/modules/<context>/README.md
+需要跨模組 API boundary                 src/modules/<context>/index.ts
+```
+
+---
+
+## 使用 template 建立新模組
+
+```bash
+# 1. 複製骨架
+cp -r src/modules/template src/modules/<your-context>
+
+# 2. 全域取代（保留大小寫規律）
+# Template → YourEntity
+# template → your-entity
+
+# 3. 刪除不需要的 stub 子域
+# 刪除 subdomains/generation / ingestion / workflow（若無業務壓力）
+
+# 4. 依 DDD 開發順序填入業務規則
+# Domain → Application → Ports → Adapters → Orchestration
+```
+
+詳見 [template/README.md](template/README.md) 與 [template/AGENT.md](template/AGENT.md)。
+
+---
+
+## 嚴禁事項
+
+| 禁止行為 | 原因 |
+|---|---|
+| 把 infrastructure 實作直接複製到 `src/modules/<context>/domain/` | 層次混淆，污染 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
+| 跨 subdomain 直接 import（不經 orchestration/ 或 shared/events/）| 破壞 subdomain 邊界 |
+| 在 `domain/` 中 import React、Firebase SDK、HTTP client、ORM | 破壞 domain 純度 |
+| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
+| 新建或恢復 `workspace-workflow` 子域 | 已拆解（2026-04-15），禁止回歸 |
+| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENT.md |
+| 在 ai 模組定義使用者對話 UX 或 task-formation 業務流程 | 對話屬 notebooklm；task-formation 屬 workspace |
+| 在 notion 模組定義 `knowledge-database`、`authoring`、`relations`、`taxonomy` 子域 | 已整合至名詞域（database / page / view / template）|
+
+---
+
+## 文件網絡
+
+- [src/modules/template/README.md](template/README.md) — 多子域骨架說明
+- [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
+- [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單
+- [docs/structure/domain/ubiquitous-language.md](../../docs/structure/domain/ubiquitous-language.md) — 術語權威
+````
+
 ## File: src/modules/template/AGENT.md
 ````markdown
 # Template Module — Agent Guide
@@ -34272,6 +36194,174 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 - [docs/structure/domain/bounded-context-subdomain-template.md](../../../docs/structure/domain/bounded-context-subdomain-template.md) — 設計藍圖
 ````
 
+## File: src/modules/workspace/AGENT.md
+````markdown
+# Workspace Module — Agent Guide
+
+## Purpose
+
+`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
+
+> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
+| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
+| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
+| `audit` | 稽核紀錄實體 | 🔨 骨架建立，實作進行中 |
+| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
+| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
+| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
+| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
+| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
+| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
+| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
+| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
+| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
+| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
+| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
+| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
+| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
+
+## task-formation 歸屬決策
+
+`task-formation` 屬於 **`workspace`** 子域，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 業務流程（使用者確認候選任務）是 workspace 層關注點
+- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
+- `orchestration/` 是跨子域流程協調層，不包含業務規則。
+- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
+
+## Route Here When
+
+- 撰寫 workspace 的新 use case、entity、adapter 實作。
+- 實作 task / issue / lifecycle 等子域骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/workspace/AGENT.md`
+- 跨模組 API boundary → `src/modules/workspace/index.ts`
+- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
+- 成員身份驗證 → `src/modules/iam/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/workspace/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
+| 跨模組 API boundary | `src/modules/workspace/index.ts` |
+
+**嚴禁事項：**
+- ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
+- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
+- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/workspace/README.md
+````markdown
+# Workspace Module
+
+> `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名（`approval` 不用 `approve`；`schedule` 不用 `scheduling`；`share` 不用 `sharing`）。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
+| `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
+| `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
+| `audit` | 🔨 骨架建立，實作進行中 | 稽核紀錄實體 |
+| `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
+| `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
+| `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
+| `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|
+| `membership` | 🔨 骨架建立，實作進行中 | 成員資格實體（Membership）|
+| `orchestration` | 🔨 骨架建立，實作進行中 | 跨子域編排（原 workspace-workflow）|
+| `quality` | 🔨 骨架建立，實作進行中 | 品質管控實體 |
+| `resource` | 🔨 骨架建立，實作進行中 | 資源實體（工作區資源配額與管理）|
+| `schedule` | 🔨 骨架建立，實作進行中 | 排程實體 |
+| `settlement` | 🔨 骨架建立，實作進行中 | 結算實體 |
+| `share` | 🔨 骨架建立，實作進行中 | 分享實體（對外發布）|
+| `task` | 🔨 骨架建立，實作進行中 | 任務實體（任務管理）|
+| `task-formation` | 🔨 骨架建立，實作進行中 | 任務生成實體（AI 輔助 + 使用者確認流程）|
+
+---
+
+## 目錄結構
+
+```
+src/modules/workspace/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    WorkspaceFacade.ts
+    WorkspaceCoordinator.ts     ← 跨子域流程（task→settlement 等）
+  shared/
+    domain/index.ts             ← WorkspaceId、MembershipRef 等共用 VO
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    lifecycle/
+      domain/
+      application/
+      adapters/outbound/
+    task/
+    issue/
+    membership/
+    orchestration/
+    activity/
+    api-key/
+    approval/
+    invitation/
+    resource/
+    settlement/
+    quality/
+    task-formation/
+    schedule/
+    share/
+    feed/
+    audit/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 新建或恢復 `workspace-workflow` 子域 | 已拆解，禁止回歸 |
+| 使用 `approve` / `scheduling` / `sharing` 作為子域名 | 已更正為名詞（`approval` / `schedule` / `share`）|
+| 混用 Membership（工作區參與）與 Actor（身份）術語 | 違反 Ubiquitous Language |
+| workspace 直接呼叫 Firestore | 必須透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）|
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
 ## File: .github/agents/ai-genkit-lead.agent.md
 ````markdown
 ---
@@ -34317,883 +36407,6 @@ handoffs:
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill genkit-ai
-````
-
-## File: .github/agents/chunk-strategist.agent.md
-````markdown
----
-name: Chunk Strategist
-description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
-argument-hint: Provide source document format, target chunk policy (size/overlap/metadata), and downstream retrieval constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Align Ingestion Inputs
-    agent: Doc Ingest Agent
-    prompt: Align document normalization and source attribution with the chunking strategy described above.
-  - label: Configure Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review embedding payloads and metadata that match this chunking strategy.
-  - label: Review RAG Contract
-    agent: RAG Lead
-    prompt: Review this chunking strategy against retrieval quality, runtime boundaries, and indexing contracts.
-
----
-
-# Chunk Strategist
-
-## Target Scope
-
-- `py_fn/**`
-- `src/modules/notebooklm/**`
-- `src/modules/notion/**` when source segmentation depends on canonical content structure
-- `src/modules/platform/**` when chunk metadata or model constraints depend on shared `platform.ai` capability
-
-## Focus
-
-- Chunk size and overlap policy
-- Metadata fields for retrieval and attribution
-- Domain-specific segmentation rules
-- Ownership alignment across `notion` source contracts, `notebooklm` retrieval semantics, and shared `platform.ai` constraints
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/doc-ingest.agent.md
-````markdown
----
-name: Doc Ingest Agent
-description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
-argument-hint: Provide source format, file paths or collection, and normalization quality constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Design Chunk Strategy
-    agent: Chunk Strategist
-    prompt: Design the chunking policy and metadata boundaries for the normalized artifacts described above.
-  - label: Write Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review embedding generation and metadata writes for this ingestion output.
-  - label: Review RAG Flow
-    agent: RAG Lead
-    prompt: Review this ingestion change for retrieval quality, runtime boundaries, and contract alignment.
-
----
-
-# Doc Ingest Agent
-
-## Target Scope
-
-- `py_fn/**`
-- `src/modules/notebooklm/**`
-- `src/modules/notion/**` when normalized artifacts depend on canonical source/reference shape
-- `src/modules/platform/**` when ingestion constraints depend on shared `platform.ai` capability or entitlement policy
-
-## Rules
-
-- Keep conversion and normalization deterministic.
-- Preserve source attribution fields.
-- Align outputs with chunk and embedding contracts.
-- Flag notable format-loss risk when source conversion may affect downstream retrieval.
-- Treat `notion` as the canonical content source and `notebooklm` as the owner of ingestion / retrieval pipeline semantics.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/domain-lead.agent.md
-````markdown
----
-name: Domain Lead
-description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
-argument-hint: Provide module scope, ownership question or file to place, and any known boundary risks.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refactor Module Boundary
-    agent: Hexagonal DDD Architect
-    prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update the DTO, interface, or API contract surface that follows from this domain decision.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this domain change for behavioral risk, boundary regressions, and missing validation.
-
----
-
-# Domain Lead
-
-## Target Scope
-
-- `src/modules/**`
-- `src/modules/shared/**`
-- `src/modules/shared/**`
-
-## Responsibilities
-
-- Confirm owning bounded context before edits.
-- Place logic in the correct layer.
-- Prevent internal cross-module imports.
-
-## Layer Placement Guide
-
-- `domain`: business rules, entities, value objects, repository interfaces
-- `application`: use cases and DTO orchestration
-- `infrastructure`: external adapters and implementations
-- `interfaces`: UI, hooks, queries, contracts, server actions
-- `api`: only public cross-module boundary
-
-## Validation
-
-- Run lint for boundary and import changes.
-- Run build when public types or exports are touched.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/e2e-qa.agent.md
-````markdown
----
-name: E2E QA Agent
-description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
-argument-hint: Provide target URL or route, user flow, and acceptance criteria.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Summarize Quality Risk
-    agent: Quality Lead
-    prompt: Summarize the confirmed failures, residual risks, and release recommendation from this browser verification.
-  - label: Expand Test Coverage
-    agent: Test Scenario Writer
-    prompt: Turn the executed browser paths and gaps into explicit scenario coverage recommendations.
-  - label: Capture Support Follow-up
-    agent: Support Architect
-    prompt: Convert the confirmed failures and evidence into bounded support and follow-up actions.
-
----
-
-# E2E QA Agent
-
-## Target Scope
-
-- `src/app/**`
-- `src/modules/**/interfaces/**`
-- `debug/**`
-
-## Workflow
-
-1. Build scenarios from acceptance criteria and user paths.
-2. Execute browser interactions and capture runtime evidence.
-3. Separate confirmed failures from improvement suggestions.
-
-## Rules
-
-- Capture clear reproduction steps.
-- Separate confirmed failures from improvement ideas.
-- Report console and network evidence when relevant.
-
-## Output
-
-- Scenarios executed
-- Evidence collected
-- Confirmed failures
-- Release recommendation: ready | ready-with-risk | blocked
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/embedding-writer.agent.md
-````markdown
----
-name: Embedding Writer
-description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
-argument-hint: Provide chunk source, embedding model, storage target, and retrieval compatibility requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Chunk Inputs
-    agent: Chunk Strategist
-    prompt: Review the upstream chunking policy and metadata assumptions for this embedding workflow.
-  - label: Refine Flow Integration
-    agent: Genkit Flow Agent
-    prompt: Refine the orchestration contract that consumes or coordinates this embedding workflow.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this embedding change for deterministic metadata, compatibility, and regression risk.
-
----
-
-# Embedding Writer
-
-## Target Scope
-
-- `py_fn/**`
-- `src/modules/notebooklm/**`
-- `src/modules/notion/**` when vector metadata depends on canonical source/reference contracts
-- `src/modules/platform/**` when embedding provider, quota, or policy constraints come from shared `platform.ai`
-
-## Responsibilities
-
-- Define embedding payload shape.
-- Ensure consistent vector metadata.
-- Validate write path and retrieval compatibility.
-- Keep ownership aligned: `notebooklm` owns retrieval-facing semantics, while shared provider capability is consumed from `platform.ai`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/firestore-schema.agent.md
-````markdown
----
-name: Firestore Schema Agent
-description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
-argument-hint: Provide collection name, document fields, query access patterns, and migration constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Plan Migration
-    agent: Schema Migration Agent
-    prompt: Plan the compatibility window, rollout path, and rollback strategy for this schema change.
-  - label: Review Security Rules
-    agent: Security Rules Agent
-    prompt: Review the security-rule implications of this Firestore schema and access-pattern change.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this schema change for compatibility risk, query correctness, and missing validation.
-
----
-
-# Firestore Schema Agent
-
-## Target Scope
-
-- `src/modules/**/infrastructure/**`
-- `firestore.indexes.json`
-- `firestore.rules`
-
-## Responsibilities
-
-- Model collections and documents for bounded contexts.
-- Keep schema and index plans aligned with read and write paths.
-- Track migration impact and backward compatibility.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/frontend-lead.agent.md
-````markdown
----
-name: Frontend Lead
-description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
-argument-hint: Provide route or feature scope, composition goal, and boundary constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Diagnose Route Behavior
-    agent: App Router Agent
-    prompt: Diagnose the App Router composition, rendering behavior, and runtime boundary impact for this frontend scope.
-  - label: Compose UI Primitives
-    agent: Shadcn Composer
-    prompt: Compose or refactor the UI primitives and interaction states needed for this route-level frontend change.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this frontend change for UX regressions, ownership boundaries, and missing validation.
-
----
-
-# Frontend Lead
-
-## Target Scope
-
-- `src/app/**`
-- `src/modules/**/interfaces/**`
-- `packages/ui-*/**`
-
-## Mission
-
-Deliver route-level UI slices with clear ownership and predictable data flow.
-
-## Guardrails
-
-- Keep app routes thin and composition-focused.
-- Consume module behavior via module api only.
-- Prefer server components unless client interactivity is required.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/genkit-flow.agent.md
-````markdown
----
-name: Genkit Flow Agent
-description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
-argument-hint: Provide flow name, runtime target (Next.js/py_fn), inputs/outputs, and orchestration concern.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review AI Ownership
-    agent: AI Genkit Lead
-    prompt: Review the Genkit orchestration ownership, runtime split, and app-side integration for this flow.
-  - label: Review RAG Contract
-    agent: RAG Lead
-    prompt: Review this Genkit flow against retrieval contracts, worker boundaries, and indexing expectations.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this Genkit flow change for fallback behavior, contract safety, and validation gaps.
-
----
-
-# Genkit Flow Agent
-
-## Target Scope
-
-- `src/app/**`
-- `src/modules/platform/**`
-- `src/modules/notebooklm/**`
-- `src/modules/notion/**` when content-side orchestration consumes shared AI capability
-
-## Focus
-
-- Flow inputs and outputs
-- Prompt and tool orchestration boundaries
-- Error handling and fallback behavior
-- Separation between shared `platform.ai` governance and `notebooklm` reasoning / retrieval semantics
-
-## Guardrails
-
-- Keep flow contracts explicit.
-- Avoid leaking worker-only logic into app orchestration.
-- Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill genkit-ai
-````
-
-## File: .github/agents/hexagonal-ddd-architect.agent.md
-````markdown
----
-name: Hexagonal DDD Architect
-description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
-argument-hint: Provide module name, operation type (create/refactor/split/merge), and migration constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'repomix/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Confirm Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the public DTO and contract surface affected by this module refactor.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
-
----
-
-# Hexagonal DDD Architect
-
-## Target Scope
-
-- `src/modules/**`
-- `src/modules/shared/**`
-- `src/modules/shared/**`
-
-## Mission
-
-Shape module structures without breaking bounded contexts.
-
-## Rules
-
-- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
-- Cross-module access must go through modules target api only.
-- Keep domain framework-free.
-- Run lint and build when boundaries or exports move.
-
-## Module Lifecycle Operations
-
-- Support create/refactor/split/merge/delete with explicit ownership mapping.
-- Preserve public API compatibility or document migration steps in the same change.
-- Replace internal cross-module imports with API contracts or event-driven collaboration.
-
-## Output
-
-- Ownership decision
-- Boundary impact
-- Files changed
-- Validation evidence
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/lint-rule-enforcer.agent.md
-````markdown
----
-name: Lint Rule Enforcer
-description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
-argument-hint: Provide violation source (file path or npm run lint output), root cause hypothesis, and scope boundary.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Check Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm whether this lint or boundary issue indicates a domain ownership or layer-placement problem.
-  - label: Review Frontend Impact
-    agent: Frontend Lead
-    prompt: Review the frontend or route-composition impact of the lint and boundary issues identified above.
-  - label: Summarize Quality Risk
-    agent: Quality Lead
-    prompt: Summarize the confirmed issues, fix status, and residual release risk after lint enforcement.
-
----
-
-# Lint Rule Enforcer
-
-## Target Scope
-
-- `src/app/**`
-- `src/modules/**`
-- `packages/**`
-- `providers/**`
-- `py_fn/**`
-
-## Mission
-
-Keep rule compliance high while minimizing churn.
-
-## Guardrails
-
-- Fix root causes, not symptoms.
-- Preserve existing architecture boundaries.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/quality-lead.agent.md
-````markdown
----
-name: Quality Lead
-description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
-argument-hint: Provide changed files or PR diff, risk areas, and release criteria.
-tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Enforce Lint Rules
-    agent: Lint Rule Enforcer
-    prompt: Enforce the relevant lint and boundary rules and report the root causes for any remaining violations.
-  - label: Verify Browser Flows
-    agent: E2E QA Agent
-    prompt: Execute the highest-risk browser scenarios and collect runtime evidence for this change.
-  - label: Expand Test Scenarios
-    agent: Test Scenario Writer
-    prompt: Turn the residual risks and gaps into explicit unit, integration, or E2E scenario coverage.
-
----
-
-# Quality Lead
-
-## Target Scope
-
-- `src/app/**`
-- `src/modules/**`
-- `packages/**`
-- `providers/**`
-- `py_fn/**`
-
-## Mission
-
-Verify correctness, boundary safety, and release readiness.
-
-## Review Lenses
-
-1. Correctness and behavioral regression risk
-2. Ownership and boundary integrity
-3. Validation completeness
-4. Documentation completeness for changed behavior
-
-## Workflow
-
-1. Build scenario list from requirements and change scope.
-2. Execute happy path, boundary, negative, and error scenarios.
-3. Report findings by severity before summaries.
-
-## Output
-
-- Findings ordered by severity
-- Evidence and reproduction details
-- Residual risks and recommendation: ready, ready-with-risk, blocked
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/rag-lead.agent.md
-````markdown
----
-name: RAG Lead
-description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
-argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/py_fn), and quality constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Normalize Ingestion
-    agent: Doc Ingest Agent
-    prompt: Normalize the ingestion inputs, attribution fields, and source-conversion flow for this RAG scope.
-  - label: Design Chunk Strategy
-    agent: Chunk Strategist
-    prompt: Design the chunking policy, overlap, and metadata boundaries for this RAG scope.
-  - label: Write Embeddings
-    agent: Embedding Writer
-    prompt: Implement or review the embedding payload, metadata writes, and compatibility guarantees for this RAG scope.
-
----
-
-# RAG Lead
-
-## Target Scope
-
-- `py_fn/**`
-- `src/modules/notebooklm/**`
-- `src/modules/notion/**` when canonical source contracts or source references change
-- `src/modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
-
-## Focus
-
-- Ingestion contract alignment
-- Retrieval quality and index consistency
-- Runtime split between app orchestration and worker processing
-- Ownership alignment: `notebooklm` owns ingestion / retrieval / grounding / evaluation semantics, `notion` provides canonical sources, and shared model/provider capability is consumed from `platform.ai`
-
-## Guardrails
-
-- Validate contract alignment before changing ingestion shape.
-- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
-- Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/schema-migration.agent.md
-````markdown
----
-name: Schema Migration Agent
-description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
-argument-hint: Provide source schema, target schema, rollout timeline, and rollback constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Firestore Model
-    agent: Firestore Schema Agent
-    prompt: Review the source and target schema shape, query impact, and index needs for this migration plan.
-  - label: Review Security Rules
-    agent: Security Rules Agent
-    prompt: Review the security-rule impact and access-policy compatibility for this migration plan.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this migration plan for rollout risk, rollback gaps, and validation completeness.
-
----
-
-# Schema Migration Agent
-
-## Target Scope
-
-- `src/modules/**/infrastructure/**`
-- `firestore.indexes.json`
-- `firestore.rules`
-
-## Workflow
-
-1. Define source and target schema.
-2. Plan compatibility and cutover phases.
-3. Validate reads and writes before and after migration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/security-rules.agent.md
-````markdown
----
-name: Security Rules Agent
-description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
-argument-hint: Provide actor roles, access scenarios, constrained collections/paths, and tenancy isolation requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Firestore Schema
-    agent: Firestore Schema Agent
-    prompt: Review the data model and access paths that this security-rules change must protect.
-  - label: Verify Browser Impact
-    agent: E2E QA Agent
-    prompt: Verify the product flows affected by this rules change and capture evidence for any access regressions.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this security-rules change for least-privilege coverage, regression risk, and validation gaps.
-
----
-
-# Security Rules Agent
-
-## Target Scope
-
-- `firestore.rules`
-- `storage.rules`
-- `src/modules/**/infrastructure/**`
-
-## Mission
-
-Prevent unauthorized access while preserving required product flows.
-
-## Guardrails
-
-- Enforce organization and workspace isolation.
-- Prefer explicit allow conditions with clear actor checks.
-- Pair rule changes with validation scenarios.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/server-action-writer.agent.md
-````markdown
----
-name: Server Action Writer
-description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
-argument-hint: Provide action intent, input shape, target use case, and validation requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the DTO and command-result contracts used by this server action.
-  - label: Review Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this server action change for validation gaps, orchestration drift, and regression risk.
-
----
-
-# Server Action Writer
-
-## Target Scope
-
-- `src/app/**`
-- `src/modules/**/interfaces/**`
-- `src/modules/**/application/**`
-
-## Guardrails
-
-- Keep actions thin and orchestration-only.
-- Place business rules in module use cases.
-- Preserve consistent command-result response shape.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/state-management.agent.md
-````markdown
----
-name: State Management Agent
-description: Design and implement Zustand stores and XState machines with correct placement, slice patterns, and finite-state workflow contracts.
-argument-hint: Provide workflow name or store scope, owning module, state transitions, and whether XState or Zustand is appropriate.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Wire to Server Action
-    agent: Server Action Writer
-    prompt: Wire the state machine or store to the corresponding server action and return stable command results.
-  - label: Confirm Domain Boundary
-    agent: Domain Lead
-    prompt: Confirm that the state transition logic stays in XState machines and does not leak business rules into the store or component.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this state management change for store isolation, machine correctness, and regression risk.
-
----
-
-# State Management Agent
-
-## Target Scope
-
-- `src/modules/**/interfaces/stores/**`
-- `src/modules/**/application/machines/**`
-- `src/app/(shell)/stores/**`
-- `src/app/**` (client components using Zustand / XState hooks)
-
-## Responsibilities
-
-- Decide between Zustand and XState based on responsibility
-- Design Zustand store slice patterns with correct naming and placement
-- Design XState machines for finite-state workflows aligned to use-case transitions
-- Enforce separation of server state (TanStack Query), client UI state (Zustand), and workflow state (XState)
-
-## Decision Rule
-
-| Is it... | Use |
-|---|---|
-| Cross-component UI preference or toggle? | **Zustand** (`interfaces/stores/`) |
-| Multi-step workflow with defined state transitions? | **XState** (`application/machines/`) |
-| Server data (async fetch result)? | **TanStack Query** — never store in Zustand |
-| Domain aggregate state? | **Firestore via use case** — never cache in frontend store |
-
-## Guardrails
-
-- Zustand stores must not hold server-fetched data or domain aggregates.
-- XState machines must not import Firebase SDK or call repositories directly.
-- Machine definitions belong in `application/machines/`, never inline in components.
-- Business rules stay in `domain/`; machines orchestrate transitions only.
-- Store naming: `use<Name>Store`, file: `<name>.store.ts`.
-- Machine naming: `<noun>-<flow>.machine.ts`.
-
-## Skills Required
-
-`#use skill zustand-xstate`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill zustand-xstate
-````
-
-## File: .github/agents/test-scenario-writer.agent.md
-````markdown
----
-name: Test Scenario Writer
-description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
-argument-hint: Provide module or feature scope, happy path, known risk areas, and test coverage targets.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Quality Risk
-    agent: Quality Lead
-    prompt: Review these scenarios against the highest-risk behaviors, missing coverage, and release concerns.
-  - label: Verify Browser Flows
-    agent: E2E QA Agent
-    prompt: Execute the E2E scenarios from this suite in the browser and collect runtime evidence.
-  - label: Check Lint And Rules
-    agent: Lint Rule Enforcer
-    prompt: Check whether any structural or lint rule changes are needed to support the scenarios described above.
-
----
-
-# Test Scenario Writer
-
-## Target Scope
-
-- `src/app/**`
-- `src/modules/**`
-- `py_fn/tests/**`
-
-## Scope
-
-- Happy path
-- Boundary and negative paths
-- Error handling and regression-sensitive paths
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/ts-interface-writer.agent.md
-````markdown
----
-name: TS Interface Writer
-description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
-argument-hint: Provide interface or DTO name, owning module, field changes, and consumer compatibility requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Review Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and public API boundary for these contract changes.
-  - label: Write Server Action
-    agent: Server Action Writer
-    prompt: Update the server action orchestration that consumes or returns these contract changes.
-  - label: Review Firestore Shape
-    agent: Firestore Schema Agent
-    prompt: Review the persistence and index implications of these contract changes.
-
----
-
-# TS Interface Writer
-
-## Target Scope
-
-- `src/modules/**/api/**`
-- `src/modules/**/application/dto/**`
-- `src/modules/shared/**`
-
-## Focus
-
-- Domain and application DTO contracts
-- Backward-safe type evolution
-- Explicit optional and required field transitions
-
-## Guardrails
-
-- Keep module interface and API contracts explicit and minimal.
-- Do not leak private infrastructure/entity internals into public API contracts.
-- Coordinate contract changes with consumer updates in the same change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-````
-
-## File: .github/agents/zod-validator.agent.md
-````markdown
----
-name: Zod Validator Agent
-description: Enforce Zod validation at all three system boundaries — external input, domain value objects, and infrastructure output — without leaking validation responsibility across layers.
-argument-hint: Provide validation target (Server Action/value object/Firestore adapter), owning module, and schema requirements.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Fix Domain Model
-    agent: Domain Lead
-    prompt: Update or review domain value object and aggregate schema definitions to align with the corrected Zod validation boundary.
-  - label: Fix Infrastructure Adapter
-    agent: Hexagonal DDD Architect
-    prompt: Add or correct Zod validation in the infrastructure adapter for external system output before it reaches the application layer.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this validation change for missing boundary checks, schema drift, and regression risk.
-
----
-
-# Zod Validator Agent
-
-## Target Scope
-
-- `src/modules/**/interfaces/**` (Server Actions, route handlers — Level 1 boundary)
-- `src/modules/**/domain/value-objects/**` (brand types — Level 2)
-- `src/modules/**/domain/events/**` (event payload schemas — Level 2)
-- `src/modules/**/infrastructure/**` (Firestore/AI output validation — Level 3)
-
-## Three Validation Levels
-
-| Level | Location | Purpose |
-|---|---|---|
-| 1 — External Input | `interfaces/` Server Action / route | Parse and reject invalid input before use case |
-| 2 — Domain Types | `domain/value-objects/`, `domain/events/` | Brand types and event payload schemas |
-| 3 — External Output | `infrastructure/` adapters | Validate Firestore reads and AI responses |
-
-## Hard Rules
-
-- Every Server Action must call `ZodSchema.parse(rawInput)` before delegating to a use case.
-- `domain/` may only use Zod for schema and brand-type definitions — no I/O, no framework calls.
-- Every Firestore document read must pass through a Zod schema before being mapped to a domain entity.
-- Every AI flow output must be validated before entering a use case.
-- Never use `as SomeType` to cast external data without validation.
-
-## Guardrails
-
-- Zod schemas must NOT contain business logic — that belongs in domain aggregates.
-- Do not duplicate the same schema in both `domain/` and `application/` — pick one canonical location.
-- `z.object().passthrough()` is forbidden for production data paths (use strict schemas).
-- `z.any()` and `z.unknown()` without subsequent `.parse()` are validation gaps.
-
-## Skills Required
-
-`#use skill zod-validation`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill zod-validation
-#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/architecture-core.instructions.md
@@ -35326,6 +36539,39 @@ return raw as WorkspaceSnapshot;
 - ❌ Using `as SomeType` to cast Firestore or AI output without validation
 - ❌ Importing Zod in `domain/` for anything other than schema and brand-type definitions
 - ❌ Duplicating the same schema in both `domain/` and `application/` — keep it in one place
+
+### Additional Zod Guardrails
+
+- `z.object().passthrough()` is forbidden for production data paths — use strict schemas.
+- `z.any()` and `z.unknown()` without a subsequent `.parse()` or `.safeParse()` call are validation gaps.
+- Zod schemas must not contain business logic — invariants belong in domain aggregates.
+
+## Review Checklist
+
+Use before merging any change touching `src/modules/` or `src/app/`.
+
+### Dependency Direction
+- [ ] `interfaces/` does not call `infrastructure/` or `domain/` internals directly?
+- [ ] `application/` depends only on `domain/` abstractions, not infrastructure implementations?
+- [ ] `domain/` has zero imports of Firebase / React / HTTP client / ORM?
+- [ ] `index.ts` exposes only the cross-module public surface, no repository factories or container wiring?
+
+### Import Boundary
+- [ ] Cross-module calls go through `src/modules/<target>/index.ts` only — no direct internal path imports?
+- [ ] Route components pass scope via props (`accountId`, `workspaceId`) and do not call foreign module context providers?
+
+### Module Shape
+- [ ] Bounded context root contains `index.ts`, `domain/`, `application/`, `infrastructure/`, `interfaces/`?
+- [ ] Subdomains follow core-first shape (`domain/`, `application/`, optional `ports/`) — `infrastructure/` and `interfaces/` are gate-based?
+
+### Layer Coupling Smells
+- [ ] No God Use Case mixing business rules with infrastructure logic?
+- [ ] No anemic model (aggregate with only getters/setters and no business methods)?
+- [ ] No layer skipping (`interfaces/` calling repositories directly)?
+
+### Runtime Boundary
+- [ ] Next.js does not execute parsing / chunking / embedding pipelines directly?
+- [ ] `py_fn/` contains no browser-facing auth / session / chat logic?
 
 ## Validation
 
@@ -36008,168 +37254,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill vscode-typescript-workbench
 ````
 
-## File: docs/README.md
-````markdown
-# Docs
-
-本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
-## Purpose
-
-這份文件集提供八個主域 / bounded context 的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
-
-## Architecture Baseline
-
-本文件網的架構權威基線是：
-
-- Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）
-- semantic-first 的 business-language-aligned domain modeling
-- Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting
-- Genkit AI Orchestration Layer：AI Flows、Tool Calling、Prompt Pipelines
-- Frontend State Management Layer：Zustand for client state、XState for finite-state workflows
-- Schema Validation Layer：Zod for runtime type safety and domain validation
-
-若任務涉及模組分層、runtime 邊界、AI orchestration、frontend state、validation 或 shell route contract，先以 [architecture-overview.md](./structure/system/architecture-overview.md) 為全域敘事權威，再落到對應 context 文件。
-
-## Single Source Of Truth Map
-
-| Document | Role |
-|---|---|
-| [architecture-overview.md](./structure/system/architecture-overview.md) | 全域架構敘事總覽 |
-| [subdomains.md](./structure/domain/subdomains.md) | 八主域與子域總清單 |
-| [bounded-contexts.md](./structure/domain/bounded-contexts.md) | 主域與子域所有權地圖 |
-| [context-map.md](./structure/system/context-map.md) | 主域間關係圖與方向 |
-| [ubiquitous-language.md](./structure/domain/ubiquitous-language.md) | 戰略詞彙表 |
-| [integration-guidelines.md](./structure/system/integration-guidelines.md) | 主域整合規則 |
-| [strategic-patterns.md](./structure/system/strategic-patterns.md) | 採用與禁用的戰略模式 |
-| [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md) | 全域硬性守則與 design smell 防線 |
-| [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
-| [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md) | 從零到交付的專案里程碑 |
-| [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
-| [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) | Design Smell taxonomy 與對應決策索引 |
-| [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
-
-## Context Folders
-
-- [contexts/ai/README.md](./contexts/ai/README.md)
-- [contexts/analytics/README.md](./contexts/analytics/README.md)
-- [contexts/billing/README.md](./contexts/billing/README.md)
-- [contexts/iam/README.md](./contexts/iam/README.md)
-- [contexts/platform/README.md](./contexts/platform/README.md)
-- [contexts/workspace/README.md](./contexts/workspace/README.md)
-- [contexts/notion/README.md](./contexts/notion/README.md)
-- [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
-
-## Focused Implementation Docs
-
-- [structure/system/source-to-task-flow.md](./structure/system/source-to-task-flow.md)
-- [feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
-- [deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
-- [decisions/0012-source-to-task-orchestration.md](./decisions/0012-source-to-task-orchestration.md)
-
-## Route Contract Authority
-
-- shell composition 與 canonical account / workspace URL 以 [architecture-overview.md](./structure/system/architecture-overview.md) 為全域權威。
-- account scope、`AccountType = "user" | "organization"` 的字串契約，以及 flattened governance route 以 [contexts/platform/README.md](./contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md) 為權威。
-- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md) 為權威。
-- `/{accountId}/workspace/{workspaceId}` 與 `/{accountId}/organization/*` 只作為 legacy redirect surface，不是新文件或新 UI 應引用的 canonical contract。
-
-## Document Network
-
-- [architecture-overview.md](./structure/system/architecture-overview.md)
-- [bounded-contexts.md](./structure/domain/bounded-contexts.md)
-- [context-map.md](./structure/system/context-map.md)
-- [integration-guidelines.md](./structure/system/integration-guidelines.md)
-- [strategic-patterns.md](./structure/system/strategic-patterns.md)
-- [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)
-- [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)
-- [subdomains.md](./structure/domain/subdomains.md)
-- [ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
-- [decisions/README.md](./decisions/README.md)
-- [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
-- [contexts/_template.md](./contexts/_template.md)
-
-## Module Layer Map（src 結構）
-
-目前以 `src/modules/` 作為唯一模組實作層：
-
-| 路徑 | 角色 | 結構特徵 | 使用時機 |
-|---|---|---|---|
-| `src/modules/<context>/` | 主域模組實作（現況） | 以 `subdomains/` 為核心，搭配 `adapters/`、`shared/`、`orchestration/` 與 `index.ts` 公開匯出 | 撰寫與維護所有 use case、adapter、domain entity 與跨子域編排 |
-
-## Top-Level Directory Structure
-
-Repo 根目錄的三個運行時層：
-
-| 目錄 | 角色 |
-|---|---|
-| `src/` | Next.js App Router + 所有主域模組實作（`src/app/`、`src/modules/`） |
-| `packages/` | 共用套件（`integration-firebase`、`ui-shadcn` 等），以 alias 形式被 `src/modules/` 引用 |
-| `py_fn/` | Python Cloud Functions：ingestion、parse、chunk、embed、background worker |
-
-- `packages/` 以 `@integration-*`、`@ui-*`、`@lib-*` 等 alias 被 TypeScript 引用。
-- `py_fn/` 與 Next.js 的互動只透過 QStash 訊息、Firestore trigger 或事件契約；不共用程式碼。
-
-### 路由規則
-
-- 讀取主域邊界與任務路由 → `src/modules/<context>/AGENT.md`
-- 撰寫新實作程式碼 → `src/modules/<context>/`，以 `src/modules/template` 為骨架基線
-- 跨主域協作只透過目標主域的公開匯出（`src/modules/<context>/index.ts`）
-
-### 嚴禁混淆
-
-- 不得將已淘汰的 `modules/` 路徑當成現行實作位置。
-- 生成程式碼時，目標路徑一律以 `src/modules/` 為準。
-
-## Conflict Resolution Rules
-
-- ADR 與戰略敘事衝突時，以 ADR 為準。
-- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
-- 子域所有權衝突時，以 [bounded-contexts.md](./structure/domain/bounded-contexts.md) 與 [subdomains.md](./structure/domain/subdomains.md) 為準。
-- 關係方向衝突時，以 [context-map.md](./structure/system/context-map.md) 為準。
-- 若 root `docs/` 與 `src/modules/*` 的術語命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
-
-## Global Anti-Pattern Rules
-
-- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
-- 不把其他主域的內部模型當成自己的正典語言。
-- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
-- 不把 gap subdomains 描述成已驗證現況。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
-- 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)。
-- 若任務涉及 design smell、架構異味、boundary leakage、cyclic dependency 或 API surface 過胖，先讀 [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)、[decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) 與對應編號 smell ADR。
-- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
-- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	ADR["ADR"] --> Strategy["Strategic docs"]
-	Strategy --> Context["Context docs"]
-	Context --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Question["Coding question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Read strategic docs"]
-	Strategy --> Context["Read owning context docs"]
-	Context --> Code["Generate boundary-safe code"]
-```
-
-## Constraints
-
-- 本文件集是 Context7-only 的 architecture-first 版本。
-- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
-````
-
 ## File: packages/README.md
 ````markdown
 # Packages Layer
@@ -36256,203 +37340,140 @@ import { firestoreApi } from '@integration-firebase'
 | 是 UI 組件（自訂）？ | → 放 `packages/ui-shadcn/ui-custom/` |
 ````
 
-## File: src/modules/analytics/README.md
+## File: src/modules/iam/AGENT.md
 ````markdown
-# Analytics Module
+# IAM Module — Agent Guide
+
+## Purpose
+
+`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
 
 ## 子域清單
 
-| 子域 | 狀態 | 說明 |
+| 子域 | 說明 | 狀態 |
 |---|---|---|
-| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
-| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
-| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
-| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
-| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
-| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
-| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
+| `account` | 帳號 Profile 管理 | ✅ 完成 |
+| `access-control` | 存取控制規則 | ✅ 完成 |
+| `authentication` | 認證流程 | ✅ 完成 |
+| `authorization` | 授權決策 | ✅ 完成 |
+| `federation` | SSO / 聯合身份 | ✅ 完成 |
+| `identity` | 身份核心（Actor）| ✅ 完成 |
+| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
+| `security-policy` | 安全策略 | ✅ 完成 |
+| `session` | 會話管理 | ✅ 完成 |
+| `tenant` | 租戶隔離 | ✅ 完成 |
 
----
+## 遷入說明
 
-## 預期目錄結構
+`platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
+- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
+- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
 
-```
-src/modules/analytics/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-  shared/
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    event-projection/
-      domain/
-      application/
-      adapters/outbound/
-    metrics/
-    event-ingestion/
-    event-contracts/
-    experimentation/
-    insights/
-    realtime-insights/
-```
+## Boundary Rules
 
----
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- `organization/` 使用 `OrganizationTeam` aggregate；不得混用 `Actor`（身份）與 `Membership`（工作區參與）術語。
+- `identity` 是唯一定義 Actor 概念的子域。
 
-## 依賴方向
+## Route Here When
 
-```
-adapters/inbound → application → domain ← adapters/outbound
-```
+- 撰寫 IAM 的新 use case、entity、adapter 實作（account、session、access-control 等）。
+- 擴展 organization 子域的 team / member 功能。
 
----
+## Route Elsewhere When
 
-## 衝突防護
+- 讀取邊界規則 → `src/modules/iam/AGENT.md`
+- 跨模組 API boundary → `src/modules/iam/index.ts`
+- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
 
-| 禁止行為 | 原因 |
+## 路由規則
+
+| 情境 | 正確路徑 |
 |---|---|
-| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
+| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
+| 跨模組 API boundary | `src/modules/iam/index.ts` |
 
----
+**嚴禁事項：**
+- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
+- ❌ 在 `domain/` 匯入 Firebase SDK、React
+- ❌ 混用 Actor（身份）與 User（業務角色）術語
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/billing/README.md
+## File: src/modules/platform/README.md
 ````markdown
-# Billing Module
+# Platform Module
+
+> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
 
 ## 子域清單
 
 | 子域 | 狀態 | 說明 |
 |---|---|---|
-| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
-| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
-| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
+| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
+| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
+| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
+| `notification` | ✅ 完成 | 通知發送 |
+| `platform-config` | ✅ 完成 | 平台設定 |
+| `search` | ✅ 完成 | 跨域搜尋 |
 
-**術語提醒：**
-- `Subscription` = 計費計劃（billing plan）
-- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
+**已遷移（不在 platform）：**
 
----
-
-## 預期目錄結構
-
-```
-src/modules/billing/
-  index.ts
-  README.md
-  AGENT.md
-  shared/
-    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
-    types/index.ts
-  subdomains/
-    entitlement/
-      domain/
-      application/
-      adapters/outbound/
-    subscription/
-      domain/
-      application/
-      adapters/outbound/
-    usage-metering/
-      domain/
-      application/
-      adapters/outbound/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
+| 子域 | 遷移目標 |
 |---|---|
-| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/iam/README.md
-````markdown
-# IAM Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `account` | ✅ 完成 | AccountProfile read-model |
-| `access-control` | ✅ 完成 | 存取控制規則 |
-| `authentication` | ✅ 完成 | 認證流程 |
-| `authorization` | ✅ 完成 | 授權決策 |
-| `federation` | ✅ 完成 | SSO / 聯合身份 |
-| `identity` | ✅ 完成 | 身份核心（Actor）|
-| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
-| `security-policy` | ✅ 完成 | 安全策略 |
-| `session` | ✅ 完成 | 會話管理 |
-| `tenant` | ✅ 完成 | 租戶隔離 |
-
-### account / organization 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
-- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
+| `account` | `src/modules/iam/subdomains/account/` |
+| `organization` | `src/modules/iam/subdomains/organization/` |
 
 ---
 
 ## 目錄結構
 
 ```
-src/modules/iam/
+src/modules/platform/
   index.ts
   README.md
   AGENT.md
   orchestration/
-    IamFacade.ts
-    IamCoordinator.ts
+    PlatformFacade.ts
   shared/
-    domain/index.ts             ← Actor value object（跨子域共用）
-    events/index.ts             ← Published Language Events
+    domain/index.ts
+    events/index.ts             ← Platform Published Language Events
     types/index.ts
   subdomains/
-    account/
+    notification/
       domain/
       application/
       adapters/outbound/
-    organization/
-      domain/
+    background-job/
+      domain/                   ← BackgroundJob / JobDocument / JobChunk
       application/
       adapters/outbound/
-    authentication/
-    authorization/
-    access-control/
-    session/
-    tenant/
-    identity/
-    security-policy/
-    federation/
+    cache/
+    file-storage/
+    platform-config/
+    search/
 ```
 
 ---
 
 ## 依賴方向
 
+Platform 是 T1 operational support，依賴方向固定：
+
 ```
-adapters/inbound → application → domain ← adapters/outbound
+iam     → platform
+billing → platform (entitlement governance)
+platform → workspace
+(platform 也被 notion, notebooklm 以 Service API 形式消費)
 ```
 
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`。
+Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
 
 ---
 
@@ -36460,8 +37481,9 @@ adapters/inbound → application → domain ← adapters/outbound
 
 | 禁止行為 | 原因 |
 |---|---|
-| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
-| 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
+| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
+| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
+| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
 
 ---
 
@@ -36470,233 +37492,6 @@ adapters/inbound → application → domain ← adapters/outbound
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notebooklm/README.md
-````markdown
-# NotebookLM Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
-| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
-| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
-
----
-
-## 子域邊界示意（notebooklm vs ai）
-
-```
-notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
-notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
-notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
-notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
-notebooklm/conversation ─引用取得→  ai/citation（標注來源）
-```
-
-notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notebooklm/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    NotebooklmFacade.ts
-    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
-  shared/
-    domain/index.ts
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    document/
-      domain/
-      application/
-      adapters/outbound/
-    conversation/
-    notebook/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
-| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
-| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
-| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notion/README.md
-````markdown
-# Notion Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
-| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
-| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
-| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
-| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
-| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notion/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    NotionFacade.ts
-  shared/
-    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    page/
-      domain/
-      application/
-      adapters/outbound/
-    block/
-    database/
-    view/
-    collaboration/
-    template/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
-| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
-| 在 barrel 使用 `export *` | 破壞可追蹤性 |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: .github/agents/domain-enforcer.agent.md
-````markdown
----
-name: Domain Enforcer
-description: DDD 純度守門員：保護 domain layer 純淨性，檢查 business logic 外洩，驗證 aggregate / entity 設計正確性，強制 domain 不依賴任何外部框架。
-argument-hint: 提供需審查的 module / subdomain 路徑，或特定 domain 問題描述。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Refactor Module Boundary
-    agent: Hexagonal DDD Architect
-    prompt: 根據此次 domain 純度問題重構模組邊界、層依賴方向與公開 API 形狀。
-  - label: Update Ubiquitous Language
-    agent: KB Architect
-    prompt: 將此次 domain 建模新增或變更的術語同步更新至 docs/structure/domain/ubiquitous-language.md。
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: 審查 domain 修正的行為風險、邊界回歸，確認符合 Hexagonal DDD 規範後才可合入。
-
----
-
-# Domain Enforcer
-
-## 目標範圍 (Target Scope)
-
-- `src/modules/**/domain/**`
-- `src/modules/**/application/use-cases/**`
-- `src/modules/**/application/dto/**`
-
-## 使命 (Mission)
-
-以 zero-tolerance 原則保護 domain 層的純淨性：domain 只能包含業務規則，任何技術框架依賴都是違規，任何貧血模型都是設計缺陷。
-
-## 必讀來源
-
-- `.github/instructions/domain-modeling.instructions.md`
-- `.github/instructions/domain-layer-rules.instructions.md`
-- `.github/instructions/event-driven-state.instructions.md`
-- `docs/structure/domain/ubiquitous-language.md`
-- `docs/structure/contexts/<context>/README.md`
-
-## 禁止事項（Hard Violations）
-
-以下任一出現即為 CRITICAL 違規，必須立即修正：
-
-- `domain/` 匯入 Firebase / Firestore / Firebase Admin SDK
-- `domain/` 匯入 React / React hooks / Next.js
-- `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
-- `domain/` 匯入 ORM / database client
-- `domain/` 直接呼叫 `node:crypto`（必須用 `@lib-uuid`）
-- Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
-- Use Case 內含業務 invariant 判斷（應移至 Aggregate）
-- Domain Event 使用現在式命名
-
-## 審查清單
-
-### Aggregate 設計
-- [ ] 使用私有 constructor + 靜態 `create()` / `reconstitute()`？
-- [ ] 業務不變數在 Aggregate method 內強制，違規時拋 `Error`？
-- [ ] 狀態修改透過封裝 method，不暴露可變屬性？
-- [ ] `_domainEvents` 私有陣列 + `pullDomainEvents()` + `getSnapshot()`？
-- [ ] 識別碼使用 `z.string().uuid().brand()` 品牌型別？
-
-### Value Object 設計
-- [ ] 不可變（Immutable）？
-- [ ] 無識別碼欄位？
-- [ ] 以值內容判斷相等性？
-
-### Domain Event 設計
-- [ ] 過去式命名（例如 `WorkspaceCreated`）？
-- [ ] discriminant 格式 `<module>.<action>`（例如 `workspace.created`）？
-- [ ] `occurredAt` 為 ISO string，不是 `Date` 物件？
-- [ ] 使用 Zod schema 嚴格定義 payload？
-
-### Repository / Port 介面
-- [ ] 只有介面定義，無實作細節？
-- [ ] 命名為 `PascalCaseRepository`（無 `I` 前綴）？
-
-## 輸出格式
-
-1. **Domain 純度評估**：通過 / 需修正
-2. **違規清單**：`[CRITICAL|HIGH]` + 檔案路徑 + 違規描述
-3. **修正後的程式碼**：提供完整修正實作
-4. **驗證結果**：`npm run lint` + `npm run build`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/bounded-context-rules.instructions.md
@@ -37143,413 +37938,222 @@ flowchart LR
 - 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
-## File: src/modules/ai/README.md
+## File: docs/README.md
 ````markdown
-# AI Module
+# Docs
 
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
-> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
-| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
-| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
-| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
-| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
-| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
-
----
-
-## task-formation 歸屬決策
-
-| 子域 | 歸屬 | 理由 |
-|---|---|---|
-| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/ai/
-  index.ts                      ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENT.md
-  orchestration/
-    AiFacade.ts                 ← 對外統一 Facade
-    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
-  shared/
-    domain/index.ts
-    application/index.ts
-    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
-    errors/index.ts
-    types/index.ts
-  subdomains/
-    embedding/
-      domain/
-      application/
-      adapters/outbound/
-    pipeline/
-      domain/
-      application/
-      adapters/outbound/
-    evaluation/
-    generation/
-    chunk/
-    retrieval/
-    context/
-    citation/
-    memory/
-    tool-calling/
-```
-
----
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
----
-
-## 子域邊界示意（ai vs notebooklm）
-
-```
-notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
-notebooklm/document      ←使用→  ai/embedding（向量化文件）
-notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
-notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
-notebooklm/document      ─切塊→  ai/chunk（分塊計算）
-```
-
-ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 在 ai 定義使用者對話 UX | 屬 notebooklm |
-| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/analytics/AGENT.md
-````markdown
-# Analytics Module — Agent Guide
+本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
 
 ## Purpose
 
-`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
+這份文件集提供八個主域 / bounded context 的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
+
+## Architecture Baseline
+
+本文件網的架構權威基線是：
+
+- Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）
+- semantic-first 的 business-language-aligned domain modeling
+- Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting
+- Genkit AI Orchestration Layer：AI Flows、Tool Calling、Prompt Pipelines
+- Frontend State Management Layer：Zustand for client state、XState for finite-state workflows
+- Schema Validation Layer：Zod for runtime type safety and domain validation
+
+若任務涉及模組分層、runtime 邊界、AI orchestration、frontend state、validation 或 shell route contract，先以 [architecture-overview.md](./structure/system/architecture-overview.md) 為全域敘事權威，再落到對應 context 文件。
+
+## Single Source Of Truth Map
+
+| Document | Role |
+|---|---|
+| [architecture-overview.md](./structure/system/architecture-overview.md) | 全域架構敘事總覽 |
+| [subdomains.md](./structure/domain/subdomains.md) | 八主域與子域總清單 |
+| [bounded-contexts.md](./structure/domain/bounded-contexts.md) | 主域與子域所有權地圖 |
+| [context-map.md](./structure/system/context-map.md) | 主域間關係圖與方向 |
+| [ubiquitous-language.md](./structure/domain/ubiquitous-language.md) | 戰略詞彙表 |
+| [integration-guidelines.md](./structure/system/integration-guidelines.md) | 主域整合規則 |
+| [strategic-patterns.md](./structure/system/strategic-patterns.md) | 採用與禁用的戰略模式 |
+| [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md) | 全域硬性守則與 design smell 防線 |
+| [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
+| [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md) | 從零到交付的專案里程碑 |
+| [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
+| [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) | Design Smell taxonomy 與對應決策索引 |
+| [contexts/_template.md](./structure/contexts/_template.md) | 新主域或新 context 文件樣板 |
+
+## Context Folders
+
+- [contexts/ai/README.md](./structure/contexts/ai/README.md)
+- [contexts/analytics/README.md](./structure/contexts/analytics/README.md)
+- [contexts/billing/README.md](./structure/contexts/billing/README.md)
+- [contexts/iam/README.md](./structure/contexts/iam/README.md)
+- [contexts/platform/README.md](./structure/contexts/platform/README.md)
+- [contexts/workspace/README.md](./structure/contexts/workspace/README.md)
+- [contexts/notion/README.md](./structure/contexts/notion/README.md)
+- [contexts/notebooklm/README.md](./structure/contexts/notebooklm/README.md)
+
+## Focused Implementation Docs
+
+- [structure/system/source-to-task-flow.md](./structure/system/source-to-task-flow.md)
+- [feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
+- [deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
+- [decisions/0012-source-to-task-orchestration.md](./decisions/0012-source-to-task-orchestration.md)
+
+## Route Contract Authority
+
+- shell composition 與 canonical account / workspace URL 以 [architecture-overview.md](./structure/system/architecture-overview.md) 為全域權威。
+- account scope、`AccountType = "user" | "organization"` 的字串契約，以及 flattened governance route 以 [contexts/platform/README.md](./structure/contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./structure/contexts/platform/ubiquitous-language.md) 為權威。
+- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./structure/contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./structure/contexts/workspace/ubiquitous-language.md) 為權威。
+- `/{accountId}/workspace/{workspaceId}` 與 `/{accountId}/organization/*` 只作為 legacy redirect surface，不是新文件或新 UI 應引用的 canonical contract。
+
+## Document Network
+
+- [architecture-overview.md](./structure/system/architecture-overview.md)
+- [bounded-contexts.md](./structure/domain/bounded-contexts.md)
+- [context-map.md](./structure/system/context-map.md)
+- [integration-guidelines.md](./structure/system/integration-guidelines.md)
+- [strategic-patterns.md](./structure/system/strategic-patterns.md)
+- [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)
+- [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)
+- [subdomains.md](./structure/domain/subdomains.md)
+- [ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
+- [decisions/README.md](./decisions/README.md)
+- [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
+- [contexts/_template.md](./structure/contexts/_template.md)
+
+## Module Layer Map（src 結構）
+
+目前以 `src/modules/` 作為唯一模組實作層：
+
+| 路徑 | 角色 | 結構特徵 | 使用時機 |
+|---|---|---|---|
+| `src/modules/<context>/` | 主域模組實作（現況） | 以 `subdomains/` 為核心，搭配 `adapters/`、`shared/`、`orchestration/` 與 `index.ts` 公開匯出 | 撰寫與維護所有 use case、adapter、domain entity 與跨子域編排 |
+
+## Top-Level Directory Structure
+
+Repo 根目錄的三個運行時層：
+
+| 目錄 | 角色 |
+|---|---|
+| `src/` | Next.js App Router + 所有主域模組實作（`src/app/`、`src/modules/`） |
+| `packages/` | 共用套件（`integration-firebase`、`ui-shadcn` 等），以 alias 形式被 `src/modules/` 引用 |
+| `py_fn/` | Python Cloud Functions：ingestion、parse、chunk、embed、background worker |
+
+- `packages/` 以 `@integration-*`、`@ui-*`、`@lib-*` 等 alias 被 TypeScript 引用。
+- `py_fn/` 與 Next.js 的互動只透過 QStash 訊息、Firestore trigger 或事件契約；不共用程式碼。
+
+### 路由規則
+
+- 讀取主域邊界與任務路由 → `src/modules/<context>/AGENT.md`
+- 撰寫新實作程式碼 → `src/modules/<context>/`，以 `src/modules/template` 為骨架基線
+- 跨主域協作只透過目標主域的公開匯出（`src/modules/<context>/index.ts`）
+
+### 嚴禁混淆
+
+- 不得將已淘汰的 `modules/` 路徑當成現行實作位置。
+- 生成程式碼時，目標路徑一律以 `src/modules/` 為準。
+
+## Conflict Resolution Rules
+
+- ADR 與戰略敘事衝突時，以 ADR 為準。
+- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
+- 子域所有權衝突時，以 [bounded-contexts.md](./structure/domain/bounded-contexts.md) 與 [subdomains.md](./structure/domain/subdomains.md) 為準。
+- 關係方向衝突時，以 [context-map.md](./structure/system/context-map.md) 為準。
+- 若 root `docs/` 與 `src/modules/*` 的術語命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
+
+## Global Anti-Pattern Rules
+
+- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
+- 不把其他主域的內部模型當成自己的正典語言。
+- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
+- 不把 gap subdomains 描述成已驗證現況。
+
+## Copilot Generation Rules
+
+- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
+- 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)。
+- 若任務涉及 design smell、架構異味、boundary leakage、cyclic dependency 或 API surface 過胖，先讀 [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)、[decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md) 與對應編號 smell ADR。
+- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
+- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Question["Coding question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Read strategic docs"]
+	Strategy --> Context["Read owning context docs"]
+	Context --> Code["Generate boundary-safe code"]
+```
+
+## Constraints
+
+- 本文件集是 Context7-only 的 architecture-first 版本。
+- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
+````
+
+## File: src/modules/platform/AGENT.md
+````markdown
+# Platform Module — Agent Guide
+
+## Purpose
+
+`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
+
+> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
 
 ## 子域清單
 
 | 子域 | 說明 | 狀態 |
 |---|---|---|
-| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
-| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
-| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
-| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
-| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
-| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
-| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 Analytics 的新 use case、entity、adapter 實作。
-- 實作事件投影、指標計算 port 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/analytics/AGENT.md`
-- 跨模組 API boundary → `src/modules/analytics/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/analytics/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
-| 跨模組 API boundary | `src/modules/analytics/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/billing/AGENT.md
-````markdown
-# Billing Module — Agent Guide
-
-## Purpose
-
-`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
-| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
-| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
-- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
-
-## Route Here When
-
-- 撰寫 Billing 的新 use case、entity、adapter 實作。
-- 實作 entitlement check port、subscription repository 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/billing/AGENT.md`
-- 跨模組 API boundary → `src/modules/billing/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
-| 跨模組 API boundary | `src/modules/billing/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/iam/AGENT.md
-````markdown
-# IAM Module — Agent Guide
-
-## Purpose
-
-`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `account` | 帳號 Profile 管理 | ✅ 完成 |
-| `access-control` | 存取控制規則 | ✅ 完成 |
-| `authentication` | 認證流程 | ✅ 完成 |
-| `authorization` | 授權決策 | ✅ 完成 |
-| `federation` | SSO / 聯合身份 | ✅ 完成 |
-| `identity` | 身份核心（Actor）| ✅ 完成 |
-| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
-| `security-policy` | 安全策略 | ✅ 完成 |
-| `session` | 會話管理 | ✅ 完成 |
-| `tenant` | 租戶隔離 | ✅ 完成 |
-
-## 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
-- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
-- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `organization/` 使用 `OrganizationTeam` aggregate；不得混用 `Actor`（身份）與 `Membership`（工作區參與）術語。
-- `identity` 是唯一定義 Actor 概念的子域。
-
-## Route Here When
-
-- 撰寫 IAM 的新 use case、entity、adapter 實作（account、session、access-control 等）。
-- 擴展 organization 子域的 team / member 功能。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/iam/AGENT.md`
-- 跨模組 API boundary → `src/modules/iam/index.ts`
-- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/iam/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
-| 跨模組 API boundary | `src/modules/iam/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 混用 Actor（身份）與 User（業務角色）術語
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Module — Agent Guide
-
-## Purpose
-
-`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
-
-> **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
-> AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
-| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
-| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
-> - AI 機制（embedding、retrieval、generation）屬 `ai` 模組；notebooklm 透過 Port 注入消費  
-> - `conversation`（AI 模型上下文管理）屬 `ai/context`；`conversation`（使用者對話 UX）屬本模組  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
-- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
-- `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 NotebookLM 的新 use case、entity、adapter 實作。
-- 實作 document ingestion、conversation 管理、notebook lifecycle 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/notebooklm/AGENT.md`
-- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
-- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
-- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
-| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
-- ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notion/AGENT.md
-````markdown
-# Notion Module — Agent Guide
-
-## Purpose
-
-`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
-
-> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
-| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
-| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
-| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
-| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
-| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
-> - `relations`（關聯圖）以 `view` 呈現；Page 間的關聯是 View 的一種形式  
+| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
+| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
+| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
+| `notification` | 通知發送 | ✅ 完成 |
+| `platform-config` | 平台設定 | ✅ 完成 |
+| `search` | 跨域搜尋 | ✅ 完成 |
+
+**已遷移子域（不在 platform）：**
+- `account` → `src/modules/iam/subdomains/account/`
+- `organization` → `src/modules/iam/subdomains/organization/`
 
 ## Boundary Rules
 
 - `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
-- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
-- `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
+- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
+- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
 
 ## Route Here When
 
-- 撰寫 notion 的新 use case、entity、adapter 實作。
-- 實作 page authoring、database CRUD、collaboration、template 等骨架。
+- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
+- 實作 notification、background-job 等骨架。
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/notion/AGENT.md`
-- 跨模組 API boundary → `src/modules/notion/index.ts`
-- RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
-- AI 生成輔助 → `src/modules/ai/index.ts`
+- 讀取邊界規則 → `src/modules/platform/AGENT.md`
+- Account / Organization → `src/modules/iam/`（已遷入）
+- 跨模組 API boundary → `src/modules/platform/index.ts`
 
 ## 路由規則
 
 | 情境 | 正確路徑 |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/notion/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
-| 跨模組 API boundary | `src/modules/notion/index.ts` |
+| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
+| 跨模組 API boundary | `src/modules/platform/index.ts` |
 
 **嚴禁事項：**
-- ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
-- ❌ 在 barrel 使用 `export *`
-- ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
-- ❌ 在 notion 模組定義 AI 生成能力（屬 ai）
+- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
+- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
+- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
 
 ## 文件網絡
 
@@ -37558,162 +38162,77 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/README.md
-````markdown
-# src/modules — 模組實作層
-
-## 模組清單與子域對照
-
-| 模組 | 狀態 | 子域清單 |
-|---|---|---|
-| `template/` | ✅ 完整骨架，可複製 | document、generation、ingestion、workflow |
-| `iam/` | ✅ 完成 | account、access-control、authentication、authorization、federation、identity、organization、security-policy、session、tenant |
-| `platform/` | ✅ 完成 | background-job、notification、platform-config、search（account / org 已移至 iam）|
-| `workspace/` | 🔨 骨架建立，實作進行中 | approval、audit、feed、issue、lifecycle、membership、orchestration、quality、schedule、settlement、share、task、task-formation |
-| `notion/` | 🔨 骨架建立，實作進行中 | page、block、database、view、collaboration、template |
-| `notebooklm/` | 🔨 骨架建立，實作進行中 | document、conversation、notebook |
-| `ai/` | 🔨 骨架建立，實作進行中 | chunk、embedding、retrieval、context、generation、citation、evaluation、pipeline |
-| `analytics/` | 🔨 骨架建立，實作進行中 | event-contracts、event-ingestion、event-projection、insights、metrics、realtime-insights |
-| `billing/` | 🔨 骨架建立，實作進行中 | entitlement、subscription |
-
----
-
-## 路由決策規則
-
-```
-需要：                                  去哪裡
-────────────────────────────────────────────────────────────────
-讀取邊界規則 / published language       src/modules/<context>/AGENT.md
-撰寫新 use case / entity / adapter      src/modules/<context>/
-                                        以 src/modules/template 為骨架
-了解模組目錄與實作狀態                  src/modules/<context>/README.md
-需要跨模組 API boundary                 src/modules/<context>/index.ts
-```
-
----
-
-## 使用 template 建立新模組
-
-```bash
-# 1. 複製骨架
-cp -r src/modules/template src/modules/<your-context>
-
-# 2. 全域取代（保留大小寫規律）
-# Template → YourEntity
-# template → your-entity
-
-# 3. 刪除不需要的 stub 子域
-# 刪除 subdomains/generation / ingestion / workflow（若無業務壓力）
-
-# 4. 依 DDD 開發順序填入業務規則
-# Domain → Application → Ports → Adapters → Orchestration
-```
-
-詳見 [template/README.md](template/README.md) 與 [template/AGENT.md](template/AGENT.md)。
-
----
-
-## 嚴禁事項
-
-| 禁止行為 | 原因 |
-|---|---|
-| 把 infrastructure 實作直接複製到 `src/modules/<context>/domain/` | 層次混淆，污染 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 跨 subdomain 直接 import（不經 orchestration/ 或 shared/events/）| 破壞 subdomain 邊界 |
-| 在 `domain/` 中 import React、Firebase SDK、HTTP client、ORM | 破壞 domain 純度 |
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 新建或恢復 `workspace-workflow` 子域 | 已拆解（2026-04-15），禁止回歸 |
-| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENT.md |
-| 在 ai 模組定義使用者對話 UX 或 task-formation 業務流程 | 對話屬 notebooklm；task-formation 屬 workspace |
-| 在 notion 模組定義 `knowledge-database`、`authoring`、`relations`、`taxonomy` 子域 | 已整合至名詞域（database / page / view / template）|
-
----
-
-## 文件網絡
-
-- [src/modules/template/README.md](template/README.md) — 多子域骨架說明
-- [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
-- [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-- [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單
-- [docs/structure/domain/ubiquitous-language.md](../../docs/structure/domain/ubiquitous-language.md) — 術語權威
-````
-
-## File: .github/agents/knowledge-base.md
+## File: .github/agents/domain-architect.agent.md
 ````markdown
 ---
-name: KB Architect
-description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
-argument-hint: Provide doc scope or target area, restructuring goal, and deduplication constraints.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
+name: Domain Architect
+description: Hexagonal Architecture with Domain-Driven Design 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合邊界與依賴方向規範。
+argument-hint: 提供 bounded context 名稱、目標子域、要設計或審查的 domain model，以及已知業務不變數。
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: Refine Prompt Contracts
-    agent: Prompt Engineer
-    prompt: Refine the prompt contract, reusable workflow wording, and instruction clarity for this knowledge-base change.
-  - label: Align Support Playbooks
-    agent: Support Architect
-    prompt: Align the support workflow, escalation notes, and operational follow-up with this knowledge-base update.
-  - label: Run Quality Review
+  - label: Boundary Review 審查模組邊界
+    agent: Hexagonal DDD Architect
+    prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
+  - label: Glossary Update 更新通用語言術語
+    agent: KB Architect
+    prompt: 將本次領域建模新增或變更的術語同步更新至 docs/structure/domain/ubiquitous-language.md 與對應 context 文件。
+  - label: Quality Review 品質審查
     agent: Quality Lead
-    prompt: Review this knowledge-base change for clarity, consistency, and residual ambiguity.
-    
+    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 Hexagonal DDD 規範。
+
 ---
 
-# Knowledge Base — Implementation Navigation
+# Domain Architect
 
-This file is an implementation-oriented supplement for repository navigation. Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here.
+## 目標範圍 (Target Scope)
 
-## Use This File For
+- `src/modules/**/domain/**`
+- `src/modules/**/application/use-cases/**`
+- `src/modules/**/application/machines/**`
+- `docs/structure/domain/ubiquitous-language.md`
+- `docs/structure/contexts/*/**`
+- `.github/instructions/docs-authority-and-language.instructions.md`
+- `.github/instructions/architecture-core.instructions.md`
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
 
-- locating implementation surfaces quickly
-- recalling boundary-safe import patterns
-- checking the high-level code layout before reading concrete files
+## 使命 (Mission)
 
-## Docs Authority
+以 docs-first authority 審查與修正領域模型設計，確保聚合、限界上下文、通用語言與領域事件符合 Hexagonal Architecture with Domain-Driven Design 規則。
 
-- Strategic ownership, terminology, and duplicate-name resolution: `docs/structure/domain/subdomains.md`, `docs/structure/domain/bounded-contexts.md`, `docs/structure/domain/ubiquitous-language.md`, `docs/structure/contexts/<context>/*`
-- Bounded-context scaffolding and root-layer rules: `docs/structure/domain/bounded-context-subdomain-template.md`
-- Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
+## 必讀來源
 
-## Boundary Summary
+- `docs/README.md`
+- `docs/structure/domain/ubiquitous-language.md`
+- `docs/structure/domain/subdomains.md`
+- `docs/structure/domain/bounded-contexts.md`
+- `docs/structure/contexts/<context>/*`
+- `.github/instructions/docs-authority-and-language.instructions.md`
+- `.github/instructions/architecture-core.instructions.md`
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
 
-- Cross-module imports go through `src/modules/<target>/api` only.
-- Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
-- If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
+## 審查清單
 
-## Repository Surfaces
+- [ ] 命名是否已先對齊 `docs/structure/domain/ubiquitous-language.md` 與對應 context 文件？
+- [ ] 程式碼是否位於正確的 bounded context / subdomain？
+- [ ] 跨模組互動是否只透過 `index.ts` 公開邊界或領域事件？
+- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/structure/contexts/<context>/context-map.md` 一致？
+- [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
+- [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
+- [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？
+- [ ] 外部系統模型是否透過 `infrastructure/` 或 ACL adapter 轉譯，而未污染 `domain/`？
 
-- `src/app/`: Next.js route composition, shell UX, providers, and orchestration
-- `src/modules/`: bounded-context and subdomain implementations
-- `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
-- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
+## 輸出格式
 
-## Typical Module Shape
+1. **Hexagonal DDD 合規性評估**：通過 / 需修正
+2. **問題項目清單**：每項附檔案路徑與具體說明
+3. **修正建議**：附程式碼範例
+4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
 
-```text
-src/modules/<context>/
-├── api/
-├── application/
-├── domain/
-├── infrastructure/
-├── interfaces/
-└── subdomains/<name>/
-```
-
-Not every module needs every folder, and local details may live inside a subdomain rather than the bounded-context root.
-
-## Import Rules
-
-- Prefer package aliases such as `@integration-firebase`, `@ui-shadcn`, and `@/packages/ui-shadcn`; shared domain types live in `src/modules/shared/`.
-- Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
-- Inside one module, prefer relative imports over self-importing the module barrel.
-- Across modules, import only from the target module `index.ts` boundary.
-
-## Validation
-
-- Use `.github/agents/commands.md` for lint, build, test, and deployment commands.
-- When strategic naming or ownership seems unclear, stop using this file and return to `docs/**/*`.
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/domain-layer-rules.instructions.md
@@ -37753,6 +38272,43 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 - ❌ 貧血模型：只有 data properties，無 business logic。
 - ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
 - ❌ Domain event 命名使用現在式或技術術語。
+
+## 具體禁止匯入
+
+以下任一出現即為 CRITICAL 違規，必須立即修正：
+
+- `domain/` 匯入 Firebase / Firestore / Firebase Admin SDK
+- `domain/` 匯入 React / React hooks / Next.js
+- `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
+- `domain/` 匯入 ORM / database client
+- `domain/` 直接呼叫 `node:crypto`（必須用 `@lib-uuid`）
+- Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
+- Use Case 內含業務 invariant 判斷（應移至 Aggregate）
+- Domain Event 使用現在式命名
+
+## Domain Layer 審查清單
+
+### Aggregate 設計
+- [ ] 使用私有 constructor + 靜態 `create()` / `reconstitute()`？
+- [ ] 業務不變數在 Aggregate method 內強制，違規時拋 `Error`？
+- [ ] 狀態修改透過封裝 method，不暴露可變屬性？
+- [ ] `_domainEvents` 私有陣列 + `pullDomainEvents()` + `getSnapshot()`？
+- [ ] 識別碼使用 `z.string().uuid().brand()` 品牌型別？
+
+### Value Object 設計
+- [ ] 不可變（Immutable）？
+- [ ] 無識別碼欄位？
+- [ ] 以值內容判斷相等性？
+
+### Domain Event 設計
+- [ ] 過去式命名（例如 `WorkspaceCreated`）？
+- [ ] discriminant 格式 `<module>.<action>`（例如 `workspace.created`）？
+- [ ] `occurredAt` 為 ISO string，不是 `Date` 物件？
+- [ ] 使用 Zod schema 嚴格定義 payload？
+
+### Repository / Port 介面
+- [ ] 只有介面定義，無實作細節？
+- [ ] 命名為 `PascalCaseRepository`（無 `I` 前綴）？
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
@@ -38098,328 +38654,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill hexagonal-ddd
 ````
 
-## File: src/modules/ai/AGENT.md
-````markdown
-# AI Module — Agent Guide
-
-## Purpose
-
-`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
-
-> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
-| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
-| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
-| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
-| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
-| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
-| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
-| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
-| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
-| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
-> - `document`（來源文件管理）→ `notebooklm` 所有  
-> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
-- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
-- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
-
-## task-formation 歸屬決策
-
-`task-formation` 子域屬於 **`workspace`**，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 觸發者（使用者指定生成任務）是 workspace 層業務流程
-- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
-
-## Route Here When
-
-- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
-- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
-- 需要 `src/modules/ai/` 層的骨架結構作為起點。
-
-## Route Elsewhere When
-
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENT.md`
-- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
-- 知識文件 / Page 管理 → `src/modules/notion/`
-- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
-- 跨模組 API boundary → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
-| 跨模組 API boundary | `src/modules/ai/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
-- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/platform/README.md
-````markdown
-# Platform Module
-
-> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
-| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
-| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
-| `notification` | ✅ 完成 | 通知發送 |
-| `platform-config` | ✅ 完成 | 平台設定 |
-| `search` | ✅ 完成 | 跨域搜尋 |
-
-**已遷移（不在 platform）：**
-
-| 子域 | 遷移目標 |
-|---|---|
-| `account` | `src/modules/iam/subdomains/account/` |
-| `organization` | `src/modules/iam/subdomains/organization/` |
-
----
-
-## 目錄結構
-
-```
-src/modules/platform/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    PlatformFacade.ts
-  shared/
-    domain/index.ts
-    events/index.ts             ← Platform Published Language Events
-    types/index.ts
-  subdomains/
-    notification/
-      domain/
-      application/
-      adapters/outbound/
-    background-job/
-      domain/                   ← BackgroundJob / JobDocument / JobChunk
-      application/
-      adapters/outbound/
-    cache/
-    file-storage/
-    platform-config/
-    search/
-```
-
----
-
-## 依賴方向
-
-Platform 是 T1 operational support，依賴方向固定：
-
-```
-iam     → platform
-billing → platform (entitlement governance)
-platform → workspace
-(platform 也被 notion, notebooklm 以 Service API 形式消費)
-```
-
-Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
-| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: .github/agents/architecture-enforcer.agent.md
-````markdown
----
-name: Architecture Enforcer
-description: 架構總裁／規則審核器：全域掃描 Hexagonal + DDD 規則是否被破壞，驗證 dependency direction、import boundary，防止 domain 污染與層級跳越。
-argument-hint: 提供審查範圍（預設全 repo）、已知風險點、或特定 PR diff 路徑。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'todo', 'repomix/*']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Fix Domain Purity
-    agent: Domain Enforcer
-    prompt: 修正此次掃描中發現的 domain layer 污染或貧血模型問題，確保 domain 純度符合 Hexagonal DDD 規範。
-  - label: Fix Firebase Misuse
-    agent: Firebase Guardian
-    prompt: 修正此次掃描中發現的 Firebase 被錯誤層級引用問題，確保 Firebase 只存在於 infrastructure adapter。
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: 對此次架構審查的修正結果進行最終品質把關，確認邊界回歸風險與驗證覆蓋度。
-
----
-
-# Architecture Enforcer
-
-## 目標範圍 (Target Scope)
-
-- `src/modules/**`
-- `src/app/**`
-- `packages/**`
-- `py_fn/**`
-
-## 使命 (Mission)
-
-作為架構總裁，以全域視角審查並強制執行 Hexagonal Architecture + DDD 的核心不變規則。發現任何違規必須修正，不允許以「技術負債標注」代替修復。
-
-## 必讀來源
-
-- `.github/instructions/architecture.instructions.md`
-- `.github/instructions/architecture-core.instructions.md`
-- `.github/instructions/architecture-runtime.instructions.md`
-- `.github/instructions/hexagonal-rules.instructions.md`
-- `.github/instructions/bounded-context-rules.instructions.md`
-- `docs/structure/domain/bounded-contexts.md`
-- `docs/structure/domain/subdomains.md`
-
-## 審查清單
-
-### Dependency Direction（依賴方向）
-- [ ] `interfaces/` 不直接呼叫 `infrastructure/` 或 `domain/` 內部？
-- [ ] `application/` 只依賴 `domain/` abstraction，不依賴 infrastructure 實作？
-- [ ] `domain/` 完全不匯入 Firebase / React / HTTP client / ORM？
-- [ ] `index.ts` 僅暴露 cross-module 公開表面，不含 repository factory 或 container wiring？
-
-### Import Boundary（匯入邊界）
-- [ ] 跨模組呼叫一律經由 `src/modules/<target>/index.ts`，無直接內部路徑匯入？
-- [ ] Route components 使用 props 傳遞 scope（`accountId`, `workspaceId`），不呼叫外部模組 context provider？
-
-### Module Shape（模組形狀）
-- [ ] Bounded context root 包含 `index.ts`, `domain/`, `application/`, `infrastructure/`, `interfaces/`？
-- [ ] Subdomain 採 core-first 形狀（`domain/`, `application/`, optional `ports/`），`infrastructure/` 和 `interfaces/` 為 gate-based？
-
-### Layer Coupling Smells（層耦合怪味道）
-- [ ] 無 God Use Case（包含 business rule 與 infrastructure logic 混合）？
-- [ ] 無貧血模型（Aggregate 只有 getters/setters，無業務方法）？
-- [ ] 無 Layer Skipping（interfaces 直接呼叫 repository）？
-
-### Runtime Boundary（執行時邊界）
-- [ ] Next.js 不直接執行 parsing / chunking / embedding pipeline？
-- [ ] `py_fn/` 不包含 browser-facing auth / session / chat logic？
-
-## 輸出格式
-
-1. **違規項目清單**：每項附 `[SEVERITY: CRITICAL|HIGH|MEDIUM]`、檔案路徑與行號、具體說明
-2. **根因分析**：非症狀描述，而是造成違規的設計決策
-3. **修正建議**：具體檔案移動 / 重構步驟
-4. **修正後驗證**：`npm run lint` + `npm run build` 結果
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill hexagonal-ddd
-#use skill occams-razor
-````
-
-## File: .github/agents/domain-architect.agent.md
-````markdown
----
-name: Domain Architect
-description: Hexagonal Architecture with Domain-Driven Design 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合邊界與依賴方向規範。
-argument-hint: 提供 bounded context 名稱、目標子域、要設計或審查的 domain model，以及已知業務不變數。
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Boundary Review 審查模組邊界
-    agent: Hexagonal DDD Architect
-    prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
-  - label: Glossary Update 更新通用語言術語
-    agent: KB Architect
-    prompt: 將本次領域建模新增或變更的術語同步更新至 docs/structure/domain/ubiquitous-language.md 與對應 context 文件。
-  - label: Quality Review 品質審查
-    agent: Quality Lead
-    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 Hexagonal DDD 規範。
-
----
-
-# Domain Architect
-
-## 目標範圍 (Target Scope)
-
-- `src/modules/**/domain/**`
-- `src/modules/**/application/use-cases/**`
-- `src/modules/**/application/machines/**`
-- `docs/structure/domain/ubiquitous-language.md`
-- `docs/structure/contexts/*/**`
-- `.github/instructions/docs-authority-and-language.instructions.md`
-- `.github/instructions/architecture-core.instructions.md`
-- `.github/instructions/domain-modeling.instructions.md`
-- `.github/instructions/event-driven-state.instructions.md`
-
-## 使命 (Mission)
-
-以 docs-first authority 審查與修正領域模型設計，確保聚合、限界上下文、通用語言與領域事件符合 Hexagonal Architecture with Domain-Driven Design 規則。
-
-## 必讀來源
-
-- `docs/README.md`
-- `docs/structure/domain/ubiquitous-language.md`
-- `docs/structure/domain/subdomains.md`
-- `docs/structure/domain/bounded-contexts.md`
-- `docs/structure/contexts/<context>/*`
-- `.github/instructions/docs-authority-and-language.instructions.md`
-- `.github/instructions/architecture-core.instructions.md`
-- `.github/instructions/domain-modeling.instructions.md`
-- `.github/instructions/event-driven-state.instructions.md`
-
-## 審查清單
-
-- [ ] 命名是否已先對齊 `docs/structure/domain/ubiquitous-language.md` 與對應 context 文件？
-- [ ] 程式碼是否位於正確的 bounded context / subdomain？
-- [ ] 跨模組互動是否只透過 `index.ts` 公開邊界或領域事件？
-- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/structure/contexts/<context>/context-map.md` 一致？
-- [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
-- [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
-- [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？
-- [ ] 外部系統模型是否透過 `infrastructure/` 或 ACL adapter 轉譯，而未污染 `domain/`？
-
-## 輸出格式
-
-1. **Hexagonal DDD 合規性評估**：通過 / 需修正
-2. **問題項目清單**：每項附檔案路徑與具體說明
-3. **修正建議**：附程式碼範例
-4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill hexagonal-ddd
-````
-
 ## File: .github/instructions/architecture.instructions.md
 ````markdown
 ---
@@ -38557,236 +38791,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill hexagonal-ddd
 #use skill alistair-cockburn
 #use skill occams-razor
-````
-
-## File: src/modules/platform/AGENT.md
-````markdown
-# Platform Module — Agent Guide
-
-## Purpose
-
-`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
-
-> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
-| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
-| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
-| `notification` | 通知發送 | ✅ 完成 |
-| `platform-config` | 平台設定 | ✅ 完成 |
-| `search` | 跨域搜尋 | ✅ 完成 |
-
-**已遷移子域（不在 platform）：**
-- `account` → `src/modules/iam/subdomains/account/`
-- `organization` → `src/modules/iam/subdomains/organization/`
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
-
-## Route Here When
-
-- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
-- 實作 notification、background-job 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/platform/AGENT.md`
-- Account / Organization → `src/modules/iam/`（已遷入）
-- 跨模組 API boundary → `src/modules/platform/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
-| 跨模組 API boundary | `src/modules/platform/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
-- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
-- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/workspace/AGENT.md
-````markdown
-# Workspace Module — Agent Guide
-
-## Purpose
-
-`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
-
-> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
-| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
-| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
-| `audit` | 稽核紀錄實體 | 🔨 骨架建立，實作進行中 |
-| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
-| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
-| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
-| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
-| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
-| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
-| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
-| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
-| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
-| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
-| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
-| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
-| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
-
-## task-formation 歸屬決策
-
-`task-formation` 屬於 **`workspace`** 子域，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 業務流程（使用者確認候選任務）是 workspace 層關注點
-- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
-- `orchestration/` 是跨子域流程協調層，不包含業務規則。
-- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
-
-## Route Here When
-
-- 撰寫 workspace 的新 use case、entity、adapter 實作。
-- 實作 task / issue / lifecycle 等子域骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/workspace/AGENT.md`
-- 跨模組 API boundary → `src/modules/workspace/index.ts`
-- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
-- 成員身份驗證 → `src/modules/iam/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/workspace/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
-| 跨模組 API boundary | `src/modules/workspace/index.ts` |
-
-**嚴禁事項：**
-- ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
-- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
-- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/workspace/README.md
-````markdown
-# Workspace Module
-
-> `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名（`approval` 不用 `approve`；`schedule` 不用 `scheduling`；`share` 不用 `sharing`）。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
-| `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
-| `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
-| `audit` | 🔨 骨架建立，實作進行中 | 稽核紀錄實體 |
-| `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
-| `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
-| `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
-| `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|
-| `membership` | 🔨 骨架建立，實作進行中 | 成員資格實體（Membership）|
-| `orchestration` | 🔨 骨架建立，實作進行中 | 跨子域編排（原 workspace-workflow）|
-| `quality` | 🔨 骨架建立，實作進行中 | 品質管控實體 |
-| `resource` | 🔨 骨架建立，實作進行中 | 資源實體（工作區資源配額與管理）|
-| `schedule` | 🔨 骨架建立，實作進行中 | 排程實體 |
-| `settlement` | 🔨 骨架建立，實作進行中 | 結算實體 |
-| `share` | 🔨 骨架建立，實作進行中 | 分享實體（對外發布）|
-| `task` | 🔨 骨架建立，實作進行中 | 任務實體（任務管理）|
-| `task-formation` | 🔨 骨架建立，實作進行中 | 任務生成實體（AI 輔助 + 使用者確認流程）|
-
----
-
-## 目錄結構
-
-```
-src/modules/workspace/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    WorkspaceFacade.ts
-    WorkspaceCoordinator.ts     ← 跨子域流程（task→settlement 等）
-  shared/
-    domain/index.ts             ← WorkspaceId、MembershipRef 等共用 VO
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    lifecycle/
-      domain/
-      application/
-      adapters/outbound/
-    task/
-    issue/
-    membership/
-    orchestration/
-    activity/
-    api-key/
-    approval/
-    invitation/
-    resource/
-    settlement/
-    quality/
-    task-formation/
-    schedule/
-    share/
-    feed/
-    audit/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 新建或恢復 `workspace-workflow` 子域 | 已拆解，禁止回歸 |
-| 使用 `approve` / `scheduling` / `sharing` 作為子域名 | 已更正為名詞（`approval` / `schedule` / `share`）|
-| 混用 Membership（工作區參與）與 Actor（身份）術語 | 違反 Ubiquitous Language |
-| workspace 直接呼叫 Firestore | 必須透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）|
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: .github/copilot-instructions.md

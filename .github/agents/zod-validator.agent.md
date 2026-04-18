@@ -34,21 +34,6 @@ handoffs:
 | 2 — Domain Types | `domain/value-objects/`, `domain/events/` | Brand types and event payload schemas |
 | 3 — External Output | `infrastructure/` adapters | Validate Firestore reads and AI responses |
 
-## Hard Rules
-
-- Every Server Action must call `ZodSchema.parse(rawInput)` before delegating to a use case.
-- `domain/` may only use Zod for schema and brand-type definitions — no I/O, no framework calls.
-- Every Firestore document read must pass through a Zod schema before being mapped to a domain entity.
-- Every AI flow output must be validated before entering a use case.
-- Never use `as SomeType` to cast external data without validation.
-
-## Guardrails
-
-- Zod schemas must NOT contain business logic — that belongs in domain aggregates.
-- Do not duplicate the same schema in both `domain/` and `application/` — pick one canonical location.
-- `z.object().passthrough()` is forbidden for production data paths (use strict schemas).
-- `z.any()` and `z.unknown()` without subsequent `.parse()` are validation gaps.
-
 ## Skills Required
 
 `#use skill zod-validation`

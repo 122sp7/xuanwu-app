@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1325 files | 38,137 lines
+1321 files | 38,157 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 807 | 10,359 |
-| Markdown | 288 | 22,000 |
+| Markdown | 284 | 22,020 |
 | TypeScript (TSX) | 87 | 1,992 |
 | Python | 63 | 1,459 |
 | No Extension | 52 | 57 |
@@ -61,6 +61,7 @@ This skill contains the following reference files:
 **Largest files:**
 - `docs/structure/system/hard-rules-consolidated.md` (459 lines)
 - `firestore.indexes.json` (437 lines)
+- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (387 lines)
 - `docs/structure/domain/bounded-contexts.md` (280 lines)
 - `docs/structure/domain/subdomains.md` (279 lines)
 - `src/modules/template/README.md` (266 lines)
@@ -68,4 +69,3 @@ This skill contains the following reference files:
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
 - `docs/structure/domain/ddd-strategic-design.md` (218 lines)
-- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
