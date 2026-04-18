@@ -1,5 +1,94 @@
 # Files
 
+## File: src/modules/workspace/subdomains/feed/adapters/inbound/server-actions/feed-actions.ts
+````typescript
+/**
+ * feed-actions — workspace/feed inbound server actions.
+ *
+ * Thin boundary layer: parse → use-case → return CommandResult / snapshot[].
+ * All Firebase setup goes through the workspace firebase-composition root.
+ */
+⋮----
+import type { CommandResult } from "../../../../../../shared";
+import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
+import { CreateFeedPostSchema, ListFeedPostsSchema } from "../../../application";
+import { createClientFeedUseCases } from "../../../../../adapters/outbound/firebase-composition";
+⋮----
+/** Create a new feed post (text + optional photos). */
+export async function createFeedPostAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+/** List feed posts for a workspace, optionally filtered by date (YYYY-MM-DD). */
+export async function listFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]>
+````
+
+## File: src/modules/workspace/subdomains/feed/README.md
+````markdown
+# feed — Workspace Feed Subdomain
+
+每日動態貼文子域。讓工作區成員每天以 IG 風格發布文字與照片動態，未來將擴展為今日任務完成與出勤記錄的整合入口。
+
+## 領域概念
+
+| 概念 | 說明 |
+|---|---|
+| `FeedPost` | 聚合根。代表一則動態（post / reply / repost）|
+| `dateKey` | ISO 日期字串 `YYYY-MM-DD`，用於 Firestore 按日期查詢 |
+| `photoUrls` | 附圖 URL 陣列（最多 9 張），指向 Storage 或外部圖片 |
+| `FeedPostType` | `post`（一般貼文）· `reply`（回覆）· `repost`（轉貼）|
+
+## 狀態
+
+| 層 | 狀態 |
+|---|---|
+| Domain | ✅ FeedPost 聚合根（含 photoUrls、dateKey）|
+| Application | ✅ CreateFeedPostUseCase、ListFeedPostsUseCase |
+| Outbound adapter | ✅ FirestoreFeedRepository（含按日期查詢）|
+| Inbound adapter | ✅ feed-actions.ts server actions |
+| UI | ✅ WorkspaceDailySection — 每日動態 IG 風格貼文牆 |
+
+## 資料結構（Firestore）
+
+Collection: `feed_posts`
+
+```
+{
+  id: string (UUID),
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  type: "post" | "reply" | "repost",
+  content: string,
+  dateKey: string,       // YYYY-MM-DD — 用於日期過濾索引
+  photoUrls: string[],   // Storage URLs，0–9 張
+  replyToPostId: string | null,
+  repostOfPostId: string | null,
+  likeCount: number,
+  replyCount: number,
+  repostCount: number,
+  viewCount: number,
+  bookmarkCount: number,
+  shareCount: number,
+  createdAtISO: string,
+  updatedAtISO: string,
+}
+```
+
+建議 Firestore 複合索引：`(accountId, workspaceId, dateKey)` 以優化每日動態查詢。
+
+## 未來擴展
+
+- 今日任務完成統計（接入 workspace/task 子域）
+- 出勤記錄 check-in（接入 workspace/membership 子域）
+- 照片實際上傳（整合 platform FileAPI，替換 URL 輸入）
+- 點讚 / 回覆互動
+
+## 邊界規則
+
+- `domain/` 不依賴任何外部框架或 Firebase SDK。
+- 跨模組消費者只能透過 `workspace/index.ts` 或 server actions 存取。
+- 照片上傳涉及所有權與 tenant 隔離時，必須走 platform FileAPI，而非直接呼叫 Storage SDK。
+````
+
 ## File: .github/agents/ai-genkit-lead.agent.md
 ````markdown
 ---
@@ -21109,6 +21198,7 @@ import {
   serverTimestamp,
   runTransaction,
   writeBatch,
+  increment,
   type Firestore,
 } from "firebase/firestore";
 import { firebaseClientApp } from "./client";
@@ -30825,6 +30915,7 @@ async save(policy: SecurityPolicySnapshot): Promise<void>
 
 ## File: src/modules/iam/subdomains/security-policy/application/use-cases/SecurityPolicyUseCases.ts
 ````typescript
+import { SecurityPolicy } from "../../domain/index";
 import type { SecurityPolicySnapshot, SecurityPolicyRepository } from "../../domain/index";
 ⋮----
 export class GetSecurityPolicyUseCase
@@ -30849,6 +30940,7 @@ async execute(
 ````typescript
 // security-policy — domain layer
 // Owns org-level security rules: password policy, MFA requirements, session limits.
+import { v4 as randomUUID } from "uuid";
 ⋮----
 export type MfaRequirement = "none" | "optional" | "required";
 ⋮----
@@ -30869,6 +30961,52 @@ export interface SecurityPolicyRepository {
 ⋮----
 findByOrgId(orgId: string): Promise<SecurityPolicySnapshot | null>;
 save(policy: SecurityPolicySnapshot): Promise<void>;
+⋮----
+export type SecurityPolicyDomainEvent =
+  | {
+      readonly type: "iam.security_policy.created";
+      readonly eventId: string;
+      readonly occurredAt: string;
+      readonly payload: { readonly policyId: string; readonly orgId: string };
+    }
+  | {
+      readonly type: "iam.security_policy.updated";
+      readonly eventId: string;
+      readonly occurredAt: string;
+      readonly payload: { readonly policyId: string; readonly orgId: string };
+    };
+⋮----
+interface CreateSecurityPolicyProps {
+  readonly policyId: string;
+  readonly orgId: string;
+  readonly mfaRequirement: MfaRequirement;
+  readonly minPasswordLength: number;
+  readonly sessionTimeoutMinutes: number;
+  readonly allowedDomains: readonly string[];
+}
+⋮----
+export class SecurityPolicy
+⋮----
+private constructor(private _props: SecurityPolicySnapshot)
+⋮----
+static create(input: CreateSecurityPolicyProps): SecurityPolicy
+⋮----
+static reconstitute(snapshot: SecurityPolicySnapshot): SecurityPolicy
+⋮----
+update(input: {
+    readonly mfaRequirement: MfaRequirement;
+    readonly minPasswordLength: number;
+    readonly sessionTimeoutMinutes: number;
+    readonly allowedDomains: readonly string[];
+}): void
+⋮----
+getSnapshot(): Readonly<SecurityPolicySnapshot>
+⋮----
+pullDomainEvents(): readonly SecurityPolicyDomainEvent[]
+⋮----
+private static assertInvariants(snapshot: SecurityPolicySnapshot): void
+⋮----
+private static normalizeDomains(domains: readonly string[]): readonly string[]
 ````
 
 ## File: src/modules/iam/subdomains/session/adapters/inbound/index.ts
@@ -30883,15 +31021,13 @@ import type { SessionSnapshot, SessionRepository } from "../../../domain/index";
 ⋮----
 export class InMemorySessionRepository implements SessionRepository
 ⋮----
-async create(session: SessionSnapshot): Promise<void>
+async save(session: SessionSnapshot): Promise<void>
+⋮----
+async saveMany(sessions: readonly SessionSnapshot[]): Promise<void>
 ⋮----
 async findById(sessionId: string): Promise<SessionSnapshot | null>
 ⋮----
 async findByUid(uid: string): Promise<SessionSnapshot[]>
-⋮----
-async revoke(sessionId: string): Promise<void>
-⋮----
-async revokeAllByUid(uid: string): Promise<void>
 ````
 
 ## File: src/modules/iam/subdomains/session/adapters/outbound/index.ts
@@ -30906,6 +31042,7 @@ async revokeAllByUid(uid: string): Promise<void>
 
 ## File: src/modules/iam/subdomains/session/application/use-cases/SessionUseCases.ts
 ````typescript
+import { Session } from "../../domain/index";
 import type { SessionSnapshot, SessionRepository } from "../../domain/index";
 ⋮----
 export class CreateSessionUseCase
@@ -30936,6 +31073,7 @@ export class RevokeAllSessionsUseCase
 ````typescript
 // session — domain layer
 // Owns actor session lifecycle: creation, refresh, expiry, revocation.
+import { v4 as randomUUID } from "uuid";
 ⋮----
 export interface SessionSnapshot {
   readonly sessionId: string;
@@ -30948,18 +31086,54 @@ export interface SessionSnapshot {
 }
 ⋮----
 export interface SessionRepository {
-  create(session: SessionSnapshot): Promise<void>;
+  save(session: SessionSnapshot): Promise<void>;
+  saveMany(sessions: readonly SessionSnapshot[]): Promise<void>;
   findById(sessionId: string): Promise<SessionSnapshot | null>;
   findByUid(uid: string): Promise<SessionSnapshot[]>;
-  revoke(sessionId: string): Promise<void>;
-  revokeAllByUid(uid: string): Promise<void>;
 }
 ⋮----
-create(session: SessionSnapshot): Promise<void>;
+save(session: SessionSnapshot): Promise<void>;
+saveMany(sessions: readonly SessionSnapshot[]): Promise<void>;
 findById(sessionId: string): Promise<SessionSnapshot | null>;
 findByUid(uid: string): Promise<SessionSnapshot[]>;
-revoke(sessionId: string): Promise<void>;
-revokeAllByUid(uid: string): Promise<void>;
+⋮----
+export type SessionDomainEvent =
+  | {
+      readonly type: "iam.session.created";
+      readonly eventId: string;
+      readonly occurredAt: string;
+      readonly payload: { readonly sessionId: string; readonly uid: string };
+    }
+  | {
+      readonly type: "iam.session.revoked";
+      readonly eventId: string;
+      readonly occurredAt: string;
+      readonly payload: { readonly sessionId: string; readonly uid: string };
+    };
+⋮----
+interface CreateSessionProps {
+  readonly sessionId: string;
+  readonly uid: string;
+  readonly idToken: string;
+  readonly refreshToken: string | null;
+  readonly expiresAtISO: string;
+}
+⋮----
+export class Session
+⋮----
+private constructor(private _props: SessionSnapshot)
+⋮----
+static create(input: CreateSessionProps): Session
+⋮----
+static reconstitute(snapshot: SessionSnapshot): Session
+⋮----
+revoke(): void
+⋮----
+getSnapshot(): Readonly<SessionSnapshot>
+⋮----
+pullDomainEvents(): readonly SessionDomainEvent[]
+⋮----
+private static assertInvariants(snapshot: SessionSnapshot): void
 ````
 
 ## File: src/modules/iam/subdomains/tenant/adapters/inbound/index.ts
@@ -30991,8 +31165,8 @@ async save(tenant: TenantSnapshot): Promise<void>
 
 ## File: src/modules/iam/subdomains/tenant/application/use-cases/TenantUseCases.ts
 ````typescript
-import type { TenantId, TenantSnapshot, TenantRepository, TenantStatus } from "../../domain/index";
-import { createTenantId } from "../../domain/index";
+import { Tenant, createTenantId } from "../../domain/index";
+import type { TenantId, TenantSnapshot, TenantRepository } from "../../domain/index";
 ⋮----
 export class ProvisionTenantUseCase
 ⋮----
@@ -31014,6 +31188,7 @@ export class GetTenantUseCase
 ````typescript
 // tenant — domain layer
 // Owns multi-tenant data isolation: TenantId brand type and repository port.
+import { v4 as randomUUID } from "uuid";
 import { z } from "zod";
 ⋮----
 export type TenantId = z.infer<typeof TenantIdSchema>;
@@ -31036,6 +31211,41 @@ export interface TenantRepository {
 ⋮----
 findByOrgId(orgId: string): Promise<TenantSnapshot | null>;
 save(tenant: TenantSnapshot): Promise<void>;
+⋮----
+export type TenantDomainEvent =
+  | {
+      readonly type: "iam.tenant.provisioned";
+      readonly eventId: string;
+      readonly occurredAt: string;
+      readonly payload: { readonly tenantId: TenantId; readonly orgId: string };
+    }
+  | {
+      readonly type: "iam.tenant.suspended";
+      readonly eventId: string;
+      readonly occurredAt: string;
+      readonly payload: { readonly tenantId: TenantId; readonly orgId: string };
+    };
+⋮----
+interface CreateTenantProps {
+  readonly tenantId: TenantId;
+  readonly orgId: string;
+}
+⋮----
+export class Tenant
+⋮----
+private constructor(private _props: TenantSnapshot)
+⋮----
+static create(input: CreateTenantProps): Tenant
+⋮----
+static reconstitute(snapshot: TenantSnapshot): Tenant
+⋮----
+suspend(): void
+⋮----
+getSnapshot(): Readonly<TenantSnapshot>
+⋮----
+pullDomainEvents(): readonly TenantDomainEvent[]
+⋮----
+private static assertInvariants(snapshot: TenantSnapshot): void
 ````
 
 ## File: src/modules/iam/AGENT.md
@@ -38933,34 +39143,46 @@ export function useWorkspaceContext(): WorkspaceContextValue
 /**
  * WorkspaceDailySection — workspace.daily tab.
  *
- * Daily standup skeleton:
+ * IG-style daily post feed at the workspace level.
+ * Members can post text and attach photos (by URL) for a given date.
+ * Future expansion: today's task completion summary, attendance check-in.
+ *
+ * Layout:
  *   ① Date navigation bar
- *   ② Stats row (today / done / in-progress / blocked)
- *   ③ Standup blocks (昨日 · 今日 · 阻礙)
- *   ④ Today's task timeline (empty state with guide copy)
- *   ⑤ Focus board: High-priority items
+ *   ② Post composer (text + photo URLs)
+ *   ③ Feed — chronological post cards
  */
 ⋮----
-import { useState } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import {
-  AlertTriangle,
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Circle,
-  Clock,
-  ListChecks,
-  MessageSquare,
-  Plus,
+  Image as ImageIcon,
+  Loader2,
+  Send,
+  X,
 } from "lucide-react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { createFeedPostAction, listFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
+import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
 ⋮----
 interface WorkspaceDailySectionProps {
   workspaceId: string;
   accountId: string;
+  /** Current actor's accountId used as authorAccountId. Defaults to accountId. */
+  currentUserId?: string;
 }
+⋮----
+/** Current actor's accountId used as authorAccountId. Defaults to accountId. */
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function toDateKey(date: Date): string
+⋮----
+return date.toISOString().slice(0, 10); // YYYY-MM-DD
 ⋮----
 function formatDateLabel(date: Date): string
 ⋮----
@@ -38968,48 +39190,47 @@ function addDays(date: Date, delta: number): Date
 ⋮----
 function isToday(date: Date): boolean
 ⋮----
-// ── Sub-components ─────────────────────────────────────────────────────────────
+function formatTime(isoString: string): string
 ⋮----
-function StandupBlock({
-  icon,
-  title,
-  placeholder,
-  color,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  placeholder: string;
-  color: string;
-})
+// ── Post card ─────────────────────────────────────────────────────────────────
 ⋮----
-function FocusItem({
-  label,
-  priority,
-}: {
-  label: string;
-  priority: "high" | "medium" | "low";
-})
+{/* Header */}
 ⋮----
-// ── Main export ────────────────────────────────────────────────────────────────
+{/* Content */}
 ⋮----
-export function WorkspaceDailySection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceDailySectionProps): React.ReactElement
+// eslint-disable-next-line @next/next/no-img-element
 ⋮----
-{/* ① Date navigation */}
+// ── Composer ──────────────────────────────────────────────────────────────────
+⋮----
+function addPhoto()
+⋮----
+function removePhoto(idx: number)
+⋮----
+function handleSubmit()
+⋮----
+{/* Photo URL input */}
+⋮----
+onChange=
+⋮----
+{/* Photo previews */}
+⋮----
+{/* eslint-disable-next-line @next/next/no-img-element */}
 ⋮----
 onClick=
 ⋮----
+// ── Main export ────────────────────────────────────────────────────────────────
+⋮----
+async function loadPosts()
+⋮----
+// Sort newest-first
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+⋮----
+{/* ① Date navigation */}
+⋮----
 {/* Date label for mobile */}
 ⋮----
-{/* ② Stats */}
-⋮----
-{/* ③ Standup blocks */}
-⋮----
-{/* ④ Today's task timeline */}
-⋮----
-{/* ⑤ Focus board: high-priority items */}
+{/* ② Composer (today only) */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
@@ -39087,10 +39308,14 @@ const handleDelete = async (fileId: string) =>
  * WorkspaceIssuesSection — workspace.issues tab — issue tracker.
  */
 ⋮----
-import { AlertCircle, Plus, AlertTriangle, Info } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, Plus, AlertTriangle, Info, Loader2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
+import { listIssuesByTaskAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
+import type { IssueStatus } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus";
 ⋮----
 interface WorkspaceIssuesSectionProps {
   workspaceId: string;
@@ -39099,18 +39324,17 @@ interface WorkspaceIssuesSectionProps {
 ⋮----
 type IssueFilter = "全部" | "開啟" | "處理中" | "已關閉";
 ⋮----
-export function WorkspaceIssuesSection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceIssuesSectionProps): React.ReactElement
+// Load all tasks, then load issues for each task
+⋮----
+const handleRefresh = () =>
 ⋮----
 {/* Header */}
 ⋮----
 {/* Status filter */}
 ⋮----
-{/* Priority legend */}
+{/* Severity legend */}
 ⋮----
-{/* Issues list — empty state */}
+{/* Issues list */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
@@ -39429,10 +39653,13 @@ function handleReset()
  * WorkspaceTasksSection — workspace.tasks tab — task list with status filters.
  */
 ⋮----
-import { CheckSquare, Plus } from "lucide-react";
-import { useState } from "react";
+import { CheckSquare, Plus, Loader2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
+import type { TaskStatus } from "@/src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus";
 ⋮----
 interface WorkspaceTasksSectionProps {
   workspaceId: string;
@@ -39441,18 +39668,79 @@ interface WorkspaceTasksSectionProps {
 ⋮----
 type TaskFilter = "全部" | "待執行" | "進行中" | "已完成" | "已取消";
 ⋮----
-export function WorkspaceTasksSection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceTasksSectionProps): React.ReactElement
+const handleRefresh = () =>
 ⋮----
 {/* Header */}
 ⋮----
 {/* Status filter */}
 ⋮----
-{/* Priority legend */}
+{/* Task list */}
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/approval-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientApprovalUseCases } from "../../outbound/firebase-composition";
+import type { ApprovalDecisionSnapshot } from "../../../subdomains/approval/domain/entities/ApprovalDecision";
 ⋮----
-{/* Task list — empty state */}
+export async function createApprovalDecisionAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function approveTaskAction(decisionId: string, rawInput?: unknown): Promise<CommandResult>
+⋮----
+export async function rejectApprovalAction(decisionId: string, rawInput?: unknown): Promise<CommandResult>
+⋮----
+export async function listApprovalDecisionsAction(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/issue-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientIssueUseCases } from "../../outbound/firebase-composition";
+import type { IssueSnapshot } from "../../../subdomains/issue/domain/entities/Issue";
+⋮----
+export async function openIssueAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function transitionIssueStatusAction(issueId: string, rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function resolveIssueAction(issueId: string): Promise<CommandResult>
+⋮----
+export async function listIssuesByTaskAction(taskId: string): Promise<IssueSnapshot[]>
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/quality-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientQualityUseCases } from "../../outbound/firebase-composition";
+import type { QualityReviewSnapshot } from "../../../subdomains/quality/domain/entities/QualityReview";
+⋮----
+export async function startQualityReviewAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function passQualityReviewAction(reviewId: string, rawInput?: unknown): Promise<CommandResult>
+⋮----
+export async function failQualityReviewAction(reviewId: string, rawInput?: unknown): Promise<CommandResult>
+⋮----
+export async function listQualityReviewsAction(workspaceId: string): Promise<QualityReviewSnapshot[]>
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/task-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientTaskUseCases } from "../../outbound/firebase-composition";
+import type { TaskSnapshot } from "../../../subdomains/task/domain/entities/Task";
+⋮----
+export async function createTaskAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function updateTaskAction(taskId: string, rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function transitionTaskStatusAction(taskId: string, rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function deleteTaskAction(taskId: string): Promise<CommandResult>
+⋮----
+export async function listTasksByWorkspaceAction(workspaceId: string): Promise<TaskSnapshot[]>
 ````
 
 ## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
@@ -39496,7 +39784,34 @@ import {
   ConfirmCandidatesUseCase,
 } from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
 import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
-import { CreateTaskUseCase } from "../../subdomains/task/application/use-cases/TaskUseCases";
+import {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  TransitionTaskStatusUseCase,
+  DeleteTaskUseCase,
+} from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
+import {
+  OpenIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ResolveIssueUseCase,
+} from "../../subdomains/issue/application/use-cases/IssueUseCases";
+import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
+import {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "../../subdomains/quality/application/use-cases/QualityUseCases";
+import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
+import {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
+import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
+import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
 ⋮----
 type FirestoreWhereOperator =
   | "<"
@@ -39514,7 +39829,7 @@ type FirestoreWhereOperator =
 ⋮----
 function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
 ⋮----
-function createFirestoreLikeAdapter(): FirestoreLike
+function createFirestoreLikeAdapter()
 ⋮----
 async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
 async set(
@@ -39527,6 +39842,7 @@ async query(
       collectionName: string,
       filters: Array<{ field: string; op: string; value: unknown }>,
 ): Promise<Record<string, unknown>[]>
+async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
 ⋮----
 function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
 ⋮----
@@ -39548,6 +39864,18 @@ export function subscribeToWorkspacesForAccount(
 export function createClientWorkspaceLifecycleUseCases()
 ⋮----
 export function createClientTaskFormationUseCases()
+⋮----
+export function createClientTaskUseCases()
+⋮----
+export function createClientIssueUseCases()
+⋮----
+listIssuesByWorkspace: (_workspaceId: string) => issueRepo.findByTaskId(""), // workspace-level query via tasks
+⋮----
+export function createClientQualityUseCases()
+⋮----
+export function createClientApprovalUseCases()
+⋮----
+export function createClientFeedUseCases()
 ````
 
 ## File: src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts
@@ -40008,6 +40336,38 @@ export function createApiKeyId(raw: string): ApiKeyId
 
 ````
 
+## File: src/modules/workspace/subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository.ts
+````typescript
+import type { ApprovalDecisionRepository } from "../../../domain/repositories/ApprovalDecisionRepository";
+import type { ApprovalDecisionSnapshot } from "../../../domain/entities/ApprovalDecision";
+⋮----
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+query(collection: string, filters: Array<
+⋮----
+export class FirestoreApprovalDecisionRepository implements ApprovalDecisionRepository
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(decisionId: string): Promise<ApprovalDecisionSnapshot | null>
+⋮----
+async findByTaskId(taskId: string): Promise<ApprovalDecisionSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>
+⋮----
+async save(decision: ApprovalDecisionSnapshot): Promise<void>
+⋮----
+async delete(decisionId: string): Promise<void>
+````
+
 ## File: src/modules/workspace/subdomains/approval/adapters/outbound/index.ts
 ````typescript
 // Approval subdomain delegates persistence to task/issue subdomains
@@ -40020,26 +40380,32 @@ export function createApiKeyId(raw: string): ApiKeyId
 
 ## File: src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts
 ````typescript
+import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { ApprovalTaskRepository, ApprovalIssueRepository, ApprovalTaskStatus, ApprovalIssueStatus } from "../../domain/repositories/ApprovalRepository";
+import type { ApprovalDecisionRepository } from "../../domain/repositories/ApprovalDecisionRepository";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
+import { ApprovalDecision } from "../../domain/entities/ApprovalDecision";
+import type { CreateApprovalDecisionInput } from "../../domain/entities/ApprovalDecision";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
 ⋮----
-function canTransitionTask(from: ApprovalTaskStatus, to: ApprovalTaskStatus): boolean
-⋮----
-function canTransitionIssue(from: ApprovalIssueStatus, to: ApprovalIssueStatus): boolean
-⋮----
-export class ApproveTaskAcceptanceUseCase
+export class CreateApprovalDecisionUseCase
 ⋮----
 constructor(
-async execute(taskId: string): Promise<CommandResult>
 ⋮----
-export class SubmitIssueRetestUseCase
+async execute(input: CreateApprovalDecisionInput): Promise<CommandResult>
 ⋮----
-constructor(private readonly issueRepo: ApprovalIssueRepository)
-async execute(issueId: string): Promise<CommandResult>
+export class ApproveTaskUseCase
 ⋮----
-export class PassIssueRetestUseCase
+async execute(decisionId: string, comments?: string): Promise<CommandResult>
 ⋮----
-export class FailIssueRetestUseCase
+export class RejectApprovalUseCase
+⋮----
+export class ListApprovalDecisionsUseCase
+⋮----
+constructor(private readonly decisionRepo: ApprovalDecisionRepository)
+⋮----
+async execute(workspaceId: string): Promise<import("../../domain/entities/ApprovalDecision").ApprovalDecisionSnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/approval/application/index.ts
@@ -40047,41 +40413,113 @@ export class FailIssueRetestUseCase
 
 ````
 
-## File: src/modules/workspace/subdomains/approval/domain/repositories/ApprovalRepository.ts
+## File: src/modules/workspace/subdomains/approval/domain/entities/ApprovalDecision.ts
 ````typescript
-export type ApprovalTaskStatus = "draft" | "in_progress" | "qa" | "acceptance" | "accepted" | "archived" | "cancelled";
-export type ApprovalIssueStatus = "open" | "fixing" | "retest" | "resolved" | "wont_fix" | "closed";
+import { v4 as uuid } from "uuid";
+import type { ApprovalDomainEventType } from "../events/ApprovalDomainEvent";
 ⋮----
-export interface ApprovalTaskLike {
-  readonly id: string;
-  readonly status: ApprovalTaskStatus;
-}
+export type ApprovalDecisionStatus = "pending" | "approved" | "rejected";
 ⋮----
-export interface ApprovalIssueLike {
+export interface ApprovalDecisionSnapshot {
   readonly id: string;
   readonly taskId: string;
-  readonly status: ApprovalIssueStatus;
+  readonly workspaceId: string;
+  readonly approverId: string;
+  readonly status: ApprovalDecisionStatus;
+  readonly comments: string;
+  readonly createdAtISO: string;
+  readonly decidedAtISO: string | null;
+  readonly updatedAtISO: string;
 }
 ⋮----
-export interface ApprovalTaskRepository {
-  findById(taskId: string): Promise<ApprovalTaskLike | null>;
-  updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
+export interface CreateApprovalDecisionInput {
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly approverId: string;
+  readonly comments?: string;
 }
 ⋮----
-findById(taskId: string): Promise<ApprovalTaskLike | null>;
-updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
+export class ApprovalDecision
 ⋮----
-export interface ApprovalIssueRepository {
-  findById(issueId: string): Promise<ApprovalIssueLike | null>;
-  countOpenByTaskId(taskId: string): Promise<number>;
-  countOpenByTaskIdAndStage(taskId: string, stage: string): Promise<number>;
-  updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
+private constructor(private _props: ApprovalDecisionSnapshot)
+⋮----
+static create(id: string, input: CreateApprovalDecisionInput): ApprovalDecision
+⋮----
+static reconstitute(snapshot: ApprovalDecisionSnapshot): ApprovalDecision
+⋮----
+approve(comments?: string): void
+⋮----
+reject(comments?: string): void
+⋮----
+get id(): string
+get taskId(): string
+get workspaceId(): string
+get status(): ApprovalDecisionStatus
+⋮----
+getSnapshot(): Readonly<ApprovalDecisionSnapshot>
+⋮----
+pullDomainEvents(): ApprovalDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/approval/domain/events/ApprovalDomainEvent.ts
+````typescript
+export interface ApprovalDecisionCreatedEvent {
+  readonly type: "workspace.approval.decision-created";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly decisionId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+    readonly approverId: string;
+  };
 }
 ⋮----
-findById(issueId: string): Promise<ApprovalIssueLike | null>;
-countOpenByTaskId(taskId: string): Promise<number>;
-countOpenByTaskIdAndStage(taskId: string, stage: string): Promise<number>;
-updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
+export interface ApprovalDecisionApprovedEvent {
+  readonly type: "workspace.approval.decision-approved";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly decisionId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export interface ApprovalDecisionRejectedEvent {
+  readonly type: "workspace.approval.decision-rejected";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly decisionId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export type ApprovalDomainEventType =
+  | ApprovalDecisionCreatedEvent
+  | ApprovalDecisionApprovedEvent
+  | ApprovalDecisionRejectedEvent;
+````
+
+## File: src/modules/workspace/subdomains/approval/domain/repositories/ApprovalDecisionRepository.ts
+````typescript
+import type { ApprovalDecisionSnapshot } from "../entities/ApprovalDecision";
+⋮----
+export interface ApprovalDecisionRepository {
+  findById(decisionId: string): Promise<ApprovalDecisionSnapshot | null>;
+  findByTaskId(taskId: string): Promise<ApprovalDecisionSnapshot[]>;
+  findByWorkspaceId(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>;
+  save(decision: ApprovalDecisionSnapshot): Promise<void>;
+  delete(decisionId: string): Promise<void>;
+}
+⋮----
+findById(decisionId: string): Promise<ApprovalDecisionSnapshot | null>;
+findByTaskId(taskId: string): Promise<ApprovalDecisionSnapshot[]>;
+findByWorkspaceId(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>;
+save(decision: ApprovalDecisionSnapshot): Promise<void>;
+delete(decisionId: string): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/approval/domain/index.ts
@@ -40315,6 +40753,13 @@ async findById(accountId: string, postId: string): Promise<FeedPostSnapshot | nu
 ⋮----
 async listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>
 ⋮----
+async listByWorkspaceIdAndDate(
+    accountId: string,
+    workspaceId: string,
+    dateKey: string,
+    limit: number,
+): Promise<FeedPostSnapshot[]>
+⋮----
 async listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>
 ⋮----
 async save(post: FeedPostSnapshot): Promise<void>
@@ -40325,6 +40770,8 @@ async incrementCounter(
     field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount",
     delta: number,
 ): Promise<void>
+⋮----
+private toSnapshot(doc: Record<string, unknown>): FeedPostSnapshot
 ````
 
 ## File: src/modules/workspace/subdomains/feed/adapters/outbound/index.ts
@@ -40342,6 +40789,10 @@ async incrementCounter(
 import { z } from "zod";
 ⋮----
 export type CreateFeedPostDTO = z.infer<typeof CreateFeedPostSchema>;
+⋮----
+/** YYYY-MM-DD. Omit to list across all dates (up to limit). */
+⋮----
+export type ListFeedPostsDTO = z.infer<typeof ListFeedPostsSchema>;
 ````
 
 ## File: src/modules/workspace/subdomains/feed/application/use-cases/FeedUseCases.ts
@@ -40350,13 +40801,22 @@ import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { FeedPostRepository } from "../../domain/repositories/FeedPostRepository";
 import { FeedPost } from "../../domain/entities/FeedPost";
-import type { CreateFeedPostInput } from "../../domain/entities/FeedPost";
+import type { CreateFeedPostInput, FeedPostSnapshot } from "../../domain/entities/FeedPost";
 ⋮----
 export class CreateFeedPostUseCase
 ⋮----
 constructor(private readonly feedRepo: FeedPostRepository)
 ⋮----
 async execute(input: CreateFeedPostInput): Promise<CommandResult>
+⋮----
+export class ListFeedPostsUseCase
+⋮----
+async execute(input: {
+    accountId: string;
+    workspaceId: string;
+    dateKey?: string;
+    limit?: number;
+}): Promise<FeedPostSnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/feed/application/index.ts
@@ -40378,6 +40838,10 @@ export interface FeedPostSnapshot {
   readonly authorAccountId: string;
   readonly type: FeedPostType;
   readonly content: string;
+  /** ISO date key YYYY-MM-DD for efficient Firestore date-range queries. */
+  readonly dateKey: string;
+  /** Storage URLs for attached photos (zero or more). */
+  readonly photoUrls: readonly string[];
   readonly replyToPostId: string | null;
   readonly repostOfPostId: string | null;
   readonly likeCount: number;
@@ -40390,20 +40854,30 @@ export interface FeedPostSnapshot {
   readonly updatedAtISO: string;
 }
 ⋮----
+/** ISO date key YYYY-MM-DD for efficient Firestore date-range queries. */
+⋮----
+/** Storage URLs for attached photos (zero or more). */
+⋮----
 export interface CreateFeedPostInput {
   readonly accountId: string;
   readonly workspaceId: string;
   readonly authorAccountId: string;
   readonly content: string;
+  /** Storage URLs for attached photos (zero or more). */
+  readonly photoUrls?: readonly string[];
   readonly replyToPostId?: string;
   readonly repostOfPostId?: string;
 }
+⋮----
+/** Storage URLs for attached photos (zero or more). */
 ⋮----
 export class FeedPost
 ⋮----
 private constructor(private _props: FeedPostSnapshot)
 ⋮----
 static create(id: string, input: CreateFeedPostInput): FeedPost
+⋮----
+const dateKey = now.slice(0, 10); // YYYY-MM-DD
 ⋮----
 static reconstitute(snapshot: FeedPostSnapshot): FeedPost
 ⋮----
@@ -40439,6 +40913,8 @@ import type { FeedPostSnapshot } from "../entities/FeedPost";
 export interface FeedPostRepository {
   findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>;
   listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>;
+  /** List posts for a workspace scoped to a specific date key (YYYY-MM-DD). */
+  listByWorkspaceIdAndDate(accountId: string, workspaceId: string, dateKey: string, limit: number): Promise<FeedPostSnapshot[]>;
   listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>;
   save(post: FeedPostSnapshot): Promise<void>;
   incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount", delta: number): Promise<void>;
@@ -40446,6 +40922,8 @@ export interface FeedPostRepository {
 ⋮----
 findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>;
 listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>;
+/** List posts for a workspace scoped to a specific date key (YYYY-MM-DD). */
+listByWorkspaceIdAndDate(accountId: string, workspaceId: string, dateKey: string, limit: number): Promise<FeedPostSnapshot[]>;
 listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>;
 save(post: FeedPostSnapshot): Promise<void>;
 incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount", delta: number): Promise<void>;
@@ -41644,6 +42122,38 @@ markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<Task
 
 ````
 
+## File: src/modules/workspace/subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository.ts
+````typescript
+import type { QualityReviewRepository } from "../../../domain/repositories/QualityReviewRepository";
+import type { QualityReviewSnapshot } from "../../../domain/entities/QualityReview";
+⋮----
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+query(collection: string, filters: Array<
+⋮----
+export class FirestoreQualityReviewRepository implements QualityReviewRepository
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(reviewId: string): Promise<QualityReviewSnapshot | null>
+⋮----
+async findByTaskId(taskId: string): Promise<QualityReviewSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<QualityReviewSnapshot[]>
+⋮----
+async save(review: QualityReviewSnapshot): Promise<void>
+⋮----
+async delete(reviewId: string): Promise<void>
+````
+
 ## File: src/modules/workspace/subdomains/quality/adapters/outbound/index.ts
 ````typescript
 // Quality subdomain delegates persistence to task subdomain
@@ -41656,16 +42166,31 @@ markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<Task
 
 ## File: src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts
 ````typescript
+import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { QualityTaskRepository } from "../../domain/repositories/QualityTaskRepository";
+import type { QualityReviewRepository } from "../../domain/repositories/QualityReviewRepository";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import { QualityReview } from "../../domain/entities/QualityReview";
+import type { StartQualityReviewInput } from "../../domain/entities/QualityReview";
 import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
 ⋮----
-export class SubmitTaskToQaUseCase
+export class StartQualityReviewUseCase
 ⋮----
-constructor(private readonly taskRepo: QualityTaskRepository)
-async execute(taskId: string): Promise<CommandResult>
+constructor(
 ⋮----
-export class PassTaskQaUseCase
+async execute(input: StartQualityReviewInput): Promise<CommandResult>
+⋮----
+export class PassQualityReviewUseCase
+⋮----
+async execute(reviewId: string, notes?: string): Promise<CommandResult>
+⋮----
+export class FailQualityReviewUseCase
+⋮----
+export class ListQualityReviewsUseCase
+⋮----
+constructor(private readonly reviewRepo: QualityReviewRepository)
+⋮----
+async execute(workspaceId: string): Promise<import("../../domain/entities/QualityReview").QualityReviewSnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/quality/application/index.ts
@@ -41673,22 +42198,114 @@ export class PassTaskQaUseCase
 
 ````
 
-## File: src/modules/workspace/subdomains/quality/domain/repositories/QualityTaskRepository.ts
+## File: src/modules/workspace/subdomains/quality/domain/entities/QualityReview.ts
 ````typescript
-export type QualityTaskStatus = "draft" | "in_progress" | "qa" | "acceptance" | "accepted" | "archived" | "cancelled";
+import { v4 as uuid } from "uuid";
+import type { QualityReviewDomainEventType } from "../events/QualityDomainEvent";
 ⋮----
-export interface QualityTaskLike {
+export type QualityReviewStatus = "in_review" | "passed" | "failed";
+⋮----
+export interface QualityReviewSnapshot {
   readonly id: string;
-  readonly status: QualityTaskStatus;
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly reviewerId: string;
+  readonly status: QualityReviewStatus;
+  readonly notes: string;
+  readonly startedAtISO: string;
+  readonly completedAtISO: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
 }
 ⋮----
-export interface QualityTaskRepository {
-  findById(taskId: string): Promise<QualityTaskLike | null>;
-  updateStatus(taskId: string, to: QualityTaskStatus, nowISO: string): Promise<QualityTaskLike | null>;
+export interface StartQualityReviewInput {
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly reviewerId: string;
+  readonly notes?: string;
 }
 ⋮----
-findById(taskId: string): Promise<QualityTaskLike | null>;
-updateStatus(taskId: string, to: QualityTaskStatus, nowISO: string): Promise<QualityTaskLike | null>;
+export class QualityReview
+⋮----
+private constructor(private _props: QualityReviewSnapshot)
+⋮----
+static start(id: string, input: StartQualityReviewInput): QualityReview
+⋮----
+static reconstitute(snapshot: QualityReviewSnapshot): QualityReview
+⋮----
+pass(notes?: string): void
+⋮----
+fail(notes?: string): void
+⋮----
+get id(): string
+get taskId(): string
+get workspaceId(): string
+get status(): QualityReviewStatus
+⋮----
+getSnapshot(): Readonly<QualityReviewSnapshot>
+⋮----
+pullDomainEvents(): QualityReviewDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/quality/domain/events/QualityDomainEvent.ts
+````typescript
+export interface QualityReviewStartedEvent {
+  readonly type: "workspace.quality.review-started";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly reviewId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+    readonly reviewerId: string;
+  };
+}
+⋮----
+export interface QualityReviewPassedEvent {
+  readonly type: "workspace.quality.review-passed";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly reviewId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export interface QualityReviewFailedEvent {
+  readonly type: "workspace.quality.review-failed";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly reviewId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export type QualityReviewDomainEventType =
+  | QualityReviewStartedEvent
+  | QualityReviewPassedEvent
+  | QualityReviewFailedEvent;
+````
+
+## File: src/modules/workspace/subdomains/quality/domain/repositories/QualityReviewRepository.ts
+````typescript
+import type { QualityReviewSnapshot } from "../entities/QualityReview";
+⋮----
+export interface QualityReviewRepository {
+  findById(reviewId: string): Promise<QualityReviewSnapshot | null>;
+  findByTaskId(taskId: string): Promise<QualityReviewSnapshot[]>;
+  findByWorkspaceId(workspaceId: string): Promise<QualityReviewSnapshot[]>;
+  save(review: QualityReviewSnapshot): Promise<void>;
+  delete(reviewId: string): Promise<void>;
+}
+⋮----
+findById(reviewId: string): Promise<QualityReviewSnapshot | null>;
+findByTaskId(taskId: string): Promise<QualityReviewSnapshot[]>;
+findByWorkspaceId(workspaceId: string): Promise<QualityReviewSnapshot[]>;
+save(review: QualityReviewSnapshot): Promise<void>;
+delete(reviewId: string): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/quality/domain/index.ts
@@ -43670,7 +44287,7 @@ export async function startExtractionAction(
 | `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
 | `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
 | `audit` | 🔨 骨架建立，實作進行中 | 日誌紀錄實體 |
-| `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
+| `feed` | ✅ 實作完成 | 每日動態貼文（IG 風格：文字 + 照片，未來擴展今日任務 / 出勤）|
 | `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
 | `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
 | `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|

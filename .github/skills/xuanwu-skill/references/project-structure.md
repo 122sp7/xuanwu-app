@@ -316,7 +316,7 @@ packages/
     AGENTS.md (53 lines)
     auth.ts (14 lines)
     client.ts (6 lines)
-    firestore.ts (28 lines)
+    firestore.ts (29 lines)
     functions.ts (9 lines)
     index.ts (4 lines)
     README.md (48 lines)
@@ -1185,25 +1185,25 @@ src/
             index.ts (1 lines)
           application/
             use-cases/
-              SecurityPolicyUseCases.ts (13 lines)
+              SecurityPolicyUseCases.ts (14 lines)
             index.ts (0 lines)
           domain/
-            index.ts (22 lines)
+            index.ts (69 lines)
         session/
           adapters/
             inbound/
               index.ts (2 lines)
             outbound/
               memory/
-                InMemorySessionRepository.ts (13 lines)
+                InMemorySessionRepository.ts (11 lines)
               index.ts (0 lines)
             index.ts (1 lines)
           application/
             use-cases/
-              SessionUseCases.ts (19 lines)
+              SessionUseCases.ts (20 lines)
             index.ts (0 lines)
           domain/
-            index.ts (26 lines)
+            index.ts (63 lines)
         tenant/
           adapters/
             inbound/
@@ -1218,7 +1218,7 @@ src/
               TenantUseCases.ts (12 lines)
             index.ts (0 lines)
           domain/
-            index.ts (24 lines)
+            index.ts (60 lines)
       AGENT.md (62 lines)
       index.ts (26 lines)
       README.md (83 lines)
@@ -1826,9 +1826,9 @@ src/
             WorkspaceApprovalSection.tsx (18 lines)
             WorkspaceAuditSection.tsx (23 lines)
             WorkspaceContext.tsx (47 lines)
-            WorkspaceDailySection.tsx (80 lines)
+            WorkspaceDailySection.tsx (91 lines)
             WorkspaceFilesSection.tsx (65 lines)
-            WorkspaceIssuesSection.tsx (28 lines)
+            WorkspaceIssuesSection.tsx (31 lines)
             WorkspaceMembersSection.tsx (18 lines)
             WorkspaceOverviewSection.tsx (71 lines)
             WorkspaceQualitySection.tsx (18 lines)
@@ -1837,9 +1837,14 @@ src/
             WorkspaceSettingsSection.tsx (27 lines)
             WorkspaceSettlementSection.tsx (19 lines)
             WorkspaceTaskFormationSection.tsx (66 lines)
-            WorkspaceTasksSection.tsx (28 lines)
+            WorkspaceTasksSection.tsx (26 lines)
+          server-actions/
+            approval-actions.ts (12 lines)
+            issue-actions.ts (12 lines)
+            quality-actions.ts (12 lines)
+            task-actions.ts (14 lines)
         outbound/
-          firebase-composition.ts (91 lines)
+          firebase-composition.ts (131 lines)
           FirebaseWorkspaceQueryRepository.ts (60 lines)
       orchestration/
         index.ts (4 lines)
@@ -1905,15 +1910,21 @@ src/
             inbound/
               index.ts (0 lines)
             outbound/
+              firestore/
+                FirestoreApprovalDecisionRepository.ts (28 lines)
               index.ts (1 lines)
             index.ts (0 lines)
           application/
             use-cases/
-              ApprovalUseCases.ts (20 lines)
+              ApprovalUseCases.ts (26 lines)
             index.ts (0 lines)
           domain/
+            entities/
+              ApprovalDecision.ts (44 lines)
+            events/
+              ApprovalDomainEvent.ts (38 lines)
             repositories/
-              ApprovalRepository.ts (33 lines)
+              ApprovalDecisionRepository.ts (15 lines)
             index.ts (0 lines)
         audit/
           adapters/
@@ -1944,26 +1955,29 @@ src/
         feed/
           adapters/
             inbound/
+              server-actions/
+                feed-actions.ts (17 lines)
               index.ts (0 lines)
             outbound/
               firestore/
-                FirestoreFeedRepository.ts (33 lines)
+                FirestoreFeedRepository.ts (42 lines)
               index.ts (0 lines)
             index.ts (0 lines)
           application/
             dto/
-              FeedDTO.ts (3 lines)
+              FeedDTO.ts (7 lines)
             use-cases/
-              FeedUseCases.ts (11 lines)
+              FeedUseCases.ts (20 lines)
             index.ts (0 lines)
           domain/
             entities/
-              FeedPost.ts (47 lines)
+              FeedPost.ts (61 lines)
             events/
               FeedDomainEvent.ts (13 lines)
             repositories/
-              FeedPostRepository.ts (15 lines)
+              FeedPostRepository.ts (19 lines)
             index.ts (0 lines)
+          README.md (64 lines)
         invitation/
           adapters/
             inbound/
@@ -2101,15 +2115,21 @@ src/
             inbound/
               index.ts (0 lines)
             outbound/
+              firestore/
+                FirestoreQualityReviewRepository.ts (28 lines)
               index.ts (1 lines)
             index.ts (0 lines)
           application/
             use-cases/
-              QualityUseCases.ts (10 lines)
+              QualityUseCases.ts (25 lines)
             index.ts (0 lines)
           domain/
+            entities/
+              QualityReview.ts (45 lines)
+            events/
+              QualityDomainEvent.ts (38 lines)
             repositories/
-              QualityTaskRepository.ts (14 lines)
+              QualityReviewRepository.ts (15 lines)
             index.ts (0 lines)
         resource/
           adapters/
