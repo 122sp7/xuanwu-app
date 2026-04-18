@@ -26,6 +26,10 @@ describe('Template state model guards', () => {
     const completionEvents = workflow.pullDomainEvents();
     expect(completionEvents).toHaveLength(1);
     expect(completionEvents[0]?.type).toBe('template.workflow.completed');
+
+    expect(() => workflow.cancel()).toThrow(
+      'Invalid workflow transition: completed -> cancelled',
+    );
   });
 
   it('enforces ingestion transitions', () => {
@@ -34,12 +38,21 @@ describe('Template state model guards', () => {
       sourceUrl: 'https://example.com/source.md',
     });
 
+    const startedEvents = job.pullDomainEvents();
+    expect(startedEvents).toHaveLength(1);
+    expect(startedEvents[0]?.type).toBe('template.ingestion.job-started');
+
     expect(() => job.markCompleted()).toThrow(
       'Invalid ingestion transition: pending -> completed',
     );
 
     job.markProcessing();
     job.markCompleted();
+
+    const completedEvents = job.pullDomainEvents();
+    expect(completedEvents).toHaveLength(1);
+    expect(completedEvents[0]?.type).toBe('template.ingestion.job-completed');
+
     expect(job.status).toBe('completed');
   });
 });

@@ -1,4 +1,9 @@
 import { IngestionId } from '../value-objects/IngestionId';
+import {
+  IngestionJobCompletedEvent,
+  IngestionJobFailedEvent,
+  IngestionJobStartedEvent,
+} from '../events/IngestionJobEvents';
 
 /**
  * IngestionJob — Aggregate Root
@@ -15,16 +20,27 @@ export interface IngestionJobProps {
 }
 
 export class IngestionJob {
+  private readonly domainEvents: Array<
+    IngestionJobStartedEvent | IngestionJobCompletedEvent | IngestionJobFailedEvent
+  > = [];
+
   private constructor(private props: IngestionJobProps) {}
 
   static create(
     params: Pick<IngestionJobProps, 'id' | 'sourceUrl'>,
   ): IngestionJob {
-    return new IngestionJob({
+    const job = new IngestionJob({
       ...params,
       status: 'pending',
       createdAt: new Date(),
     });
+    job.domainEvents.push(
+      new IngestionJobStartedEvent(
+        params.id.toString(),
+        params.sourceUrl,
+      ),
+    );
+    return job;
   }
 
   get id(): IngestionId {
@@ -59,7 +75,15 @@ export class IngestionJob {
       throw new Error(`Invalid ingestion transition: ${this.props.status} -> completed`);
     }
     this.props.status = 'completed';
-    this.props.completedAt = new Date();
+    const completedAt = new Date();
+    this.props.completedAt = completedAt;
+    this.domainEvents.push(
+      new IngestionJobCompletedEvent(
+        this.props.id.toString(),
+        this.props.sourceUrl,
+        completedAt.toISOString(),
+      ),
+    );
   }
 
   markFailed(): void {
@@ -67,6 +91,22 @@ export class IngestionJob {
       throw new Error(`Invalid ingestion transition: ${this.props.status} -> failed`);
     }
     this.props.status = 'failed';
-    this.props.completedAt = new Date();
+    const failedAt = new Date();
+    this.props.completedAt = failedAt;
+    this.domainEvents.push(
+      new IngestionJobFailedEvent(
+        this.props.id.toString(),
+        this.props.sourceUrl,
+        failedAt.toISOString(),
+      ),
+    );
+  }
+
+  pullDomainEvents(): Array<
+    IngestionJobStartedEvent | IngestionJobCompletedEvent | IngestionJobFailedEvent
+  > {
+    const events = [...this.domainEvents];
+    this.domainEvents.length = 0;
+    return events;
   }
 }

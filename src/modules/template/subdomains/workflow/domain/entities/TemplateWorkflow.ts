@@ -1,5 +1,6 @@
 import { WorkflowId } from '../value-objects/WorkflowId';
 import {
+  WorkflowCancelledEvent,
   WorkflowCompletedEvent,
   WorkflowInitiatedEvent,
 } from '../events/WorkflowEvents';
@@ -25,7 +26,9 @@ export interface TemplateWorkflowProps {
 }
 
 export class TemplateWorkflow {
-  private readonly domainEvents: Array<WorkflowInitiatedEvent | WorkflowCompletedEvent> = [];
+  private readonly domainEvents: Array<
+    WorkflowInitiatedEvent | WorkflowCompletedEvent | WorkflowCancelledEvent
+  > = [];
 
   private constructor(private props: TemplateWorkflowProps) {}
 
@@ -89,11 +92,21 @@ export class TemplateWorkflow {
 
   cancel(): void {
     this.ensureTransition(['pending', 'active', 'paused'], 'cancelled');
+    const cancelledAt = new Date();
     this.props.status = 'cancelled';
-    this.props.completedAt = new Date();
+    this.props.completedAt = cancelledAt;
+    this.domainEvents.push(
+      new WorkflowCancelledEvent(
+        this.props.id.toString(),
+        this.props.templateId,
+        cancelledAt.toISOString(),
+      ),
+    );
   }
 
-  pullDomainEvents(): Array<WorkflowInitiatedEvent | WorkflowCompletedEvent> {
+  pullDomainEvents(): Array<
+    WorkflowInitiatedEvent | WorkflowCompletedEvent | WorkflowCancelledEvent
+  > {
     const events = [...this.domainEvents];
     this.domainEvents.length = 0;
     return events;

@@ -60,3 +60,36 @@ export class WorkflowCompletedEvent {
     };
   }
 }
+
+/**
+ * WorkflowCancelledEvent — Domain Event
+ * Raised when a TemplateWorkflow reaches the 'cancelled' status.
+ */
+export class WorkflowCancelledEvent {
+  readonly type = 'template.workflow.cancelled' as const;
+  readonly eventId: string;
+  readonly aggregateId: string;
+  readonly occurredAt: string;
+  readonly payload: Readonly<{
+    workflowId: string;
+    templateId: string;
+    cancelledAt: string;
+  }>;
+
+  constructor(
+    public readonly workflowId: string,
+    public readonly templateId: string,
+    public readonly cancelledAt: string = new Date().toISOString(),
+    occurredAt: string = new Date().toISOString(),
+    eventId: string = crypto.randomUUID(),
+  ) {
+    this.eventId = eventId;
+    this.aggregateId = workflowId;
+    this.occurredAt = occurredAt;
+    this.payload = {
+      workflowId,
+      templateId,
+      cancelledAt,
+    };
+  }
+}
