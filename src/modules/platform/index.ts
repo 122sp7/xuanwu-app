@@ -127,3 +127,8 @@ export type {
   ListStoredFilesInput,
 } from "./subdomains/file-storage/application";
 export { InMemoryFileStorageRepository } from "./subdomains/file-storage/adapters/outbound";
+export {
+  uploadWorkspaceFile,
+  getWorkspaceFileDownloadUrl,
+  createClientFileStorageUseCases,
+} from "./adapters/outbound/firebase-composition";
