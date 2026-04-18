@@ -1,7 +1,5 @@
 # Architecture Overview
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
 ## System Shape
 
 系統以八個主域 / bounded context 組成，每個主域都視為一個有自己語言與規則的邊界：

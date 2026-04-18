@@ -18,18 +18,13 @@
 | **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
 | **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENT.md |
 | **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
+| **Anti-Patterns** (46-51) | 6 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
 
-**Total**: 50 rules consolidated into 8 homes
+**Total**: 51 rules consolidated into 8 homes
 
 ---
 
-## 📍 LOCATION 1: `AGENTS.md` (Strategic Rules)
-
-### Add to § "Module Ownership Guardrails"
-
-```markdown
-## Strategic Ownership Rules (Hard Constraints)
+## Strategic Ownership Rules (Rules 1, 5–10, 28)
 
 ### Rule 1: Each Module Owns Its Domain Adapters
 - ✅ Each module (iam, billing, ai, platform, workspace, notion, notebooklm) maintains its own Firestore/infrastructure adapters for domain-local data
@@ -74,12 +69,7 @@
 - ✅ iam / billing / ai / platform keep one-way dependency direction toward their downstream consumers
 - ❌ upstream contexts NEVER import downstream domain internals directly
 - ✅ If an upstream context needs semantic data from downstreams, use events or public APIs only
-```
-
-### Add to § "Anti-Patterns"
-
-```markdown
-### Hard Anti-Patterns (Will Cause Refactors)
+## Hard Anti-Patterns (Rules 46–51)
 
 - ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
   - Fix: Use `@/modules/platform` (FileAPI, PermissionAPI, etc. via module `index.ts`)
@@ -98,16 +88,10 @@
 
 - ❌ **Rule 51**: Cross-module route components read foreign context providers
   - Fix: workspace is the composition owner; pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
-```
 
 ---
 
-## 📍 LOCATION 2: `.github/instructions/architecture-core.instructions.md`
-
-### Add Section: "Layer Responsibility Rules"
-
-```markdown
-## Layer Responsibility Rules (Hard Constraints)
+## Layer Responsibility Rules (Rules 11–13, 16, 21–23)
 
 ### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
 - ✅ application/ coordinates domain behavior + transaction boundaries
@@ -155,16 +139,10 @@
 - ❌ domain/ NEVER makes I/O calls
 - ❌ domain/ NEVER calls external services
 - ✅ domain events emitted; orchestration in application/
-```
 
 ---
 
-## 📍 LOCATION 3: `.github/instructions/event-driven-state.instructions.md`
-
-### Add Section: "Event Bus Requirement & Data Flow"
-
-```markdown
-## Event Bus Requirement & Async Data Flow (Hard Constraints)
+## Event Bus & Async Data Flow (Rules 4, 9, 34–36)
 
 ### Rule 4: Event Bus is Mandatory (Not Optional)
 - ✅ Platform.event-bus/ subdomain must exist and be fully implemented
@@ -195,16 +173,10 @@
 - ✅ When B needs data from A: B calls A.api (synchronous)
 - ❌ NO B reading A's Firestore collection directly
 - ✅ Events enable loose coupling; API enables strongcontract
-```
 
 ---
 
-## 📍 LOCATION 4: `.github/instructions/security-rules.instructions.md`
-
-### Add Section: "File Lifecycle, Metadata, Ownership"
-
-```markdown
-## File & Data Ownership Rules (Hard Constraints)
+## File, Data & Permission Rules (Rules 3, 29–33, 37–40)
 
 ### Rule 3: File Metadata is Non-Negotiable
 - ✅ EVERY file in Storage has metadata in Firestore
@@ -267,16 +239,10 @@
 - ✅ Database query: `select * from resources where workspace_id = ?`
 - ❌ NEVER query without workspace/tenant filter
 - ✅ Scope enforced in both application and Firestore rules
-```
 
 ---
 
-## 📍 LOCATION 5: `docs/structure/system/context-map.md`
-
-### Add or Extend Section: "Cross-Module Data Contracts"
-
-```markdown
-## Cross-Module Data Flow Rules (Hard Constraints)
+## Cross-Module Data Flow Rules (Rules 24–27)
 
 ### Rule 24: Notebooklm Cannot Direct-Read Firestore
 - ✅ notebooklm reads knowledge artifacts via `@/modules/notion` (`index.ts` public boundary)
@@ -299,112 +265,71 @@
 - ✅ workspace calls notebooklm.api; notebooklm handles AI routing
 - ❌ NEVER workspace imports the ai context or genkit directly
 - ✅ Decouples UI from AI complexity
-```
 
 ---
 
-## 📍 LOCATION 6: Module-Level `AGENT.md` Files
+## Module-Level Enforcement
 
-Each module should have its own constraints section, such as:
+Each module enforces its own subset of these rules. Key mapping:
 
-### **`src/modules/platform/AGENT.md`** (Add Section)
-
-```markdown
-## Platform-Specific Hard Rules
+### src/modules/platform
 
 1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
 2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
 3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
 4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
-```
 
-### **`src/modules/workspace/AGENT.md`** (Add Section)
-
-```markdown
-## Workspace-Specific Hard Rules
+### src/modules/workspace
 
 1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
 2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
 3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
 4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
-```
 
-### **`src/modules/notion/AGENT.md`** (Add Section)
-
-```markdown
-## Notion-Specific Hard Rules
+### src/modules/notion
 
 1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or the ai context
-2. **Rule 24-25**: Notion owns knowledge artifact authoring; others access via notion.api only
+2. **Rules 24–25**: Notion owns knowledge artifact authoring; others access via notion.api only
 3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
-```
 
-### **`src/modules/notebooklm/AGENT.md`** (Add Section)
+### src/modules/notebooklm
 
-```markdown
-## NotebookLM-Specific Hard Rules
-
-1. **Rule 24-25**: All knowledge data requests via notion.api; never direct Firestore
+1. **Rules 24–25**: All knowledge data requests via notion.api; never direct Firestore
 2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to the ai context internally
-3. **Rule 31-32**: All AI prompts/outputs logged with full traceability metadata
+3. **Rules 31–32**: All AI prompts/outputs logged with full traceability metadata
 4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
-```
 
 ---
 
-## 📍 LOCATION 7: ESLint Config (`eslint.config.mjs`)
-
-### Add Custom Rule Enforcement
-
-```javascript
-// Enforce hard rule 2, 6, 49: No cross-module internal imports
-{
-  rules: {
-    "@custom/no-cross-module-internal-import": {
-      enabled: true,
-      allowedPaths: ["index.ts"],  // Only module root index.ts exports allowed
-      blockedPaths: ["domain/", "application/", "infrastructure/", "interfaces/"]
-    },
-    
-    // Enforce hard rule 1, 8: No direct Firebase/Genkit imports outside platform
-    "@custom/no-direct-firebase-outside-platform": {
-      enabled: true,
-      allowedModules: ["platform"],
-      blockedImports: ["firebase", "@google-cloud/genkit"]
-    }
-  }
-}
-```
-
-### Design Smell Guardrails
+## ESLint Design Smell Guardrails
 
 以下 guardrails 用來把 design smell 變成持續可見的 warning signal，而不是等到大型 convergence 才發現。
 
-#### 1300 Cyclic Dependency
+### 1300 Cyclic Dependency
 
 - 禁止把 `require()` 當成正常的 composition 模式。
 - 若真的因既有循環鏈暫時保留 lazy require，必須把它侷限在單點並標明循環來源。
 - lint signal: `no-restricted-syntax` on `CallExpression[callee.name='require']`。
 
-#### 1400 Dependency Leakage
+### 1400 Dependency Leakage
 
 - `index.ts` 不得用 `export * from "./application"` 或 `export * from "./interfaces"` 洩漏內層。
 - 公開邊界應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
 - lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
 
-#### 3100 Low Cohesion
+### 3100 Low Cohesion
 
 - `index.ts` 若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
 - 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
 - lint signal: `max-lines` on module `index.ts` files as early warning.
 
-#### 5200 Cognitive Load
+### 5200 Cognitive Load
 
 - fat screen 不是單純行數問題，而是單一畫面同時承接 cross-module orchestration、panel wiring 與流程判斷。
 - 超過閾值時先檢查是否可以抽出 focused composition、helper 或 facade。
 - lint signal: `max-lines` on `interfaces/**/components/screens/**`.
 
-#### Enforcement Posture
+### Enforcement Posture
 
 - lint 使用 warning 等級，目的是持續暴露 smell 壓力，不是把既有技術債一次性升級成 build blocker。
 - smell 是否成立，以對應 ADR 的 context、decision、conflict resolution 為準；lint 只是入口訊號。
@@ -422,7 +347,7 @@ Each module should have its own constraints section, such as:
 | 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
 | 24-27 | context-map.md | Cross-module contracts |
 | 17 | Platform feature-flag docs | Feature independence |
-| 46-50 | AGENTS.md | Anti-patterns |
+| 46-51 | AGENTS.md | Anti-patterns |
 | All | Module AGENT.md | Tactical enforcement |
 
 ---
@@ -441,7 +366,7 @@ Each module should have its own constraints section, such as:
 ### Before Each Release:
 - [ ] All rules reviewed in relevant AGENT.md
 - [ ] ESLint boundary checks passing
-- [ ] Zero anti-pattern violations (46-50)
+- [ ] Zero anti-pattern violations (46-51)
 - [ ] Event schemas registered & consistent
 
 ---
