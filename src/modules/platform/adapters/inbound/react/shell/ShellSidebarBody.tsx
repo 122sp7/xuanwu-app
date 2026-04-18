@@ -9,6 +9,7 @@ import Link from "next/link";
 
 import {
   WorkspaceSectionContent,
+  resolveTabDomainGroup,
   type NavPreferences,
   type SidebarLocaleBundle,
 } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
@@ -51,6 +52,7 @@ interface ShellSidebarBodyProps {
   onSelectWorkspace: (workspaceId: string | null) => void;
   onToggleExpanded: () => void;
   currentSearchWorkspaceId: string;
+  currentWorkspaceTab: string | null;
 }
 
 function ManagedNavGroup({
@@ -108,9 +110,12 @@ export function DashboardSidebarBody({
   onSelectWorkspace,
   onToggleExpanded,
   currentSearchWorkspaceId,
+  currentWorkspaceTab,
 }: ShellSidebarBodyProps) {
   const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
   const _scopedWorkspacePathId = workspacePathId ?? currentSearchWorkspaceId ?? activeWorkspaceId;
+  const showContextSection =
+    Boolean(contextSection) && resolveTabDomainGroup(currentWorkspaceTab) === "workspace";
 
   return (
     <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
@@ -297,10 +302,10 @@ export function DashboardSidebarBody({
         </div>
       )}
 
-      {contextSection && (
+      {showContextSection && (
         <ShellContextNavSection
-          title={contextSection.title}
-          items={contextSection.items}
+          title={contextSection!.title}
+          items={contextSection!.items}
           isActiveRoute={isActiveRoute}
           activeAccountId={activeAccountId}
           activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}

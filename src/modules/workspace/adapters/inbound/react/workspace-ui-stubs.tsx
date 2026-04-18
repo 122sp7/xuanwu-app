@@ -118,6 +118,17 @@ function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTa
   return WORKSPACE_TAB_ALIASES[value] ?? null;
 }
 
+/**
+ * Returns the domain group for a given workspace tab value string.
+ * Falls back to "workspace" when the tab is unknown or null (so the
+ * workspace-specific sidebar sections remain visible by default).
+ */
+export function resolveTabDomainGroup(tab: string | null | undefined): WorkspaceDomainGroup {
+  const resolved = resolveWorkspaceTabValue(tab);
+  if (!resolved) return "workspace";
+  return WORKSPACE_TAB_ITEMS.find((item) => item.value === resolved)?.domainGroup ?? "workspace";
+}
+
 // Bump version suffix whenever new default tab IDs are added so stale
 // localStorage entries are discarded and users see the updated defaults.
 const NAV_PREFS_STORAGE_KEY = "xuanwu:nav-preferences-v2";
