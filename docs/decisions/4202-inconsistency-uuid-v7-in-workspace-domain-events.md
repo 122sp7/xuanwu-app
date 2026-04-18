@@ -8,23 +8,23 @@
 ## Context
 
 ADR 4101（`v4 as uuid` in domain layer）確立了 domain 層和 application 層統一使用
-`import { v4 as uuid } from "@lib-uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
+`import { v4 as uuid } from "@infra/uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
 
 掃描 domain 層 UUID 使用情況：
 
 ```
 # domain aggregates（全部使用 v4）
-Account.ts:             import { v4 as uuid } from "@lib-uuid"
-Organization.ts:        import { v4 as uuid } from "@lib-uuid"
-KnowledgePage.ts:       import { v4 as uuid } from "@lib-uuid"
-Article.ts:             import { v4 as uuid } from "@lib-uuid"
-KnowledgeCollection.ts: import { v4 as uuid } from "@lib-uuid"
-EntitlementGrant.ts:    import { v4 as uuid } from "@lib-uuid"
-Workspace.ts:           import { v4 as uuid } from "@lib-uuid"
+Account.ts:             import { v4 as uuid } from "@infra/uuid"
+Organization.ts:        import { v4 as uuid } from "@infra/uuid"
+KnowledgePage.ts:       import { v4 as uuid } from "@infra/uuid"
+Article.ts:             import { v4 as uuid } from "@infra/uuid"
+KnowledgeCollection.ts: import { v4 as uuid } from "@infra/uuid"
+EntitlementGrant.ts:    import { v4 as uuid } from "@infra/uuid"
+Workspace.ts:           import { v4 as uuid } from "@infra/uuid"
 # ... (全部 16 個已確認的 domain aggregate files 使用 v4)
 
 # domain event factory（例外）
-workspace/domain/events/workspace.events.ts:  import { v7 } from "@lib-uuid"  ← ❌
+workspace/domain/events/workspace.events.ts:  import { v7 } from "@infra/uuid"  ← ❌
 ```
 
 `workspace/domain/events/workspace.events.ts` 是 **repo 中唯一在 domain 層使用 UUID v7 的文件**。
@@ -48,7 +48,7 @@ UUID v7 的時序排序特性在某些場景（如 QStash event ordering、Fires
 
 ```typescript
 // modules/workspace/domain/events/workspace.events.ts
-import { v7 } from "@lib-uuid";
+import { v7 } from "@infra/uuid";
 
 export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEvent {
   return {
@@ -69,7 +69,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
    **選項 A：改回 v4（推薦）**
    - 修改 `workspace/domain/events/workspace.events.ts`：
      ```typescript
-     import { v4 as uuid } from "@lib-uuid";
+     import { v4 as uuid } from "@infra/uuid";
      // ...
      eventId: uuid(),
      ```
@@ -89,7 +89,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
 ## Consequences
 
 正面（選項 A）：
-- domain 層 UUID 使用方式完全一致，`grep "@lib-uuid" modules/` 全部回傳 `v4 as uuid`。
+- domain 層 UUID 使用方式完全一致，`grep "@infra/uuid" modules/` 全部回傳 `v4 as uuid`。
 - 沒有額外的文件或規則例外需要維護。
 
 代價（選項 A）：
@@ -104,6 +104,6 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
 
 ## Resolution
 
-Replaced `import { v7 } from "@lib-uuid"` with `import { v4 as uuid } from "@lib-uuid"` in `workspace/domain/events/workspace.events.ts`.
+Replaced `import { v7 } from "@infra/uuid"` with `import { v4 as uuid } from "@infra/uuid"` in `workspace/domain/events/workspace.events.ts`.
 All three factory functions (`createWorkspaceCreatedEvent`, `createWorkspaceLifecycleTransitionedEvent`, `createWorkspaceVisibilityChangedEvent`) now use `uuid()` (v4).
 Full repo domain-layer UUID strategy is now consistent.

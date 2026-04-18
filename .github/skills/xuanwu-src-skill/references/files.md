@@ -14237,7 +14237,7 @@ async extract(_input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidat
 
 ## Boundary Rules
 
-1. `domain/` 禁止匯入：React、Firebase SDK、Genkit、`uuid`（用 `@lib-uuid`）
+1. `domain/` 禁止匯入：React、Firebase SDK、Genkit、`uuid`（用 `@infra/uuid`）
 2. `TaskFormationJob` 是唯一 Aggregate Root；狀態轉換只能透過 behavior method
 3. AI extraction 結果（`candidates`）必須持久化進 Firestore Job document，不可只存在記憶體
 4. 跨到 `task` 子域建立 Task 必須透過 `task` 子域的 use case 邊界，不可直接寫 Firestore
@@ -14310,7 +14310,7 @@ class ConfirmCandidatesUseCase {
 | UI 狀態 | XState v5 `setup()` | `fromPromise<Output, Input>` 雙泛型；machine 放在 `application/machines/` |
 | 入口層 | Next.js `useActionState` | `safeParse` + 早期 structured error 回傳 |
 | 驗證 | Zod v4 | `z.object()` + `z.iso.datetime()` + `z.coerce.number()` |
-| ID 生成 | `@lib-uuid` | 禁止在 domain 層直接 import `uuid` |
+| ID 生成 | `@infra/uuid` | 禁止在 domain 層直接 import `uuid` |
 
 ---
 

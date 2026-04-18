@@ -14,10 +14,10 @@
 
 掃描後發現 **43 個 domain 聚合根** 與 **6 個 application use-case** 直接呼叫 `crypto.randomUUID()`
 或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
-而非使用已建立的 `@lib-uuid` 套件別名。
+而非使用已建立的 `@infra/uuid` 套件別名。
 
 > 對照：`modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`
-> 是唯一正確使用 `import { v4 as randomUUID } from "@lib-uuid"` 的聚合根。
+> 是唯一正確使用 `import { v4 as randomUUID } from "@infra/uuid"` 的聚合根。
 
 ### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
 
@@ -57,20 +57,20 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 
 1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
 2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
-3. **一致性**：`@lib-uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
-4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@lib-uuid`，但 43 個地方違反了這條規範。
+3. **一致性**：`@infra/uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
+4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@infra/uuid`，但 43 個地方違反了這條規範。
 
 ## Decision
 
-1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@lib-uuid"` 的 `uuid()`。
-2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@lib-uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
+1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@infra/uuid"` 的 `uuid()`。
+2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@infra/uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
 3. **建議 lint rule**：在 `eslint.config.mjs` 中加入 `no-restricted-imports` 規則，禁止 `modules/*/domain/**` 和 `modules/*/application/**` 從 `node:crypto`、`crypto` 直接 import `randomUUID`。
 
 ## Consequences
 
 正面：
 - Domain 層從 Node.js runtime 解耦，可在任意 JS 環境（瀏覽器、Edge、Deno）下執行。
-- UUID 生成策略（v4 → v7 等）只需修改 `@lib-uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
+- UUID 生成策略（v4 → v7 等）只需修改 `@infra/uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
 - 測試不需要全域 crypto polyfill。
 
 代價：
@@ -80,7 +80,7 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 
 **已解決（2026-04-13）**
 
-所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@lib-uuid"`：
+所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@infra/uuid"`：
 
 - **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
 - **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
@@ -94,4 +94,4 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 ## 關聯 ADR
 
 - **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
-- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@lib-uuid`）
+- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@infra/uuid`）

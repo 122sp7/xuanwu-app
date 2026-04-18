@@ -159,7 +159,7 @@ handoffs:
 - `domain/` 匯入 React / React hooks / Next.js
 - `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
 - `domain/` 匯入 ORM / database client
-- `domain/` 直接呼叫 `node:crypto`（必須用 `@lib-uuid`）
+- `domain/` 直接呼叫 `node:crypto`（必須用 `@infra/uuid`）
 - Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
 - Use Case 內含業務 invariant 判斷（應移至 Aggregate）
 - Domain Event 使用現在式命名
@@ -698,7 +698,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - `interfaces/` and `infrastructure/` are outer layers; do not nest them inside a generic `core/`.
 
 Strict rule: `domain/` must never import Firebase, Genkit, React, Node.js `crypto`, HTTP clients, or ORMs.
-Use `@lib-uuid` for UUID generation in domain layers.
+Use `@infra/uuid` for UUID generation in domain layers.
 
 ## 1.2 Port Design
 
@@ -6718,12 +6718,12 @@ ADR 1100 在「違規二」中已標記此問題（`platform/api/infrastructure-
 - Status: Accepted
 - Date: 2026-04-14
 - Category: Architectural Smells > Layer Violation
-- Extends: ADR 1101 (crypto.randomUUID in domain layer → @lib-uuid)
+- Extends: ADR 1101 (crypto.randomUUID in domain layer → @infra/uuid)
 
 ## Context
 
 ADR 1101 解決了 14 個 domain aggregates 和 13 個 application use-cases 中使用
-`crypto.randomUUID()` (Node.js `crypto` 模組) 的問題，將其遷移到 `@lib-uuid`。
+`crypto.randomUUID()` (Node.js `crypto` 模組) 的問題，將其遷移到 `@infra/uuid`。
 
 掃描後發現新的 violation：`notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts`
 在 **application 層** 中直接使用 `globalThis.crypto?.randomUUID`：
@@ -6741,15 +6741,15 @@ export function generateSourceId(): string {
 
 ### 問題分析
 
-1. **繞過 `@lib-uuid` 抽象層**：ADR 4101 確立了 `@lib-uuid` 為全 repo 唯一 UUID 生成策略，
+1. **繞過 `@infra/uuid` 抽象層**：ADR 4101 確立了 `@infra/uuid` 為全 repo 唯一 UUID 生成策略，
    直接使用 `globalThis.crypto?.randomUUID` 破壞了這個集中管理層。
 
 2. **平台耦合**：`globalThis.crypto` 在 Node.js ≥ 19 才穩定，在舊版 Node.js 或某些 SSR 環境中可能為 `undefined`。
-   `@lib-uuid` 的 `v4` 已處理跨環境兼容性。
+   `@infra/uuid` 的 `v4` 已處理跨環境兼容性。
 
 3. **Fallback 邏輯洩入 application 層**：`wbl_${Date.now()}_${Math.random()}` 的 fallback
    表明開發者知道 `globalThis.crypto` 可能不可用，但選擇在 application use-case 中處理此運行環境問題，
-   而不是透過 `@lib-uuid` 統一解決。
+   而不是透過 `@infra/uuid` 統一解決。
 
 4. **Format inconsistency**：生成的 ID 格式非 UUID 標準（`wbl_...` prefix + hex），
    無法與系統其他地方的 UUID 比較，也無法作為 Zod `z.string().uuid()` 驗證的值。
@@ -6758,19 +6758,19 @@ export function generateSourceId(): string {
 
 - **Layer boundary violation**: 直接使用 runtime Web Crypto API 是 infrastructure-level concern，
   不應出現在 application use-case helper 中。
-- **Abstraction bypass**: 繞過 `@lib-uuid` centralized UUID strategy。
+- **Abstraction bypass**: 繞過 `@infra/uuid` centralized UUID strategy。
 - **Non-standard ID format**: fallback 產生 `wbl_...` 格式 ID，不符合 UUID v4 規格。
-- **Polyfill coupling**: application 層手動處理環境兼容性，本應是 `@lib-uuid` 的責任。
+- **Polyfill coupling**: application 層手動處理環境兼容性，本應是 `@infra/uuid` 的責任。
 
 ## Decision
 
-1. 將 `generateSourceId()` 改為使用 `import { v4 as uuid } from "@lib-uuid"`。
+1. 將 `generateSourceId()` 改為使用 `import { v4 as uuid } from "@infra/uuid"`。
 2. 移除 `globalThis.crypto` 直接調用和 fallback 邏輯。
 3. 統一 ID 格式為標準 UUID v4（與系統其他 entity ID 一致）。
 
 ```typescript
 // After fix
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 
 export function generateSourceId(): string {
   return uuid();
@@ -6789,7 +6789,7 @@ export function generateSourceId(): string {
 ## 關聯 ADR
 
 - **ADR 1101** (Layer Violation — crypto.randomUUID in domain layer) — 先驅修復
-- **ADR 4101** (Change Amplification — UUID strategy → @lib-uuid) — 規範根源
+- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
 - **ADR 1100** (Layer Violation) — 系列入口文件
 ````
 
@@ -7727,14 +7727,14 @@ Domain 聚合根直接呼叫 `crypto.randomUUID()` 或 `import { randomUUID } fr
 掃描結果（見 ADR 1101）：
 - **43 個 domain aggregates** 直接使用 `crypto.randomUUID()` global
 - **6 個 application use-cases** 使用 `node:crypto` 直接 import
-- **唯一正確範例**：`OrganizationTeam.ts` 使用 `import { v4 as randomUUID } from "@lib-uuid"`
+- **唯一正確範例**：`OrganizationTeam.ts` 使用 `import { v4 as randomUUID } from "@infra/uuid"`
 
 ### 耦合層次分析
 
 | 耦合類型 | 耦合目標 | 解耦策略 |
 |----------|----------|----------|
-| `crypto` global | Node.js / Web Crypto API global 物件 | 使用 `@lib-uuid` 套件（跨環境相容）|
-| `node:crypto` import | Node.js 特定模組（有 `node:` 協議） | 使用 `@lib-uuid` 或注入 port |
+| `crypto` global | Node.js / Web Crypto API global 物件 | 使用 `@infra/uuid` 套件（跨環境相容）|
+| `node:crypto` import | Node.js 特定模組（有 `node:` 協議） | 使用 `@infra/uuid` 或注入 port |
 | `randomBytes` | 加密強度隨機（Node.js-only） | 若 domain 真需要，定義 port，由 infra 提供 |
 
 ### Runtime Coupling 的具體風險
@@ -7752,15 +7752,15 @@ Vitest/Jest 的 `jsdom` 環境中：
 - `crypto.randomUUID()` global 在較舊版本可能未定義，需要 polyfill。
 - `node:crypto` 在 `browser` mode 的測試中不可用。
 
-`@lib-uuid` 封裝了這些差異，提供統一接口。
+`@infra/uuid` 封裝了這些差異，提供統一接口。
 
-### 為何選擇 `@lib-uuid` 而非直接用 crypto
+### 為何選擇 `@infra/uuid` 而非直接用 crypto
 
 ```
-packages/lib-uuid/  ← @lib-uuid 套件（已存在）
+packages/infra/uuid/  ← @infra/uuid 套件（已存在）
 ```
 
-`@lib-uuid` 是本 repo 已建立的跨環境 UUID 工具套件，
+`@infra/uuid` 是本 repo 已建立的跨環境 UUID 工具套件，
 存在的意義就是作為 domain 對 UUID 生成能力的抽象，
 隱藏底層是 `uuid` npm 包、Web Crypto 還是 Node.js crypto 的實作細節。
 
@@ -7780,9 +7780,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 ## Decision
 
-1. **所有 domain aggregates 改用 `@lib-uuid`**：  
-   `crypto.randomUUID()` → `import { v4 as uuid } from "@lib-uuid"` then `uuid()`
-2. **application use-cases 的 `randomUUID` 同樣改用 `@lib-uuid`**  
+1. **所有 domain aggregates 改用 `@infra/uuid`**：  
+   `crypto.randomUUID()` → `import { v4 as uuid } from "@infra/uuid"` then `uuid()`
+2. **application use-cases 的 `randomUUID` 同樣改用 `@infra/uuid`**  
 3. **`randomBytes` 用於 storage path**：定義 `StoragePathGeneratorPort` 或 `UniqueTokenPort`，由 infrastructure 提供實作；或在 infrastructure adapter 層直接使用 `node:crypto`（不進入 application）。
 4. **建議 ESLint rule**（同 ADR 1101）：限制 domain 和 application 層從 `node:crypto` 直接 import。
 
@@ -7790,7 +7790,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 正面：
 - Domain 可在 Edge Runtime、browser、Node.js 任意環境下執行。
-- 若未來升級 UUID 版本（v7 有時間排序優勢），只需修改 `@lib-uuid` 一處。
+- 若未來升級 UUID 版本（v7 有時間排序優勢），只需修改 `@infra/uuid` 一處。
 
 代價：
 - 14 個 domain aggregates + 13 個 application use-cases + 7 個 infra/interfaces 文件需要機械性 import 替換（無邏輯變更）。
@@ -7799,7 +7799,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 **已解決（2026-04-13）**
 
-與 ADR 1101 同步解決。所有 `crypto.randomUUID()` 和 `import { randomUUID } from "node:crypto"` 已替換為 `import { v4 as uuid } from "@lib-uuid"`。Domain 層現在完全 runtime-agnostic，可在 Edge Runtime、browser、Node.js 任意環境下執行。
+與 ADR 1101 同步解決。所有 `crypto.randomUUID()` 和 `import { randomUUID } from "node:crypto"` 已替換為 `import { v4 as uuid } from "@infra/uuid"`。Domain 層現在完全 runtime-agnostic，可在 Edge Runtime、browser、Node.js 任意環境下執行。
 
 ### 原始證據修正
 
@@ -7808,7 +7808,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 ## 關聯 ADR
 
 - **1101**：這是層次違規的同一實例（同步解決）
-- **4101**：UUID 策略分散 = Change Amplification（解決後策略集中於 `@lib-uuid`）
+- **4101**：UUID 策略分散 = Change Amplification（解決後策略集中於 `@infra/uuid`）
 ````
 
 ## File: docs/decisions/2200-hidden-coupling.md
@@ -8644,28 +8644,28 @@ modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts (4 
 
 ### 對比正確模式
 
-`@lib-uuid` 套件（已存在）是 UUID 生成的集中點：
+`@infra/uuid` 套件（已存在）是 UUID 生成的集中點：
 
 ```
-packages/lib-uuid/     ← 唯一需要修改的地方
+packages/infra/uuid/     ← 唯一需要修改的地方
   index.ts              ← 改這一個文件
 ```
 
-若全部 aggregates 使用 `@lib-uuid`，UUID 策略升級只需修改 `packages/lib-uuid/index.ts`，
+若全部 aggregates 使用 `@infra/uuid`，UUID 策略升級只需修改 `packages/infra/uuid/index.ts`，
 所有 43 個 aggregates 自動受益，**0 個 domain 文件需要修改**。
 
 ### 其他 UUID 策略變更場景
 
 1. **加入 trace context 到 eventId**：`eventId: traceId + '-' + uuid()` — 修改 49 個文件 vs 修改 1 個
-2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@lib-uuid`
+2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@infra/uuid`
 3. **冪等 ID（基於內容雜湊）**：某些 aggregate 決定改用 content-hash ID — 需要知道哪些文件使用了 randomUUID
 
 ## Decision
 
-1. **`@lib-uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
+1. **`@infra/uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
 2. **Change Control Point 原則**：任何「跨多個 domain 文件使用的基礎設施能力」（UUID、時間戳、雜湊、亂數）必須集中在 `packages/lib-*/` 或 port/adapter 中，禁止在 domain 層直接調用。
 3. **記錄已知的 Change Amplification 風險點**：
-   - UUID 生成 → 遷移至 `@lib-uuid`（本 ADR）
+   - UUID 生成 → 遷移至 `@infra/uuid`（本 ADR）
    - `new Date().toISOString()` 在 domain aggregates 中（尚未系統掃描）— 應集中到 `@lib-datetime` 或 Clock port
 
 ## Consequences
@@ -8681,7 +8681,7 @@ packages/lib-uuid/     ← 唯一需要修改的地方
 
 **已解決（2026-04-13）**
 
-所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@lib-uuid`。UUID 策略升級現在只需修改 `packages/lib-uuid/index.ts` 一處。
+所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@infra/uuid`。UUID 策略升級現在只需修改 `packages/infra/uuid/index.ts` 一處。
 
 ### 原始證據修正
 
@@ -8788,23 +8788,23 @@ workspace 和 notebooklm 已採用 `api/ui.ts` / `api/server.ts` 的分離方式
 ## Context
 
 ADR 4101（`v4 as uuid` in domain layer）確立了 domain 層和 application 層統一使用
-`import { v4 as uuid } from "@lib-uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
+`import { v4 as uuid } from "@infra/uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
 
 掃描 domain 層 UUID 使用情況：
 
 ```
 # domain aggregates（全部使用 v4）
-Account.ts:             import { v4 as uuid } from "@lib-uuid"
-Organization.ts:        import { v4 as uuid } from "@lib-uuid"
-KnowledgePage.ts:       import { v4 as uuid } from "@lib-uuid"
-Article.ts:             import { v4 as uuid } from "@lib-uuid"
-KnowledgeCollection.ts: import { v4 as uuid } from "@lib-uuid"
-EntitlementGrant.ts:    import { v4 as uuid } from "@lib-uuid"
-Workspace.ts:           import { v4 as uuid } from "@lib-uuid"
+Account.ts:             import { v4 as uuid } from "@infra/uuid"
+Organization.ts:        import { v4 as uuid } from "@infra/uuid"
+KnowledgePage.ts:       import { v4 as uuid } from "@infra/uuid"
+Article.ts:             import { v4 as uuid } from "@infra/uuid"
+KnowledgeCollection.ts: import { v4 as uuid } from "@infra/uuid"
+EntitlementGrant.ts:    import { v4 as uuid } from "@infra/uuid"
+Workspace.ts:           import { v4 as uuid } from "@infra/uuid"
 # ... (全部 16 個已確認的 domain aggregate files 使用 v4)
 
 # domain event factory（例外）
-workspace/domain/events/workspace.events.ts:  import { v7 } from "@lib-uuid"  ← ❌
+workspace/domain/events/workspace.events.ts:  import { v7 } from "@infra/uuid"  ← ❌
 ```
 
 `workspace/domain/events/workspace.events.ts` 是 **repo 中唯一在 domain 層使用 UUID v7 的文件**。
@@ -8828,7 +8828,7 @@ UUID v7 的時序排序特性在某些場景（如 QStash event ordering、Fires
 
 ```typescript
 // modules/workspace/domain/events/workspace.events.ts
-import { v7 } from "@lib-uuid";
+import { v7 } from "@infra/uuid";
 
 export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEvent {
   return {
@@ -8849,7 +8849,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
    **選項 A：改回 v4（推薦）**
    - 修改 `workspace/domain/events/workspace.events.ts`：
      ```typescript
-     import { v4 as uuid } from "@lib-uuid";
+     import { v4 as uuid } from "@infra/uuid";
      // ...
      eventId: uuid(),
      ```
@@ -8869,7 +8869,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
 ## Consequences
 
 正面（選項 A）：
-- domain 層 UUID 使用方式完全一致，`grep "@lib-uuid" modules/` 全部回傳 `v4 as uuid`。
+- domain 層 UUID 使用方式完全一致，`grep "@infra/uuid" modules/` 全部回傳 `v4 as uuid`。
 - 沒有額外的文件或規則例外需要維護。
 
 代價（選項 A）：
@@ -8884,7 +8884,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
 
 ## Resolution
 
-Replaced `import { v7 } from "@lib-uuid"` with `import { v4 as uuid } from "@lib-uuid"` in `workspace/domain/events/workspace.events.ts`.
+Replaced `import { v7 } from "@infra/uuid"` with `import { v4 as uuid } from "@infra/uuid"` in `workspace/domain/events/workspace.events.ts`.
 All three factory functions (`createWorkspaceCreatedEvent`, `createWorkspaceLifecycleTransitionedEvent`, `createWorkspaceVisibilityChangedEvent`) now use `uuid()` (v4).
 Full repo domain-layer UUID strategy is now consistent.
 ````
@@ -8904,7 +8904,7 @@ ADR 4202 修正了 `workspace/domain/events/workspace.events.ts` 中的 UUID v7 
 使該檔案符合全 repo domain 層使用 v4 的規範。
 
 然而，掃描 `application/` 與 `infrastructure/` 層後發現，更大範圍的 v7 使用問題仍然存在：
-23 個檔案中將 `import { v7 as generateId } from "@lib-uuid"` 用於 entity/document ID 生成，
+23 個檔案中將 `import { v7 as generateId } from "@infra/uuid"` 用於 entity/document ID 生成，
 部分甚至在 **application use-case** 層（理論上應與 UUID strategy 無關的業務流程層）。
 
 ### 違規清單（23 個檔案）
@@ -9015,7 +9015,7 @@ ADR 4202 只針對 domain event factory 函數中的 eventId 生成（`uuid()` �
 ## 關聯 ADR
 
 - **ADR 4202** (Inconsistency — UUID v7 in workspace.events.ts) — 先驅修復
-- **ADR 4101** (Change Amplification — UUID strategy → @lib-uuid) — 規範根源
+- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
 - **ADR 4200** (Inconsistency) — 系列入口文件
 ````
 
@@ -10361,7 +10361,7 @@ flowchart LR
 | ID | File | Title | Status |
 |----|------|-------|--------|
 | 1100 | [1100-layer-violation.md](./1100-layer-violation.md) | Layer Violation — `interfaces/api/` 子目錄與 Firebase SDK 在 `api/` 層 | Accepted |
-| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @lib-uuid） | **Resolved** |
+| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @infra/uuid） | **Resolved** |
 | 1102 | [1102-layer-violation-ports-in-application.md](./1102-layer-violation-ports-in-application.md) | Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`（部分解決） | Accepted |
 | 1103 | [1103-layer-violation-firebase-sdk-in-api-layer.md](./1103-layer-violation-firebase-sdk-in-api-layer.md) | Layer Violation — Firebase SDK（`collectionGroup` 等）直接出現在 `platform/api/infrastructure-api.ts` | Accepted |
 | 1104 | [1104-layer-violation-globalthis-crypto-in-application-layer.md](./1104-layer-violation-globalthis-crypto-in-application-layer.md) | Layer Violation — `globalThis.crypto?.randomUUID` 出現在 `notebooklm/application/use-cases/wiki-library.helpers.ts` | Accepted |
@@ -10374,7 +10374,7 @@ flowchart LR
 | 1403 | [1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md](./1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md) | Dependency Leakage — 4 個 platform subdomain api/index.ts 使用 `export * from "../interfaces"` 洩漏 React UI 元件與 server actions | Accepted |
 | 1404 | [1404-dependency-leakage-subdomain-api-exports-application-wildcard.md](./1404-dependency-leakage-subdomain-api-exports-application-wildcard.md) | Dependency Leakage — 11 個 subdomain `api/index.ts` 使用 `export * from "../application"` 洩漏 use-case classes | Accepted |
 | 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | Accepted |
-| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @lib-uuid | **Resolved** |
+| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @infra/uuid | **Resolved** |
 | 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
 | 2201 | [2201-hidden-coupling-workspace-aggregate-no-domain-events.md](./2201-hidden-coupling-workspace-aggregate-no-domain-events.md) | Hidden Coupling — `Workspace` 聚合根未內部收集 Domain Events，事件由 use-case 外部組裝 | Accepted |
 | 2300 | [2300-temporal-coupling.md](./2300-temporal-coupling.md) | Temporal Coupling | Accepted |
@@ -10385,7 +10385,7 @@ flowchart LR
 | 3202 | [3202-duplication-source-dto-reimplements-domain-service.md](./3202-duplication-source-dto-reimplements-domain-service.md) | Duplication — Source DTO re-implements domain service logic | **Resolved** |
 | 3203 | [3203-duplication-shell-quick-create-orphaned-platform-copy.md](./3203-duplication-shell-quick-create-orphaned-platform-copy.md) | Duplication — 兩個 `shell-quick-create` 實作（platform/application 版本孤兒化，無消費者） | **Resolved** |
 | 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | Accepted |
-| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @lib-uuid | **Resolved** |
+| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @infra/uuid | **Resolved** |
 | 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
 | 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | **Resolved** |
 | 4202 | [4202-inconsistency-uuid-v7-in-workspace-domain-events.md](./4202-inconsistency-uuid-v7-in-workspace-domain-events.md) | Inconsistency — `workspace/domain/events/workspace.events.ts` 使用 UUID v7，全 repo domain 層均為 v4 | **Resolved** |
@@ -13381,7 +13381,7 @@ async listParsedDocuments(accountId: string, limitCount: number): Promise<Knowle
  * Firestore collection: ragQueryFeedback/{autoId}
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 ⋮----
 import type { RagQueryFeedbackRepository } from "../../../subdomains/synthesis/domain/repositories/RagQueryFeedbackRepository";
@@ -13610,7 +13610,7 @@ export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: s
 ## File: modules/notebooklm/interfaces/conversation/hooks/useAiChatThread.ts
 ````typescript
 import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
+import { v7 as uuid } from "@infra/uuid";
 ⋮----
 import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
 import {
@@ -13677,7 +13677,7 @@ export function makeNotebookRepo()
 
 ## File: modules/notebooklm/interfaces/source/_actions/source-file.actions.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
@@ -13924,7 +13924,7 @@ onDrop(
 
 ## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { useRef, useState } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14943,7 +14943,7 @@ async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentRes
  * also callable directly when a document is registered without the upload-init flow.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
 import type {
@@ -15041,7 +15041,7 @@ async execute(
  * RagDocument without creating a duplicate.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
 import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
@@ -15087,7 +15087,7 @@ async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFi
  */
 ⋮----
 import { randomBytes } from "node:crypto";
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { SourceFile } from "../../domain/entities/SourceFile";
 import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
@@ -15970,7 +15970,7 @@ export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20)
  * - Dependencies typed against interfaces, not concrete classes.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
 import type {
@@ -16951,7 +16951,7 @@ export interface RagPrompt {
 
 ## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RelevanceScore.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type RelevanceScore = z.infer<typeof RelevanceScoreSchema>;
 ⋮----
@@ -16960,7 +16960,7 @@ export function createRelevanceScore(raw: number): RelevanceScore
 
 ## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/TopK.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type TopK = z.infer<typeof TopKSchema>;
 ⋮----
@@ -17379,7 +17379,7 @@ async delete(accountId: string, categoryId: string): Promise<void>
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { CommentSnapshot, SelectionRange } from "../../../subdomains/collaboration/domain/aggregates/Comment";
 import type {
   CommentRepository,
@@ -17421,7 +17421,7 @@ subscribe(accountId: string, contentId: string, onUpdate: (comments: CommentSnap
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../../subdomains/collaboration/domain/aggregates/Permission";
 import type { PermissionRepository, GrantPermissionInput } from "../../../subdomains/collaboration/domain/repositories/PermissionRepository";
 ⋮----
@@ -17451,7 +17451,7 @@ async listBySubject(accountId: string, subjectId: string): Promise<PermissionSna
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { VersionSnapshot } from "../../../subdomains/collaboration/domain/aggregates/Version";
 import type { VersionRepository, CreateVersionInput } from "../../../subdomains/collaboration/domain/repositories/VersionRepository";
 ⋮----
@@ -17527,7 +17527,7 @@ async listOutboundTargets(accountId: string, sourcePageId: string): Promise<Read
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as _generateId } from "@lib-uuid";
+import { v7 as _generateId } from "@infra/uuid";
 import { ContentBlock } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
 import type { ContentBlockRepository } from "../../../subdomains/knowledge/domain/repositories/ContentBlockRepository";
@@ -17602,7 +17602,7 @@ async listByWorkspaceId(accountId: string, workspaceId: string): Promise<Knowled
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as _generateId } from "@lib-uuid";
+import { v7 as _generateId } from "@infra/uuid";
 import { KnowledgePage } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
 import type { KnowledgePageSnapshot } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
 import type { KnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgePageRepository";
@@ -17742,7 +17742,7 @@ import {
   VerifyArticleUseCase,
   RequestArticleReviewUseCase,
 } from "../../../subdomains/authoring/application/use-cases/verify-article.use-cases";
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import type {
   CreateArticleSchema,
   UpdateArticleSchema,
@@ -17786,7 +17786,7 @@ import {
   MoveCategoryUseCase,
   DeleteCategoryUseCase,
 } from "../../../subdomains/authoring/application/use-cases/manage-category.use-cases";
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import type {
   CreateCategorySchema,
   RenameCategorySchema,
@@ -18662,7 +18662,7 @@ export async function getKnowledgeCollections(accountId: string): Promise<Knowle
  *          Manages optimistic block operations before persistence.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { create } from "zustand";
 import type { BlockContent } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 ⋮----
@@ -18956,7 +18956,7 @@ export type CategoryId = string;
  * Purpose: Zod schemas for Article CQRS inputs.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/authoring.dto.ts
@@ -18975,7 +18975,7 @@ import { z } from "@lib-zod";
  * Purpose: Zod schemas for Category CQRS inputs.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/index.ts
@@ -18996,9 +18996,9 @@ import { z } from "@lib-zod";
  * Purpose: Article lifecycle use cases ??create, update, archive, delete.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { Article } from "../../domain/aggregates/Article";
 import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
 import {
@@ -19035,7 +19035,7 @@ async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult
  * Purpose: Article publication use case.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { Article } from "../../domain/aggregates/Article";
 import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
@@ -19056,9 +19056,9 @@ async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResul
  * Purpose: Category use cases ??create, rename, move, delete.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { Category } from "../../domain/aggregates/Category";
 import type { CategoryRepository } from "../../domain/repositories/CategoryRepository";
 import {
@@ -19095,7 +19095,7 @@ async execute(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResul
  * Purpose: Article verification use cases ??verify and request review.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { Article } from "../../domain/aggregates/Article";
 import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
@@ -19120,7 +19120,7 @@ async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<Comman
  * Purpose: Article aggregate root — lifecycle, publication, and verification of KB articles.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 ⋮----
 export type ArticleStatus = "draft" | "published" | "archived";
@@ -19462,7 +19462,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
  * Purpose: Zod schemas and DTO types for comment, version, and permission operations.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ── Comment ───────────────────────────────────────────────────────────────────
 ⋮----
@@ -19991,7 +19991,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
  * Purpose: Zod-validated input schemas for ContentBlock use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
 ⋮----
 export type BlockContentDto = z.infer<typeof BlockContentSchema>;
@@ -20020,7 +20020,7 @@ export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>
  * Purpose: Zod-validated input schemas for KnowledgeCollection use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
 ⋮----
@@ -20047,7 +20047,7 @@ export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeColle
  * Purpose: Zod-validated input schemas for KnowledgePage use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
 ⋮----
@@ -20072,7 +20072,7 @@ export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSch
  * Purpose: Zod-validated input schemas for knowledge page lifecycle use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
 ⋮----
@@ -20113,7 +20113,7 @@ async execute(accountId: string, targetPageId: string): Promise<BacklinkIndexSna
 ## File: modules/notion/subdomains/knowledge/application/queries/content-block.queries.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { ContentBlock } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockRepository } from "../../domain/repositories/ContentBlockRepository";
@@ -20226,7 +20226,7 @@ async execute(_accountId: string, _pageId: string): Promise<never[]>
 ## File: modules/notion/subdomains/knowledge/application/use-cases/manage-knowledge-collection.use-cases.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
 import type { CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
 import type { KnowledgeCollectionRepository } from "../../domain/repositories/KnowledgeCollectionRepository";
@@ -20305,7 +20305,7 @@ async execute(input: UpdatePageCoverDto): Promise<CommandResult>
  */
 ⋮----
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
 import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
@@ -20356,7 +20356,7 @@ async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult>
  */
 ⋮----
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
 import {
@@ -20442,7 +20442,7 @@ getSnapshot(): Readonly<BacklinkIndexSnapshot>
  * Purpose: ContentBlock aggregate root — atomic content unit inside a Page.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { BlockContent } from "../value-objects/BlockContent";
 import { richTextToPlainText } from "../value-objects/BlockContent";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
@@ -20517,7 +20517,7 @@ pullDomainEvents(): NotionDomainEvent[]
  * Purpose: KnowledgeCollection aggregate root — named grouping / database-view of pages.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 ⋮----
 export type CollectionColumnType =
@@ -20612,7 +20612,7 @@ pullDomainEvents(): NotionDomainEvent[]
  *          static factory methods, business methods, and domain events.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 ⋮----
 export interface KnowledgePageSnapshot {
@@ -21151,7 +21151,7 @@ extractMentions(
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/ApprovalState.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type ApprovalState = z.infer<typeof ApprovalStateSchema>;
 ````
@@ -21250,7 +21250,7 @@ export function plainTextBlockContent(text: string, type: BlockType = "text"): B
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/BlockId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type BlockId = z.infer<typeof BlockIdSchema>;
 ⋮----
@@ -21261,7 +21261,7 @@ export function unsafeBlockId(id: string): BlockId
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/CollectionId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CollectionId = z.infer<typeof CollectionIdSchema>;
 ⋮----
@@ -21277,7 +21277,7 @@ export function unsafeCollectionId(id: string): CollectionId
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/PageId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type PageId = z.infer<typeof PageIdSchema>;
 ⋮----
@@ -21288,14 +21288,14 @@ export function unsafePageId(id: string): PageId
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/PageStatus.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type PageStatus = z.infer<typeof PageStatusSchema>;
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/VerificationState.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type VerificationState = z.infer<typeof VerificationStateSchema>;
 ````
@@ -21378,7 +21378,7 @@ export interface RelationDto {
 
 ## File: modules/notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Module: notion/subdomains/relations
  * Layer: application/use-cases
@@ -21635,7 +21635,7 @@ export interface TaxonomyNodeDto {
 
 ## File: modules/notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Module: notion/subdomains/taxonomy
  * Layer: application/use-cases
@@ -22881,7 +22881,7 @@ export function buildCausationId(triggeringId: string): string
 
 ## File: modules/platform/application/services/build-correlation-id.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * buildCorrelationId — generate a new UUID v4 correlation identifier.
  *
@@ -27066,7 +27066,7 @@ async execute(recipientId: string): Promise<CommandResult>
 
 ## File: modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type {
   NotificationDomainEventType,
   NotificationDispatchedEvent,
@@ -27225,7 +27225,7 @@ getUnreadCount(recipientId: string): Promise<number>;
 
 ## File: modules/platform/subdomains/notification/domain/value-objects/NotificationId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type NotificationId = z.infer<typeof NotificationIdSchema>;
 ⋮----
@@ -28197,7 +28197,7 @@ export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
 
 ## File: modules/workspace/domain/events/workspace.events.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { DomainEvent } from "@shared-types";
 ⋮----
 import type {
@@ -28516,7 +28516,7 @@ delete(id: string): Promise<void>;
 
 ## File: modules/workspace/domain/value-objects/Address.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type Address = z.infer<typeof AddressSchema>;
 export type AddressInput = z.input<typeof AddressSchema>;
@@ -28533,7 +28533,7 @@ export function formatAddress(address: Address): string[]
 
 ## File: modules/workspace/domain/value-objects/WorkspaceLifecycleState.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WorkspaceLifecycleState = z.infer<typeof WorkspaceLifecycleStateSchema>;
 export type WorkspaceLifecycleStateInput = z.input<typeof WorkspaceLifecycleStateSchema>;
@@ -28554,7 +28554,7 @@ export function isTerminalWorkspaceLifecycleState(
 
 ## File: modules/workspace/domain/value-objects/WorkspaceName.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
 export type WorkspaceNameInput = z.input<typeof WorkspaceNameSchema>;
@@ -28566,7 +28566,7 @@ export function workspaceNameEquals(left: WorkspaceName, right: WorkspaceName): 
 
 ## File: modules/workspace/domain/value-objects/WorkspaceVisibility.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WorkspaceVisibility = z.infer<typeof WorkspaceVisibilitySchema>;
 export type WorkspaceVisibilityInput = z.input<typeof WorkspaceVisibilitySchema>;
@@ -28695,7 +28695,7 @@ const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) =>
  * Firebase SDK only exists in this file.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
@@ -29912,7 +29912,7 @@ export function getWorkspaceStorageKey(accountId: string): string
 
 ## File: modules/workspace/interfaces/web/state/workspace-settings.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { WorkspaceEntity } from "../../contracts";
 ⋮----
 export interface WorkspaceCustomRoleDraft {
@@ -30107,7 +30107,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { AuditLogSource } from "../entities/AuditLog";
 import type { AuditDomainEventType } from "../events";
 import type { AuditAction } from "../schema";
@@ -30308,7 +30308,7 @@ findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogE
  * Audit subdomain schema — immutable operation records.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 import { BaseEntitySchema } from "@shared-types";
 ⋮----
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -30353,7 +30353,7 @@ record(id: string, input: RecordAuditEntryInput): AuditEntry
 
 ## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 /**
  * ActorId — receives platform's "actor reference" published language token.
@@ -30376,7 +30376,7 @@ export function unsafeActorId(raw: string): ActorId
 
 ## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 import { AUDIT_ACTIONS } from "../schema";
 ⋮----
@@ -30389,7 +30389,7 @@ export function unsafeAuditAction(raw: string): AuditAction
 
 ## File: modules/workspace/subdomains/audit/domain/value-objects/AuditSeverity.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 import { AUDIT_SEVERITIES } from "../schema";
 ⋮----
@@ -30413,7 +30413,7 @@ export function isAtLeast(severity: AuditSeverity, threshold: AuditSeverity): bo
 
 ## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
@@ -30646,7 +30646,7 @@ async getAccountFeed(accountId: string, maxRows = 50): Promise<WorkspaceFeedPost
 
 ## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 /**
  * Application-layer DTO re-exports for the feed subdomain.
@@ -30921,7 +30921,7 @@ share(accountId: string, postId: string, actorAccountId: string): Promise<void>;
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
 ⋮----
@@ -30951,7 +30951,7 @@ async share(accountId: string, postId: string, actorAccountId: string): Promise<
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type {
   CreateWorkspaceFeedPostInput,
@@ -31598,7 +31598,7 @@ export function makeDemandRepo()
  * Purpose: Zod validation schemas for WorkDemand commands.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CreateDemandInput = z.infer<typeof CreateDemandSchema>;
 ⋮----
@@ -31639,7 +31639,7 @@ export interface AssignMemberInput {
 
 ## File: modules/workspace/subdomains/scheduling/application/use-cases/work-demand.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Module: workspace/subdomains/scheduling
  * Layer: application/use-cases
@@ -32736,7 +32736,7 @@ import axios from "axios";
 // React Virtual
 ````
 
-## File: packages/lib-uuid/index.ts
+## File: packages/infra/uuid/index.ts
 ````typescript
 /**
  * @module libs/uuid
@@ -32899,7 +32899,7 @@ export type Graph2dOptions = InstanceType<Graph2dClass> extends { setOptions(opt
 // ── React hooks (Client Component only) ───────────────────────────────────
 ````
 
-## File: packages/lib-zod/index.ts
+## File: packages/infra/uuid/index.ts
 ````typescript
 /**
  * @module libs/zod
@@ -33127,7 +33127,7 @@ clear(): void
 
 ## File: packages/shared-types/index.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ─── Domain Event base interface ─────────────────────────────────────────────
 ⋮----
@@ -36516,8 +36516,8 @@ import tailwindcssAnimate from 'tailwindcss-animate';
       "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
       "@ui-vis": ["./packages/ui-vis/index.ts"],
       "@lib-date-fns": ["./packages/lib-date-fns/index.ts"],
-      "@lib-zod": ["./packages/lib-zod/index.ts"],
-      "@lib-uuid": ["./packages/lib-uuid/index.ts"],
+      "@infra/uuid": ["./packages/infra/uuid/index.ts"],
+      "@infra/uuid": ["./packages/infra/uuid/index.ts"],
       "@lib-zustand": ["./packages/lib-zustand/index.ts"],
       "@lib-xstate": ["./packages/lib-xstate/index.ts"],
       "@lib-tanstack": ["./packages/lib-tanstack/index.ts"],
@@ -41887,7 +41887,7 @@ async extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>
 
 ## File: modules/ai/infrastructure/genkit/GenkitToolRuntimeAdapter.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 ⋮----
 import type {
   ToolDescriptor,
@@ -41947,7 +41947,7 @@ import { googleAI } from "@genkit-ai/google-genai";
 
 ## File: modules/ai/infrastructure/llm/GenkitDistillationAdapter.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { z } from "genkit";
 ⋮----
 import {
@@ -42769,7 +42769,7 @@ export function resolveOrganizationRouteFallback(
 
 ## File: modules/iam/subdomains/access-control/application/use-cases/access-control.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Access-Control Use Cases — pure application logic.
  */
@@ -42834,7 +42834,7 @@ async execute(policyId: string): Promise<CommandResult>
 
 ## File: modules/iam/subdomains/access-control/domain/aggregates/AccessPolicy.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
 import type { SubjectRef } from "../value-objects/SubjectRef";
 import type { ResourceRef } from "../value-objects/ResourceRef";
@@ -42989,7 +42989,7 @@ export function isAllow(effect: PolicyEffect): boolean
 
 ## File: modules/iam/subdomains/access-control/domain/value-objects/ResourceRef.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type ResourceRef = z.infer<typeof ResourceRefSchema>;
 ⋮----
@@ -43002,7 +43002,7 @@ export function createResourceRef(
 
 ## File: modules/iam/subdomains/access-control/domain/value-objects/SubjectRef.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type SubjectRef = z.infer<typeof SubjectRefSchema>;
 ⋮----
@@ -43292,7 +43292,7 @@ async execute(actorId: string, input: UpdateAccountProfileInput): Promise<Comman
 
 ## File: modules/iam/subdomains/account/domain/aggregates/Account.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { AccountDomainEventType } from "../events";
 import { canClose, canReactivate, canSuspend } from "../value-objects";
 import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
@@ -43530,7 +43530,7 @@ export interface UpdatePolicyInput {
  * Domain boundary: iam/account
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 import type { AccountEntity } from "./Account";
 ⋮----
@@ -43790,7 +43790,7 @@ getRole(accountId: string): Promise<AccountRoleRecord | null>;
 
 ## File: modules/iam/subdomains/account/domain/value-objects/AccountId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type AccountId = z.infer<typeof AccountIdSchema>;
 ⋮----
@@ -43810,7 +43810,7 @@ export function canReactivate(status: AccountStatus): boolean
 
 ## File: modules/iam/subdomains/account/domain/value-objects/AccountType.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 ⋮----
@@ -43824,7 +43824,7 @@ export function createAccountType(raw: string): AccountType
 
 ## File: modules/iam/subdomains/account/domain/value-objects/WalletAmount.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WalletAmount = z.infer<typeof WalletAmountSchema>;
 ⋮----
@@ -44321,7 +44321,7 @@ async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): 
 
 ## File: modules/iam/subdomains/identity/domain/aggregates/UserIdentity.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { IdentityDomainEventType } from "../events";
 import { canReactivate, canSuspend } from "../value-objects";
 import { createDisplayName, createEmail, createUserId } from "../value-objects";
@@ -44553,7 +44553,7 @@ subscribe(accountId: string, onSignal: ()
 
 ## File: modules/iam/subdomains/identity/domain/value-objects/DisplayName.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type DisplayName = z.infer<typeof DisplayNameSchema>;
 ⋮----
@@ -44562,7 +44562,7 @@ export function createDisplayName(raw: string): DisplayName
 
 ## File: modules/iam/subdomains/identity/domain/value-objects/Email.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type Email = z.infer<typeof EmailSchema>;
 ⋮----
@@ -44587,7 +44587,7 @@ export function canReactivate(status: IdentityStatus): boolean
 
 ## File: modules/iam/subdomains/identity/domain/value-objects/UserId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type UserId = z.infer<typeof UserIdSchema>;
 ⋮----
@@ -45031,7 +45031,7 @@ async execute(organizationId: string, teamId: string, memberId: string, action: 
 
 ## File: modules/iam/subdomains/organization/domain/aggregates/Organization.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { OrganizationDomainEventType } from "../events/OrganizationDomainEvent";
 import type { ThemeConfig } from "../entities/Organization";
 import {
@@ -45126,7 +45126,7 @@ private static assertRequired(value: string, message: string): void
  * Event discriminants use "iam.organization.*" prefix.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 import type { TeamId } from "../value-objects/TeamId";
 import type { TeamType } from "../value-objects/TeamType";
 import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";
@@ -45421,7 +45421,7 @@ export type OrganizationDomainEventType =
  * Naming: past-tense, format `iam.organization.<action>`.
  * occurredAt: ISO 8601 string (not Date) per event convention.
  */
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ── OrganizationTeamCreated ──────────────────────────────────────────────────
 ⋮----
@@ -45577,7 +45577,7 @@ getPolicies(orgId: string): Promise<OrgPolicy[]>;
 
 ## File: modules/iam/subdomains/organization/domain/value-objects/MemberRole.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type MemberRole = z.infer<typeof MemberRoleSchema>;
 ⋮----
@@ -45588,7 +45588,7 @@ export function canManageRole(managerRole: MemberRole, targetRole: MemberRole): 
 
 ## File: modules/iam/subdomains/organization/domain/value-objects/OrganizationId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type OrganizationId = z.infer<typeof OrganizationIdSchema>;
 ⋮----
@@ -45611,7 +45611,7 @@ export function canReactivate(status: OrganizationStatus): boolean
 /**
  * TeamId — branded value object for OrganizationTeam identity.
  */
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type TeamId = z.infer<typeof TeamIdSchema>;
 ⋮----
@@ -45626,7 +45626,7 @@ export function createTeamId(raw: string): TeamId
  * - internal: members belong to the same Organization
  * - external: members include partner/guest actors outside the Organization
  */
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type TeamType = z.infer<typeof TeamTypeSchema>;
 ````
@@ -46816,7 +46816,7 @@ async distill(input: DistillSourcesInput): Promise<DistilledContent>
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type {
   DatabaseAutomationSnapshot,
@@ -46858,7 +46858,7 @@ async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAut
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { DatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../../subdomains/knowledge-database/domain/repositories/DatabaseRecordRepository";
 import type { DatabaseRecordSnapshot } from "../../../subdomains/knowledge-database/domain/aggregates/DatabaseRecord";
 ⋮----
@@ -46943,7 +46943,7 @@ async listByWorkspace(accountId: string, workspaceId: string): Promise<DatabaseS
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { ViewRepository, CreateViewInput, UpdateViewInput } from "../../../subdomains/knowledge-database/domain/repositories/ViewRepository";
 import type { ViewSnapshot } from "../../../subdomains/knowledge-database/domain/aggregates/View";
 ⋮----
@@ -47744,7 +47744,7 @@ readonly occurredAt: string; // ISO 8601 string
  * Purpose: Zod validation schemas for all database, record, and view commands.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ----- Shared scope -----
 ⋮----
@@ -48830,7 +48830,7 @@ export type ActiveAccount = AccountEntity | AuthUser;
 
 ## File: modules/platform/api/service-api.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { getFirebaseAuth } from "@integration-firebase";
 ⋮----
 import {
@@ -49622,7 +49622,7 @@ export async function buildWikiContentTree(
  * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { Timestamp } from "@shared-types";
 import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
 import type {
@@ -50381,7 +50381,7 @@ execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>
 
 ## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
 import type { AuditDomainEventType } from "../../domain/events";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";
@@ -51030,7 +51030,7 @@ export function toIssue(id: string, data: Record<string, unknown>): Issue
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
 import type { IssueRepository } from "../../domain/repositories/IssueRepository";
 import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
@@ -51333,7 +51333,7 @@ async execute(dto: MaterializeFromKnowledgeDto): Promise<CommandResult>
  * @description Submit a task materialization batch job in queued status.
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
 import type { SubmitTaskMaterializationBatchJobDto } from "../dto/submit-task-materialization-batch-job.dto";
@@ -51528,7 +51528,7 @@ export function toTaskMaterializationBatchJob(
  * @description Firestore implementation for TaskMaterializationBatchJobRepository.
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type {
   CompleteTaskMaterializationBatchJobInput,
@@ -52697,7 +52697,7 @@ async delete(itemId: string): Promise<void>
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
 import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
@@ -52976,7 +52976,7 @@ async execute(dto: ExtractTaskCandidatesDto): Promise<ExtractTaskCandidatesResul
  * @description Submit a task formation batch job (queued status).
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { TaskFormationJobRepository } from "../../domain/repositories/TaskFormationJobRepository";
 import type { SubmitTaskFormationJobDto } from "../dto/index";
@@ -53232,7 +53232,7 @@ export function toTaskFormationJob(
  * @description Firestore implementation of TaskFormationJobRepository.
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type {
   CompleteTaskFormationJobInput,
@@ -54105,7 +54105,7 @@ export function toTask(id: string, data: Record<string, unknown>): Task
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
@@ -55589,10 +55589,10 @@ export class KnowledgePage {
 
 掃描後發現 **43 個 domain 聚合根** 與 **6 個 application use-case** 直接呼叫 `crypto.randomUUID()`
 或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
-而非使用已建立的 `@lib-uuid` 套件別名。
+而非使用已建立的 `@infra/uuid` 套件別名。
 
 > 對照：`modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`
-> 是唯一正確使用 `import { v4 as randomUUID } from "@lib-uuid"` 的聚合根。
+> 是唯一正確使用 `import { v4 as randomUUID } from "@infra/uuid"` 的聚合根。
 
 ### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
 
@@ -55632,20 +55632,20 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 
 1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
 2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
-3. **一致性**：`@lib-uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
-4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@lib-uuid`，但 43 個地方違反了這條規範。
+3. **一致性**：`@infra/uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
+4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@infra/uuid`，但 43 個地方違反了這條規範。
 
 ## Decision
 
-1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@lib-uuid"` 的 `uuid()`。
-2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@lib-uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
+1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@infra/uuid"` 的 `uuid()`。
+2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@infra/uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
 3. **建議 lint rule**：在 `eslint.config.mjs` 中加入 `no-restricted-imports` 規則，禁止 `modules/*/domain/**` 和 `modules/*/application/**` 從 `node:crypto`、`crypto` 直接 import `randomUUID`。
 
 ## Consequences
 
 正面：
 - Domain 層從 Node.js runtime 解耦，可在任意 JS 環境（瀏覽器、Edge、Deno）下執行。
-- UUID 生成策略（v4 → v7 等）只需修改 `@lib-uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
+- UUID 生成策略（v4 → v7 等）只需修改 `@infra/uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
 - 測試不需要全域 crypto polyfill。
 
 代價：
@@ -55655,7 +55655,7 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 
 **已解決（2026-04-13）**
 
-所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@lib-uuid"`：
+所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@infra/uuid"`：
 
 - **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
 - **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
@@ -55669,7 +55669,7 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 ## 關聯 ADR
 
 - **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
-- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@lib-uuid`）
+- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@infra/uuid`）
 ````
 
 ## File: docs/discussions/2026-04-16/07-packages-pyfn-post-migration.md
@@ -56909,7 +56909,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
  * need to surface the resulting BackgroundJob entity to callers.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { DomainError } from "@shared-types";
 ⋮----
@@ -57203,7 +57203,7 @@ advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>;
 
 ## File: modules/platform/subdomains/notification/domain/value-objects/WorkspaceNotificationEventType.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 /**
  * Canonical workspace event types that can trigger a notification.

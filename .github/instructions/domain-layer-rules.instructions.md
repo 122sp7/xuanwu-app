@@ -42,7 +42,7 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 - `domain/` 匯入 React / React hooks / Next.js
 - `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
 - `domain/` 匯入 ORM / database client
-- `domain/` 直接呼叫 `node:crypto`（必須用 `@lib-uuid`）
+- `domain/` 直接呼叫 `node:crypto`（必須用 `@infra/uuid`）
 - Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
 - Use Case 內含業務 invariant 判斷（應移至 Aggregate）
 - Domain Event 使用現在式命名

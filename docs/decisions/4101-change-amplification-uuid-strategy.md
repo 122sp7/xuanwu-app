@@ -43,28 +43,28 @@ modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts (4 
 
 ### 對比正確模式
 
-`@lib-uuid` 套件（已存在）是 UUID 生成的集中點：
+`@infra/uuid` 套件（已存在）是 UUID 生成的集中點：
 
 ```
-packages/lib-uuid/     ← 唯一需要修改的地方
+packages/infra/uuid/     ← 唯一需要修改的地方
   index.ts              ← 改這一個文件
 ```
 
-若全部 aggregates 使用 `@lib-uuid`，UUID 策略升級只需修改 `packages/lib-uuid/index.ts`，
+若全部 aggregates 使用 `@infra/uuid`，UUID 策略升級只需修改 `packages/infra/uuid/index.ts`，
 所有 43 個 aggregates 自動受益，**0 個 domain 文件需要修改**。
 
 ### 其他 UUID 策略變更場景
 
 1. **加入 trace context 到 eventId**：`eventId: traceId + '-' + uuid()` — 修改 49 個文件 vs 修改 1 個
-2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@lib-uuid`
+2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@infra/uuid`
 3. **冪等 ID（基於內容雜湊）**：某些 aggregate 決定改用 content-hash ID — 需要知道哪些文件使用了 randomUUID
 
 ## Decision
 
-1. **`@lib-uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
+1. **`@infra/uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
 2. **Change Control Point 原則**：任何「跨多個 domain 文件使用的基礎設施能力」（UUID、時間戳、雜湊、亂數）必須集中在 `packages/lib-*/` 或 port/adapter 中，禁止在 domain 層直接調用。
 3. **記錄已知的 Change Amplification 風險點**：
-   - UUID 生成 → 遷移至 `@lib-uuid`（本 ADR）
+   - UUID 生成 → 遷移至 `@infra/uuid`（本 ADR）
    - `new Date().toISOString()` 在 domain aggregates 中（尚未系統掃描）— 應集中到 `@lib-datetime` 或 Clock port
 
 ## Consequences
@@ -80,7 +80,7 @@ packages/lib-uuid/     ← 唯一需要修改的地方
 
 **已解決（2026-04-13）**
 
-所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@lib-uuid`。UUID 策略升級現在只需修改 `packages/lib-uuid/index.ts` 一處。
+所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@infra/uuid`。UUID 策略升級現在只需修改 `packages/infra/uuid/index.ts` 一處。
 
 ### 原始證據修正
 
