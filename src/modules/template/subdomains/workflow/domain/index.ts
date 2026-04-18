@@ -6,5 +6,9 @@ export type {
 
 export { WorkflowId } from './value-objects/WorkflowId';
 export { WorkflowDomainService } from './services/WorkflowDomainService';
-export { WorkflowInitiatedEvent, WorkflowCompletedEvent } from './events/WorkflowEvents';
+export {
+  WorkflowInitiatedEvent,
+  WorkflowCompletedEvent,
+  WorkflowCancelledEvent,
+} from './events/WorkflowEvents';
 export type { TemplateWorkflowRepository } from './repositories/TemplateWorkflowRepository';

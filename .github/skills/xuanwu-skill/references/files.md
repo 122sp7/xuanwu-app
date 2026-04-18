@@ -1,94 +1,5 @@
 # Files
 
-## File: src/modules/workspace/subdomains/feed/adapters/inbound/server-actions/feed-actions.ts
-````typescript
-/**
- * feed-actions — workspace/feed inbound server actions.
- *
- * Thin boundary layer: parse → use-case → return CommandResult / snapshot[].
- * All Firebase setup goes through the workspace firebase-composition root.
- */
-⋮----
-import type { CommandResult } from "../../../../../../shared";
-import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
-import { CreateFeedPostSchema, ListFeedPostsSchema } from "../../../application";
-import { createClientFeedUseCases } from "../../../../../adapters/outbound/firebase-composition";
-⋮----
-/** Create a new feed post (text + optional photos). */
-export async function createFeedPostAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-/** List feed posts for a workspace, optionally filtered by date (YYYY-MM-DD). */
-export async function listFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]>
-````
-
-## File: src/modules/workspace/subdomains/feed/README.md
-````markdown
-# feed — Workspace Feed Subdomain
-
-每日動態貼文子域。讓工作區成員每天以 IG 風格發布文字與照片動態，未來將擴展為今日任務完成與出勤記錄的整合入口。
-
-## 領域概念
-
-| 概念 | 說明 |
-|---|---|
-| `FeedPost` | 聚合根。代表一則動態（post / reply / repost）|
-| `dateKey` | ISO 日期字串 `YYYY-MM-DD`，用於 Firestore 按日期查詢 |
-| `photoUrls` | 附圖 URL 陣列（最多 9 張），指向 Storage 或外部圖片 |
-| `FeedPostType` | `post`（一般貼文）· `reply`（回覆）· `repost`（轉貼）|
-
-## 狀態
-
-| 層 | 狀態 |
-|---|---|
-| Domain | ✅ FeedPost 聚合根（含 photoUrls、dateKey）|
-| Application | ✅ CreateFeedPostUseCase、ListFeedPostsUseCase |
-| Outbound adapter | ✅ FirestoreFeedRepository（含按日期查詢）|
-| Inbound adapter | ✅ feed-actions.ts server actions |
-| UI | ✅ WorkspaceDailySection — 每日動態 IG 風格貼文牆 |
-
-## 資料結構（Firestore）
-
-Collection: `feed_posts`
-
-```
-{
-  id: string (UUID),
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  type: "post" | "reply" | "repost",
-  content: string,
-  dateKey: string,       // YYYY-MM-DD — 用於日期過濾索引
-  photoUrls: string[],   // Storage URLs，0–9 張
-  replyToPostId: string | null,
-  repostOfPostId: string | null,
-  likeCount: number,
-  replyCount: number,
-  repostCount: number,
-  viewCount: number,
-  bookmarkCount: number,
-  shareCount: number,
-  createdAtISO: string,
-  updatedAtISO: string,
-}
-```
-
-建議 Firestore 複合索引：`(accountId, workspaceId, dateKey)` 以優化每日動態查詢。
-
-## 未來擴展
-
-- 今日任務完成統計（接入 workspace/task 子域）
-- 出勤記錄 check-in（接入 workspace/membership 子域）
-- 照片實際上傳（整合 platform FileAPI，替換 URL 輸入）
-- 點讚 / 回覆互動
-
-## 邊界規則
-
-- `domain/` 不依賴任何外部框架或 Firebase SDK。
-- 跨模組消費者只能透過 `workspace/index.ts` 或 server actions 存取。
-- 照片上傳涉及所有權與 tenant 隔離時，必須走 platform FileAPI，而非直接呼叫 Storage SDK。
-````
-
 ## File: .github/agents/ai-genkit-lead.agent.md
 ````markdown
 ---
@@ -1682,85 +1593,6 @@ applyTo: '{docs,src/modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 - Verify content belongs to the owner document instead of creating parallel files.
 - Verify behavioral rules are not restating full strategic docs content.
 - If docs changes affect `.github/skills/` repomix references, regenerate with existing scripts.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill hexagonal-ddd
-````
-
-## File: .github/instructions/domain-layer-rules.instructions.md
-````markdown
----
-description: 'Domain Layer（領域層）戰略設計規則：業務純度、行為封裝、不變數保護、技術無關性。'
-applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
----
-
-# Domain Layer（領域層）設計規則
-
-> 完整邊界參考：**先查 `docs/structure/domain/ubiquitous-language.md`、`docs/structure/contexts/<context>/README.md`**
-> 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
-> 此文件只包含 Domain Layer 層級的**戰略設計約束**。
-
-## 戰略設計規則
-
-1. Domain 層只表達業務規則，不包含技術實作（DB / API / Framework）。
-2. Entity 必須封裝狀態與行為，禁止裸 set state。
-3. Aggregate Root 是唯一外部進入 Domain 的入口。
-4. Domain 不依賴 Application / Infrastructure / Interface。
-5. Domain 變更只能透過行為方法（method），不能直接修改屬性。
-6. Domain event 用於表達「業務事實」，不是技術事件。
-7. Invariant（不變條件）必須在 Aggregate 內強制保護。
-8. Domain 必須能在沒有 DB / HTTP 的情況下完整運作（pure logic）。
-
-## 與其他層的關係
-
-- `domain/` 是依賴方向的最內層，所有其他層指向它。
-- `application/` 依賴 `domain/` 的 abstraction，不依賴 implementation。
-- `infrastructure/` 實作 `domain/` 定義的 Port/Repository 介面。
-- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或模組 `index.ts`。
-
-## 禁止模式
-
-- ❌ 在 `domain/` 層匯入 Firebase、HTTP client、React、ORM。
-- ❌ 貧血模型：只有 data properties，無 business logic。
-- ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
-- ❌ Domain event 命名使用現在式或技術術語。
-
-## 具體禁止匯入
-
-以下任一出現即為 CRITICAL 違規，必須立即修正：
-
-- `domain/` 匯入 Firebase / Firestore / Firebase Admin SDK
-- `domain/` 匯入 React / React hooks / Next.js
-- `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
-- `domain/` 匯入 ORM / database client
-- `domain/` 直接呼叫 `node:crypto`（必須用 `@infra/uuid`）
-- Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
-- Use Case 內含業務 invariant 判斷（應移至 Aggregate）
-- Domain Event 使用現在式命名
-
-## Domain Layer 審查清單
-
-### Aggregate 設計
-- [ ] 使用私有 constructor + 靜態 `create()` / `reconstitute()`？
-- [ ] 業務不變數在 Aggregate method 內強制，違規時拋 `Error`？
-- [ ] 狀態修改透過封裝 method，不暴露可變屬性？
-- [ ] `_domainEvents` 私有陣列 + `pullDomainEvents()` + `getSnapshot()`？
-- [ ] 識別碼使用 `z.string().uuid().brand()` 品牌型別？
-
-### Value Object 設計
-- [ ] 不可變（Immutable）？
-- [ ] 無識別碼欄位？
-- [ ] 以值內容判斷相等性？
-
-### Domain Event 設計
-- [ ] 過去式命名（例如 `WorkspaceCreated`）？
-- [ ] discriminant 格式 `<module>.<action>`（例如 `workspace.created`）？
-- [ ] `occurredAt` 為 ISO string，不是 `Date` 物件？
-- [ ] 使用 Zod schema 嚴格定義 payload？
-
-### Repository / Port 介面
-- [ ] 只有介面定義，無實作細節？
-- [ ] 命名為 `PascalCaseRepository`（無 `I` 前綴）？
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
@@ -4922,7 +4754,7 @@ flowchart LR
 ````markdown
 # 0002 Bounded Contexts
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [0014](./0014-main-domain-resplit.md)**
 - Date: 2026-04-11
 
 ## Context
@@ -5007,7 +4839,7 @@ flowchart LR
 ````markdown
 # 0003 Context Map
 
-- Status: Accepted
+- Status: ~~Accepted~~ → **Superseded by [0014](./0014-main-domain-resplit.md)**
 - Date: 2026-04-11
 
 ## Context
@@ -6171,107 +6003,6 @@ modules/workspace/interfaces/
 見 ADR 1103（`1103-layer-violation-firebase-sdk-in-api-layer.md`）——違規二已提升為獨立追蹤文件。
 ````
 
-## File: docs/decisions/1101-layer-violation-crypto-in-domain.md
-````markdown
-# 1101 Layer Violation — `crypto.randomUUID()` in Domain Layer
-
-- Status: Resolved
-- Date: 2026-04-13
-- Resolved: 2026-04-13
-- Category: Architectural Smells > Layer Violation
-
-> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。
-
-## Context
-
-`domain/` 層必須做到「技術無關（runtime-agnostic）」，不能直接依賴 Node.js 內建模組或任何執行環境 API。
-這是 Hexagonal Architecture 的核心要求：Domain 是最內層，所有技術依賴都必須由外層（infrastructure）注入。
-
-掃描後發現 **43 個 domain 聚合根** 與 **6 個 application use-case** 直接呼叫 `crypto.randomUUID()`
-或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
-而非使用已建立的 `@infra/uuid` 套件別名。
-
-> 對照：`modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`
-> 是唯一正確使用 `import { v4 as randomUUID } from "@infra/uuid"` 的聚合根。
-
-### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
-
-```
-modules/workspace/domain/aggregates/Workspace.ts:182
-modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts:68, 85
-modules/notion/subdomains/authoring/domain/aggregates/Article.ts:72, 102, 114
-modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts:68, 99, 117, 136, 159, 168, 169, 186, 202, 213, 228, 243
-modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts:62, 83, 109, 156
-modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts:52, 69, 84
-modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts:48, 77, 89
-modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts:67
-modules/platform/subdomains/account/domain/aggregates/Account.ts:50, 85, 106, 130, 220
-modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts:43, 68, 82, 93
-modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts:53, 76, 89, 107, 121, 135
-modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts:45, 66
-modules/platform/subdomains/organization/domain/aggregates/Organization.ts:80, 123, 153, 184, 210, 313, 322, 330
-modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts:49, 79, 99, 117, 128
-```
-
-### 受影響的 application 層（`node:crypto` 直接 import）
-
-```
-modules/notebooklm/subdomains/source/application/use-cases/upload-init-source-file.use-case.ts:11
-  import { randomBytes, randomUUID } from "node:crypto";
-modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts:14
-  import { randomUUID } from "node:crypto";
-modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts:10
-  import { randomUUID } from "node:crypto";
-modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts:13
-  import { randomUUID } from "node:crypto";
-modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts:12
-  import { randomUUID } from "node:crypto";
-```
-
-### 問題說明
-
-1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
-2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
-3. **一致性**：`@infra/uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
-4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@infra/uuid`，但 43 個地方違反了這條規範。
-
-## Decision
-
-1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@infra/uuid"` 的 `uuid()`。
-2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@infra/uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
-3. **建議 lint rule**：在 `eslint.config.mjs` 中加入 `no-restricted-imports` 規則，禁止 `modules/*/domain/**` 和 `modules/*/application/**` 從 `node:crypto`、`crypto` 直接 import `randomUUID`。
-
-## Consequences
-
-正面：
-- Domain 層從 Node.js runtime 解耦，可在任意 JS 環境（瀏覽器、Edge、Deno）下執行。
-- UUID 生成策略（v4 → v7 等）只需修改 `@infra/uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
-- 測試不需要全域 crypto polyfill。
-
-代價：
-- 需在 14 個 domain 文件和 13 個 application 文件中進行 import 替換（機械性，無邏輯變更）。
-
-## Resolution
-
-**已解決（2026-04-13）**
-
-所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@infra/uuid"`：
-
-- **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
-- **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
-- **7 個 infrastructure/interfaces/api 文件**：service-api, repositories, stores, actions 中的 `crypto.randomUUID()` 也已一併替換
-- **唯一保留**：`upload-init-source-file.use-case.ts` 中的 `import { randomBytes } from "node:crypto"` 保留，因為 `randomBytes` 用途為加密強度隨機（非 UUID），屬基礎設施關注點。
-
-### 原始證據修正
-
-原 ADR 記錄「43 個 domain aggregates」，實際掃描為 **14 個 domain aggregate 文件**。差異來自原始掃描包含了多行匹配（同一文件多次出現）被誤計為不同文件。
-
-## 關聯 ADR
-
-- **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
-- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@infra/uuid`）
-````
-
 ## File: docs/decisions/1102-layer-violation-ports-in-application.md
 ````markdown
 # 1102 Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`
@@ -6495,88 +6226,6 @@ ADR 1100 在「違規二」中已標記此問題（`platform/api/infrastructure-
 - **ADR 1401** (Dependency Leakage) — SDK 實例從 platform/api/index.ts 直接 re-export，形成依賴洩漏
 - **ADR 0007** (Infrastructure in api/) — 明確禁止 infrastructure 實作出現在 api/ 層
 - **ADR 0001** (Hexagonal Architecture) — 依賴方向規範的根源
-````
-
-## File: docs/decisions/1104-layer-violation-globalthis-crypto-in-application-layer.md
-````markdown
-# 1104 Layer Violation — `globalThis.crypto?.randomUUID` 出現在 application 層
-
-- Status: Accepted
-- Date: 2026-04-14
-- Category: Architectural Smells > Layer Violation
-- Extends: ADR 1101 (crypto.randomUUID in domain layer → @infra/uuid)
-
-## Context
-
-ADR 1101 解決了 14 個 domain aggregates 和 13 個 application use-cases 中使用
-`crypto.randomUUID()` (Node.js `crypto` 模組) 的問題，將其遷移到 `@infra/uuid`。
-
-掃描後發現新的 violation：`notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts`
-在 **application 層** 中直接使用 `globalThis.crypto?.randomUUID`：
-
-```typescript
-// modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts:13-19
-export function generateSourceId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-```
-
-### 問題分析
-
-1. **繞過 `@infra/uuid` 抽象層**：ADR 4101 確立了 `@infra/uuid` 為全 repo 唯一 UUID 生成策略，
-   直接使用 `globalThis.crypto?.randomUUID` 破壞了這個集中管理層。
-
-2. **平台耦合**：`globalThis.crypto` 在 Node.js ≥ 19 才穩定，在舊版 Node.js 或某些 SSR 環境中可能為 `undefined`。
-   `@infra/uuid` 的 `v4` 已處理跨環境兼容性。
-
-3. **Fallback 邏輯洩入 application 層**：`wbl_${Date.now()}_${Math.random()}` 的 fallback
-   表明開發者知道 `globalThis.crypto` 可能不可用，但選擇在 application use-case 中處理此運行環境問題，
-   而不是透過 `@infra/uuid` 統一解決。
-
-4. **Format inconsistency**：生成的 ID 格式非 UUID 標準（`wbl_...` prefix + hex），
-   無法與系統其他地方的 UUID 比較，也無法作為 Zod `z.string().uuid()` 驗證的值。
-
-## Problem
-
-- **Layer boundary violation**: 直接使用 runtime Web Crypto API 是 infrastructure-level concern，
-  不應出現在 application use-case helper 中。
-- **Abstraction bypass**: 繞過 `@infra/uuid` centralized UUID strategy。
-- **Non-standard ID format**: fallback 產生 `wbl_...` 格式 ID，不符合 UUID v4 規格。
-- **Polyfill coupling**: application 層手動處理環境兼容性，本應是 `@infra/uuid` 的責任。
-
-## Decision
-
-1. 將 `generateSourceId()` 改為使用 `import { v4 as uuid } from "@infra/uuid"`。
-2. 移除 `globalThis.crypto` 直接調用和 fallback 邏輯。
-3. 統一 ID 格式為標準 UUID v4（與系統其他 entity ID 一致）。
-
-```typescript
-// After fix
-import { v4 as uuid } from "@infra/uuid";
-
-export function generateSourceId(): string {
-  return uuid();
-}
-```
-
-## Consequences
-
-正面：
-- 符合 ADR 1101 和 ADR 4101 規範，消除環境兼容性 fallback 邏輯。
-- 生成的 sourceId 符合 UUID v4 格式，可用 `z.string().uuid()` 驗證。
-
-代價：
-- 舊有 `wbl_` 前綴 sourceId（若已存入 Firestore）與新格式不兼容，需確認是否存在歷史資料。
-
-## 關聯 ADR
-
-- **ADR 1101** (Layer Violation — crypto.randomUUID in domain layer) — 先驅修復
-- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
-- **ADR 1100** (Layer Violation) — 系列入口文件
 ````
 
 ## File: docs/decisions/1200-boundary-violation.md
@@ -7505,108 +7154,6 @@ import { collectionGroup } from "firebase/firestore";
 代價：
 - 拆分 platform/api 後，現有的 78 個消費者需要更新 import 路徑，需分批執行。
 - 需要在 eslint 規則中加入 `no-restricted-imports`，阻止新的 wildcard platform/api 使用。
-````
-
-## File: docs/decisions/2101-tight-coupling-crypto-runtime.md
-````markdown
-# 2101 Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime
-
-- Status: Resolved
-- Date: 2026-04-13
-- Resolved: 2026-04-13
-- Category: Coupling Smells > Tight Coupling
-
-## Context
-
-緊耦合不僅發生在模組之間，也發生在程式碼與執行環境（Runtime）之間。
-Domain 聚合根直接呼叫 `crypto.randomUUID()` 或 `import { randomUUID } from "node:crypto"`，
-使 domain 層與特定執行環境（Node.js）產生 **Runtime Tight Coupling**。
-
-掃描結果（見 ADR 1101）：
-- **43 個 domain aggregates** 直接使用 `crypto.randomUUID()` global
-- **6 個 application use-cases** 使用 `node:crypto` 直接 import
-- **唯一正確範例**：`OrganizationTeam.ts` 使用 `import { v4 as randomUUID } from "@infra/uuid"`
-
-### 耦合層次分析
-
-| 耦合類型 | 耦合目標 | 解耦策略 |
-|----------|----------|----------|
-| `crypto` global | Node.js / Web Crypto API global 物件 | 使用 `@infra/uuid` 套件（跨環境相容）|
-| `node:crypto` import | Node.js 特定模組（有 `node:` 協議） | 使用 `@infra/uuid` 或注入 port |
-| `randomBytes` | 加密強度隨機（Node.js-only） | 若 domain 真需要，定義 port，由 infra 提供 |
-
-### Runtime Coupling 的具體風險
-
-**Edge Runtime 相容性問題：**
-
-Next.js App Router 的 Server Components 和 Middleware 可以在 Edge Runtime 執行。
-Edge Runtime 沒有 `node:crypto`，但有 Web `crypto` global。
-若 domain aggregates 被 server action 呼叫（透過 use-case），
-且 Next.js 決定在 Edge Runtime 執行，`import { randomUUID } from "node:crypto"` 將直接失敗。
-
-**測試環境問題：**
-
-Vitest/Jest 的 `jsdom` 環境中：
-- `crypto.randomUUID()` global 在較舊版本可能未定義，需要 polyfill。
-- `node:crypto` 在 `browser` mode 的測試中不可用。
-
-`@infra/uuid` 封裝了這些差異，提供統一接口。
-
-### 為何選擇 `@infra/uuid` 而非直接用 crypto
-
-```
-packages/infra/uuid/  ← @infra/uuid 套件（已存在）
-```
-
-`@infra/uuid` 是本 repo 已建立的跨環境 UUID 工具套件，
-存在的意義就是作為 domain 對 UUID 生成能力的抽象，
-隱藏底層是 `uuid` npm 包、Web Crypto 還是 Node.js crypto 的實作細節。
-
-只有 `OrganizationTeam` 正確使用了這個套件，其他 43 個 aggregates 繞過了這個抽象，
-在全域重用「`crypto.randomUUID()`」的情況下，整個 domain 層實際上與 runtime 緊耦合。
-
-### 已發現的直接 node:crypto 用例（application 層）
-
-```typescript
-// upload-init-source-file.use-case.ts:11
-import { randomBytes, randomUUID } from "node:crypto";
-// 用途：生成 storage 路徑用的唯一 token
-```
-
-此處 `randomBytes` 用於生成 storage path token，是 infrastructure 關注點（storage path generation），
-不應出現在 application use-case 中，應透過 StoragePath port 封裝。
-
-## Decision
-
-1. **所有 domain aggregates 改用 `@infra/uuid`**：  
-   `crypto.randomUUID()` → `import { v4 as uuid } from "@infra/uuid"` then `uuid()`
-2. **application use-cases 的 `randomUUID` 同樣改用 `@infra/uuid`**  
-3. **`randomBytes` 用於 storage path**：定義 `StoragePathGeneratorPort` 或 `UniqueTokenPort`，由 infrastructure 提供實作；或在 infrastructure adapter 層直接使用 `node:crypto`（不進入 application）。
-4. **建議 ESLint rule**（同 ADR 1101）：限制 domain 和 application 層從 `node:crypto` 直接 import。
-
-## Consequences
-
-正面：
-- Domain 可在 Edge Runtime、browser、Node.js 任意環境下執行。
-- 若未來升級 UUID 版本（v7 有時間排序優勢），只需修改 `@infra/uuid` 一處。
-
-代價：
-- 14 個 domain aggregates + 13 個 application use-cases + 7 個 infra/interfaces 文件需要機械性 import 替換（無邏輯變更）。
-
-## Resolution
-
-**已解決（2026-04-13）**
-
-與 ADR 1101 同步解決。所有 `crypto.randomUUID()` 和 `import { randomUUID } from "node:crypto"` 已替換為 `import { v4 as uuid } from "@infra/uuid"`。Domain 層現在完全 runtime-agnostic，可在 Edge Runtime、browser、Node.js 任意環境下執行。
-
-### 原始證據修正
-
-原 ADR 記錄「43 個 aggregates + 6 個 use-cases」，實際為 **14 個 domain aggregate 文件 + 13 個 application 文件 + 7 個其他層文件**。
-
-## 關聯 ADR
-
-- **1101**：這是層次違規的同一實例（同步解決）
-- **4101**：UUID 策略分散 = Change Amplification（解決後策略集中於 `@infra/uuid`）
 ````
 
 ## File: docs/decisions/2200-hidden-coupling.md
@@ -8615,103 +8162,6 @@ Canonical implementation remains at `app/(shell)/_shell/shell-quick-create.ts` (
 - 增量遷移期間，`platform/api/index.ts` 和 `platform/api/ui.ts` 同時存在，短期導航成本稍高。
 ````
 
-## File: docs/decisions/4101-change-amplification-uuid-strategy.md
-````markdown
-# 4101 Change Amplification — UUID 生成策略變更需觸及 43+ 個 Domain 文件
-
-- Status: Resolved
-- Date: 2026-04-13
-- Resolved: 2026-04-13
-- Category: Maintainability Smells > Change Amplification
-
-## Context
-
-變更放大（Change Amplification）指對單一概念的修改必須在多個不相關的位置重複執行。
-理想狀態下，改變「UUID 生成策略」（如從 v4 升級到 v7、新增冪等前綴、加入 trace context）只需修改一個地方。
-
-掃描結果顯示（見 ADR 1101）：`crypto.randomUUID()` 和 `node:crypto` 直接調用散佈在：
-
-```
-受影響文件統計：
-  domain aggregates 中的 crypto.randomUUID() : 43 處（跨 4 個主域）
-  application use-cases 中的 node:crypto import : 6 個文件
-
-主域分佈：
-  platform   : 43 個 aggregates 中的 ~30 處
-  notion     : KnowledgePage, KnowledgeCollection, ContentBlock, Article
-  workspace  : Workspace, AuditEntry
-  notebooklm : 4 個 application use-cases
-```
-
-### 假設情境：從 UUIDv4 升級到 UUIDv7
-
-UUIDv7 提供時間排序（time-ordered），對 Firestore 文件 ID、分頁查詢有性能優勢。
-若決定升級，以下所有文件都需要修改：
-
-```
-modules/platform/subdomains/account/domain/aggregates/Account.ts       (5 處)
-modules/platform/subdomains/organization/domain/aggregates/Organization.ts (7 處)
-modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts  (6 處)
-modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts (5 處)
-modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts  (11 處)
-modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts (4 處)
-... (共 43 個 domain 文件 + 6 個 use-case 文件)
-```
-
-一次策略決定 → 49 個文件變更 → 49 個 PR diff hunks → 49 個 code review 審查點。
-
-### 對比正確模式
-
-`@infra/uuid` 套件（已存在）是 UUID 生成的集中點：
-
-```
-packages/infra/uuid/     ← 唯一需要修改的地方
-  index.ts              ← 改這一個文件
-```
-
-若全部 aggregates 使用 `@infra/uuid`，UUID 策略升級只需修改 `packages/infra/uuid/index.ts`，
-所有 43 個 aggregates 自動受益，**0 個 domain 文件需要修改**。
-
-### 其他 UUID 策略變更場景
-
-1. **加入 trace context 到 eventId**：`eventId: traceId + '-' + uuid()` — 修改 49 個文件 vs 修改 1 個
-2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@infra/uuid`
-3. **冪等 ID（基於內容雜湊）**：某些 aggregate 決定改用 content-hash ID — 需要知道哪些文件使用了 randomUUID
-
-## Decision
-
-1. **`@infra/uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
-2. **Change Control Point 原則**：任何「跨多個 domain 文件使用的基礎設施能力」（UUID、時間戳、雜湊、亂數）必須集中在 `packages/lib-*/` 或 port/adapter 中，禁止在 domain 層直接調用。
-3. **記錄已知的 Change Amplification 風險點**：
-   - UUID 生成 → 遷移至 `@infra/uuid`（本 ADR）
-   - `new Date().toISOString()` 在 domain aggregates 中（尚未系統掃描）— 應集中到 `@lib-datetime` 或 Clock port
-
-## Consequences
-
-正面：
-- UUID 策略升級：O(1) 修改（1 個 package）vs O(n) 修改（n 個 aggregates）。
-- Domain aggregates 的變更集中在業務邏輯，不被基礎設施工具的版本升級汙染。
-
-代價：
-- 初始遷移需要 34 個文件的機械性 import 替換（無邏輯變更，可批量執行）。
-
-## Resolution
-
-**已解決（2026-04-13）**
-
-所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@infra/uuid`。UUID 策略升級現在只需修改 `packages/infra/uuid/index.ts` 一處。
-
-### 原始證據修正
-
-原 ADR 記錄「49 個文件」，實際為 **34 個文件**。
-
-## 關聯 ADR
-
-- **1101** (Layer Violation)：crypto 在 domain 是層次違規（已解決）
-- **2101** (Tight Coupling)：crypto 是緊耦合（已解決）
-- **ADR 0001** (Hexagonal Architecture)：Change Amplification 是違反 DIP 的直接後果
-````
-
 ## File: docs/decisions/4200-inconsistency.md
 ````markdown
 # 4200 Inconsistency
@@ -8906,249 +8356,6 @@ application/use-cases/ → 全部複數 ✅（僅 scheduling 例外，見 ADR 32
 
 - **ADR 3200** (Duplication)：`work-demand.use-cases.ts` 放置不一致也是相同根因
 - **ADR 4200** (Inconsistency)：這是命名一致性問題的延伸
-````
-
-## File: docs/decisions/4202-inconsistency-uuid-v7-in-workspace-domain-events.md
-````markdown
-# 4202 Inconsistency — UUID v7 用於 workspace domain event factory（全 repo 均使用 v4）
-
-- Status: Resolved
-- Resolved: 2026-04-14
-- Date: 2026-04-14
-- Category: Maintainability Smells > Inconsistency
-
-## Context
-
-ADR 4101（`v4 as uuid` in domain layer）確立了 domain 層和 application 層統一使用
-`import { v4 as uuid } from "@infra/uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
-
-掃描 domain 層 UUID 使用情況：
-
-```
-# domain aggregates（全部使用 v4）
-Account.ts:             import { v4 as uuid } from "@infra/uuid"
-Organization.ts:        import { v4 as uuid } from "@infra/uuid"
-KnowledgePage.ts:       import { v4 as uuid } from "@infra/uuid"
-Article.ts:             import { v4 as uuid } from "@infra/uuid"
-KnowledgeCollection.ts: import { v4 as uuid } from "@infra/uuid"
-EntitlementGrant.ts:    import { v4 as uuid } from "@infra/uuid"
-Workspace.ts:           import { v4 as uuid } from "@infra/uuid"
-# ... (全部 16 個已確認的 domain aggregate files 使用 v4)
-
-# domain event factory（例外）
-workspace/domain/events/workspace.events.ts:  import { v7 } from "@infra/uuid"  ← ❌
-```
-
-`workspace/domain/events/workspace.events.ts` 是 **repo 中唯一在 domain 層使用 UUID v7 的文件**。
-
-### UUID v4 vs v7 的差異
-
-| 特性 | UUID v4 | UUID v7 |
-|------|---------|---------|
-| 格式 | 128-bit 隨機 | timestamp + random（lexicographically sortable） |
-| 排序 | 不可排序 | 可按創建時間排序 |
-| 用途 | 通用唯一識別碼 | 需要時序排序的識別碼（如事件 ID 做時序查詢） |
-| 目前 codebase 規範 | ✅ 全域 domain 標準 | ❌ 無現有文件說明在此使用的理由 |
-
-UUID v7 的時序排序特性在某些場景（如 QStash event ordering、Firestore 按 eventId 排序）有技術優勢，
-但：
-- **沒有 ADR 或代碼注釋說明為何此文件使用 v7**
-- workspace 事件的消費者（`WorkspaceDomainEventPublisher`）也沒有說明依賴 eventId 排序
-- 全 repo 的 domain event 均使用 v4，此文件的 v7 是**未解釋的例外**
-
-### 實際代碼
-
-```typescript
-// modules/workspace/domain/events/workspace.events.ts
-import { v7 } from "@infra/uuid";
-
-export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEvent {
-  return {
-    eventId: v7(),    // ← 不一致的 UUID 版本
-    type: WORKSPACE_CREATED_EVENT_TYPE,
-    ...
-  };
-}
-```
-
-相比之下，其他模組的 domain event（如 `Account._domainEvents.push`）使用的 `eventId`
-是從 aggregate 內部的 `uuid()` （v4）生成的。
-
-## Decision
-
-1. **統一使用 UUID v4**（或做出有文件支撐的決策選擇 v7）：
-   
-   **選項 A：改回 v4（推薦）**
-   - 修改 `workspace/domain/events/workspace.events.ts`：
-     ```typescript
-     import { v4 as uuid } from "@infra/uuid";
-     // ...
-     eventId: uuid(),
-     ```
-   - 理由：保持與全 repo 一致，無額外說明負擔。
-   
-   **選項 B：升級為全局 v7 標準**
-   - 若 workspace events 使用 v7 有充分的技術理由（例如 QStash message deduplication 需要時序 ID），
-     應在 ADR 中說明，並評估是否要將全 repo 的 `eventId` 生成改為 v7。
-   - 僅修改一個文件而不記錄理由，形成了新的不一致。
-
-2. **若選 B，需要補充說明**：
-   - 在 `workspace.events.ts` 文件頭部加入注釋：`// eventId uses v7 for time-ordered event replay — see ADR XXXX`
-   - 建立新 ADR 說明「workspace domain events 使用 v7 的設計理由」
-
-3. **本 ADR 的預設建議是選項 A**：沒有消費者依賴 eventId 的時序排序，v7 的使用沒有業務需求支撐。
-
-## Consequences
-
-正面（選項 A）：
-- domain 層 UUID 使用方式完全一致，`grep "@infra/uuid" modules/` 全部回傳 `v4 as uuid`。
-- 沒有額外的文件或規則例外需要維護。
-
-代價（選項 A）：
-- 若未來某個 workspace event consumer 確實依賴 v7 的時序特性，需要重新引入 v7（但屆時有業務理由支撐）。
-
-## 關聯 ADR
-
-- **4101** (Inconsistency — UUID Pattern)：建立 `v4 as uuid` 的 domain layer 標準
-- **4200** (Inconsistency)：本 ADR 是 ADR 4200 識別的 inconsistency 類別的另一個具體實例
-- **2201** (Hidden Coupling)：一旦 workspace aggregate 改為內部收集 domain events，
-  此 v7 問題需要同步處理（events 將從 aggregate 內部的 `v7()` 或 `uuid()` 生成）
-
-## Resolution
-
-Replaced `import { v7 } from "@infra/uuid"` with `import { v4 as uuid } from "@infra/uuid"` in `workspace/domain/events/workspace.events.ts`.
-All three factory functions (`createWorkspaceCreatedEvent`, `createWorkspaceLifecycleTransitionedEvent`, `createWorkspaceVisibilityChangedEvent`) now use `uuid()` (v4).
-Full repo domain-layer UUID strategy is now consistent.
-````
-
-## File: docs/decisions/4203-inconsistency-uuid-v7-application-infrastructure-layers.md
-````markdown
-# 4203 Inconsistency — UUID v7 (`generateId`) 廣泛使用於 application 與 infrastructure 層
-
-- Status: Accepted
-- Date: 2026-04-14
-- Category: Maintainability Smells > Inconsistency
-- Extends: ADR 4202 (workspace.events.ts UUID v7 → v4)
-
-## Context
-
-ADR 4202 修正了 `workspace/domain/events/workspace.events.ts` 中的 UUID v7 用法，
-使該檔案符合全 repo domain 層使用 v4 的規範。
-
-然而，掃描 `application/` 與 `infrastructure/` 層後發現，更大範圍的 v7 使用問題仍然存在：
-23 個檔案中將 `import { v7 as generateId } from "@infra/uuid"` 用於 entity/document ID 生成，
-部分甚至在 **application use-case** 層（理論上應與 UUID strategy 無關的業務流程層）。
-
-### 違規清單（23 個檔案）
-
-#### workspace/subdomains/workspace-workflow — application 層（1）
-
-```
-workspace-workflow/application/use-cases/submit-task-materialization-batch-job.use-case.ts
-```
-
-#### workspace/subdomains/workspace-workflow — infrastructure 層（5）
-
-```
-FirebaseTaskRepository.ts
-FirebaseTaskMaterializationBatchJobRepository.ts
-FirebaseInvoiceRepository.ts
-FirebaseIssueRepository.ts
-FirebaseInvoiceItemRepository.ts (uses v7 via another file — indirect)
-```
-
-#### workspace/subdomains/feed — infrastructure 層（2）
-
-```
-FirebaseWorkspaceFeedInteractionRepository.ts
-FirebaseWorkspaceFeedPostRepository.ts
-```
-
-#### notion/subdomains/knowledge — application 層（4）
-
-```
-content-block.queries.ts
-review-knowledge-page.use-cases.ts
-manage-knowledge-page.use-cases.ts
-manage-knowledge-collection.use-cases.ts
-```
-
-#### notion/subdomains/authoring — application 層（2）
-
-```
-manage-category.use-cases.ts
-manage-article-lifecycle.use-cases.ts
-```
-
-#### notion/infrastructure — firebase 層（7）
-
-```
-FirebaseContentBlockRepository.ts
-FirebaseKnowledgePageRepository.ts
-FirebaseAutomationRepository.ts
-FirebaseViewRepository.ts
-FirebaseDatabaseRecordRepository.ts
-FirebaseVersionRepository.ts
-FirebasePermissionRepository.ts
-FirebaseCommentRepository.ts
-```
-
-#### notebooklm/infrastructure — firebase 層（1）
-
-```
-FirebaseRagQueryFeedbackAdapter.ts
-```
-
-### 根本原因
-
-ADR 4202 只針對 domain event factory 函數中的 eventId 生成（`uuid()` 語意明確），
-未涵蓋 document/entity ID 生成場景。
-
-部分開發者選擇 v7（時序排序 UUID）以獲得 Firestore 查詢效能優勢（按插入時間排序），
-但這一決策：
-1. 從未被記錄為正式 architectural decision
-2. 與 ADR 4101（全 repo domain 層統一 v4）規範衝突
-3. 在 application 層（should be pure logic）中引入了 Firestore 效能考量（storage concern）
-
-## Problem
-
-- **Inconsistency**: 全 repo 23 個 application/infrastructure 檔案使用 v7，
-  其餘所有 domain aggregates 使用 v4（品牌型別 uuid），形成雙軌標準。
-- **ADR compliance gap**: ADR 4101 明確規定「domain 與 application 層只使用 v4」，
-  v7 在 application use-case 中屬於明確違規。
-- **Cross-layer concern leakage**: 在 application use-case 中使用 v7 意味著將
-  「Firestore sorted query performance」這個 infrastructure concern 帶入業務流層。
-
-## Decision
-
-1. **Application 層**（`application/use-cases/`, `application/queries/`）中的 `v7 as generateId`
-   必須更換為 `v4 as uuid`（符合 ADR 4101）：
-   - `submit-task-materialization-batch-job.use-case.ts`
-   - notion/knowledge 4 個 use-case/query 檔案
-   - notion/authoring 2 個 use-case 檔案
-
-2. **Infrastructure 層**（Firebase repos）是否統一到 v4，需先確認：
-   - Firestore collection 是否有依賴 UUID 時序排序的 composite index query
-   - 若有：保留 v7 並記錄為「infrastructure-local UUID strategy」，在 ADR 4204 中確立
-   - 若無：一律改為 v4
-
-3. **優先處理 application 層**（7 個 use-case 檔案），infrastructure 層在確認 index 影響後另行遷移。
-
-## Consequences
-
-正面：
-- Application 層 UUID 策略完全符合 ADR 4101 規範。
-- 消除 application use-case 中對 Firestore 效能策略的隱式依賴。
-
-代價：
-- Infrastructure 層若有 v7 時序排序依賴，需補充說明（ADR 4204）或留下 TODO 標記。
-- 修改 infrastructure 層 ID 生成不影響業務邏輯，但 migration script 需注意歷史記錄格式不變。
-
-## 關聯 ADR
-
-- **ADR 4202** (Inconsistency — UUID v7 in workspace.events.ts) — 先驅修復
-- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
-- **ADR 4200** (Inconsistency) — 系列入口文件
 ````
 
 ## File: docs/decisions/4300-semantic-drift.md
@@ -12502,131 +11709,6 @@ flowchart LR
 
 - 本目錄在本次任務限制下，只依 Context7 架構參考重建。
 - 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
-````
-
-## File: docs/decisions/SMELL-INDEX.md
-````markdown
-# Design Smell Taxonomy Index
-
-本目錄收錄 Xuanwu App 的架構診斷記錄，依「smell 類型」編號分群，與原始 ADR（0001–0011）平行維護。
-
-## 編號體系
-
-| 前綴 | 類型 | 子類型 |
-|------|------|-------|
-| **1000** | **Architectural Smells** | 架構結構性問題 |
-| 1100 | Layer Violation | 層次邊界穿越 |
-| 1200 | Boundary Violation | 模組邊界穿越 |
-| 1300 | Cyclic Dependency | 循環依賴 |
-| 1400 | Dependency Leakage | 依賴洩漏 |
-| **2000** | **Coupling Smells** | 耦合問題 |
-| 2100 | Tight Coupling | 緊耦合 |
-| 2200 | Hidden Coupling | 隱式耦合 |
-| 2300 | Temporal Coupling | 時序耦合 |
-| **3000** | **Modularity Smells** | 模組性問題 |
-| 3100 | Low Cohesion | 低內聚 |
-| 3200 | Duplication | 重複 |
-| **4000** | **Maintainability Smells** | 可維護性問題 |
-| 4100 | Change Amplification | 變更放大 |
-| 4200 | Inconsistency | 不一致 |
-| 4300 | Semantic Drift | 語意漂移 |
-| **5000** | **Complexity Smells** | 複雜性問題 |
-| 5100 | Accidental Complexity | 偶然複雜性 |
-| 5200 | Cognitive Load | 認知負荷 |
-
-## Decision Log (Smell Taxonomy)
-
-| ID | File | Title | Status |
-|----|------|-------|--------|
-| 1100 | [1100-layer-violation.md](./1100-layer-violation.md) | Layer Violation — `interfaces/api/` 子目錄與 Firebase SDK 在 `api/` 層 | **Superseded** (0015) |
-| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @infra/uuid） | **Resolved** |
-| 1102 | [1102-layer-violation-ports-in-application.md](./1102-layer-violation-ports-in-application.md) | Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`（部分解決） | Accepted |
-| 1103 | [1103-layer-violation-firebase-sdk-in-api-layer.md](./1103-layer-violation-firebase-sdk-in-api-layer.md) | Layer Violation — Firebase SDK（`collectionGroup` 等）直接出現在 `platform/api/infrastructure-api.ts` | **Superseded** (0015) |
-| 1104 | [1104-layer-violation-globalthis-crypto-in-application-layer.md](./1104-layer-violation-globalthis-crypto-in-application-layer.md) | Layer Violation — `globalThis.crypto?.randomUUID` 出現在 `notebooklm/application/use-cases/wiki-library.helpers.ts` | Accepted |
-| 1200 | [1200-boundary-violation.md](./1200-boundary-violation.md) | Boundary Violation — Cross-module direct domain imports | Accepted |
-| 1201 | [1201-boundary-violation-business-logic-in-infrastructure.md](./1201-boundary-violation-business-logic-in-infrastructure.md) | Boundary Violation — 業務規則（wallet balance check）漏入 Infrastructure 層 | Accepted |
-| 1300 | [1300-cyclic-dependency.md](./1300-cyclic-dependency.md) | Cyclic Dependency — workspace ↔ platform circular module-evaluation | Partial |
-| 1400 | [1400-dependency-leakage.md](./1400-dependency-leakage.md) | Dependency Leakage — platform/api 混合 infra/service/UI exports | **Superseded** (0015) |
-| 1401 | [1401-dependency-leakage-infrastructure-api-in-platform-api.md](./1401-dependency-leakage-infrastructure-api-in-platform-api.md) | Dependency Leakage — Infrastructure API symbols (`firestoreInfrastructureApi` 等) 暴露在 platform/api/index.ts 公開邊界 | **Resolved** |
-| 1402 | [1402-dependency-leakage-use-case-classes-in-platform-api.md](./1402-dependency-leakage-use-case-classes-in-platform-api.md) | Dependency Leakage — 17 個 use-case class 名稱透過 platform/api 公開（organization subdomain） | **Resolved** |
-| 1403 | [1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md](./1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md) | Dependency Leakage — 4 個 platform subdomain api/index.ts 使用 `export * from "../interfaces"` 洩漏 React UI 元件與 server actions | **Superseded** (0015) |
-| 1404 | [1404-dependency-leakage-subdomain-api-exports-application-wildcard.md](./1404-dependency-leakage-subdomain-api-exports-application-wildcard.md) | Dependency Leakage — 11 個 subdomain `api/index.ts` 使用 `export * from "../application"` 洩漏 use-case classes | **Superseded** (0015) |
-| 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | **Superseded** (0015) |
-| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @infra/uuid | **Resolved** |
-| 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
-| 2201 | [2201-hidden-coupling-workspace-aggregate-no-domain-events.md](./2201-hidden-coupling-workspace-aggregate-no-domain-events.md) | Hidden Coupling — `Workspace` 聚合根未內部收集 Domain Events，事件由 use-case 外部組裝 | Accepted |
-| 2300 | [2300-temporal-coupling.md](./2300-temporal-coupling.md) | Temporal Coupling | Accepted |
-| 3100 | [3100-low-cohesion.md](./3100-low-cohesion.md) | Low Cohesion — use-case bundling | **Superseded** (0015) |
-| 3101 | [3101-low-cohesion-platform-application-layer.md](./3101-low-cohesion-platform-application-layer.md) | Low Cohesion — `platform/application/` 層 9 個異質子目錄 | Accepted |
-| 3200 | [3200-duplication.md](./3200-duplication.md) | Duplication | Accepted |
-| 3201 | [3201-duplication-event-discriminant-format.md](./3201-duplication-event-discriminant-format.md) | Duplication — Domain Event 識別符號格式統一為 `kebab-case` | **Resolved** |
-| 3202 | [3202-duplication-source-dto-reimplements-domain-service.md](./3202-duplication-source-dto-reimplements-domain-service.md) | Duplication — Source DTO re-implements domain service logic | **Resolved** |
-| 3203 | [3203-duplication-shell-quick-create-orphaned-platform-copy.md](./3203-duplication-shell-quick-create-orphaned-platform-copy.md) | Duplication — 兩個 `shell-quick-create` 實作（platform/application 版本孤兒化，無消費者） | **Resolved** |
-| 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | **Superseded** (0015) |
-| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @infra/uuid | **Resolved** |
-| 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
-| 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | **Resolved** |
-| 4202 | [4202-inconsistency-uuid-v7-in-workspace-domain-events.md](./4202-inconsistency-uuid-v7-in-workspace-domain-events.md) | Inconsistency — `workspace/domain/events/workspace.events.ts` 使用 UUID v7，全 repo domain 層均為 v4 | **Resolved** |
-| 4203 | [4203-inconsistency-uuid-v7-application-infrastructure-layers.md](./4203-inconsistency-uuid-v7-application-infrastructure-layers.md) | Inconsistency — UUID v7 (`generateId`) 廣泛使用於 application 與 infrastructure 層（23 個檔案） | Accepted |
-| 4300 | [4300-semantic-drift.md](./4300-semantic-drift.md) | Semantic Drift — interfaces/api 子目錄與 application/event-handlers | Accepted |
-| 4301 | [4301-semantic-drift-application-subdirectory-names.md](./4301-semantic-drift-application-subdirectory-names.md) | Semantic Drift — `event-handlers/`、`event-mappers/`、`handlers/`、`process-managers/` 命名偏離職責語意 | Accepted |
-| 4302 | [4302-semantic-drift-notion-notebooklm-event-discriminant-format.md](./4302-semantic-drift-notion-notebooklm-event-discriminant-format.md) | Semantic Drift — Notion & NotebookLM event discriminant format snake_case → kebab-case | **Resolved** |
-| 4303 | [4303-semantic-drift-workspace-event-discriminants-use-underscore.md](./4303-semantic-drift-workspace-event-discriminants-use-underscore.md) | Semantic Drift — `workspace.lifecycle_transitioned`、`workspace.visibility_changed`、`workspace.audit.*` 使用下劃線分隔符，違反 kebab-case 規範 | **Resolved** |
-| 5100 | [5100-accidental-complexity.md](./5100-accidental-complexity.md) | Accidental Complexity | **Superseded** (0015) |
-| 5101 | [5101-accidental-complexity-platform-domain-stubs.md](./5101-accidental-complexity-platform-domain-stubs.md) | Accidental Complexity — platform/domain/ 21 TODO stub → DESIGN.md | **Resolved** |
-| 5200 | [5200-cognitive-load.md](./5200-cognitive-load.md) | Cognitive Load | Accepted |
-| 5201 | [5201-cognitive-load-workspace-workflow-application.md](./5201-cognitive-load-workspace-workflow-application.md) | Cognitive Load — `workspace-workflow/application/` 混合 5 種子目錄慣例 | Accepted |
-| 5202 | [5202-cognitive-load-workspace-dto-mixes-types-and-factory-functions.md](./5202-cognitive-load-workspace-dto-mixes-types-and-factory-functions.md) | Cognitive Load — `workspace-interfaces.dto.ts` 混合型別 export 與 domain event factory function export | Accepted |
-| 5203 | [5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md](./5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md) | Cognitive Load — 12 個 subdomain `api/index.ts` 使用無選擇性 `export *` wildcard，API surface 不可讀 | **Superseded** (0015) |
-
-## 與 0001–0011 ADR 的對應關係
-
-| Smell ADR | 對應 ADR |
-|-----------|---------|
-| 1100 Layer Violation | 0001 Hexagonal Architecture |
-| 1101 Layer Violation — crypto in domain | 0001 Hexagonal Architecture |
-| 1102 Layer Violation — ports in application | 0001 Hexagonal Architecture, 0008 Repository Interface |
-| 1103 Layer Violation — Firebase SDK in api/ layer | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
-| 1200 Boundary Violation | 0002 Bounded Contexts, 0003 Context Map |
-| 1201 Boundary Violation — business logic in infra | 0001 Hexagonal Architecture, 0009 Anemic Aggregates |
-| 1300 Cyclic Dependency | 0001 Hexagonal Architecture |
-| 1400 Dependency Leakage | 0007 Infrastructure in api/, 0008 Repository Interface |
-| 1401 Dependency Leakage — infrastructure-api in platform/api | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
-| 1402 Dependency Leakage — use-case classes in platform/api | 0007 Infrastructure in api/, 0011 Use Case Bundling |
-| 1403 Dependency Leakage — subdomain api exports * from interfaces | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
-| 2100 Tight Coupling | 0003 Context Map, 0007 Infrastructure in api/ |
-| 2101 Tight Coupling — crypto runtime | 0001 Hexagonal Architecture |
-| 2200 Hidden Coupling | 0010 Aggregate Domain Event Emission |
-| 2201 Hidden Coupling — workspace aggregate no domain events | 0010 Aggregate Domain Event Emission, 0009 Anemic Aggregates |
-| 2300 Temporal Coupling | 0007 Infrastructure in api/ |
-| 3100 Low Cohesion | 0011 Use Case Bundling |
-| 3101 Low Cohesion — platform application layer | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
-| 3200 Duplication | 0004 Ubiquitous Language |
-| 3201 Duplication — event discriminant format | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
-| 3202 Duplication — source DTO logic | 0004 Ubiquitous Language |
-| 3203 Duplication — shell-quick-create orphaned copy | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
-| 4100 Change Amplification | 0011 Use Case Bundling |
-| 4101 Change Amplification — UUID strategy | 0001 Hexagonal Architecture |
-| 4200 Inconsistency | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
-| 4201 Inconsistency — dto vs dtos | 0004 Ubiquitous Language |
-| 4202 Inconsistency — UUID v7 in workspace domain events | 0001 Hexagonal Architecture, 0006 Domain Event Discriminant |
-| 4300 Semantic Drift | 0004 Ubiquitous Language |
-| 4301 Semantic Drift — application subdirectory names | 0001 Hexagonal Architecture, 0004 Ubiquitous Language |
-| 4302 Semantic Drift — notion/notebooklm event discriminant format | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
-| 4303 Semantic Drift — workspace event discriminants use underscore | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
-| 5100 Accidental Complexity | 0001 Hexagonal Architecture |
-| 5101 Accidental Complexity — platform domain stubs | 0001 Hexagonal Architecture, 0010 Aggregate Domain Event Emission |
-| 5200 Cognitive Load | 0009 Anemic Aggregates, 0011 Use Case Bundling |
-| 5201 Cognitive Load — workspace-workflow application | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
-| 5202 Cognitive Load — workspace DTO mixes types and factories | 0009 Anemic Aggregates, 0010 Aggregate Domain Event Emission |
-| 5203 Cognitive Load — subdomain api unscoped wildcard exports | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
-
-## How To Use This Index
-
-1. 識別問題所屬 smell 類型。
-2. 查閱對應編號文件的 context + decision + consequences。
-3. 參照「對應 ADR」確認架構規範根源。
-4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
 ## File: docs/examples/ai/.gitkeep
@@ -17530,8 +16612,6 @@ flowchart LR
 ````markdown
 # Bounded Contexts
 
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
-
 ## Strategic Bounded Context Model
 
 系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
@@ -18682,8 +17762,6 @@ flowchart LR
 ````markdown
 # Architecture Overview
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
 ## System Shape
 
 系統以八個主域 / bounded context 組成，每個主域都視為一個有自己語言與規則的邊界：
@@ -18966,18 +18044,13 @@ flowchart LR
 | **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
 | **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENT.md |
 | **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
+| **Anti-Patterns** (46-51) | 6 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
 
-**Total**: 50 rules consolidated into 8 homes
+**Total**: 51 rules consolidated into 8 homes
 
 ---
 
-## 📍 LOCATION 1: `AGENTS.md` (Strategic Rules)
-
-### Add to § "Module Ownership Guardrails"
-
-```markdown
-## Strategic Ownership Rules (Hard Constraints)
+## Strategic Ownership Rules (Rules 1, 5–10, 28)
 
 ### Rule 1: Each Module Owns Its Domain Adapters
 - ✅ Each module (iam, billing, ai, platform, workspace, notion, notebooklm) maintains its own Firestore/infrastructure adapters for domain-local data
@@ -19022,12 +18095,7 @@ flowchart LR
 - ✅ iam / billing / ai / platform keep one-way dependency direction toward their downstream consumers
 - ❌ upstream contexts NEVER import downstream domain internals directly
 - ✅ If an upstream context needs semantic data from downstreams, use events or public APIs only
-```
-
-### Add to § "Anti-Patterns"
-
-```markdown
-### Hard Anti-Patterns (Will Cause Refactors)
+## Hard Anti-Patterns (Rules 46–51)
 
 - ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
   - Fix: Use `@/modules/platform` (FileAPI, PermissionAPI, etc. via module `index.ts`)
@@ -19046,16 +18114,10 @@ flowchart LR
 
 - ❌ **Rule 51**: Cross-module route components read foreign context providers
   - Fix: workspace is the composition owner; pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
-```
 
 ---
 
-## 📍 LOCATION 2: `.github/instructions/architecture-core.instructions.md`
-
-### Add Section: "Layer Responsibility Rules"
-
-```markdown
-## Layer Responsibility Rules (Hard Constraints)
+## Layer Responsibility Rules (Rules 11–13, 16, 21–23)
 
 ### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
 - ✅ application/ coordinates domain behavior + transaction boundaries
@@ -19103,16 +18165,10 @@ flowchart LR
 - ❌ domain/ NEVER makes I/O calls
 - ❌ domain/ NEVER calls external services
 - ✅ domain events emitted; orchestration in application/
-```
 
 ---
 
-## 📍 LOCATION 3: `.github/instructions/event-driven-state.instructions.md`
-
-### Add Section: "Event Bus Requirement & Data Flow"
-
-```markdown
-## Event Bus Requirement & Async Data Flow (Hard Constraints)
+## Event Bus & Async Data Flow (Rules 4, 9, 34–36)
 
 ### Rule 4: Event Bus is Mandatory (Not Optional)
 - ✅ Platform.event-bus/ subdomain must exist and be fully implemented
@@ -19143,16 +18199,10 @@ flowchart LR
 - ✅ When B needs data from A: B calls A.api (synchronous)
 - ❌ NO B reading A's Firestore collection directly
 - ✅ Events enable loose coupling; API enables strongcontract
-```
 
 ---
 
-## 📍 LOCATION 4: `.github/instructions/security-rules.instructions.md`
-
-### Add Section: "File Lifecycle, Metadata, Ownership"
-
-```markdown
-## File & Data Ownership Rules (Hard Constraints)
+## File, Data & Permission Rules (Rules 3, 29–33, 37–40)
 
 ### Rule 3: File Metadata is Non-Negotiable
 - ✅ EVERY file in Storage has metadata in Firestore
@@ -19215,16 +18265,10 @@ flowchart LR
 - ✅ Database query: `select * from resources where workspace_id = ?`
 - ❌ NEVER query without workspace/tenant filter
 - ✅ Scope enforced in both application and Firestore rules
-```
 
 ---
 
-## 📍 LOCATION 5: `docs/structure/system/context-map.md`
-
-### Add or Extend Section: "Cross-Module Data Contracts"
-
-```markdown
-## Cross-Module Data Flow Rules (Hard Constraints)
+## Cross-Module Data Flow Rules (Rules 24–27)
 
 ### Rule 24: Notebooklm Cannot Direct-Read Firestore
 - ✅ notebooklm reads knowledge artifacts via `@/modules/notion` (`index.ts` public boundary)
@@ -19247,112 +18291,71 @@ flowchart LR
 - ✅ workspace calls notebooklm.api; notebooklm handles AI routing
 - ❌ NEVER workspace imports the ai context or genkit directly
 - ✅ Decouples UI from AI complexity
-```
 
 ---
 
-## 📍 LOCATION 6: Module-Level `AGENT.md` Files
+## Module-Level Enforcement
 
-Each module should have its own constraints section, such as:
+Each module enforces its own subset of these rules. Key mapping:
 
-### **`src/modules/platform/AGENT.md`** (Add Section)
-
-```markdown
-## Platform-Specific Hard Rules
+### src/modules/platform
 
 1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
 2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
 3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
 4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
-```
 
-### **`src/modules/workspace/AGENT.md`** (Add Section)
-
-```markdown
-## Workspace-Specific Hard Rules
+### src/modules/workspace
 
 1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
 2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
 3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
 4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
-```
 
-### **`src/modules/notion/AGENT.md`** (Add Section)
-
-```markdown
-## Notion-Specific Hard Rules
+### src/modules/notion
 
 1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or the ai context
-2. **Rule 24-25**: Notion owns knowledge artifact authoring; others access via notion.api only
+2. **Rules 24–25**: Notion owns knowledge artifact authoring; others access via notion.api only
 3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
-```
 
-### **`src/modules/notebooklm/AGENT.md`** (Add Section)
+### src/modules/notebooklm
 
-```markdown
-## NotebookLM-Specific Hard Rules
-
-1. **Rule 24-25**: All knowledge data requests via notion.api; never direct Firestore
+1. **Rules 24–25**: All knowledge data requests via notion.api; never direct Firestore
 2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to the ai context internally
-3. **Rule 31-32**: All AI prompts/outputs logged with full traceability metadata
+3. **Rules 31–32**: All AI prompts/outputs logged with full traceability metadata
 4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
-```
 
 ---
 
-## 📍 LOCATION 7: ESLint Config (`eslint.config.mjs`)
-
-### Add Custom Rule Enforcement
-
-```javascript
-// Enforce hard rule 2, 6, 49: No cross-module internal imports
-{
-  rules: {
-    "@custom/no-cross-module-internal-import": {
-      enabled: true,
-      allowedPaths: ["index.ts"],  // Only module root index.ts exports allowed
-      blockedPaths: ["domain/", "application/", "infrastructure/", "interfaces/"]
-    },
-    
-    // Enforce hard rule 1, 8: No direct Firebase/Genkit imports outside platform
-    "@custom/no-direct-firebase-outside-platform": {
-      enabled: true,
-      allowedModules: ["platform"],
-      blockedImports: ["firebase", "@google-cloud/genkit"]
-    }
-  }
-}
-```
-
-### Design Smell Guardrails
+## ESLint Design Smell Guardrails
 
 以下 guardrails 用來把 design smell 變成持續可見的 warning signal，而不是等到大型 convergence 才發現。
 
-#### 1300 Cyclic Dependency
+### 1300 Cyclic Dependency
 
 - 禁止把 `require()` 當成正常的 composition 模式。
 - 若真的因既有循環鏈暫時保留 lazy require，必須把它侷限在單點並標明循環來源。
 - lint signal: `no-restricted-syntax` on `CallExpression[callee.name='require']`。
 
-#### 1400 Dependency Leakage
+### 1400 Dependency Leakage
 
 - `index.ts` 不得用 `export * from "./application"` 或 `export * from "./interfaces"` 洩漏內層。
 - 公開邊界應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
 - lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
 
-#### 3100 Low Cohesion
+### 3100 Low Cohesion
 
 - `index.ts` 若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
 - 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
 - lint signal: `max-lines` on module `index.ts` files as early warning.
 
-#### 5200 Cognitive Load
+### 5200 Cognitive Load
 
 - fat screen 不是單純行數問題，而是單一畫面同時承接 cross-module orchestration、panel wiring 與流程判斷。
 - 超過閾值時先檢查是否可以抽出 focused composition、helper 或 facade。
 - lint signal: `max-lines` on `interfaces/**/components/screens/**`.
 
-#### Enforcement Posture
+### Enforcement Posture
 
 - lint 使用 warning 等級，目的是持續暴露 smell 壓力，不是把既有技術債一次性升級成 build blocker。
 - smell 是否成立，以對應 ADR 的 context、decision、conflict resolution 為準；lint 只是入口訊號。
@@ -19370,7 +18373,7 @@ Each module should have its own constraints section, such as:
 | 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
 | 24-27 | context-map.md | Cross-module contracts |
 | 17 | Platform feature-flag docs | Feature independence |
-| 46-50 | AGENTS.md | Anti-patterns |
+| 46-51 | AGENTS.md | Anti-patterns |
 | All | Module AGENT.md | Tactical enforcement |
 
 ---
@@ -19389,7 +18392,7 @@ Each module should have its own constraints section, such as:
 ### Before Each Release:
 - [ ] All rules reviewed in relevant AGENT.md
 - [ ] ESLint boundary checks passing
-- [ ] Zero anti-pattern violations (46-50)
+- [ ] Zero anti-pattern violations (46-51)
 - [ ] Event schemas registered & consistent
 
 ---
@@ -19410,8 +18413,6 @@ Each module should have its own constraints section, such as:
 ## File: docs/structure/system/integration-guidelines.md
 ````markdown
 # Integration Guidelines
-
-本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
 
 ## Boundary Contract
 
@@ -19876,8 +18877,6 @@ sequenceDiagram
 ## File: docs/structure/system/strategic-patterns.md
 ````markdown
 # Strategic Patterns
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD strategic design 與 context map 原則重建，不主張反映現況實作。
 
 ## Selected Patterns
 
@@ -20910,8 +19909,6 @@ src/modules/<context>/
 ````markdown
 # Docs
 
-本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
 ## Purpose
 
 這份文件集提供八個主域 / bounded context 的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
@@ -21066,6 +20063,46 @@ flowchart LR
 
 - 本文件集是 Context7-only 的 architecture-first 版本。
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
+````
+
+## File: packages/infra/client-state/.gitkeep
+````
+
+````
+
+## File: packages/infra/date/.gitkeep
+````
+
+````
+
+## File: packages/infra/genkit/.gitkeep
+````
+
+````
+
+## File: packages/infra/http/.gitkeep
+````
+
+````
+
+## File: packages/infra/serialization/.gitkeep
+````
+
+````
+
+## File: packages/infra/uuid/.gitkeep
+````
+
+````
+
+## File: packages/infra/zod/.gitkeep
+````
+
+````
+
+## File: packages/integration-data/.gitkeep
+````
+
 ````
 
 ## File: packages/integration-firebase/auth/.gitkeep
@@ -21300,6 +20337,31 @@ import {
 import { firebaseClientApp } from "./client";
 ⋮----
 export function getFirebaseStorage(): FirebaseStorage
+````
+
+## File: packages/integration-state/.gitkeep
+````
+
+````
+
+## File: packages/integration-trpc/.gitkeep
+````
+
+````
+
+## File: packages/ui-components/.gitkeep
+````
+
+````
+
+## File: packages/ui-editor/.gitkeep
+````
+
+````
+
+## File: packages/ui-markdown/.gitkeep
+````
+
 ````
 
 ## File: packages/ui-shadcn/hooks/use-mobile.ts
@@ -22503,6 +21565,11 @@ packages/ui-shadcn/
 - `components.json` — shadcn CLI 配置（別名、style、baseColor）
 - `tailwind.config.ts` — Tailwind CSS 4 設定
 - `tsconfig.json` — `@ui-shadcn/*` path alias
+````
+
+## File: packages/ui-visualization/.gitkeep
+````
+
 ````
 
 ## File: packages/AGENT.md
@@ -39309,7 +38376,7 @@ const handleDelete = async (fileId: string) =>
  */
 ⋮----
 import { AlertCircle, Plus, AlertTriangle, Info, Loader2 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { listIssuesByTaskAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
@@ -39323,8 +38390,6 @@ interface WorkspaceIssuesSectionProps {
 }
 ⋮----
 type IssueFilter = "全部" | "開啟" | "處理中" | "已關閉";
-⋮----
-// Load all tasks, then load issues for each task
 ⋮----
 const handleRefresh = () =>
 ⋮----
@@ -39654,7 +38719,7 @@ function handleReset()
  */
 ⋮----
 import { CheckSquare, Plus, Loader2 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
@@ -40723,6 +39788,27 @@ export function severityLevel(severity: AuditSeverity): number
 
 ````
 
+## File: src/modules/workspace/subdomains/feed/adapters/inbound/server-actions/feed-actions.ts
+````typescript
+/**
+ * feed-actions — workspace/feed inbound server actions.
+ *
+ * Thin boundary layer: parse → use-case → return CommandResult / snapshot[].
+ * All Firebase setup goes through the workspace firebase-composition root.
+ */
+⋮----
+import type { CommandResult } from "../../../../../../shared";
+import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
+import { CreateFeedPostSchema, ListFeedPostsSchema } from "../../../application";
+import { createClientFeedUseCases } from "../../../../../adapters/outbound/firebase-composition";
+⋮----
+/** Create a new feed post (text + optional photos). */
+export async function createFeedPostAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+/** List feed posts for a workspace, optionally filtered by date (YYYY-MM-DD). */
+export async function listFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]>
+````
+
 ## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
 ````typescript
 
@@ -40932,6 +40018,74 @@ incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyC
 ## File: src/modules/workspace/subdomains/feed/domain/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/feed/README.md
+````markdown
+# feed — Workspace Feed Subdomain
+
+每日動態貼文子域。讓工作區成員每天以 IG 風格發布文字與照片動態，未來將擴展為今日任務完成與出勤記錄的整合入口。
+
+## 領域概念
+
+| 概念 | 說明 |
+|---|---|
+| `FeedPost` | 聚合根。代表一則動態（post / reply / repost）|
+| `dateKey` | ISO 日期字串 `YYYY-MM-DD`，用於 Firestore 按日期查詢 |
+| `photoUrls` | 附圖 URL 陣列（最多 9 張），指向 Storage 或外部圖片 |
+| `FeedPostType` | `post`（一般貼文）· `reply`（回覆）· `repost`（轉貼）|
+
+## 狀態
+
+| 層 | 狀態 |
+|---|---|
+| Domain | ✅ FeedPost 聚合根（含 photoUrls、dateKey）|
+| Application | ✅ CreateFeedPostUseCase、ListFeedPostsUseCase |
+| Outbound adapter | ✅ FirestoreFeedRepository（含按日期查詢）|
+| Inbound adapter | ✅ feed-actions.ts server actions |
+| UI | ✅ WorkspaceDailySection — 每日動態 IG 風格貼文牆 |
+
+## 資料結構（Firestore）
+
+Collection: `feed_posts`
+
+```
+{
+  id: string (UUID),
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  type: "post" | "reply" | "repost",
+  content: string,
+  dateKey: string,       // YYYY-MM-DD — 用於日期過濾索引
+  photoUrls: string[],   // Storage URLs，0–9 張
+  replyToPostId: string | null,
+  repostOfPostId: string | null,
+  likeCount: number,
+  replyCount: number,
+  repostCount: number,
+  viewCount: number,
+  bookmarkCount: number,
+  shareCount: number,
+  createdAtISO: string,
+  updatedAtISO: string,
+}
+```
+
+建議 Firestore 複合索引：`(accountId, workspaceId, dateKey)` 以優化每日動態查詢。
+
+## 未來擴展
+
+- 今日任務完成統計（接入 workspace/task 子域）
+- 出勤記錄 check-in（接入 workspace/membership 子域）
+- 照片實際上傳（整合 platform FileAPI，替換 URL 輸入）
+- 點讚 / 回覆互動
+
+## 邊界規則
+
+- `domain/` 不依賴任何外部框架或 Firebase SDK。
+- 跨模組消費者只能透過 `workspace/index.ts` 或 server actions 存取。
+- 照片上傳涉及所有權與 tenant 隔離時，必須走 platform FileAPI，而非直接呼叫 Storage SDK。
 ````
 
 ## File: src/modules/workspace/subdomains/invitation/adapters/inbound/index.ts
@@ -43778,176 +42932,6 @@ export type TaskFormationJobStatus = "queued" | "running" | "partially_succeeded
 ## File: src/modules/workspace/subdomains/task-formation/domain/index.ts
 ````typescript
 
-````
-
-## File: src/modules/workspace/subdomains/task-formation/AGENT.md
-````markdown
-# task-formation — Agent Guide
-
-## Purpose
-
-`task-formation` 子域負責「從 Notion 知識頁面 AI 提取任務候選，使用者確認後批次建立 Task」的完整流程。
-
----
-
-## Route Here When
-
-- 實作 AI 提取任務候選的流程（`ExtractTaskCandidatesUseCase`）
-- 實作使用者審閱 / 確認候選任務的 UI（`TaskFormationPanel`）
-- 修改 `TaskFormationJob` aggregate 行為或生命週期狀態轉換
-- 撰寫 Genkit extraction flow（`adapters/outbound/genkit/`）
-- 修改 `TaskFormationJobRepository` port 定義
-- 建立 task-formation Server Actions
-
-## Route Elsewhere When
-
-| 需求 | 正確路徑 |
-|---|---|
-| 建立 Task 實體本身 | `src/modules/workspace/subdomains/task/` |
-| 知識頁面內容讀取 | `src/modules/notion/index.ts` |
-| AI model 選擇 / 安全護欄 | `src/modules/ai/index.ts`（透過 platform 路由）|
-| 檔案上傳 / 權限檢查 | `src/modules/platform/index.ts` |
-| 任務看板 / issue 追蹤 | `src/modules/workspace/subdomains/task/` 或 `issue/` |
-
----
-
-## Boundary Rules
-
-1. `domain/` 禁止匯入：React、Firebase SDK、Genkit、`uuid`（用 `@infra/uuid`）
-2. `TaskFormationJob` 是唯一 Aggregate Root；狀態轉換只能透過 behavior method
-3. AI extraction 結果（`candidates`）必須持久化進 Firestore Job document，不可只存在記憶體
-4. 跨到 `task` 子域建立 Task 必須透過 `task` 子域的 use case 邊界，不可直接寫 Firestore
-5. `adapters/inbound/` 只呼叫 `application/use-cases/`；不得直接呼叫 domain 實作或 repository
-6. Genkit flow 放在 `adapters/outbound/genkit/`；use case 透過 port interface 呼叫，不直接 import flow
-
----
-
-## ❌ / ✅ 設計範例
-
-### ❌ 禁止這樣做
-
-```typescript
-// ❌ inbound adapter 直接呼叫 repository
-const repo = new FirestoreTaskFormationJobRepository(db);
-const job = await repo.findById(jobId);
-
-// ❌ use case 直接 import Genkit
-import { extractTaskCandidatesFlow } from '@genkit-ai/...';
-
-// ❌ aggregate 不儲存 candidates，只存計數
-class TaskFormationJob {
-  markCompleted(input: { succeededItems: number }): void { /* 候選清單丟失 */ }
-}
-
-// ❌ candidates 只存 React state，不持久化
-const [candidates, setCandidates] = useState<ExtractedTaskCandidate[]>([]);
-```
-
-### ✅ 應該這樣做
-
-```typescript
-// ✅ use case 透過 port 呼叫 AI（domain/ports/TaskCandidateExtractorPort.ts）
-class ExtractTaskCandidatesUseCase {
-  constructor(
-    private readonly jobRepo: TaskFormationJobRepository,
-    private readonly aiExtractor: TaskCandidateExtractorPort,
-  ) {}
-}
-
-// ✅ aggregate 儲存候選清單並發出 domain event
-class TaskFormationJob {
-  setCandidates(candidates: ExtractedTaskCandidate[]): void {
-    this._props = { ...this._props, candidates, status: 'succeeded' };
-    this._domainEvents.push({
-      type: 'workspace.task-formation.candidates-extracted',
-      eventId: generateId(),
-      occurredAt: new Date().toISOString(),
-      payload: { jobId: this._props.id, candidateCount: candidates.length },
-    });
-  }
-}
-
-// ✅ 跨子域透過 use case 邊界建立 Task
-class ConfirmCandidatesUseCase {
-  constructor(
-    private readonly jobRepo: TaskFormationJobRepository,
-    private readonly createTask: CreateTaskUseCase,   // task 子域 use case
-  ) {}
-}
-```
-
----
-
-## 技術選型（Context7 驗證）
-
-| 關注點 | 技術 | 版本 / 模式 |
-|---|---|---|
-| AI 提取 | Genkit `ai.defineFlow` | Zod `outputSchema` + `z.coerce.number()` for AI numeric strings |
-| UI 狀態 | XState v5 `setup()` | `fromPromise<Output, Input>` 雙泛型；machine 放在 `application/machines/` |
-| 入口層 | Next.js `useActionState` | `safeParse` + 早期 structured error 回傳 |
-| 驗證 | Zod v4 | `z.object()` + `z.iso.datetime()` + `z.coerce.number()` |
-| ID 生成 | `@infra/uuid` | 禁止在 domain 層直接 import `uuid` |
-
----
-
-## 狀態機設計（UI 層）
-
-```
-idle ──START──→ extracting ──onDone──→ reviewing ──CONFIRM──→ confirming ──onDone──→ done
-               ──onError──→ failed               ──onError──→ reviewing（保留選擇）
-reviewing ──CANCEL──→ idle
-failed ──RETRY──→ idle
-```
-
-XState v5 `setup()` 必填欄位：
-
-```typescript
-setup({
-  types: {
-    context: {} as TaskFormationContext,
-    events: {} as TaskFormationEvent,
-    input: {} as { workspaceId: string },  // ← input 型別聲明不可省略
-  },
-  actors: { /* fromPromise actors */ },
-})
-```
-
----
-
-## Domain Events（discriminant 格式）
-
-| Event type | 狀態 | 觸發時機 |
-|---|---|---|
-| `workspace.task-formation.job-created` | ✅ 已實作 | `CreateTaskFormationJobUseCase` 成功 |
-| `workspace.task-formation.candidates-extracted` | ⚠️ 待補 | `setCandidates()` 呼叫後 |
-| `workspace.task-formation.candidates-confirmed` | ⚠️ 待補 | `ConfirmCandidatesUseCase` 完成 |
-| `workspace.task-formation.job-failed` | ⚠️ 待補 | `markFailed()` 呼叫後 |
-
-Event discriminant 格式：`<module>.<subdomain>.<action>`（全 kebab-case）
-
----
-
-## 現況差距快覽
-
-| 項目 | 現況 | 目標 |
-|---|---|---|
-| Aggregate 存 candidates | ❌ 只有計數欄位 | ✅ `candidates: ExtractedTaskCandidate[]` + `setCandidates()` |
-| `TaskCandidateExtractorPort` | ❌ 不存在 | ✅ `domain/ports/` 新建 |
-| AI 提取流程 | ❌ 不存在 | ✅ Genkit flow via port |
-| 確認流程 | ❌ 不存在 | ✅ `ConfirmCandidatesUseCase` |
-| UI 狀態機 | ❌ 不存在 | ✅ XState v5 machine |
-| Server Actions | ❌ inbound 空白 | ✅ `startExtraction` + `confirmCandidates` |
-
----
-
-## 嚴禁事項
-
-- ❌ 在 `domain/` 或 `application/` 直接 import `defineFlow`、`generate`、Firebase SDK
-- ❌ candidates 只存在 React state，不寫回 Firestore Job doc
-- ❌ 確認後直接呼叫 `task` 子域 repository（必須走 use case 邊界）
-- ❌ `TaskFormationJob` 只存計數，不存候選清單本體
-- ❌ `application/machines/` 內的 machine 直接 import Firebase SDK 或 Genkit
-- ❌ 在 inbound server action 直接呼叫 Genkit `ai.generate()`
 ````
 
 ## File: src/modules/workspace/subdomains/task-formation/README.md
@@ -46878,9 +45862,1001 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 }
 ````
 
-## File: vitest.config.ts
-````typescript
-import { resolve } from "node:path";
-⋮----
-import { defineConfig } from "vitest/config";
+## File: .github/instructions/domain-layer-rules.instructions.md
+````markdown
+---
+description: 'Domain Layer（領域層）戰略設計規則：業務純度、行為封裝、不變數保護、技術無關性。'
+applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
+---
+
+# Domain Layer（領域層）設計規則
+
+> 完整邊界參考：**先查 `docs/structure/domain/ubiquitous-language.md`、`docs/structure/contexts/<context>/README.md`**
+> 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
+> 此文件只包含 Domain Layer 層級的**戰略設計約束**。
+
+## 戰略設計規則
+
+1. Domain 層只表達業務規則，不包含技術實作（DB / API / Framework）。
+2. Entity 必須封裝狀態與行為，禁止裸 set state。
+3. Aggregate Root 是唯一外部進入 Domain 的入口。
+4. Domain 不依賴 Application / Infrastructure / Interface。
+5. Domain 變更只能透過行為方法（method），不能直接修改屬性。
+6. Domain event 用於表達「業務事實」，不是技術事件。
+7. Invariant（不變條件）必須在 Aggregate 內強制保護。
+8. Domain 必須能在沒有 DB / HTTP 的情況下完整運作（pure logic）。
+
+## 與其他層的關係
+
+- `domain/` 是依賴方向的最內層，所有其他層指向它。
+- `application/` 依賴 `domain/` 的 abstraction，不依賴 implementation。
+- `infrastructure/` 實作 `domain/` 定義的 Port/Repository 介面。
+- `interfaces/` 不得直接呼叫 `domain/` 內部，必須經由 `application/` 或模組 `index.ts`。
+
+## 禁止模式
+
+- ❌ 在 `domain/` 層匯入 Firebase、HTTP client、React、ORM。
+- ❌ 貧血模型：只有 data properties，無 business logic。
+- ❌ 跨聚合直接操作：在 Aggregate A 中修改 Aggregate B 的狀態。
+- ❌ Domain event 命名使用現在式或技術術語。
+
+## 具體禁止匯入
+
+以下任一出現即為 CRITICAL 違規，必須立即修正：
+
+- `domain/` 匯入 Firebase / Firestore / Firebase Admin SDK
+- `domain/` 匯入 React / React hooks / Next.js
+- `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
+- `domain/` 匯入 ORM / database client
+- `domain/` 直接呼叫 `node:crypto`（必須用 `@infra/uuid`）
+- Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
+- Use Case 內含業務 invariant 判斷（應移至 Aggregate）
+- Domain Event 使用現在式命名
+
+## Domain Layer 審查清單
+
+### Aggregate 設計
+- [ ] 使用私有 constructor + 靜態 `create()` / `reconstitute()`？
+- [ ] 業務不變數在 Aggregate method 內強制，違規時拋 `Error`？
+- [ ] 狀態修改透過封裝 method，不暴露可變屬性？
+- [ ] `_domainEvents` 私有陣列 + `pullDomainEvents()` + `getSnapshot()`？
+- [ ] 識別碼使用 `z.string().uuid().brand()` 品牌型別？
+
+### Value Object 設計
+- [ ] 不可變（Immutable）？
+- [ ] 無識別碼欄位？
+- [ ] 以值內容判斷相等性？
+
+### Domain Event 設計
+- [ ] 過去式命名（例如 `WorkspaceCreated`）？
+- [ ] discriminant 格式 `<module>.<action>`（例如 `workspace.created`）？
+- [ ] `occurredAt` 為 ISO string，不是 `Date` 物件？
+- [ ] 使用 Zod schema 嚴格定義 payload？
+
+### Repository / Port 介面
+- [ ] 只有介面定義，無實作細節？
+- [ ] 命名為 `PascalCaseRepository`（無 `I` 前綴）？
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+#use skill hexagonal-ddd
+````
+
+## File: docs/decisions/1101-layer-violation-crypto-in-domain.md
+````markdown
+# 1101 Layer Violation — `crypto.randomUUID()` in Domain Layer
+
+- Status: Resolved
+- Date: 2026-04-13
+- Resolved: 2026-04-13
+- Category: Architectural Smells > Layer Violation
+
+> **路徑說明**：此 ADR 中的路徑使用舊版 `modules/` 前綴（架構遷移前）。現行實作位置為 `src/modules/` 下的對應路徑。
+
+## Context
+
+`domain/` 層必須做到「技術無關（runtime-agnostic）」，不能直接依賴 Node.js 內建模組或任何執行環境 API。
+這是 Hexagonal Architecture 的核心要求：Domain 是最內層，所有技術依賴都必須由外層（infrastructure）注入。
+
+掃描後發現 **43 個 domain 聚合根** 與 **6 個 application use-case** 直接呼叫 `crypto.randomUUID()`
+或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
+而非使用已建立的 `@infra/uuid` 套件別名。
+
+> 對照：`modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`
+> 是唯一正確使用 `import { v4 as randomUUID } from "@infra/uuid"` 的聚合根。
+
+### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
+
+```
+modules/workspace/domain/aggregates/Workspace.ts:182
+modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts:68, 85
+modules/notion/subdomains/authoring/domain/aggregates/Article.ts:72, 102, 114
+modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts:68, 99, 117, 136, 159, 168, 169, 186, 202, 213, 228, 243
+modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts:62, 83, 109, 156
+modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts:52, 69, 84
+modules/platform/subdomains/access-control/domain/aggregates/AccessPolicy.ts:48, 77, 89
+modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts:67
+modules/platform/subdomains/account/domain/aggregates/Account.ts:50, 85, 106, 130, 220
+modules/platform/subdomains/entitlement/domain/aggregates/EntitlementGrant.ts:43, 68, 82, 93
+modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts:53, 76, 89, 107, 121, 135
+modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts:45, 66
+modules/platform/subdomains/organization/domain/aggregates/Organization.ts:80, 123, 153, 184, 210, 313, 322, 330
+modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts:49, 79, 99, 117, 128
+```
+
+### 受影響的 application 層（`node:crypto` 直接 import）
+
+```
+modules/notebooklm/subdomains/source/application/use-cases/upload-init-source-file.use-case.ts:11
+  import { randomBytes, randomUUID } from "node:crypto";
+modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts:14
+  import { randomUUID } from "node:crypto";
+modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts:10
+  import { randomUUID } from "node:crypto";
+modules/notebooklm/subdomains/synthesis/application/use-cases/answer-rag-query.use-case.ts:13
+  import { randomUUID } from "node:crypto";
+modules/platform/subdomains/background-job/application/use-cases/background-job.use-cases.ts:12
+  import { randomUUID } from "node:crypto";
+```
+
+### 問題說明
+
+1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
+2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
+3. **一致性**：`@infra/uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
+4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@infra/uuid`，但 43 個地方違反了這條規範。
+
+## Decision
+
+1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@infra/uuid"` 的 `uuid()`。
+2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@infra/uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
+3. **建議 lint rule**：在 `eslint.config.mjs` 中加入 `no-restricted-imports` 規則，禁止 `modules/*/domain/**` 和 `modules/*/application/**` 從 `node:crypto`、`crypto` 直接 import `randomUUID`。
+
+## Consequences
+
+正面：
+- Domain 層從 Node.js runtime 解耦，可在任意 JS 環境（瀏覽器、Edge、Deno）下執行。
+- UUID 生成策略（v4 → v7 等）只需修改 `@infra/uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
+- 測試不需要全域 crypto polyfill。
+
+代價：
+- 需在 14 個 domain 文件和 13 個 application 文件中進行 import 替換（機械性，無邏輯變更）。
+
+## Resolution
+
+**已解決（2026-04-13）**
+
+所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@infra/uuid"`：
+
+- **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
+- **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
+- **7 個 infrastructure/interfaces/api 文件**：service-api, repositories, stores, actions 中的 `crypto.randomUUID()` 也已一併替換
+- **唯一保留**：`upload-init-source-file.use-case.ts` 中的 `import { randomBytes } from "node:crypto"` 保留，因為 `randomBytes` 用途為加密強度隨機（非 UUID），屬基礎設施關注點。
+
+### 原始證據修正
+
+原 ADR 記錄「43 個 domain aggregates」，實際掃描為 **14 個 domain aggregate 文件**。差異來自原始掃描包含了多行匹配（同一文件多次出現）被誤計為不同文件。
+
+## 關聯 ADR
+
+- **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
+- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@infra/uuid`）
+````
+
+## File: docs/decisions/1104-layer-violation-globalthis-crypto-in-application-layer.md
+````markdown
+# 1104 Layer Violation — `globalThis.crypto?.randomUUID` 出現在 application 層
+
+- Status: Accepted
+- Date: 2026-04-14
+- Category: Architectural Smells > Layer Violation
+- Extends: ADR 1101 (crypto.randomUUID in domain layer → @infra/uuid)
+
+## Context
+
+ADR 1101 解決了 14 個 domain aggregates 和 13 個 application use-cases 中使用
+`crypto.randomUUID()` (Node.js `crypto` 模組) 的問題，將其遷移到 `@infra/uuid`。
+
+掃描後發現新的 violation：`notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts`
+在 **application 層** 中直接使用 `globalThis.crypto?.randomUUID`：
+
+```typescript
+// modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts:13-19
+export function generateSourceId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+```
+
+### 問題分析
+
+1. **繞過 `@infra/uuid` 抽象層**：ADR 4101 確立了 `@infra/uuid` 為全 repo 唯一 UUID 生成策略，
+   直接使用 `globalThis.crypto?.randomUUID` 破壞了這個集中管理層。
+
+2. **平台耦合**：`globalThis.crypto` 在 Node.js ≥ 19 才穩定，在舊版 Node.js 或某些 SSR 環境中可能為 `undefined`。
+   `@infra/uuid` 的 `v4` 已處理跨環境兼容性。
+
+3. **Fallback 邏輯洩入 application 層**：`wbl_${Date.now()}_${Math.random()}` 的 fallback
+   表明開發者知道 `globalThis.crypto` 可能不可用，但選擇在 application use-case 中處理此運行環境問題，
+   而不是透過 `@infra/uuid` 統一解決。
+
+4. **Format inconsistency**：生成的 ID 格式非 UUID 標準（`wbl_...` prefix + hex），
+   無法與系統其他地方的 UUID 比較，也無法作為 Zod `z.string().uuid()` 驗證的值。
+
+## Problem
+
+- **Layer boundary violation**: 直接使用 runtime Web Crypto API 是 infrastructure-level concern，
+  不應出現在 application use-case helper 中。
+- **Abstraction bypass**: 繞過 `@infra/uuid` centralized UUID strategy。
+- **Non-standard ID format**: fallback 產生 `wbl_...` 格式 ID，不符合 UUID v4 規格。
+- **Polyfill coupling**: application 層手動處理環境兼容性，本應是 `@infra/uuid` 的責任。
+
+## Decision
+
+1. 將 `generateSourceId()` 改為使用 `import { v4 as uuid } from "@infra/uuid"`。
+2. 移除 `globalThis.crypto` 直接調用和 fallback 邏輯。
+3. 統一 ID 格式為標準 UUID v4（與系統其他 entity ID 一致）。
+
+```typescript
+// After fix
+import { v4 as uuid } from "@infra/uuid";
+
+export function generateSourceId(): string {
+  return uuid();
+}
+```
+
+## Consequences
+
+正面：
+- 符合 ADR 1101 和 ADR 4101 規範，消除環境兼容性 fallback 邏輯。
+- 生成的 sourceId 符合 UUID v4 格式，可用 `z.string().uuid()` 驗證。
+
+代價：
+- 舊有 `wbl_` 前綴 sourceId（若已存入 Firestore）與新格式不兼容，需確認是否存在歷史資料。
+
+## 關聯 ADR
+
+- **ADR 1101** (Layer Violation — crypto.randomUUID in domain layer) — 先驅修復
+- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
+- **ADR 1100** (Layer Violation) — 系列入口文件
+````
+
+## File: docs/decisions/2101-tight-coupling-crypto-runtime.md
+````markdown
+# 2101 Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime
+
+- Status: Resolved
+- Date: 2026-04-13
+- Resolved: 2026-04-13
+- Category: Coupling Smells > Tight Coupling
+
+## Context
+
+緊耦合不僅發生在模組之間，也發生在程式碼與執行環境（Runtime）之間。
+Domain 聚合根直接呼叫 `crypto.randomUUID()` 或 `import { randomUUID } from "node:crypto"`，
+使 domain 層與特定執行環境（Node.js）產生 **Runtime Tight Coupling**。
+
+掃描結果（見 ADR 1101）：
+- **43 個 domain aggregates** 直接使用 `crypto.randomUUID()` global
+- **6 個 application use-cases** 使用 `node:crypto` 直接 import
+- **唯一正確範例**：`OrganizationTeam.ts` 使用 `import { v4 as randomUUID } from "@infra/uuid"`
+
+### 耦合層次分析
+
+| 耦合類型 | 耦合目標 | 解耦策略 |
+|----------|----------|----------|
+| `crypto` global | Node.js / Web Crypto API global 物件 | 使用 `@infra/uuid` 套件（跨環境相容）|
+| `node:crypto` import | Node.js 特定模組（有 `node:` 協議） | 使用 `@infra/uuid` 或注入 port |
+| `randomBytes` | 加密強度隨機（Node.js-only） | 若 domain 真需要，定義 port，由 infra 提供 |
+
+### Runtime Coupling 的具體風險
+
+**Edge Runtime 相容性問題：**
+
+Next.js App Router 的 Server Components 和 Middleware 可以在 Edge Runtime 執行。
+Edge Runtime 沒有 `node:crypto`，但有 Web `crypto` global。
+若 domain aggregates 被 server action 呼叫（透過 use-case），
+且 Next.js 決定在 Edge Runtime 執行，`import { randomUUID } from "node:crypto"` 將直接失敗。
+
+**測試環境問題：**
+
+Vitest/Jest 的 `jsdom` 環境中：
+- `crypto.randomUUID()` global 在較舊版本可能未定義，需要 polyfill。
+- `node:crypto` 在 `browser` mode 的測試中不可用。
+
+`@infra/uuid` 封裝了這些差異，提供統一接口。
+
+### 為何選擇 `@infra/uuid` 而非直接用 crypto
+
+```
+packages/infra/uuid/  ← @infra/uuid 套件（已存在）
+```
+
+`@infra/uuid` 是本 repo 已建立的跨環境 UUID 工具套件，
+存在的意義就是作為 domain 對 UUID 生成能力的抽象，
+隱藏底層是 `uuid` npm 包、Web Crypto 還是 Node.js crypto 的實作細節。
+
+只有 `OrganizationTeam` 正確使用了這個套件，其他 43 個 aggregates 繞過了這個抽象，
+在全域重用「`crypto.randomUUID()`」的情況下，整個 domain 層實際上與 runtime 緊耦合。
+
+### 已發現的直接 node:crypto 用例（application 層）
+
+```typescript
+// upload-init-source-file.use-case.ts:11
+import { randomBytes, randomUUID } from "node:crypto";
+// 用途：生成 storage 路徑用的唯一 token
+```
+
+此處 `randomBytes` 用於生成 storage path token，是 infrastructure 關注點（storage path generation），
+不應出現在 application use-case 中，應透過 StoragePath port 封裝。
+
+## Decision
+
+1. **所有 domain aggregates 改用 `@infra/uuid`**：  
+   `crypto.randomUUID()` → `import { v4 as uuid } from "@infra/uuid"` then `uuid()`
+2. **application use-cases 的 `randomUUID` 同樣改用 `@infra/uuid`**  
+3. **`randomBytes` 用於 storage path**：定義 `StoragePathGeneratorPort` 或 `UniqueTokenPort`，由 infrastructure 提供實作；或在 infrastructure adapter 層直接使用 `node:crypto`（不進入 application）。
+4. **建議 ESLint rule**（同 ADR 1101）：限制 domain 和 application 層從 `node:crypto` 直接 import。
+
+## Consequences
+
+正面：
+- Domain 可在 Edge Runtime、browser、Node.js 任意環境下執行。
+- 若未來升級 UUID 版本（v7 有時間排序優勢），只需修改 `@infra/uuid` 一處。
+
+代價：
+- 14 個 domain aggregates + 13 個 application use-cases + 7 個 infra/interfaces 文件需要機械性 import 替換（無邏輯變更）。
+
+## Resolution
+
+**已解決（2026-04-13）**
+
+與 ADR 1101 同步解決。所有 `crypto.randomUUID()` 和 `import { randomUUID } from "node:crypto"` 已替換為 `import { v4 as uuid } from "@infra/uuid"`。Domain 層現在完全 runtime-agnostic，可在 Edge Runtime、browser、Node.js 任意環境下執行。
+
+### 原始證據修正
+
+原 ADR 記錄「43 個 aggregates + 6 個 use-cases」，實際為 **14 個 domain aggregate 文件 + 13 個 application 文件 + 7 個其他層文件**。
+
+## 關聯 ADR
+
+- **1101**：這是層次違規的同一實例（同步解決）
+- **4101**：UUID 策略分散 = Change Amplification（解決後策略集中於 `@infra/uuid`）
+````
+
+## File: docs/decisions/4101-change-amplification-uuid-strategy.md
+````markdown
+# 4101 Change Amplification — UUID 生成策略變更需觸及 43+ 個 Domain 文件
+
+- Status: Resolved
+- Date: 2026-04-13
+- Resolved: 2026-04-13
+- Category: Maintainability Smells > Change Amplification
+
+## Context
+
+變更放大（Change Amplification）指對單一概念的修改必須在多個不相關的位置重複執行。
+理想狀態下，改變「UUID 生成策略」（如從 v4 升級到 v7、新增冪等前綴、加入 trace context）只需修改一個地方。
+
+掃描結果顯示（見 ADR 1101）：`crypto.randomUUID()` 和 `node:crypto` 直接調用散佈在：
+
+```
+受影響文件統計：
+  domain aggregates 中的 crypto.randomUUID() : 43 處（跨 4 個主域）
+  application use-cases 中的 node:crypto import : 6 個文件
+
+主域分佈：
+  platform   : 43 個 aggregates 中的 ~30 處
+  notion     : KnowledgePage, KnowledgeCollection, ContentBlock, Article
+  workspace  : Workspace, AuditEntry
+  notebooklm : 4 個 application use-cases
+```
+
+### 假設情境：從 UUIDv4 升級到 UUIDv7
+
+UUIDv7 提供時間排序（time-ordered），對 Firestore 文件 ID、分頁查詢有性能優勢。
+若決定升級，以下所有文件都需要修改：
+
+```
+modules/platform/subdomains/account/domain/aggregates/Account.ts       (5 處)
+modules/platform/subdomains/organization/domain/aggregates/Organization.ts (7 處)
+modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts  (6 處)
+modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts (5 處)
+modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts  (11 處)
+modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts (4 處)
+... (共 43 個 domain 文件 + 6 個 use-case 文件)
+```
+
+一次策略決定 → 49 個文件變更 → 49 個 PR diff hunks → 49 個 code review 審查點。
+
+### 對比正確模式
+
+`@infra/uuid` 套件（已存在）是 UUID 生成的集中點：
+
+```
+packages/infra/uuid/     ← 唯一需要修改的地方
+  index.ts              ← 改這一個文件
+```
+
+若全部 aggregates 使用 `@infra/uuid`，UUID 策略升級只需修改 `packages/infra/uuid/index.ts`，
+所有 43 個 aggregates 自動受益，**0 個 domain 文件需要修改**。
+
+### 其他 UUID 策略變更場景
+
+1. **加入 trace context 到 eventId**：`eventId: traceId + '-' + uuid()` — 修改 49 個文件 vs 修改 1 個
+2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@infra/uuid`
+3. **冪等 ID（基於內容雜湊）**：某些 aggregate 決定改用 content-hash ID — 需要知道哪些文件使用了 randomUUID
+
+## Decision
+
+1. **`@infra/uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
+2. **Change Control Point 原則**：任何「跨多個 domain 文件使用的基礎設施能力」（UUID、時間戳、雜湊、亂數）必須集中在 `packages/lib-*/` 或 port/adapter 中，禁止在 domain 層直接調用。
+3. **記錄已知的 Change Amplification 風險點**：
+   - UUID 生成 → 遷移至 `@infra/uuid`（本 ADR）
+   - `new Date().toISOString()` 在 domain aggregates 中（尚未系統掃描）— 應集中到 `@lib-datetime` 或 Clock port
+
+## Consequences
+
+正面：
+- UUID 策略升級：O(1) 修改（1 個 package）vs O(n) 修改（n 個 aggregates）。
+- Domain aggregates 的變更集中在業務邏輯，不被基礎設施工具的版本升級汙染。
+
+代價：
+- 初始遷移需要 34 個文件的機械性 import 替換（無邏輯變更，可批量執行）。
+
+## Resolution
+
+**已解決（2026-04-13）**
+
+所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@infra/uuid`。UUID 策略升級現在只需修改 `packages/infra/uuid/index.ts` 一處。
+
+### 原始證據修正
+
+原 ADR 記錄「49 個文件」，實際為 **34 個文件**。
+
+## 關聯 ADR
+
+- **1101** (Layer Violation)：crypto 在 domain 是層次違規（已解決）
+- **2101** (Tight Coupling)：crypto 是緊耦合（已解決）
+- **ADR 0001** (Hexagonal Architecture)：Change Amplification 是違反 DIP 的直接後果
+````
+
+## File: docs/decisions/4202-inconsistency-uuid-v7-in-workspace-domain-events.md
+````markdown
+# 4202 Inconsistency — UUID v7 用於 workspace domain event factory（全 repo 均使用 v4）
+
+- Status: Resolved
+- Resolved: 2026-04-14
+- Date: 2026-04-14
+- Category: Maintainability Smells > Inconsistency
+
+## Context
+
+ADR 4101（`v4 as uuid` in domain layer）確立了 domain 層和 application 層統一使用
+`import { v4 as uuid } from "@infra/uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
+
+掃描 domain 層 UUID 使用情況：
+
+```
+# domain aggregates（全部使用 v4）
+Account.ts:             import { v4 as uuid } from "@infra/uuid"
+Organization.ts:        import { v4 as uuid } from "@infra/uuid"
+KnowledgePage.ts:       import { v4 as uuid } from "@infra/uuid"
+Article.ts:             import { v4 as uuid } from "@infra/uuid"
+KnowledgeCollection.ts: import { v4 as uuid } from "@infra/uuid"
+EntitlementGrant.ts:    import { v4 as uuid } from "@infra/uuid"
+Workspace.ts:           import { v4 as uuid } from "@infra/uuid"
+# ... (全部 16 個已確認的 domain aggregate files 使用 v4)
+
+# domain event factory（例外）
+workspace/domain/events/workspace.events.ts:  import { v7 } from "@infra/uuid"  ← ❌
+```
+
+`workspace/domain/events/workspace.events.ts` 是 **repo 中唯一在 domain 層使用 UUID v7 的文件**。
+
+### UUID v4 vs v7 的差異
+
+| 特性 | UUID v4 | UUID v7 |
+|------|---------|---------|
+| 格式 | 128-bit 隨機 | timestamp + random（lexicographically sortable） |
+| 排序 | 不可排序 | 可按創建時間排序 |
+| 用途 | 通用唯一識別碼 | 需要時序排序的識別碼（如事件 ID 做時序查詢） |
+| 目前 codebase 規範 | ✅ 全域 domain 標準 | ❌ 無現有文件說明在此使用的理由 |
+
+UUID v7 的時序排序特性在某些場景（如 QStash event ordering、Firestore 按 eventId 排序）有技術優勢，
+但：
+- **沒有 ADR 或代碼注釋說明為何此文件使用 v7**
+- workspace 事件的消費者（`WorkspaceDomainEventPublisher`）也沒有說明依賴 eventId 排序
+- 全 repo 的 domain event 均使用 v4，此文件的 v7 是**未解釋的例外**
+
+### 實際代碼
+
+```typescript
+// modules/workspace/domain/events/workspace.events.ts
+import { v7 } from "@infra/uuid";
+
+export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEvent {
+  return {
+    eventId: v7(),    // ← 不一致的 UUID 版本
+    type: WORKSPACE_CREATED_EVENT_TYPE,
+    ...
+  };
+}
+```
+
+相比之下，其他模組的 domain event（如 `Account._domainEvents.push`）使用的 `eventId`
+是從 aggregate 內部的 `uuid()` （v4）生成的。
+
+## Decision
+
+1. **統一使用 UUID v4**（或做出有文件支撐的決策選擇 v7）：
+   
+   **選項 A：改回 v4（推薦）**
+   - 修改 `workspace/domain/events/workspace.events.ts`：
+     ```typescript
+     import { v4 as uuid } from "@infra/uuid";
+     // ...
+     eventId: uuid(),
+     ```
+   - 理由：保持與全 repo 一致，無額外說明負擔。
+   
+   **選項 B：升級為全局 v7 標準**
+   - 若 workspace events 使用 v7 有充分的技術理由（例如 QStash message deduplication 需要時序 ID），
+     應在 ADR 中說明，並評估是否要將全 repo 的 `eventId` 生成改為 v7。
+   - 僅修改一個文件而不記錄理由，形成了新的不一致。
+
+2. **若選 B，需要補充說明**：
+   - 在 `workspace.events.ts` 文件頭部加入注釋：`// eventId uses v7 for time-ordered event replay — see ADR XXXX`
+   - 建立新 ADR 說明「workspace domain events 使用 v7 的設計理由」
+
+3. **本 ADR 的預設建議是選項 A**：沒有消費者依賴 eventId 的時序排序，v7 的使用沒有業務需求支撐。
+
+## Consequences
+
+正面（選項 A）：
+- domain 層 UUID 使用方式完全一致，`grep "@infra/uuid" modules/` 全部回傳 `v4 as uuid`。
+- 沒有額外的文件或規則例外需要維護。
+
+代價（選項 A）：
+- 若未來某個 workspace event consumer 確實依賴 v7 的時序特性，需要重新引入 v7（但屆時有業務理由支撐）。
+
+## 關聯 ADR
+
+- **4101** (Inconsistency — UUID Pattern)：建立 `v4 as uuid` 的 domain layer 標準
+- **4200** (Inconsistency)：本 ADR 是 ADR 4200 識別的 inconsistency 類別的另一個具體實例
+- **2201** (Hidden Coupling)：一旦 workspace aggregate 改為內部收集 domain events，
+  此 v7 問題需要同步處理（events 將從 aggregate 內部的 `v7()` 或 `uuid()` 生成）
+
+## Resolution
+
+Replaced `import { v7 } from "@infra/uuid"` with `import { v4 as uuid } from "@infra/uuid"` in `workspace/domain/events/workspace.events.ts`.
+All three factory functions (`createWorkspaceCreatedEvent`, `createWorkspaceLifecycleTransitionedEvent`, `createWorkspaceVisibilityChangedEvent`) now use `uuid()` (v4).
+Full repo domain-layer UUID strategy is now consistent.
+````
+
+## File: docs/decisions/4203-inconsistency-uuid-v7-application-infrastructure-layers.md
+````markdown
+# 4203 Inconsistency — UUID v7 (`generateId`) 廣泛使用於 application 與 infrastructure 層
+
+- Status: Accepted
+- Date: 2026-04-14
+- Category: Maintainability Smells > Inconsistency
+- Extends: ADR 4202 (workspace.events.ts UUID v7 → v4)
+
+## Context
+
+ADR 4202 修正了 `workspace/domain/events/workspace.events.ts` 中的 UUID v7 用法，
+使該檔案符合全 repo domain 層使用 v4 的規範。
+
+然而，掃描 `application/` 與 `infrastructure/` 層後發現，更大範圍的 v7 使用問題仍然存在：
+23 個檔案中將 `import { v7 as generateId } from "@infra/uuid"` 用於 entity/document ID 生成，
+部分甚至在 **application use-case** 層（理論上應與 UUID strategy 無關的業務流程層）。
+
+### 違規清單（23 個檔案）
+
+#### workspace/subdomains/workspace-workflow — application 層（1）
+
+```
+workspace-workflow/application/use-cases/submit-task-materialization-batch-job.use-case.ts
+```
+
+#### workspace/subdomains/workspace-workflow — infrastructure 層（5）
+
+```
+FirebaseTaskRepository.ts
+FirebaseTaskMaterializationBatchJobRepository.ts
+FirebaseInvoiceRepository.ts
+FirebaseIssueRepository.ts
+FirebaseInvoiceItemRepository.ts (uses v7 via another file — indirect)
+```
+
+#### workspace/subdomains/feed — infrastructure 層（2）
+
+```
+FirebaseWorkspaceFeedInteractionRepository.ts
+FirebaseWorkspaceFeedPostRepository.ts
+```
+
+#### notion/subdomains/knowledge — application 層（4）
+
+```
+content-block.queries.ts
+review-knowledge-page.use-cases.ts
+manage-knowledge-page.use-cases.ts
+manage-knowledge-collection.use-cases.ts
+```
+
+#### notion/subdomains/authoring — application 層（2）
+
+```
+manage-category.use-cases.ts
+manage-article-lifecycle.use-cases.ts
+```
+
+#### notion/infrastructure — firebase 層（7）
+
+```
+FirebaseContentBlockRepository.ts
+FirebaseKnowledgePageRepository.ts
+FirebaseAutomationRepository.ts
+FirebaseViewRepository.ts
+FirebaseDatabaseRecordRepository.ts
+FirebaseVersionRepository.ts
+FirebasePermissionRepository.ts
+FirebaseCommentRepository.ts
+```
+
+#### notebooklm/infrastructure — firebase 層（1）
+
+```
+FirebaseRagQueryFeedbackAdapter.ts
+```
+
+### 根本原因
+
+ADR 4202 只針對 domain event factory 函數中的 eventId 生成（`uuid()` 語意明確），
+未涵蓋 document/entity ID 生成場景。
+
+部分開發者選擇 v7（時序排序 UUID）以獲得 Firestore 查詢效能優勢（按插入時間排序），
+但這一決策：
+1. 從未被記錄為正式 architectural decision
+2. 與 ADR 4101（全 repo domain 層統一 v4）規範衝突
+3. 在 application 層（should be pure logic）中引入了 Firestore 效能考量（storage concern）
+
+## Problem
+
+- **Inconsistency**: 全 repo 23 個 application/infrastructure 檔案使用 v7，
+  其餘所有 domain aggregates 使用 v4（品牌型別 uuid），形成雙軌標準。
+- **ADR compliance gap**: ADR 4101 明確規定「domain 與 application 層只使用 v4」，
+  v7 在 application use-case 中屬於明確違規。
+- **Cross-layer concern leakage**: 在 application use-case 中使用 v7 意味著將
+  「Firestore sorted query performance」這個 infrastructure concern 帶入業務流層。
+
+## Decision
+
+1. **Application 層**（`application/use-cases/`, `application/queries/`）中的 `v7 as generateId`
+   必須更換為 `v4 as uuid`（符合 ADR 4101）：
+   - `submit-task-materialization-batch-job.use-case.ts`
+   - notion/knowledge 4 個 use-case/query 檔案
+   - notion/authoring 2 個 use-case 檔案
+
+2. **Infrastructure 層**（Firebase repos）是否統一到 v4，需先確認：
+   - Firestore collection 是否有依賴 UUID 時序排序的 composite index query
+   - 若有：保留 v7 並記錄為「infrastructure-local UUID strategy」，在 ADR 4204 中確立
+   - 若無：一律改為 v4
+
+3. **優先處理 application 層**（7 個 use-case 檔案），infrastructure 層在確認 index 影響後另行遷移。
+
+## Consequences
+
+正面：
+- Application 層 UUID 策略完全符合 ADR 4101 規範。
+- 消除 application use-case 中對 Firestore 效能策略的隱式依賴。
+
+代價：
+- Infrastructure 層若有 v7 時序排序依賴，需補充說明（ADR 4204）或留下 TODO 標記。
+- 修改 infrastructure 層 ID 生成不影響業務邏輯，但 migration script 需注意歷史記錄格式不變。
+
+## 關聯 ADR
+
+- **ADR 4202** (Inconsistency — UUID v7 in workspace.events.ts) — 先驅修復
+- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
+- **ADR 4200** (Inconsistency) — 系列入口文件
+````
+
+## File: docs/decisions/SMELL-INDEX.md
+````markdown
+# Design Smell Taxonomy Index
+
+本目錄收錄 Xuanwu App 的架構診斷記錄，依「smell 類型」編號分群，與原始 ADR（0001–0011）平行維護。
+
+## 編號體系
+
+| 前綴 | 類型 | 子類型 |
+|------|------|-------|
+| **1000** | **Architectural Smells** | 架構結構性問題 |
+| 1100 | Layer Violation | 層次邊界穿越 |
+| 1200 | Boundary Violation | 模組邊界穿越 |
+| 1300 | Cyclic Dependency | 循環依賴 |
+| 1400 | Dependency Leakage | 依賴洩漏 |
+| **2000** | **Coupling Smells** | 耦合問題 |
+| 2100 | Tight Coupling | 緊耦合 |
+| 2200 | Hidden Coupling | 隱式耦合 |
+| 2300 | Temporal Coupling | 時序耦合 |
+| **3000** | **Modularity Smells** | 模組性問題 |
+| 3100 | Low Cohesion | 低內聚 |
+| 3200 | Duplication | 重複 |
+| **4000** | **Maintainability Smells** | 可維護性問題 |
+| 4100 | Change Amplification | 變更放大 |
+| 4200 | Inconsistency | 不一致 |
+| 4300 | Semantic Drift | 語意漂移 |
+| **5000** | **Complexity Smells** | 複雜性問題 |
+| 5100 | Accidental Complexity | 偶然複雜性 |
+| 5200 | Cognitive Load | 認知負荷 |
+
+## Decision Log (Smell Taxonomy)
+
+| ID | File | Title | Status |
+|----|------|-------|--------|
+| 1100 | [1100-layer-violation.md](./1100-layer-violation.md) | Layer Violation — `interfaces/api/` 子目錄與 Firebase SDK 在 `api/` 層 | **Superseded** (0015) |
+| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @infra/uuid） | **Resolved** |
+| 1102 | [1102-layer-violation-ports-in-application.md](./1102-layer-violation-ports-in-application.md) | Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`（部分解決） | Accepted |
+| 1103 | [1103-layer-violation-firebase-sdk-in-api-layer.md](./1103-layer-violation-firebase-sdk-in-api-layer.md) | Layer Violation — Firebase SDK（`collectionGroup` 等）直接出現在 `platform/api/infrastructure-api.ts` | **Superseded** (0015) |
+| 1104 | [1104-layer-violation-globalthis-crypto-in-application-layer.md](./1104-layer-violation-globalthis-crypto-in-application-layer.md) | Layer Violation — `globalThis.crypto?.randomUUID` 出現在 `notebooklm/application/use-cases/wiki-library.helpers.ts` | Accepted |
+| 1200 | [1200-boundary-violation.md](./1200-boundary-violation.md) | Boundary Violation — Cross-module direct domain imports | Accepted |
+| 1201 | [1201-boundary-violation-business-logic-in-infrastructure.md](./1201-boundary-violation-business-logic-in-infrastructure.md) | Boundary Violation — 業務規則（wallet balance check）漏入 Infrastructure 層 | Accepted |
+| 1300 | [1300-cyclic-dependency.md](./1300-cyclic-dependency.md) | Cyclic Dependency — workspace ↔ platform circular module-evaluation | Partial |
+| 1400 | [1400-dependency-leakage.md](./1400-dependency-leakage.md) | Dependency Leakage — platform/api 混合 infra/service/UI exports | **Superseded** (0015) |
+| 1401 | [1401-dependency-leakage-infrastructure-api-in-platform-api.md](./1401-dependency-leakage-infrastructure-api-in-platform-api.md) | Dependency Leakage — Infrastructure API symbols (`firestoreInfrastructureApi` 等) 暴露在 platform/api/index.ts 公開邊界 | **Resolved** |
+| 1402 | [1402-dependency-leakage-use-case-classes-in-platform-api.md](./1402-dependency-leakage-use-case-classes-in-platform-api.md) | Dependency Leakage — 17 個 use-case class 名稱透過 platform/api 公開（organization subdomain） | **Resolved** |
+| 1403 | [1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md](./1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md) | Dependency Leakage — 4 個 platform subdomain api/index.ts 使用 `export * from "../interfaces"` 洩漏 React UI 元件與 server actions | **Superseded** (0015) |
+| 1404 | [1404-dependency-leakage-subdomain-api-exports-application-wildcard.md](./1404-dependency-leakage-subdomain-api-exports-application-wildcard.md) | Dependency Leakage — 11 個 subdomain `api/index.ts` 使用 `export * from "../application"` 洩漏 use-case classes | **Superseded** (0015) |
+| 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | **Superseded** (0015) |
+| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @infra/uuid | **Resolved** |
+| 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
+| 2201 | [2201-hidden-coupling-workspace-aggregate-no-domain-events.md](./2201-hidden-coupling-workspace-aggregate-no-domain-events.md) | Hidden Coupling — `Workspace` 聚合根未內部收集 Domain Events，事件由 use-case 外部組裝 | Accepted |
+| 2300 | [2300-temporal-coupling.md](./2300-temporal-coupling.md) | Temporal Coupling | Accepted |
+| 3100 | [3100-low-cohesion.md](./3100-low-cohesion.md) | Low Cohesion — use-case bundling | **Superseded** (0015) |
+| 3101 | [3101-low-cohesion-platform-application-layer.md](./3101-low-cohesion-platform-application-layer.md) | Low Cohesion — `platform/application/` 層 9 個異質子目錄 | Accepted |
+| 3200 | [3200-duplication.md](./3200-duplication.md) | Duplication | Accepted |
+| 3201 | [3201-duplication-event-discriminant-format.md](./3201-duplication-event-discriminant-format.md) | Duplication — Domain Event 識別符號格式統一為 `kebab-case` | **Resolved** |
+| 3202 | [3202-duplication-source-dto-reimplements-domain-service.md](./3202-duplication-source-dto-reimplements-domain-service.md) | Duplication — Source DTO re-implements domain service logic | **Resolved** |
+| 3203 | [3203-duplication-shell-quick-create-orphaned-platform-copy.md](./3203-duplication-shell-quick-create-orphaned-platform-copy.md) | Duplication — 兩個 `shell-quick-create` 實作（platform/application 版本孤兒化，無消費者） | **Resolved** |
+| 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | **Superseded** (0015) |
+| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @infra/uuid | **Resolved** |
+| 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
+| 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | **Resolved** |
+| 4202 | [4202-inconsistency-uuid-v7-in-workspace-domain-events.md](./4202-inconsistency-uuid-v7-in-workspace-domain-events.md) | Inconsistency — `workspace/domain/events/workspace.events.ts` 使用 UUID v7，全 repo domain 層均為 v4 | **Resolved** |
+| 4203 | [4203-inconsistency-uuid-v7-application-infrastructure-layers.md](./4203-inconsistency-uuid-v7-application-infrastructure-layers.md) | Inconsistency — UUID v7 (`generateId`) 廣泛使用於 application 與 infrastructure 層（23 個檔案） | Accepted |
+| 4300 | [4300-semantic-drift.md](./4300-semantic-drift.md) | Semantic Drift — interfaces/api 子目錄與 application/event-handlers | Accepted |
+| 4301 | [4301-semantic-drift-application-subdirectory-names.md](./4301-semantic-drift-application-subdirectory-names.md) | Semantic Drift — `event-handlers/`、`event-mappers/`、`handlers/`、`process-managers/` 命名偏離職責語意 | Accepted |
+| 4302 | [4302-semantic-drift-notion-notebooklm-event-discriminant-format.md](./4302-semantic-drift-notion-notebooklm-event-discriminant-format.md) | Semantic Drift — Notion & NotebookLM event discriminant format snake_case → kebab-case | **Resolved** |
+| 4303 | [4303-semantic-drift-workspace-event-discriminants-use-underscore.md](./4303-semantic-drift-workspace-event-discriminants-use-underscore.md) | Semantic Drift — `workspace.lifecycle_transitioned`、`workspace.visibility_changed`、`workspace.audit.*` 使用下劃線分隔符，違反 kebab-case 規範 | **Resolved** |
+| 5100 | [5100-accidental-complexity.md](./5100-accidental-complexity.md) | Accidental Complexity | **Superseded** (0015) |
+| 5101 | [5101-accidental-complexity-platform-domain-stubs.md](./5101-accidental-complexity-platform-domain-stubs.md) | Accidental Complexity — platform/domain/ 21 TODO stub → DESIGN.md | **Resolved** |
+| 5200 | [5200-cognitive-load.md](./5200-cognitive-load.md) | Cognitive Load | Accepted |
+| 5201 | [5201-cognitive-load-workspace-workflow-application.md](./5201-cognitive-load-workspace-workflow-application.md) | Cognitive Load — `workspace-workflow/application/` 混合 5 種子目錄慣例 | Accepted |
+| 5202 | [5202-cognitive-load-workspace-dto-mixes-types-and-factory-functions.md](./5202-cognitive-load-workspace-dto-mixes-types-and-factory-functions.md) | Cognitive Load — `workspace-interfaces.dto.ts` 混合型別 export 與 domain event factory function export | Accepted |
+| 5203 | [5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md](./5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md) | Cognitive Load — 12 個 subdomain `api/index.ts` 使用無選擇性 `export *` wildcard，API surface 不可讀 | **Superseded** (0015) |
+
+## 與 0001–0011 ADR 的對應關係
+
+| Smell ADR | 對應 ADR |
+|-----------|---------|
+| 1100 Layer Violation | 0001 Hexagonal Architecture |
+| 1101 Layer Violation — crypto in domain | 0001 Hexagonal Architecture |
+| 1102 Layer Violation — ports in application | 0001 Hexagonal Architecture, 0008 Repository Interface |
+| 1103 Layer Violation — Firebase SDK in api/ layer | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
+| 1200 Boundary Violation | 0002 Bounded Contexts, 0003 Context Map |
+| 1201 Boundary Violation — business logic in infra | 0001 Hexagonal Architecture, 0009 Anemic Aggregates |
+| 1300 Cyclic Dependency | 0001 Hexagonal Architecture |
+| 1400 Dependency Leakage | 0007 Infrastructure in api/, 0008 Repository Interface |
+| 1401 Dependency Leakage — infrastructure-api in platform/api | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
+| 1402 Dependency Leakage — use-case classes in platform/api | 0007 Infrastructure in api/, 0011 Use Case Bundling |
+| 1403 Dependency Leakage — subdomain api exports * from interfaces | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
+| 2100 Tight Coupling | 0003 Context Map, 0007 Infrastructure in api/ |
+| 2101 Tight Coupling — crypto runtime | 0001 Hexagonal Architecture |
+| 2200 Hidden Coupling | 0010 Aggregate Domain Event Emission |
+| 2201 Hidden Coupling — workspace aggregate no domain events | 0010 Aggregate Domain Event Emission, 0009 Anemic Aggregates |
+| 2300 Temporal Coupling | 0007 Infrastructure in api/ |
+| 3100 Low Cohesion | 0011 Use Case Bundling |
+| 3101 Low Cohesion — platform application layer | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
+| 3200 Duplication | 0004 Ubiquitous Language |
+| 3201 Duplication — event discriminant format | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
+| 3202 Duplication — source DTO logic | 0004 Ubiquitous Language |
+| 3203 Duplication — shell-quick-create orphaned copy | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
+| 4100 Change Amplification | 0011 Use Case Bundling |
+| 4101 Change Amplification — UUID strategy | 0001 Hexagonal Architecture |
+| 4200 Inconsistency | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
+| 4201 Inconsistency — dto vs dtos | 0004 Ubiquitous Language |
+| 4202 Inconsistency — UUID v7 in workspace domain events | 0001 Hexagonal Architecture, 0006 Domain Event Discriminant |
+| 4300 Semantic Drift | 0004 Ubiquitous Language |
+| 4301 Semantic Drift — application subdirectory names | 0001 Hexagonal Architecture, 0004 Ubiquitous Language |
+| 4302 Semantic Drift — notion/notebooklm event discriminant format | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
+| 4303 Semantic Drift — workspace event discriminants use underscore | 0004 Ubiquitous Language, 0006 Domain Event Discriminant |
+| 5100 Accidental Complexity | 0001 Hexagonal Architecture |
+| 5101 Accidental Complexity — platform domain stubs | 0001 Hexagonal Architecture, 0010 Aggregate Domain Event Emission |
+| 5200 Cognitive Load | 0009 Anemic Aggregates, 0011 Use Case Bundling |
+| 5201 Cognitive Load — workspace-workflow application | 0001 Hexagonal Architecture, 0011 Use Case Bundling |
+| 5202 Cognitive Load — workspace DTO mixes types and factories | 0009 Anemic Aggregates, 0010 Aggregate Domain Event Emission |
+| 5203 Cognitive Load — subdomain api unscoped wildcard exports | 0001 Hexagonal Architecture, 0007 Infrastructure in api/ |
+
+## How To Use This Index
+
+1. 識別問題所屬 smell 類型。
+2. 查閱對應編號文件的 context + decision + consequences。
+3. 參照「對應 ADR」確認架構規範根源。
+4. 若 smell 尚未記錄，按此編號體系新增文件。
+````
+
+## File: src/modules/workspace/subdomains/task-formation/AGENT.md
+````markdown
+# task-formation — Agent Guide
+
+## Purpose
+
+`task-formation` 子域負責「從 Notion 知識頁面 AI 提取任務候選，使用者確認後批次建立 Task」的完整流程。
+
+---
+
+## Route Here When
+
+- 實作 AI 提取任務候選的流程（`ExtractTaskCandidatesUseCase`）
+- 實作使用者審閱 / 確認候選任務的 UI（`TaskFormationPanel`）
+- 修改 `TaskFormationJob` aggregate 行為或生命週期狀態轉換
+- 撰寫 Genkit extraction flow（`adapters/outbound/genkit/`）
+- 修改 `TaskFormationJobRepository` port 定義
+- 建立 task-formation Server Actions
+
+## Route Elsewhere When
+
+| 需求 | 正確路徑 |
+|---|---|
+| 建立 Task 實體本身 | `src/modules/workspace/subdomains/task/` |
+| 知識頁面內容讀取 | `src/modules/notion/index.ts` |
+| AI model 選擇 / 安全護欄 | `src/modules/ai/index.ts`（透過 platform 路由）|
+| 檔案上傳 / 權限檢查 | `src/modules/platform/index.ts` |
+| 任務看板 / issue 追蹤 | `src/modules/workspace/subdomains/task/` 或 `issue/` |
+
+---
+
+## Boundary Rules
+
+1. `domain/` 禁止匯入：React、Firebase SDK、Genkit、`uuid`（用 `@infra/uuid`）
+2. `TaskFormationJob` 是唯一 Aggregate Root；狀態轉換只能透過 behavior method
+3. AI extraction 結果（`candidates`）必須持久化進 Firestore Job document，不可只存在記憶體
+4. 跨到 `task` 子域建立 Task 必須透過 `task` 子域的 use case 邊界，不可直接寫 Firestore
+5. `adapters/inbound/` 只呼叫 `application/use-cases/`；不得直接呼叫 domain 實作或 repository
+6. Genkit flow 放在 `adapters/outbound/genkit/`；use case 透過 port interface 呼叫，不直接 import flow
+
+---
+
+## ❌ / ✅ 設計範例
+
+### ❌ 禁止這樣做
+
+```typescript
+// ❌ inbound adapter 直接呼叫 repository
+const repo = new FirestoreTaskFormationJobRepository(db);
+const job = await repo.findById(jobId);
+
+// ❌ use case 直接 import Genkit
+import { extractTaskCandidatesFlow } from '@genkit-ai/...';
+
+// ❌ aggregate 不儲存 candidates，只存計數
+class TaskFormationJob {
+  markCompleted(input: { succeededItems: number }): void { /* 候選清單丟失 */ }
+}
+
+// ❌ candidates 只存 React state，不持久化
+const [candidates, setCandidates] = useState<ExtractedTaskCandidate[]>([]);
+```
+
+### ✅ 應該這樣做
+
+```typescript
+// ✅ use case 透過 port 呼叫 AI（domain/ports/TaskCandidateExtractorPort.ts）
+class ExtractTaskCandidatesUseCase {
+  constructor(
+    private readonly jobRepo: TaskFormationJobRepository,
+    private readonly aiExtractor: TaskCandidateExtractorPort,
+  ) {}
+}
+
+// ✅ aggregate 儲存候選清單並發出 domain event
+class TaskFormationJob {
+  setCandidates(candidates: ExtractedTaskCandidate[]): void {
+    this._props = { ...this._props, candidates, status: 'succeeded' };
+    this._domainEvents.push({
+      type: 'workspace.task-formation.candidates-extracted',
+      eventId: generateId(),
+      occurredAt: new Date().toISOString(),
+      payload: { jobId: this._props.id, candidateCount: candidates.length },
+    });
+  }
+}
+
+// ✅ 跨子域透過 use case 邊界建立 Task
+class ConfirmCandidatesUseCase {
+  constructor(
+    private readonly jobRepo: TaskFormationJobRepository,
+    private readonly createTask: CreateTaskUseCase,   // task 子域 use case
+  ) {}
+}
+```
+
+---
+
+## 技術選型（Context7 驗證）
+
+| 關注點 | 技術 | 版本 / 模式 |
+|---|---|---|
+| AI 提取 | Genkit `ai.defineFlow` | Zod `outputSchema` + `z.coerce.number()` for AI numeric strings |
+| UI 狀態 | XState v5 `setup()` | `fromPromise<Output, Input>` 雙泛型；machine 放在 `application/machines/` |
+| 入口層 | Next.js `useActionState` | `safeParse` + 早期 structured error 回傳 |
+| 驗證 | Zod v4 | `z.object()` + `z.iso.datetime()` + `z.coerce.number()` |
+| ID 生成 | `@infra/uuid` | 禁止在 domain 層直接 import `uuid` |
+
+---
+
+## 狀態機設計（UI 層）
+
+```
+idle ──START──→ extracting ──onDone──→ reviewing ──CONFIRM──→ confirming ──onDone──→ done
+               ──onError──→ failed               ──onError──→ reviewing（保留選擇）
+reviewing ──CANCEL──→ idle
+failed ──RETRY──→ idle
+```
+
+XState v5 `setup()` 必填欄位：
+
+```typescript
+setup({
+  types: {
+    context: {} as TaskFormationContext,
+    events: {} as TaskFormationEvent,
+    input: {} as { workspaceId: string },  // ← input 型別聲明不可省略
+  },
+  actors: { /* fromPromise actors */ },
+})
+```
+
+---
+
+## Domain Events（discriminant 格式）
+
+| Event type | 狀態 | 觸發時機 |
+|---|---|---|
+| `workspace.task-formation.job-created` | ✅ 已實作 | `CreateTaskFormationJobUseCase` 成功 |
+| `workspace.task-formation.candidates-extracted` | ⚠️ 待補 | `setCandidates()` 呼叫後 |
+| `workspace.task-formation.candidates-confirmed` | ⚠️ 待補 | `ConfirmCandidatesUseCase` 完成 |
+| `workspace.task-formation.job-failed` | ⚠️ 待補 | `markFailed()` 呼叫後 |
+
+Event discriminant 格式：`<module>.<subdomain>.<action>`（全 kebab-case）
+
+---
+
+## 現況差距快覽
+
+| 項目 | 現況 | 目標 |
+|---|---|---|
+| Aggregate 存 candidates | ❌ 只有計數欄位 | ✅ `candidates: ExtractedTaskCandidate[]` + `setCandidates()` |
+| `TaskCandidateExtractorPort` | ❌ 不存在 | ✅ `domain/ports/` 新建 |
+| AI 提取流程 | ❌ 不存在 | ✅ Genkit flow via port |
+| 確認流程 | ❌ 不存在 | ✅ `ConfirmCandidatesUseCase` |
+| UI 狀態機 | ❌ 不存在 | ✅ XState v5 machine |
+| Server Actions | ❌ inbound 空白 | ✅ `startExtraction` + `confirmCandidates` |
+
+---
+
+## 嚴禁事項
+
+- ❌ 在 `domain/` 或 `application/` 直接 import `defineFlow`、`generate`、Firebase SDK
+- ❌ candidates 只存在 React state，不寫回 Firestore Job doc
+- ❌ 確認後直接呼叫 `task` 子域 repository（必須走 use case 邊界）
+- ❌ `TaskFormationJob` 只存計數，不存候選清單本體
+- ❌ `application/machines/` 內的 machine 直接 import Firebase SDK 或 Genkit
+- ❌ 在 inbound server action 直接呼叫 Genkit `ai.generate()`
 ````
