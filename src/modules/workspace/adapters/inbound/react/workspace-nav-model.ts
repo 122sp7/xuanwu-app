@@ -24,24 +24,47 @@ export type SidebarLocaleBundle = Record<string, string>;
 /**
  * WorkspaceTabValue — canonical URL ?tab= values.
  * These are stable URL identifiers; do not rename without a redirect layer.
+ *
+ * workspace group (業務運作 — Work Execution)
+ *   Backed by: workspace/subdomains/task, issue, approval, settlement, membership
+ *
+ * notion group (知識與資料結構 — Knowledge & Structure)
+ *   Backed by: notion/subdomains/page, block, database, view, template, collaboration
+ *   Context7 alignment: Page = hierarchical content container; Database = structured
+ *   collection with typed properties; View = filter/sort/layout of a Database
+ *   (table/board/calendar/gallery/timeline); Template = reusable page/db scaffold.
+ *
+ * notebooklm group (AI 理解與推理 — AI Reasoning & Synthesis)
+ *   Backed by: notebooklm/subdomains/notebook, document, conversation
+ *   Notebook = AI-assisted notebook with documentIds[]; Document = ingested source
+ *   (storageUrl, mimeType, classification, processing status); Conversation =
+ *   thread-based RAG exchange linked to a notebook.
  */
 export type WorkspaceTabValue =
+  // workspace
   | "Overview"
   | "Daily"
   | "Schedule"
   | "Audit"
   | "Files"
   | "Members"
-  | "Knowledge"
-  | "Notebook"
-  | "AiChat"
   | "WorkspaceSettings"
   | "TaskFormation"
   | "Tasks"
   | "Quality"
   | "Approval"
   | "Settlement"
-  | "Issues";
+  | "Issues"
+  // notion
+  | "Knowledge"
+  | "Pages"
+  | "Database"
+  | "Templates"
+  // notebooklm
+  | "Notebook"
+  | "AiChat"
+  | "Sources"
+  | "Research";
 
 /**
  * WorkspaceDomainGroup — the owning domain module for a workspace tab.
@@ -88,12 +111,23 @@ export const WORKSPACE_TAB_ITEMS: readonly WorkspaceTabItem[] = [
   { id: "workspace.settlement",     value: "Settlement",        label: "結算",       domainGroup: "workspace" },
   { id: "workspace.issues",         value: "Issues",            label: "問題單",     domainGroup: "workspace" },
 
-  // notion group — 知識與資料結構
+  // notion group — 知識與資料結構 (Knowledge & Structure)
+  // Subdomains: page (hierarchical pages) · block (content units) · database
+  //   (typed collections) · view (table/board/calendar/gallery) · template ·
+  //   collaboration (comments/presence)
   { id: "notion.knowledge",         value: "Knowledge",         label: "知識",       domainGroup: "notion" },
+  { id: "notion.pages",             value: "Pages",             label: "頁面",       domainGroup: "notion" },
+  { id: "notion.database",          value: "Database",          label: "資料庫",     domainGroup: "notion" },
+  { id: "notion.templates",         value: "Templates",         label: "範本",       domainGroup: "notion" },
 
-  // notebooklm group — AI 理解與推理
+  // notebooklm group — AI 理解與推理 (AI Reasoning & Synthesis)
+  // Subdomains: notebook (AI notebooks with documentIds[]) · document (ingested
+  //   sources; mimeType / classification / processing status) · conversation
+  //   (thread-based RAG exchanges linked to a notebook)
   { id: "notebooklm.notebook",      value: "Notebook",          label: "RAG 查詢",   domainGroup: "notebooklm" },
   { id: "notebooklm.ai-chat",       value: "AiChat",            label: "AI 對話",    domainGroup: "notebooklm" },
+  { id: "notebooklm.sources",       value: "Sources",           label: "來源文件",   domainGroup: "notebooklm" },
+  { id: "notebooklm.research",      value: "Research",          label: "研究摘要",   domainGroup: "notebooklm" },
 ] as const;
 
 export const WORKSPACE_DOMAIN_GROUP_LABELS: Record<WorkspaceDomainGroup, string> = {
@@ -112,6 +146,13 @@ const WORKSPACE_TAB_ALIASES: Record<string, WorkspaceTabValue> = {
   NotionKnowledge:      "Knowledge",
   NotebookConversation: "AiChat",
   NotebookSynthesis:    "Notebook",
+  // notebooklm subdomain aliases
+  NotebookSources:      "Sources",
+  NotebookResearch:     "Research",
+  // notion subdomain aliases
+  NotionPages:          "Pages",
+  NotionDatabase:       "Database",
+  NotionTemplates:      "Templates",
 };
 
 // ── Tab resolution helpers ────────────────────────────────────────────────────
@@ -148,11 +189,20 @@ export const DEFAULT_NAV_PREFS: NavPreferences = {
     "workspace.daily",
     "workspace.schedule",
     "workspace.audit",
+    // notion section
     "notion.knowledge",
+    "notion.pages",
+    "notion.database",
+    "notion.templates",
+    // workspace section (continued)
     "workspace.files",
     "workspace.members",
+    // notebooklm section
     "notebooklm.notebook",
     "notebooklm.ai-chat",
+    "notebooklm.sources",
+    "notebooklm.research",
+    // workspace settings & dispatcher
     "workspace.settings",
     "dispatcher",
   ],
