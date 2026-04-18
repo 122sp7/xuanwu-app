@@ -1,4 +1,4 @@
-This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
 The content has been processed where content has been formatted for parsing in markdown style, content has been compressed (code blocks are separated by ⋮---- delimiter).
 
 # Summary
@@ -32,8 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/workspace/**
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
+- Only files matching these patterns are included: src/**/*
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,22 +41,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-215 files | 3,139 lines
+850 files | 13,105 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 209 | 2,637 |
-| TypeScript (TSX) | 4 | 342 |
-| Markdown | 2 | 160 |
+| TypeScript | 796 | 10,099 |
+| TypeScript (TSX) | 29 | 1,281 |
+| Markdown | 24 | 1,678 |
+| CSS | 1 | 47 |
 
 **Largest files:**
+- `src/modules/template/README.md` (266 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx` (187 lines)
-- `src/modules/workspace/README.md` (85 lines)
-- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (81 lines)
-- `src/modules/workspace/AGENT.md` (75 lines)
-- `src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx` (69 lines)
-- `src/modules/workspace/subdomains/task/domain/entities/Task.ts` (65 lines)
-- `src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts` (60 lines)
-- `src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts` (59 lines)
-- `src/modules/workspace/subdomains/audit/domain/entities/AuditEntry.ts` (59 lines)
-- `src/modules/workspace/subdomains/orchestration/domain/entities/TaskMaterializationJob.ts` (57 lines)
+- `src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts` (159 lines)
+- `src/modules/iam/adapters/outbound/firebase-composition.ts` (140 lines)
+- `src/modules/iam/subdomains/organization/domain/entities/Organization.ts` (111 lines)
+- `src/modules/ai/README.md` (111 lines)
+- `src/modules/shared/index.ts` (107 lines)
+- `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
+- `src/modules/template/AGENT.md` (99 lines)
+- `src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts` (91 lines)

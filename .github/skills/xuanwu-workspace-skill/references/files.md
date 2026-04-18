@@ -259,41 +259,6 @@ save(key: ApiKeySnapshot): Promise<void>;
 revoke(keyId: string, nowISO: string): Promise<void>;
 ````
 
-## File: src/modules/workspace/subdomains/approval/domain/repositories/ApprovalRepository.ts
-````typescript
-export type ApprovalTaskStatus = "draft" | "in_progress" | "qa" | "acceptance" | "accepted" | "archived" | "cancelled";
-export type ApprovalIssueStatus = "open" | "fixing" | "retest" | "resolved" | "wont_fix" | "closed";
-⋮----
-export interface ApprovalTaskLike {
-  readonly id: string;
-  readonly status: ApprovalTaskStatus;
-}
-⋮----
-export interface ApprovalIssueLike {
-  readonly id: string;
-  readonly taskId: string;
-  readonly status: ApprovalIssueStatus;
-}
-⋮----
-export interface ApprovalTaskRepository {
-  findById(taskId: string): Promise<ApprovalTaskLike | null>;
-  updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
-}
-⋮----
-findById(taskId: string): Promise<ApprovalTaskLike | null>;
-updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
-⋮----
-export interface ApprovalIssueRepository {
-  findById(issueId: string): Promise<ApprovalIssueLike | null>;
-  countOpenByTaskId(taskId: string): Promise<number>;
-  updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
-}
-⋮----
-findById(issueId: string): Promise<ApprovalIssueLike | null>;
-countOpenByTaskId(taskId: string): Promise<number>;
-updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
-````
-
 ## File: src/modules/workspace/subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository.ts
 ````typescript
 import type { AuditRepository } from "../../../domain/repositories/AuditRepository";
@@ -559,73 +524,6 @@ async updateStatus(
 async delete(issueId: string): Promise<void>
 ````
 
-## File: src/modules/workspace/subdomains/issue/domain/events/IssueDomainEvent.ts
-````typescript
-import type { IssueStage } from "../value-objects/IssueStage";
-import type { IssueStatus } from "../value-objects/IssueStatus";
-⋮----
-export interface IssueDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface IssueOpenedEvent extends IssueDomainEvent {
-  readonly type: "workspace.issue.opened";
-  readonly payload: {
-    readonly issueId: string;
-    readonly taskId: string;
-    readonly stage: IssueStage;
-    readonly createdBy: string;
-  };
-}
-⋮----
-export interface IssueStatusChangedEvent extends IssueDomainEvent {
-  readonly type: "workspace.issue.status-changed";
-  readonly payload: {
-    readonly issueId: string;
-    readonly taskId: string;
-    readonly to: IssueStatus;
-  };
-}
-⋮----
-export interface IssueClosedEvent extends IssueDomainEvent {
-  readonly type: "workspace.issue.closed";
-  readonly payload: {
-    readonly issueId: string;
-    readonly taskId: string;
-  };
-}
-⋮----
-export type IssueDomainEventType =
-  | IssueOpenedEvent
-  | IssueStatusChangedEvent
-  | IssueClosedEvent;
-````
-
-## File: src/modules/workspace/subdomains/issue/domain/repositories/IssueRepository.ts
-````typescript
-import type { IssueSnapshot } from "../entities/Issue";
-import type { IssueStatus } from "../value-objects/IssueStatus";
-⋮----
-export interface IssueRepository {
-  findById(issueId: string): Promise<IssueSnapshot | null>;
-  findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
-  countOpenByTaskId(taskId: string): Promise<number>;
-  save(issue: IssueSnapshot): Promise<void>;
-  updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
-  delete(issueId: string): Promise<void>;
-}
-⋮----
-findById(issueId: string): Promise<IssueSnapshot | null>;
-findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
-countOpenByTaskId(taskId: string): Promise<number>;
-save(issue: IssueSnapshot): Promise<void>;
-updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
-delete(issueId: string): Promise<void>;
-````
-
 ## File: src/modules/workspace/subdomains/issue/domain/value-objects/IssueStage.ts
 ````typescript
 export type IssueStage = "task" | "qa" | "acceptance";
@@ -860,6 +758,139 @@ async markCompleted(jobId: string, input: CompleteJobInput): Promise<TaskMateria
 async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskMaterializationJobSnapshot | null>
 ````
 
+## File: src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts
+````typescript
+import { setup, assign } from "xstate";
+⋮----
+/**
+ * Task Lifecycle State Machine (XState v5)
+ *
+ * Purpose: UI-layer finite-state workflow for the full task lifecycle:
+ *   task-formation → task → quality(QA) → approval(acceptance) → settlement
+ *
+ * KEY DESIGN DECISIONS:
+ * - `qa_blocked` / `acceptance_blocked` exist only in this machine context.
+ *   Firestore task.status stays `qa` / `acceptance` while an issue is open.
+ *   Open issue count is the blocking signal, NOT a separate Firestore field.
+ * - The machine is a UI/Server Action orchestration aid. Domain invariants
+ *   are still enforced inside use cases and aggregate methods.
+ * - Events are named after actor intent (ADVANCE, OPEN_ISSUE, ISSUE_RESOLVED),
+ *   not domain events directly.
+ */
+⋮----
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
+⋮----
+export interface TaskLifecycleContext {
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly openIssueCount: number;
+  readonly blockedAtStage: "qa" | "acceptance" | null;
+  readonly invoiceId: string | null;
+  readonly errorMessage: string | null;
+}
+⋮----
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+⋮----
+export type TaskLifecycleEvent =
+  | { type: "ADVANCE" }
+  | { type: "OPEN_ISSUE"; stage: "qa" | "acceptance" }
+  | { type: "ISSUE_RESOLVED"; stage: "qa" | "acceptance" }
+  | { type: "ARCHIVE" }
+  | { type: "SET_ERROR"; message: string }
+  | { type: "CLEAR_ERROR" }
+  | { type: "INVOICE_CREATED"; invoiceId: string };
+⋮----
+// ---------------------------------------------------------------------------
+// Machine
+// ---------------------------------------------------------------------------
+⋮----
+// -----------------------------------------------------------------------
+// Core linear flow
+// -----------------------------------------------------------------------
+⋮----
+/** qa_blocked: issue open at QA stage — Firestore status stays `qa` */
+⋮----
+/** acceptance_blocked: issue open at acceptance stage — Firestore status stays `acceptance` */
+⋮----
+/** settled: invoice draft created — flow is complete */
+⋮----
+export type TaskLifecycleMachine = typeof taskLifecycleMachine;
+````
+
+## File: src/modules/workspace/subdomains/orchestration/application/sagas/TaskLifecycleSaga.ts
+````typescript
+import type { IssueResolvedEvent, IssueOpenedEvent } from "../../../issue/domain/events/IssueDomainEvent";
+import type { TaskStatusChangedEvent } from "../../../task/domain/events/TaskDomainEvent";
+import type { ResumeTaskFlowUseCase } from "../use-cases/ResumeTaskFlowUseCase";
+import type { CreateInvoiceFromAcceptedTasksUseCase } from "../../../settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
+⋮----
+export type SagaTriggerEvent =
+  | TaskStatusChangedEvent
+  | IssueOpenedEvent
+  | IssueResolvedEvent;
+⋮----
+/**
+ * TaskLifecycleSaga
+ *
+ * Reacts to domain events emitted across the task lifecycle and drives
+ * cross-subdomain side effects:
+ *
+ * - workspace.task.status-changed → "accepted"
+ *     → CreateInvoiceFromAcceptedTasksUseCase
+ *
+ * - workspace.issue.resolved (stage: "qa" | "acceptance")
+ *     → ResumeTaskFlowUseCase (re-enters task at the blocked stage)
+ *
+ * The saga is an application-layer service; it never mutates domain state
+ * directly but delegates to use cases that enforce domain invariants.
+ *
+ * Caller responsibility: wire this saga into an event bus or use-case
+ * completion hook at the infrastructure/interfaces layer.
+ */
+export class TaskLifecycleSaga {
+⋮----
+constructor(
+⋮----
+async handle(event: SagaTriggerEvent): Promise<void>
+⋮----
+private async onTaskStatusChanged(event: TaskStatusChangedEvent): Promise<void>
+⋮----
+private async onIssueResolved(event: IssueResolvedEvent): Promise<void>
+````
+
+## File: src/modules/workspace/subdomains/orchestration/application/use-cases/ResumeTaskFlowUseCase.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+import type { TaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
+import type { IssueStage } from "../../../issue/domain/value-objects/IssueStage";
+⋮----
+export interface ResumeTaskFlowInput {
+  readonly taskId: string;
+  readonly stage: IssueStage;
+}
+⋮----
+/**
+ * ResumeTaskFlowUseCase
+ *
+ * After an issue is resolved, this use case checks that no open issues remain
+ * for the given stage, then re-enters the task into the stage that was blocked.
+ *
+ * Guard: if open issues still exist for the stage, resume is rejected.
+ */
+export class ResumeTaskFlowUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: ResumeTaskFlowInput): Promise<CommandResult>
+````
+
 ## File: src/modules/workspace/subdomains/orchestration/domain/events/JobDomainEvent.ts
 ````typescript
 export interface JobDomainEvent {
@@ -1092,6 +1123,27 @@ async save(invoice: InvoiceSnapshot): Promise<void>
 async transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<InvoiceSnapshot | null>
 ⋮----
 async delete(invoiceId: string): Promise<void>
+````
+
+## File: src/modules/workspace/subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { Invoice } from "../../domain/entities/Invoice";
+import type { CreateInvoiceFromAcceptedTasksInput } from "../../domain/entities/Invoice";
+⋮----
+/**
+ * CreateInvoiceFromAcceptedTasksUseCase
+ *
+ * Triggered by the TaskLifecycleSaga when a task reaches `accepted` status.
+ * Creates a draft invoice with the accepted taskIds linked for traceability.
+ */
+export class CreateInvoiceFromAcceptedTasksUseCase {
+⋮----
+constructor(private readonly invoiceRepo: InvoiceRepository)
+⋮----
+async execute(input: CreateInvoiceFromAcceptedTasksInput): Promise<CommandResult>
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/domain/events/InvoiceDomainEvent.ts
@@ -1826,33 +1878,46 @@ export function createApiKeyId(raw: string): ApiKeyId
 
 ````
 
-## File: src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { ApprovalTaskRepository, ApprovalIssueRepository, ApprovalTaskStatus, ApprovalIssueStatus } from "../../domain/repositories/ApprovalRepository";
-⋮----
-function canTransitionTask(from: ApprovalTaskStatus, to: ApprovalTaskStatus): boolean
-⋮----
-function canTransitionIssue(from: ApprovalIssueStatus, to: ApprovalIssueStatus): boolean
-⋮----
-export class ApproveTaskAcceptanceUseCase {
-⋮----
-constructor(
-async execute(taskId: string): Promise<CommandResult>
-⋮----
-export class SubmitIssueRetestUseCase {
-⋮----
-constructor(private readonly issueRepo: ApprovalIssueRepository)
-async execute(issueId: string): Promise<CommandResult>
-⋮----
-export class PassIssueRetestUseCase {
-⋮----
-export class FailIssueRetestUseCase {
-````
-
 ## File: src/modules/workspace/subdomains/approval/domain/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/approval/domain/repositories/ApprovalRepository.ts
+````typescript
+export type ApprovalTaskStatus = "draft" | "in_progress" | "qa" | "acceptance" | "accepted" | "archived" | "cancelled";
+export type ApprovalIssueStatus = "open" | "fixing" | "retest" | "resolved" | "wont_fix" | "closed";
+⋮----
+export interface ApprovalTaskLike {
+  readonly id: string;
+  readonly status: ApprovalTaskStatus;
+}
+⋮----
+export interface ApprovalIssueLike {
+  readonly id: string;
+  readonly taskId: string;
+  readonly status: ApprovalIssueStatus;
+}
+⋮----
+export interface ApprovalTaskRepository {
+  findById(taskId: string): Promise<ApprovalTaskLike | null>;
+  updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
+}
+⋮----
+findById(taskId: string): Promise<ApprovalTaskLike | null>;
+updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
+⋮----
+export interface ApprovalIssueRepository {
+  findById(issueId: string): Promise<ApprovalIssueLike | null>;
+  countOpenByTaskId(taskId: string): Promise<number>;
+  countOpenByTaskIdAndStage(taskId: string, stage: string): Promise<number>;
+  updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
+}
+⋮----
+findById(issueId: string): Promise<ApprovalIssueLike | null>;
+countOpenByTaskId(taskId: string): Promise<number>;
+countOpenByTaskIdAndStage(taskId: string, stage: string): Promise<number>;
+updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
 ````
 
 ## File: src/modules/workspace/subdomains/audit/adapters/inbound/index.ts
@@ -2222,80 +2287,92 @@ export type TransitionIssueDTO = z.infer<typeof TransitionIssueInputSchema>;
 
 ````
 
-## File: src/modules/workspace/subdomains/issue/application/use-cases/IssueUseCases.ts
+## File: src/modules/workspace/subdomains/issue/domain/events/IssueDomainEvent.ts
 ````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { Issue } from "../../domain/entities/Issue";
-import type { OpenIssueInput } from "../../domain/entities/Issue";
-import { canTransitionIssueStatus } from "../../domain/value-objects/IssueStatus";
-import type { IssueStatus } from "../../domain/value-objects/IssueStatus";
-⋮----
-export class OpenIssueUseCase {
-⋮----
-constructor(private readonly issueRepo: IssueRepository)
-⋮----
-async execute(input: OpenIssueInput): Promise<CommandResult>
-⋮----
-export class TransitionIssueStatusUseCase {
-⋮----
-async execute(issueId: string, to: IssueStatus): Promise<CommandResult>
-````
-
-## File: src/modules/workspace/subdomains/issue/domain/entities/Issue.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { IssueStatus } from "../value-objects/IssueStatus";
-import { canTransitionIssueStatus } from "../value-objects/IssueStatus";
 import type { IssueStage } from "../value-objects/IssueStage";
-import type { IssueDomainEventType } from "../events/IssueDomainEvent";
+import type { IssueStatus } from "../value-objects/IssueStatus";
 ⋮----
-export interface IssueSnapshot {
-  readonly id: string;
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description: string;
-  readonly status: IssueStatus;
-  readonly createdBy: string;
-  readonly assignedTo: string | null;
-  readonly resolvedAtISO: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
+export interface IssueDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
 }
 ⋮----
-export interface OpenIssueInput {
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description?: string;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
+export interface IssueOpenedEvent extends IssueDomainEvent {
+  readonly type: "workspace.issue.opened";
+  readonly payload: {
+    readonly issueId: string;
+    readonly taskId: string;
+    readonly stage: IssueStage;
+    readonly createdBy: string;
+  };
 }
 ⋮----
-export class Issue {
+export interface IssueStatusChangedEvent extends IssueDomainEvent {
+  readonly type: "workspace.issue.status-changed";
+  readonly payload: {
+    readonly issueId: string;
+    readonly taskId: string;
+    readonly to: IssueStatus;
+  };
+}
 ⋮----
-private constructor(private _props: IssueSnapshot)
+export interface IssueResolvedEvent extends IssueDomainEvent {
+  readonly type: "workspace.issue.resolved";
+  readonly payload: {
+    readonly issueId: string;
+    readonly taskId: string;
+    readonly stage: IssueStage;
+    readonly resolvedAtISO: string;
+  };
+}
 ⋮----
-static open(id: string, input: OpenIssueInput): Issue
+export interface IssueClosedEvent extends IssueDomainEvent {
+  readonly type: "workspace.issue.closed";
+  readonly payload: {
+    readonly issueId: string;
+    readonly taskId: string;
+  };
+}
 ⋮----
-static reconstitute(snapshot: IssueSnapshot): Issue
-⋮----
-transition(to: IssueStatus): void
-⋮----
-get id(): string
-get taskId(): string
-get status(): IssueStatus
-⋮----
-getSnapshot(): Readonly<IssueSnapshot>
-⋮----
-pullDomainEvents(): IssueDomainEventType[]
+export type IssueDomainEventType =
+  | IssueOpenedEvent
+  | IssueStatusChangedEvent
+  | IssueResolvedEvent
+  | IssueClosedEvent;
 ````
 
 ## File: src/modules/workspace/subdomains/issue/domain/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/issue/domain/repositories/IssueRepository.ts
+````typescript
+import type { IssueSnapshot } from "../entities/Issue";
+import type { IssueStatus } from "../value-objects/IssueStatus";
+import type { IssueStage } from "../value-objects/IssueStage";
+⋮----
+export interface IssueRepository {
+  findById(issueId: string): Promise<IssueSnapshot | null>;
+  findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
+  findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>;
+  countOpenByTaskId(taskId: string): Promise<number>;
+  countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>;
+  save(issue: IssueSnapshot): Promise<void>;
+  updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
+  delete(issueId: string): Promise<void>;
+}
+⋮----
+findById(issueId: string): Promise<IssueSnapshot | null>;
+findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
+findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>;
+countOpenByTaskId(taskId: string): Promise<number>;
+countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>;
+save(issue: IssueSnapshot): Promise<void>;
+updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
+delete(issueId: string): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/issue/domain/value-objects/IssueId.ts
@@ -2546,11 +2623,6 @@ import { z } from "zod";
 export type CreateJobDTO = z.infer<typeof CreateJobInputSchema>;
 ````
 
-## File: src/modules/workspace/subdomains/orchestration/application/index.ts
-````typescript
-
-````
-
 ## File: src/modules/workspace/subdomains/orchestration/application/use-cases/OrchestrationUseCases.ts
 ````typescript
 import { v4 as uuid } from "uuid";
@@ -2654,21 +2726,6 @@ pullDomainEvents(): JobDomainEventType[]
 ## File: src/modules/workspace/subdomains/quality/application/index.ts
 ````typescript
 
-````
-
-## File: src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { QualityTaskRepository, QualityTaskStatus } from "../../domain/repositories/QualityTaskRepository";
-⋮----
-function canTransition(from: QualityTaskStatus, to: QualityTaskStatus): boolean
-⋮----
-export class SubmitTaskToQaUseCase {
-⋮----
-constructor(private readonly taskRepo: QualityTaskRepository)
-async execute(taskId: string): Promise<CommandResult>
-⋮----
-export class PassTaskQaUseCase {
 ````
 
 ## File: src/modules/workspace/subdomains/quality/domain/index.ts
@@ -2910,11 +2967,6 @@ export type CreateInvoiceDTO = z.infer<typeof CreateInvoiceSchema>;
 export type TransitionInvoiceDTO = z.infer<typeof TransitionInvoiceSchema>;
 ````
 
-## File: src/modules/workspace/subdomains/settlement/application/index.ts
-````typescript
-
-````
-
 ## File: src/modules/workspace/subdomains/settlement/application/use-cases/SettlementUseCases.ts
 ````typescript
 import { v4 as uuid } from "uuid";
@@ -2933,48 +2985,6 @@ async execute(workspaceId: string): Promise<CommandResult>
 export class TransitionInvoiceStatusUseCase {
 ⋮----
 async execute(invoiceId: string, to: InvoiceStatus): Promise<CommandResult>
-````
-
-## File: src/modules/workspace/subdomains/settlement/domain/entities/Invoice.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-import { canTransitionInvoiceStatus } from "../value-objects/InvoiceStatus";
-import type { InvoiceDomainEventType } from "../events/InvoiceDomainEvent";
-⋮----
-export interface InvoiceSnapshot {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: InvoiceStatus;
-  readonly totalAmount: number;
-  readonly submittedAtISO: string | null;
-  readonly approvedAtISO: string | null;
-  readonly paidAtISO: string | null;
-  readonly closedAtISO: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateInvoiceInput {
-  readonly workspaceId: string;
-}
-⋮----
-export class Invoice {
-⋮----
-private constructor(private _props: InvoiceSnapshot)
-⋮----
-static create(id: string, input: CreateInvoiceInput): Invoice
-⋮----
-static reconstitute(snapshot: InvoiceSnapshot): Invoice
-⋮----
-transition(to: InvoiceStatus): void
-⋮----
-get id(): string
-get status(): InvoiceStatus
-⋮----
-getSnapshot(): Readonly<InvoiceSnapshot>
-⋮----
-pullDomainEvents(): InvoiceDomainEventType[]
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/domain/index.ts
@@ -3328,164 +3338,6 @@ export type TaskId = z.infer<typeof TaskIdSchema>;
 export function createTaskId(raw: string): TaskId
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
-````typescript
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Brain,
-  CalendarDays,
-  FileText,
-  FolderOpen,
-  Home,
-  MessageSquare,
-  Notebook,
-  Settings,
-  Shield,
-  Users,
-} from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Badge } from "@ui-shadcn/ui/badge";
-⋮----
-import type { WorkspaceEntity } from "./WorkspaceContext";
-import { useWorkspaceContext } from "./WorkspaceContext";
-import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
-⋮----
-export interface NavPreferences {
-  readonly pinnedWorkspace: string[];
-  readonly pinnedPersonal: string[];
-  readonly showLimitedWorkspaces: boolean;
-  readonly maxWorkspaces: number;
-}
-⋮----
-export type SidebarLocaleBundle = Record<string, string>;
-⋮----
-type WorkspaceTabValue =
-  | "Overview"
-  | "Daily"
-  | "Schedule"
-  | "Audit"
-  | "Files"
-  | "Members"
-  | "Knowledge"
-  | "Notebook"
-  | "AiChat"
-  | "WorkspaceSettings";
-⋮----
-interface WorkspaceTabItem {
-  id: string;
-  value: WorkspaceTabValue;
-  label: string;
-}
-⋮----
-function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
-⋮----
-function sanitizeNavPreferences(input: Partial<NavPreferences> | null | undefined): NavPreferences
-⋮----
-function writeNavPreferences(prefs: NavPreferences): void
-⋮----
-export function readNavPreferences(): NavPreferences
-⋮----
-export function supportsWorkspaceSearchContext(pathname: string): boolean
-⋮----
-export function getWorkspaceIdFromPath(pathname: string): string | null
-⋮----
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: { accountId: string | null; workspaceId: string | null },
-): string
-⋮----
-interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-⋮----
-interface WorkspaceQuickAccessItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-⋮----
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId: string | undefined,
-): WorkspaceQuickAccessItem[]
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getRecentStorageKey(accountId: string): string
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string): void
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-):
-⋮----
-export function useSidebarLocale(): SidebarLocaleBundle | null
-⋮----
-interface WorkspaceQuickAccessRowProps {
-  items: WorkspaceQuickAccessItem[];
-  pathname: string;
-  currentPanel: string | null;
-  currentWorkspaceTab: string | null;
-  workspaceSettingsHref: string;
-  isActiveRoute: (href: string) => boolean;
-}
-⋮----
-className=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-setDraft((prev) => (
-⋮----
-setDraft(DEFAULT_NAV_PREFS);
-⋮----
-function reset()
-⋮----
-async function handleSubmit(event: FormEvent<HTMLFormElement>)
-⋮----
-onOpenChange(isOpen);
-⋮----
-reset();
-onOpenChange(false);
-⋮----
-if (!accountsHydrated || !workspaceState.workspacesHydrated)
-⋮----
-<Badge variant=
-⋮----
-onClick=
-⋮----
-router.push(href);
-⋮----
-return (
-    <div className="px-4 py-6 text-sm text-muted-foreground">
-      Teams (stub)
-    </div>
-  ) as React.ReactElement;
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
 ````typescript
 /**
@@ -3612,6 +3464,371 @@ export function subscribeToWorkspacesForAccount(
 ): Unsubscribe
 ⋮----
 export function createClientWorkspaceLifecycleUseCases()
+````
+
+## File: src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { ApprovalTaskRepository, ApprovalIssueRepository, ApprovalTaskStatus, ApprovalIssueStatus } from "../../domain/repositories/ApprovalRepository";
+⋮----
+function canTransitionTask(from: ApprovalTaskStatus, to: ApprovalTaskStatus): boolean
+⋮----
+function canTransitionIssue(from: ApprovalIssueStatus, to: ApprovalIssueStatus): boolean
+⋮----
+export class ApproveTaskAcceptanceUseCase {
+⋮----
+constructor(
+async execute(taskId: string): Promise<CommandResult>
+⋮----
+export class SubmitIssueRetestUseCase {
+⋮----
+constructor(private readonly issueRepo: ApprovalIssueRepository)
+async execute(issueId: string): Promise<CommandResult>
+⋮----
+export class PassIssueRetestUseCase {
+⋮----
+export class FailIssueRetestUseCase {
+````
+
+## File: src/modules/workspace/subdomains/issue/application/use-cases/IssueUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { Issue } from "../../domain/entities/Issue";
+import type { OpenIssueInput } from "../../domain/entities/Issue";
+import { canTransitionIssueStatus } from "../../domain/value-objects/IssueStatus";
+import type { IssueStatus } from "../../domain/value-objects/IssueStatus";
+⋮----
+export class OpenIssueUseCase {
+⋮----
+constructor(private readonly issueRepo: IssueRepository)
+⋮----
+async execute(input: OpenIssueInput): Promise<CommandResult>
+⋮----
+export class TransitionIssueStatusUseCase {
+⋮----
+async execute(issueId: string, to: IssueStatus): Promise<CommandResult>
+⋮----
+export class ResolveIssueUseCase {
+⋮----
+async execute(issueId: string): Promise<CommandResult>
+````
+
+## File: src/modules/workspace/subdomains/issue/domain/entities/Issue.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { IssueStatus } from "../value-objects/IssueStatus";
+import { canTransitionIssueStatus } from "../value-objects/IssueStatus";
+import type { IssueStage } from "../value-objects/IssueStage";
+import type { IssueDomainEventType } from "../events/IssueDomainEvent";
+⋮----
+export interface IssueSnapshot {
+  readonly id: string;
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly title: string;
+  readonly description: string;
+  readonly status: IssueStatus;
+  readonly createdBy: string;
+  readonly assignedTo: string | null;
+  readonly resolvedAtISO: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface OpenIssueInput {
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly title: string;
+  readonly description?: string;
+  readonly createdBy: string;
+  readonly assignedTo?: string;
+}
+⋮----
+export class Issue {
+⋮----
+private constructor(private _props: IssueSnapshot)
+⋮----
+static open(id: string, input: OpenIssueInput): Issue
+⋮----
+static reconstitute(snapshot: IssueSnapshot): Issue
+⋮----
+transition(to: IssueStatus): void
+⋮----
+close(): void
+⋮----
+get id(): string
+get taskId(): string
+get status(): IssueStatus
+⋮----
+getSnapshot(): Readonly<IssueSnapshot>
+⋮----
+pullDomainEvents(): IssueDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/orchestration/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { QualityTaskRepository } from "../../domain/repositories/QualityTaskRepository";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+⋮----
+export class SubmitTaskToQaUseCase {
+⋮----
+constructor(private readonly taskRepo: QualityTaskRepository)
+async execute(taskId: string): Promise<CommandResult>
+⋮----
+export class PassTaskQaUseCase {
+````
+
+## File: src/modules/workspace/subdomains/settlement/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/settlement/domain/entities/Invoice.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+import { canTransitionInvoiceStatus } from "../value-objects/InvoiceStatus";
+import type { InvoiceDomainEventType } from "../events/InvoiceDomainEvent";
+⋮----
+export interface InvoiceSnapshot {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly taskIds: ReadonlyArray<string>;
+  readonly status: InvoiceStatus;
+  readonly totalAmount: number;
+  readonly submittedAtISO: string | null;
+  readonly approvedAtISO: string | null;
+  readonly paidAtISO: string | null;
+  readonly closedAtISO: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateInvoiceInput {
+  readonly workspaceId: string;
+  readonly taskIds?: ReadonlyArray<string>;
+}
+⋮----
+export interface CreateInvoiceFromAcceptedTasksInput {
+  readonly workspaceId: string;
+  readonly taskIds: ReadonlyArray<string>;
+}
+⋮----
+export class Invoice {
+⋮----
+private constructor(private _props: InvoiceSnapshot)
+⋮----
+static create(id: string, input: CreateInvoiceInput): Invoice
+⋮----
+static reconstitute(snapshot: InvoiceSnapshot): Invoice
+⋮----
+transition(to: InvoiceStatus): void
+⋮----
+get id(): string
+get status(): InvoiceStatus
+⋮----
+getSnapshot(): Readonly<InvoiceSnapshot>
+⋮----
+pullDomainEvents(): InvoiceDomainEventType[]
+````
+
+## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
+````typescript
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  AlertCircle,
+  BadgeCheck,
+  Brain,
+  CalendarDays,
+  ClipboardCheck,
+  FileText,
+  FolderOpen,
+  Home,
+  Inbox,
+  ListTodo,
+  MessageSquare,
+  Notebook,
+  Receipt,
+  Settings,
+  Shield,
+  Users,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Badge } from "@ui-shadcn/ui/badge";
+⋮----
+import type { WorkspaceEntity } from "./WorkspaceContext";
+import { useWorkspaceContext } from "./WorkspaceContext";
+import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
+⋮----
+export interface NavPreferences {
+  readonly pinnedWorkspace: string[];
+  readonly pinnedPersonal: string[];
+  readonly showLimitedWorkspaces: boolean;
+  readonly maxWorkspaces: number;
+}
+⋮----
+export type SidebarLocaleBundle = Record<string, string>;
+⋮----
+type WorkspaceTabValue =
+  | "Overview"
+  | "Daily"
+  | "Schedule"
+  | "Audit"
+  | "Files"
+  | "Members"
+  | "Knowledge"
+  | "Notebook"
+  | "AiChat"
+  | "WorkspaceSettings"
+  | "TaskFormation"
+  | "Tasks"
+  | "Quality"
+  | "Approval"
+  | "Settlement"
+  | "Issues";
+⋮----
+type WorkspaceDomainGroup = "workspace" | "notion" | "notebooklm";
+⋮----
+interface WorkspaceTabItem {
+  id: string;
+  value: WorkspaceTabValue;
+  label: string;
+  domainGroup: WorkspaceDomainGroup;
+}
+⋮----
+// Task lifecycle subdomains
+⋮----
+function resolveWorkspaceTabValue(value: string | null | undefined): WorkspaceTabValue | null
+⋮----
+/**
+ * Returns the domain group for a given workspace tab value string.
+ * Falls back to "workspace" when the tab is unknown or null (so the
+ * workspace-specific sidebar sections remain visible by default).
+ */
+export function resolveTabDomainGroup(tab: string | null | undefined): WorkspaceDomainGroup
+⋮----
+// Bump version suffix whenever new default tab IDs are added so stale
+// localStorage entries are discarded and users see the updated defaults.
+⋮----
+function sanitizeNavPreferences(input: Partial<NavPreferences> | null | undefined): NavPreferences
+⋮----
+// Additive merge: always include every default tab ID so that new domain
+// sections added to WORKSPACE_TAB_ITEMS remain visible even when an older
+// version of stored preferences is present.
+⋮----
+function writeNavPreferences(prefs: NavPreferences): void
+⋮----
+export function readNavPreferences(): NavPreferences
+⋮----
+export function supportsWorkspaceSearchContext(pathname: string): boolean
+⋮----
+export function getWorkspaceIdFromPath(pathname: string): string | null
+⋮----
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: { accountId: string | null; workspaceId: string | null },
+): string
+⋮----
+interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+⋮----
+interface WorkspaceQuickAccessItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+⋮----
+// Task lifecycle quick access
+⋮----
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId: string | undefined,
+): WorkspaceQuickAccessItem[]
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getRecentStorageKey(accountId: string): string
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string): void
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+):
+⋮----
+export function useSidebarLocale(): SidebarLocaleBundle | null
+⋮----
+interface WorkspaceQuickAccessRowProps {
+  items: WorkspaceQuickAccessItem[];
+  pathname: string;
+  currentPanel: string | null;
+  currentWorkspaceTab: string | null;
+  workspaceSettingsHref: string;
+  isActiveRoute: (href: string) => boolean;
+}
+⋮----
+className=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+setDraft((prev) => (
+⋮----
+setDraft(DEFAULT_NAV_PREFS);
+⋮----
+function reset()
+⋮----
+async function handleSubmit(event: FormEvent<HTMLFormElement>)
+⋮----
+onOpenChange(isOpen);
+⋮----
+reset();
+onOpenChange(false);
+⋮----
+if (!accountsHydrated || !workspaceState.workspacesHydrated)
+⋮----
+<Badge variant=
+⋮----
+onClick=
+⋮----
+router.push(href);
+⋮----
+return (
+    <div className="px-4 py-6 text-sm text-muted-foreground">
+      Teams (stub)
+    </div>
+  ) as React.ReactElement;
 ````
 
 ## File: src/modules/workspace/README.md

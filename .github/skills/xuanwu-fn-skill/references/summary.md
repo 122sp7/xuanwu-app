@@ -32,8 +32,8 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/workspace/**
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
+- Only files matching these patterns are included: py_fn/**/*
+- Files matching these patterns are excluded: __pycache__, venv, tests, .pytest_cache
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,22 +42,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-215 files | 3,139 lines
+97 files | 1,816 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 209 | 2,637 |
-| TypeScript (TSX) | 4 | 342 |
-| Markdown | 2 | 160 |
+| Python | 63 | 1,459 |
+| No Extension | 30 | 35 |
+| Markdown | 2 | 297 |
+| Text | 2 | 25 |
 
 **Largest files:**
-- `src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx` (187 lines)
-- `src/modules/workspace/README.md` (85 lines)
-- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (81 lines)
-- `src/modules/workspace/AGENT.md` (75 lines)
-- `src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx` (69 lines)
-- `src/modules/workspace/subdomains/task/domain/entities/Task.ts` (65 lines)
-- `src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts` (60 lines)
-- `src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts` (59 lines)
-- `src/modules/workspace/subdomains/audit/domain/entities/AuditEntry.ts` (59 lines)
-- `src/modules/workspace/subdomains/orchestration/domain/entities/TaskMaterializationJob.ts` (57 lines)
+- `py_fn/README.md` (265 lines)
+- `py_fn/src/interface/handlers/storage.py` (100 lines)
+- `py_fn/src/infrastructure/persistence/firestore/document_repository.py` (89 lines)
+- `py_fn/src/infrastructure/external/documentai/client.py` (73 lines)
+- `py_fn/src/infrastructure/external/upstash/search_client.py` (73 lines)
+- `py_fn/src/infrastructure/persistence/storage/client.py` (68 lines)
+- `py_fn/src/domain/value_objects/rag.py` (62 lines)
+- `py_fn/src/domain/repositories/rag.py` (61 lines)
+- `py_fn/src/interface/handlers/parse_document.py` (59 lines)
+- `py_fn/src/core/config.py` (56 lines)

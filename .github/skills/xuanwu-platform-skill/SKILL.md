@@ -1,11 +1,11 @@
 ---
-name: xuanwu-workspace-skill
+name: xuanwu-platform-skill
 description: Reference codebase for Xuanwu App. Use this skill when you need to understand the structure, implementation patterns, or code details of the Xuanwu App project.
 ---
 
 # Xuanwu App Codebase Reference
 
-215 files | 3139 lines | 32376 tokens
+92 files | 1881 lines | 16220 tokens
 
 ## Overview
 
