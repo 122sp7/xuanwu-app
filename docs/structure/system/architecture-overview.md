@@ -116,22 +116,22 @@ flowchart LR
 
 ## Document Network
 
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
+- [README.md](../../README.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
 - [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
+- [subdomains.md](../domain/subdomains.md)
 - [integration-guidelines.md](./integration-guidelines.md)
 - [strategic-patterns.md](./strategic-patterns.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
 
 ## Reading Path
 
-1. [bounded-contexts.md](./bounded-contexts.md)
+1. [bounded-contexts.md](../domain/bounded-contexts.md)
 2. [context-map.md](./context-map.md)
-3. [subdomains.md](./subdomains.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
+3. [subdomains.md](../domain/subdomains.md)
+4. [ubiquitous-language.md](../domain/ubiquitous-language.md)
 5. [integration-guidelines.md](./integration-guidelines.md)
 6. [strategic-patterns.md](./strategic-patterns.md)
-7. [decisions/README.md](./decisions/README.md)
+7. [decisions/README.md](../../decisions/README.md)
