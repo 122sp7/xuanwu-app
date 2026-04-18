@@ -2,7 +2,7 @@ import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { FeedPostRepository } from "../../domain/repositories/FeedPostRepository";
 import { FeedPost } from "../../domain/entities/FeedPost";
-import type { CreateFeedPostInput } from "../../domain/entities/FeedPost";
+import type { CreateFeedPostInput, FeedPostSnapshot } from "../../domain/entities/FeedPost";
 
 export class CreateFeedPostUseCase {
   constructor(private readonly feedRepo: FeedPostRepository) {}
@@ -15,5 +15,22 @@ export class CreateFeedPostUseCase {
     } catch (err) {
       return commandFailureFrom("FEED_CREATE_FAILED", err instanceof Error ? err.message : "Failed to create feed post.");
     }
+  }
+}
+
+export class ListFeedPostsUseCase {
+  constructor(private readonly feedRepo: FeedPostRepository) {}
+
+  async execute(input: {
+    accountId: string;
+    workspaceId: string;
+    dateKey?: string;
+    limit?: number;
+  }): Promise<FeedPostSnapshot[]> {
+    const limit = input.limit ?? 50;
+    if (input.dateKey) {
+      return this.feedRepo.listByWorkspaceIdAndDate(input.accountId, input.workspaceId, input.dateKey, limit);
+    }
+    return this.feedRepo.listByWorkspaceId(input.accountId, input.workspaceId, limit);
   }
 }

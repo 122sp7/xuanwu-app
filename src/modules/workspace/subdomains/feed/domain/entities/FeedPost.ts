@@ -12,6 +12,10 @@ export interface FeedPostSnapshot {
   readonly authorAccountId: string;
   readonly type: FeedPostType;
   readonly content: string;
+  /** ISO date key YYYY-MM-DD for efficient Firestore date-range queries. */
+  readonly dateKey: string;
+  /** Storage URLs for attached photos (zero or more). */
+  readonly photoUrls: readonly string[];
   readonly replyToPostId: string | null;
   readonly repostOfPostId: string | null;
   readonly likeCount: number;
@@ -29,6 +33,8 @@ export interface CreateFeedPostInput {
   readonly workspaceId: string;
   readonly authorAccountId: string;
   readonly content: string;
+  /** Storage URLs for attached photos (zero or more). */
+  readonly photoUrls?: readonly string[];
   readonly replyToPostId?: string;
   readonly repostOfPostId?: string;
 }
@@ -40,6 +46,7 @@ export class FeedPost {
 
   static create(id: string, input: CreateFeedPostInput): FeedPost {
     const now = new Date().toISOString();
+    const dateKey = now.slice(0, 10); // YYYY-MM-DD
     const type: FeedPostType = input.replyToPostId ? "reply" : input.repostOfPostId ? "repost" : "post";
     const post = new FeedPost({
       id,
@@ -48,6 +55,8 @@ export class FeedPost {
       authorAccountId: input.authorAccountId,
       type,
       content: input.content,
+      dateKey,
+      photoUrls: input.photoUrls ? [...input.photoUrls] : [],
       replyToPostId: input.replyToPostId ?? null,
       repostOfPostId: input.repostOfPostId ?? null,
       likeCount: 0,

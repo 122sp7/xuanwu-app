@@ -63,6 +63,8 @@ import {
   RejectApprovalUseCase,
   ListApprovalDecisionsUseCase,
 } from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
+import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
+import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
 
 type FirestoreWhereOperator =
   | "<"
@@ -88,7 +90,7 @@ function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository {
   return _workspaceQueryRepo;
 }
 
-function createFirestoreLikeAdapter(): FirestoreLike {
+function createFirestoreLikeAdapter() {
   const {
     doc,
     getDoc,
@@ -98,6 +100,8 @@ function createFirestoreLikeAdapter(): FirestoreLike {
     query,
     where,
     getDocs,
+    updateDoc,
+    increment,
   } = firestoreApi;
 
   return {
@@ -134,6 +138,10 @@ function createFirestoreLikeAdapter(): FirestoreLike {
         id: docSnap.id,
         ...docSnap.data(),
       }));
+    },
+    async increment(collectionName: string, id: string, field: string, delta: number): Promise<void> {
+      const db = getFirebaseFirestore();
+      await updateDoc(doc(db, collectionName, id), { [field]: increment(delta) });
     },
   };
 }
@@ -235,6 +243,15 @@ export function createClientApprovalUseCases() {
     approveTask: new ApproveTaskUseCase(decisionRepo, taskRepo, issueRepo),
     rejectApproval: new RejectApprovalUseCase(decisionRepo, taskRepo),
     listApprovalDecisions: new ListApprovalDecisionsUseCase(decisionRepo),
+  };
+}
+
+export function createClientFeedUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const feedRepo = new FirestoreFeedRepository(db);
+  return {
+    createFeedPost: new CreateFeedPostUseCase(feedRepo),
+    listFeedPosts: new ListFeedPostsUseCase(feedRepo),
   };
 }
 

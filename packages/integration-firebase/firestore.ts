@@ -21,6 +21,7 @@ import {
   serverTimestamp,
   runTransaction,
   writeBatch,
+  increment,
   type Firestore,
 } from "firebase/firestore";
 import { firebaseClientApp } from "./client";
@@ -44,6 +45,7 @@ export const firestoreApi = {
   serverTimestamp,
   runTransaction,
   writeBatch,
+  increment,
 };
 
 export function getFirebaseFirestore(): Firestore {

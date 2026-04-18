@@ -15,7 +15,7 @@ export class FirestoreFeedRepository implements FeedPostRepository {
 
   async findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null> {
     const doc = await this.db.get(this.collection, postId);
-    return doc ? (doc as unknown as FeedPostSnapshot) : null;
+    return doc ? this.toSnapshot(doc) : null;
   }
 
   async listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]> {
@@ -23,12 +23,26 @@ export class FirestoreFeedRepository implements FeedPostRepository {
       { field: "accountId", op: "==", value: accountId },
       { field: "workspaceId", op: "==", value: workspaceId },
     ]);
-    return (docs as unknown as FeedPostSnapshot[]).slice(0, limit);
+    return docs.slice(0, limit).map((d) => this.toSnapshot(d));
+  }
+
+  async listByWorkspaceIdAndDate(
+    accountId: string,
+    workspaceId: string,
+    dateKey: string,
+    limit: number,
+  ): Promise<FeedPostSnapshot[]> {
+    const docs = await this.db.query(this.collection, [
+      { field: "accountId", op: "==", value: accountId },
+      { field: "workspaceId", op: "==", value: workspaceId },
+      { field: "dateKey", op: "==", value: dateKey },
+    ]);
+    return docs.slice(0, limit).map((d) => this.toSnapshot(d));
   }
 
   async listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]> {
     const docs = await this.db.query(this.collection, [{ field: "accountId", op: "==", value: accountId }]);
-    return (docs as unknown as FeedPostSnapshot[]).slice(0, limit);
+    return docs.slice(0, limit).map((d) => this.toSnapshot(d));
   }
 
   async save(post: FeedPostSnapshot): Promise<void> {
@@ -42,5 +56,29 @@ export class FirestoreFeedRepository implements FeedPostRepository {
     delta: number,
   ): Promise<void> {
     await this.db.increment(this.collection, postId, field, delta);
+  }
+
+  private toSnapshot(doc: Record<string, unknown>): FeedPostSnapshot {
+    const raw = doc as Record<string, unknown>;
+    return {
+      id: raw["id"] as string,
+      accountId: raw["accountId"] as string,
+      workspaceId: raw["workspaceId"] as string,
+      authorAccountId: raw["authorAccountId"] as string,
+      type: raw["type"] as FeedPostSnapshot["type"],
+      content: raw["content"] as string,
+      dateKey: (raw["dateKey"] as string | undefined) ?? ((raw["createdAtISO"] as string | undefined)?.slice(0, 10) ?? ""),
+      photoUrls: Array.isArray(raw["photoUrls"]) ? (raw["photoUrls"] as string[]) : [],
+      replyToPostId: (raw["replyToPostId"] as string | null) ?? null,
+      repostOfPostId: (raw["repostOfPostId"] as string | null) ?? null,
+      likeCount: (raw["likeCount"] as number | undefined) ?? 0,
+      replyCount: (raw["replyCount"] as number | undefined) ?? 0,
+      repostCount: (raw["repostCount"] as number | undefined) ?? 0,
+      viewCount: (raw["viewCount"] as number | undefined) ?? 0,
+      bookmarkCount: (raw["bookmarkCount"] as number | undefined) ?? 0,
+      shareCount: (raw["shareCount"] as number | undefined) ?? 0,
+      createdAtISO: raw["createdAtISO"] as string,
+      updatedAtISO: raw["updatedAtISO"] as string,
+    };
   }
 }
