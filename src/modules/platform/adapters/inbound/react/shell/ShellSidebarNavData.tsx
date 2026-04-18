@@ -75,7 +75,7 @@ export function sidebarItemClass(active: boolean) {
 }
 
 export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+  "mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70";
 
 export const sidebarGroupButtonClass =
   "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";

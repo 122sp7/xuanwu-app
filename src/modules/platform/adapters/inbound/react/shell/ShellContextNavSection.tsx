@@ -6,8 +6,18 @@
  */
 
 import Link from "next/link";
+import {
+  AlertCircle,
+  BadgeCheck,
+  ClipboardCheck,
+  Inbox,
+  ListTodo,
+  Receipt,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { appendWorkspaceContextQuery } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
 import { buildShellContextualHref } from "../../../../index";
+import { sidebarItemClass, sidebarSectionTitleClass } from "./ShellSidebarNavData";
 
 interface ContextScopedNavItem {
   href: string;
@@ -22,6 +32,24 @@ interface ShellContextNavSectionProps {
   activeWorkspaceId: string | null;
 }
 
+/** Resolve a lucide icon for context-section items by parsing ?tab= from the href. */
+function getContextItemIcon(href: string): ReactNode | null {
+  try {
+    const tab = new URL(href, "http://x").searchParams.get("tab");
+    const map: Record<string, ReactNode> = {
+      TaskFormation: <Inbox className="size-3.5" />,
+      Tasks:         <ListTodo className="size-3.5" />,
+      Quality:       <ClipboardCheck className="size-3.5" />,
+      Approval:      <BadgeCheck className="size-3.5" />,
+      Settlement:    <Receipt className="size-3.5" />,
+      Issues:        <AlertCircle className="size-3.5" />,
+    };
+    return tab ? (map[tab] ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ShellContextNavSection({
   title,
   items,
@@ -31,16 +59,7 @@ export function ShellContextNavSection({
 }: ShellContextNavSectionProps) {
   return (
     <nav className="space-y-0.5" aria-label={`${title}導覽`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {(activeAccountId || activeWorkspaceId) && (
-        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
-          {" · "}
-          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
-        </p>
-      )}
+      <p className={sidebarSectionTitleClass}>{title}</p>
       {items.map((item) => {
         const scopedHref = buildShellContextualHref(item.href, {
           accountId: activeAccountId,
@@ -56,12 +75,9 @@ export function ShellContextNavSection({
             key={item.href}
             href={contextualHref}
             aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
+            className={sidebarItemClass(active)}
           >
+            {getContextItemIcon(item.href)}
             {item.label}
           </Link>
         );

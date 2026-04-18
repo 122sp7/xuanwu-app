@@ -392,6 +392,7 @@ export function WorkspaceSectionContent({
                     aria-current={active ? "page" : undefined}
                     className={getItemClassName(active)}
                   >
+                    {WORKSPACE_TAB_ICONS[tab.value]}
                     {tab.label}
                   </Link>
                 );
