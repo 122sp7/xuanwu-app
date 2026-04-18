@@ -1,4 +1,4 @@
----
+﻿---
 name: AI Genkit Lead
 description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
 argument-hint: Provide AI flow name, target runtime (Next.js/py_fn), orchestration goal, and any retrieval or grounding concerns.
@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Refine Genkit Flow
-    agent: Genkit Flow Agent
+    agent: Hexagonal DDD Architect
     prompt: Refine the Genkit flow contract, tool orchestration boundaries, and fallback behavior for this scope.
   - label: Review RAG Boundary
     agent: RAG Lead
@@ -39,5 +39,5 @@ handoffs:
 - Keep parsing, chunking, embedding in py_fn workers.
 - Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill genkit-ai

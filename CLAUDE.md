@@ -1,4 +1,4 @@
-# Xuanwu App — Claude Instructions
+﻿# Xuanwu App — Claude Instructions
 
 Knowledge-management and AI-assisted workspace platform built with Next.js 16 + React 19.
 
@@ -7,11 +7,11 @@ Knowledge-management and AI-assisted workspace platform built with Next.js 16 + 
 Before writing any code, read these documents in order:
 
 1. `docs/README.md` — 架構文件索引
-2. `docs/architecture-overview.md` — 全域架構與主域關係
-3. `docs/bounded-contexts.md` — 主域與子域所有權
-4. `docs/ubiquitous-language.md` — 戰略術語權威
+2. `docs/structure/system/architecture-overview.md` — 全域架構與主域關係
+3. `docs/structure/domain/bounded-contexts.md` — 主域與子域所有權
+4. `docs/structure/domain/ubiquitous-language.md` — 戰略術語權威
 5. `docs/decisions/README.md` — ADR 決策日誌
-6. `src/modules/<context>/AGENT.md` — 目標主域的任務定義
+6. `src/modules/<context>/AGENTS.md` — 目標主域的任務定義
 
 ## Project Structure
 
@@ -96,7 +96,7 @@ notion  → notebooklm
 
 `iam`, `billing`, `ai` are governance upstreams. `platform` is operational support. `analytics` is downstream sink only. Do not invert any direction.
 
-Full context map authority: `docs/context-map.md` and `docs/module-graph.system-wide.md`.
+Full context map authority: `docs/structure/system/context-map.md` and `docs/structure/system/module-graph.system-wide.md`.
 
 ### Layer Ownership
 

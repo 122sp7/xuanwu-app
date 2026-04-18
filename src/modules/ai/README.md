@@ -1,4 +1,4 @@
-# AI Module
+﻿# AI Module
 
 ## 子域清單（名詞域）
 
@@ -34,7 +34,7 @@
 src/modules/ai/
   index.ts                      ← 模組對外唯一入口（具名匯出）
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     AiFacade.ts                 ← 對外統一 Facade
     AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
@@ -106,6 +106,6 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖

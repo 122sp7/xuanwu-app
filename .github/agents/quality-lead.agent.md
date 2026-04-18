@@ -1,4 +1,4 @@
----
+﻿---
 name: Quality Lead
 description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
 argument-hint: Provide changed files or PR diff, risk areas, and release criteria.
@@ -50,4 +50,4 @@ Verify correctness, boundary safety, and release readiness.
 - Evidence and reproduction details
 - Residual risks and recommendation: ready, ready-with-risk, blocked
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

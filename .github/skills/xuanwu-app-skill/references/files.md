@@ -149,7 +149,7 @@ handoffs:
 - `.github/instructions/domain-layer-rules.instructions.md`
 - `.github/instructions/event-driven-state.instructions.md`
 - `docs/ubiquitous-language.md`
-- `docs/contexts/<context>/README.md`
+- `docs/structure/contexts/<context>/README.md`
 
 ## 禁止事項（Hard Violations）
 
@@ -159,7 +159,7 @@ handoffs:
 - `domain/` 匯入 React / React hooks / Next.js
 - `domain/` 匯入 HTTP client（axios / fetch wrapper / tRPC）
 - `domain/` 匯入 ORM / database client
-- `domain/` 直接呼叫 `node:crypto`（必須用 `@lib-uuid`）
+- `domain/` 直接呼叫 `node:crypto`（必須用 `@infra/uuid`）
 - Aggregate 只有 getter/setter，無任何業務方法（貧血模型）
 - Use Case 內含業務 invariant 判斷（應移至 Aggregate）
 - Domain Event 使用現在式命名
@@ -385,7 +385,7 @@ This file is an implementation-oriented supplement for repository navigation. St
 
 ## Docs Authority
 
-- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/structure/contexts/<context>/*`
 - Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
 - Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
 
@@ -698,7 +698,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - `interfaces/` and `infrastructure/` are outer layers; do not nest them inside a generic `core/`.
 
 Strict rule: `domain/` must never import Firebase, Genkit, React, Node.js `crypto`, HTTP clients, or ORMs.
-Use `@lib-uuid` for UUID generation in domain layers.
+Use `@infra/uuid` for UUID generation in domain layers.
 
 ## 1.2 Port Design
 
@@ -883,7 +883,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 # Bounded Context（界限上下文）設計規則
 
-> 完整邊界參考：**先查 `docs/bounded-contexts.md`、`docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 完整邊界參考：**先查 `docs/bounded-contexts.md`、`docs/ubiquitous-language.md`、`docs/structure/contexts/<context>/README.md`**
 > 此文件只包含 Bounded Context 層級的**戰略設計約束**，不複製領域知識或程式碼範例。
 
 ## 戰略設計規則
@@ -1022,7 +1022,7 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 
 # Domain Layer（領域層）設計規則
 
-> 完整邊界參考：**先查 `docs/ubiquitous-language.md`、`docs/contexts/<context>/README.md`**
+> 完整邊界參考：**先查 `docs/ubiquitous-language.md`、`docs/structure/contexts/<context>/README.md`**
 > 戰術設計範例（聚合根、值對象、Zod 驗證）請參考 `domain-modeling.instructions.md`。
 > 此文件只包含 Domain Layer 層級的**戰略設計約束**。
 
@@ -1064,7 +1064,7 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 
 # 領域模型設計規範 (Domain Modeling)
 
-> 完整邊界參考：**先查 `docs/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 完整邊界參考：**先查 `docs/structure/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 聚合根 (Aggregate Root)
@@ -1219,7 +1219,7 @@ applyTo: 'modules/**/*.{ts,tsx}'
 
 # 事件驅動狀態規範 (Event-Driven State)
 
-> 完整邊界參考：**先查 `docs/contexts/<context>/context-map.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 完整邊界參考：**先查 `docs/structure/contexts/<context>/context-map.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 領域事件 (Domain Events)
@@ -2518,7 +2518,7 @@ tools: ['serena/*', 'context7/*', 'read', 'search']
 
 1. 讀取 `docs/README.md` → `docs/bounded-contexts.md` → `docs/subdomains.md`，定位所屬 bounded context。
 2. 讀取 `docs/ubiquitous-language.md`，確認功能用語是否有既有術語映射。
-3. 讀取 `docs/contexts/<context>/context-map.md`，確認上下游依賴關係。
+3. 讀取 `docs/structure/contexts/<context>/context-map.md`，確認上下游依賴關係。
 4. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `architecture-runtime.instructions.md`，確認 runtime 邊界。
 5. 輸出 feature blueprint（見下方格式）。
 6. 若功能涉及 AI capability，標注 `platform.ai` 消費路徑；不允許 notion/notebooklm 自擁 `ai` subdomain。
@@ -3148,7 +3148,7 @@ env:
 modules/                                        # 系統所有業務模組（bounded contexts）集合
 └── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
     ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
-    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
+    ├── AGENTS.md                                # 開發規範：命名、分層規則、不可違反設計約束
     ├── api/                                    # 對其他 bounded context 的公開 API 邊界（ACL 入口）
     │   └── index.ts                            # 只匯出安全能力，隱藏內部結構與實作細節
     ├── application/                            # 應用層：負責 use case orchestration
@@ -3245,7 +3245,7 @@ modules/                                        # 系統所有業務模組（bou
 
 ## Delivery Checklist
 
-1. 建立 bounded context 的 `README.md`、`AGENT.md`、`api/`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
+1. 建立 bounded context 的 `README.md`、`AGENTS.md`、`api/`、`docs/`，以及必要時的根層 `application/`、`domain/`、`infrastructure/`、`interfaces/` 入口。
 2. 先判斷需求是屬於 bounded context 根層還是特定 subdomain；只有 context-wide concern 才進根層，其餘一律先落到 `subdomains/<name>/`。
 3. 先建立 use case contract（actor / goal / success scenario / failure branches），再建立對應檔案 `application/use-cases/<verb-noun>.use-case.ts`。
 4. 對擁有該責任的 subdomain 先落 `domain/` 核心模型，再收斂 `application/` 流程；`ports/` 視需要補齊，`infrastructure/` 與 `interfaces/` 預設落在 bounded context 根層並依 subdomain 名分組。
@@ -3456,7 +3456,7 @@ flowchart LR
 - [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/_template.md
+## File: docs/structure/contexts/_template.md
 ````markdown
 # Context Template
 
@@ -3469,7 +3469,7 @@ flowchart LR
 - bounded-contexts.md
 - context-map.md
 - ubiquitous-language.md
-- AGENT.md
+- AGENTS.md
 
 ## README.md Template
 
@@ -3534,7 +3534,7 @@ flowchart LR
 - Correct Interaction Flow
 - Document Network
 
-## AGENT.md Template
+## AGENTS.md Template
 
 - Mission
 - Canonical Ownership
@@ -3604,7 +3604,7 @@ flowchart LR
 - [../decisions/README.md](../decisions/README.md)
 ````
 
-## File: docs/contexts/analytics/AGENT.md
+## File: docs/structure/contexts/analytics/AGENTS.md
 ````markdown
 # Analytics Context Agent Guide
 
@@ -3619,7 +3619,7 @@ The Analytics context owns reporting, metrics, dashboards, and downstream projec
 - Prefer event projection and query models over write-side ownership.
 ````
 
-## File: docs/contexts/analytics/bounded-contexts.md
+## File: docs/structure/contexts/analytics/bounded-contexts.md
 ````markdown
 # Analytics
 
@@ -3634,7 +3634,7 @@ analytics 是下游 bounded context。它以 projection、metric 與 report 為�
 - 只在需要查詢與分析時建立 local read model。
 ````
 
-## File: docs/contexts/analytics/context-map.md
+## File: docs/structure/contexts/analytics/context-map.md
 ````markdown
 # Analytics
 
@@ -3654,7 +3654,7 @@ analytics 是下游 bounded context。它以 projection、metric 與 report 為�
 - analytics consumes events and projections only.
 ````
 
-## File: docs/contexts/analytics/README.md
+## File: docs/structure/contexts/analytics/README.md
 ````markdown
 # Analytics Context
 
@@ -3674,7 +3674,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 | Core Principle | analytics 是下游投影，不反向成為 canonical owner |
 ````
 
-## File: docs/contexts/analytics/subdomains.md
+## File: docs/structure/contexts/analytics/subdomains.md
 ````markdown
 # Analytics
 
@@ -3695,7 +3695,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 | decision-support | 決策輔助與洞察輸出 |
 ````
 
-## File: docs/contexts/analytics/ubiquitous-language.md
+## File: docs/structure/contexts/analytics/ubiquitous-language.md
 ````markdown
 # Analytics
 
@@ -3714,7 +3714,7 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 - 不把 projection 當成原始 aggregate。
 ````
 
-## File: docs/contexts/billing/AGENT.md
+## File: docs/structure/contexts/billing/AGENTS.md
 ````markdown
 # Billing Context Agent Guide
 
@@ -3729,7 +3729,7 @@ The Billing context owns commercial lifecycle concerns, including subscription a
 - Downstream consumers receive capability signals, not internal billing aggregates.
 ````
 
-## File: docs/contexts/billing/bounded-contexts.md
+## File: docs/structure/contexts/billing/bounded-contexts.md
 ````markdown
 # Billing
 
@@ -3744,7 +3744,7 @@ billing 是 commercial bounded context。它擁有 subscription 與 entitlement 
 - 不擁有 workspace、knowledge 或 notebook aggregate。
 ````
 
-## File: docs/contexts/billing/context-map.md
+## File: docs/structure/contexts/billing/context-map.md
 ````markdown
 # Billing
 
@@ -3762,7 +3762,7 @@ billing 是 commercial bounded context。它擁有 subscription 與 entitlement 
 - billing 向下游提供 capability signal，不暴露內部商業 aggregate。
 ````
 
-## File: docs/contexts/billing/README.md
+## File: docs/structure/contexts/billing/README.md
 ````markdown
 # Billing Context
 
@@ -3782,7 +3782,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 | Core Principle | 提供商業能力訊號，不接管內容或協作正典 |
 ````
 
-## File: docs/contexts/billing/subdomains.md
+## File: docs/structure/contexts/billing/subdomains.md
 ````markdown
 # Billing
 
@@ -3804,7 +3804,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 | quota-policy | 可量化配額與商業限制規則 |
 ````
 
-## File: docs/contexts/billing/ubiquitous-language.md
+## File: docs/structure/contexts/billing/ubiquitous-language.md
 ````markdown
 # Billing
 
@@ -3823,7 +3823,7 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 - 不把 feature flag 當成 entitlement 正典語義。
 ````
 
-## File: docs/contexts/iam/AGENT.md
+## File: docs/structure/contexts/iam/AGENTS.md
 ````markdown
 # IAM Context Agent Guide
 
@@ -3838,7 +3838,7 @@ The IAM context owns identity, access control, tenant isolation, and security po
 - Downstream contexts consume decisions and signals, not internal aggregates.
 ````
 
-## File: docs/contexts/iam/bounded-contexts.md
+## File: docs/structure/contexts/iam/bounded-contexts.md
 ````markdown
 # IAM
 
@@ -3853,7 +3853,7 @@ iam 是 governance bounded context。它是身份、tenant 與 access decision �
 - 不擁有 workspace、knowledge、notebook 或 billing aggregate。
 ````
 
-## File: docs/contexts/iam/context-map.md
+## File: docs/structure/contexts/iam/context-map.md
 ````markdown
 # IAM
 
@@ -3872,7 +3872,7 @@ iam 是 governance bounded context。它是身份、tenant 與 access decision �
 - iam 是治理上游，不擁有商業、內容或推理正典模型。
 ````
 
-## File: docs/contexts/iam/README.md
+## File: docs/structure/contexts/iam/README.md
 ````markdown
 # IAM Context
 
@@ -3892,7 +3892,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 | Core Principle | 提供治理判定，不接管商業、內容或推理正典 |
 ````
 
-## File: docs/contexts/iam/subdomains.md
+## File: docs/structure/contexts/iam/subdomains.md
 ````markdown
 # IAM
 
@@ -3923,7 +3923,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 | session | token refresh, revocation, and server-side session lifecycle |
 ````
 
-## File: docs/contexts/iam/ubiquitous-language.md
+## File: docs/structure/contexts/iam/ubiquitous-language.md
 ````markdown
 # IAM
 
@@ -3944,7 +3944,7 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 - 不把 access decision 寫成 UI flag。
 ````
 
-## File: docs/contexts/notebooklm/AGENT.md
+## File: docs/structure/contexts/notebooklm/AGENTS.md
 ````markdown
 # NotebookLM Agent
 
@@ -4040,7 +4040,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notebooklm/bounded-contexts.md
+## File: docs/structure/contexts/notebooklm/bounded-contexts.md
 ````markdown
 # NotebookLM
 
@@ -4118,7 +4118,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -4127,7 +4127,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/notebooklm/context-map.md
+## File: docs/structure/contexts/notebooklm/context-map.md
 ````markdown
 # NotebookLM
 
@@ -4200,7 +4200,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -4210,7 +4210,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notebooklm/README.md
+## File: docs/structure/contexts/notebooklm/README.md
 ````markdown
 # NotebookLM Context
 
@@ -4265,7 +4265,7 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -4311,7 +4311,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -4327,7 +4327,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/notebooklm/subdomains.md
+## File: docs/structure/contexts/notebooklm/subdomains.md
 ````markdown
 # NotebookLM
 
@@ -4397,7 +4397,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/notebooklm/ubiquitous-language.md
+## File: docs/structure/contexts/notebooklm/ubiquitous-language.md
 ````markdown
 # NotebookLM
 
@@ -4488,14 +4488,14 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/contexts/notion/context-map.md
+## File: docs/structure/contexts/notion/context-map.md
 ````markdown
 # Notion
 
@@ -4569,7 +4569,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -4579,7 +4579,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notion/ubiquitous-language.md
+## File: docs/structure/contexts/notion/ubiquitous-language.md
 ````markdown
 # Notion
 
@@ -4670,14 +4670,14 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/contexts/platform/AGENT.md
+## File: docs/structure/contexts/platform/AGENTS.md
 ````markdown
 # Platform Agent
 
@@ -4788,7 +4788,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/platform/bounded-contexts.md
+## File: docs/structure/contexts/platform/bounded-contexts.md
 ````markdown
 # Platform
 
@@ -4867,7 +4867,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -4876,7 +4876,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/platform/context-map.md
+## File: docs/structure/contexts/platform/context-map.md
 ````markdown
 # Platform
 
@@ -4950,7 +4950,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -4960,7 +4960,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/platform/README.md
+## File: docs/structure/contexts/platform/README.md
 ````markdown
 # Platform Context
 
@@ -5036,7 +5036,7 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -5087,7 +5087,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -5103,7 +5103,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/platform/subdomains.md
+## File: docs/structure/contexts/platform/subdomains.md
 ````markdown
 # Platform
 
@@ -5120,14 +5120,14 @@ flowchart LR
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
+| compliance | 資料保留、日誌與法規執行 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
 | background-job | 背景任務提交、排程與監控 |
 | content | 平台級內容資產管理與發布 |
 | search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
+| audit-log | 永久日誌軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
 
@@ -5191,7 +5191,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/workspace/AGENT.md
+## File: docs/structure/contexts/workspace/AGENTS.md
 ````markdown
 # Workspace Agent
 
@@ -5199,7 +5199,7 @@ flowchart LR
 
 ## Mission
 
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、日誌、排程與工作流，而不是吸收平台治理或知識內容正典。
 
 ## Canonical Ownership
 
@@ -5289,7 +5289,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/workspace/bounded-contexts.md
+## File: docs/structure/contexts/workspace/bounded-contexts.md
 ````markdown
 # Workspace
 
@@ -5367,7 +5367,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -5376,7 +5376,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/workspace/context-map.md
+## File: docs/structure/contexts/workspace/context-map.md
 ````markdown
 # Workspace
 
@@ -5449,7 +5449,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [subdomains.md](./subdomains.md)
 - [../../context-map.md](../../context-map.md)
@@ -5459,7 +5459,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/workspace/README.md
+## File: docs/structure/contexts/workspace/README.md
 ````markdown
 # Workspace Context
 
@@ -5467,13 +5467,13 @@ flowchart LR
 
 ## Purpose
 
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、日誌、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
 
 ## Why This Context Exists
 
 - 把工作區容器語意與平台治理語意分離。
 - 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+- 把活動流、日誌、排程與流程協調收斂為同一主域內的高凝聚能力。
 
 ## Context Summary
 
@@ -5512,7 +5512,7 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -5567,7 +5567,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -5583,7 +5583,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/workspace/subdomains.md
+## File: docs/structure/contexts/workspace/subdomains.md
 ````markdown
 # Workspace
 
@@ -5593,7 +5593,7 @@ flowchart LR
 
 | Subdomain | Responsibility |
 |---|---|
-| audit | 工作區操作稽核與證據追蹤 |
+| audit | 工作區操作日誌與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
 | workspace-workflow | 工作區流程編排與執行治理 |
@@ -5658,7 +5658,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/workspace/ubiquitous-language.md
+## File: docs/structure/contexts/workspace/ubiquitous-language.md
 ````markdown
 # Workspace
 
@@ -5775,7 +5775,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
@@ -6351,7 +6351,7 @@ platform 子域已正確遵守此規則：每個子域的 composition root 位�
 - [0002-bounded-contexts.md](./0002-bounded-contexts.md)
 - [0003-context-map.md](./0003-context-map.md)
 - [../architecture/source-to-task-flow.md](../architecture/source-to-task-flow.md)
-- [../deliveries/upload-parse-to-task-flow.md](../deliveries/upload-parse-to-task-flow.md)
+- [../examples/end-to-end/deliveries/upload-parse-to-task-flow.md](../examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
 ````
 
 ## File: docs/decisions/0014-main-domain-resplit.md
@@ -6718,12 +6718,12 @@ ADR 1100 在「違規二」中已標記此問題（`platform/api/infrastructure-
 - Status: Accepted
 - Date: 2026-04-14
 - Category: Architectural Smells > Layer Violation
-- Extends: ADR 1101 (crypto.randomUUID in domain layer → @lib-uuid)
+- Extends: ADR 1101 (crypto.randomUUID in domain layer → @infra/uuid)
 
 ## Context
 
 ADR 1101 解決了 14 個 domain aggregates 和 13 個 application use-cases 中使用
-`crypto.randomUUID()` (Node.js `crypto` 模組) 的問題，將其遷移到 `@lib-uuid`。
+`crypto.randomUUID()` (Node.js `crypto` 模組) 的問題，將其遷移到 `@infra/uuid`。
 
 掃描後發現新的 violation：`notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts`
 在 **application 層** 中直接使用 `globalThis.crypto?.randomUUID`：
@@ -6741,15 +6741,15 @@ export function generateSourceId(): string {
 
 ### 問題分析
 
-1. **繞過 `@lib-uuid` 抽象層**：ADR 4101 確立了 `@lib-uuid` 為全 repo 唯一 UUID 生成策略，
+1. **繞過 `@infra/uuid` 抽象層**：ADR 4101 確立了 `@infra/uuid` 為全 repo 唯一 UUID 生成策略，
    直接使用 `globalThis.crypto?.randomUUID` 破壞了這個集中管理層。
 
 2. **平台耦合**：`globalThis.crypto` 在 Node.js ≥ 19 才穩定，在舊版 Node.js 或某些 SSR 環境中可能為 `undefined`。
-   `@lib-uuid` 的 `v4` 已處理跨環境兼容性。
+   `@infra/uuid` 的 `v4` 已處理跨環境兼容性。
 
 3. **Fallback 邏輯洩入 application 層**：`wbl_${Date.now()}_${Math.random()}` 的 fallback
    表明開發者知道 `globalThis.crypto` 可能不可用，但選擇在 application use-case 中處理此運行環境問題，
-   而不是透過 `@lib-uuid` 統一解決。
+   而不是透過 `@infra/uuid` 統一解決。
 
 4. **Format inconsistency**：生成的 ID 格式非 UUID 標準（`wbl_...` prefix + hex），
    無法與系統其他地方的 UUID 比較，也無法作為 Zod `z.string().uuid()` 驗證的值。
@@ -6758,19 +6758,19 @@ export function generateSourceId(): string {
 
 - **Layer boundary violation**: 直接使用 runtime Web Crypto API 是 infrastructure-level concern，
   不應出現在 application use-case helper 中。
-- **Abstraction bypass**: 繞過 `@lib-uuid` centralized UUID strategy。
+- **Abstraction bypass**: 繞過 `@infra/uuid` centralized UUID strategy。
 - **Non-standard ID format**: fallback 產生 `wbl_...` 格式 ID，不符合 UUID v4 規格。
-- **Polyfill coupling**: application 層手動處理環境兼容性，本應是 `@lib-uuid` 的責任。
+- **Polyfill coupling**: application 層手動處理環境兼容性，本應是 `@infra/uuid` 的責任。
 
 ## Decision
 
-1. 將 `generateSourceId()` 改為使用 `import { v4 as uuid } from "@lib-uuid"`。
+1. 將 `generateSourceId()` 改為使用 `import { v4 as uuid } from "@infra/uuid"`。
 2. 移除 `globalThis.crypto` 直接調用和 fallback 邏輯。
 3. 統一 ID 格式為標準 UUID v4（與系統其他 entity ID 一致）。
 
 ```typescript
 // After fix
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 
 export function generateSourceId(): string {
   return uuid();
@@ -6789,7 +6789,7 @@ export function generateSourceId(): string {
 ## 關聯 ADR
 
 - **ADR 1101** (Layer Violation — crypto.randomUUID in domain layer) — 先驅修復
-- **ADR 4101** (Change Amplification — UUID strategy → @lib-uuid) — 規範根源
+- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
 - **ADR 1100** (Layer Violation) — 系列入口文件
 ````
 
@@ -7727,14 +7727,14 @@ Domain 聚合根直接呼叫 `crypto.randomUUID()` 或 `import { randomUUID } fr
 掃描結果（見 ADR 1101）：
 - **43 個 domain aggregates** 直接使用 `crypto.randomUUID()` global
 - **6 個 application use-cases** 使用 `node:crypto` 直接 import
-- **唯一正確範例**：`OrganizationTeam.ts` 使用 `import { v4 as randomUUID } from "@lib-uuid"`
+- **唯一正確範例**：`OrganizationTeam.ts` 使用 `import { v4 as randomUUID } from "@infra/uuid"`
 
 ### 耦合層次分析
 
 | 耦合類型 | 耦合目標 | 解耦策略 |
 |----------|----------|----------|
-| `crypto` global | Node.js / Web Crypto API global 物件 | 使用 `@lib-uuid` 套件（跨環境相容）|
-| `node:crypto` import | Node.js 特定模組（有 `node:` 協議） | 使用 `@lib-uuid` 或注入 port |
+| `crypto` global | Node.js / Web Crypto API global 物件 | 使用 `@infra/uuid` 套件（跨環境相容）|
+| `node:crypto` import | Node.js 特定模組（有 `node:` 協議） | 使用 `@infra/uuid` 或注入 port |
 | `randomBytes` | 加密強度隨機（Node.js-only） | 若 domain 真需要，定義 port，由 infra 提供 |
 
 ### Runtime Coupling 的具體風險
@@ -7752,15 +7752,15 @@ Vitest/Jest 的 `jsdom` 環境中：
 - `crypto.randomUUID()` global 在較舊版本可能未定義，需要 polyfill。
 - `node:crypto` 在 `browser` mode 的測試中不可用。
 
-`@lib-uuid` 封裝了這些差異，提供統一接口。
+`@infra/uuid` 封裝了這些差異，提供統一接口。
 
-### 為何選擇 `@lib-uuid` 而非直接用 crypto
+### 為何選擇 `@infra/uuid` 而非直接用 crypto
 
 ```
-packages/lib-uuid/  ← @lib-uuid 套件（已存在）
+packages/infra/uuid/  ← @infra/uuid 套件（已存在）
 ```
 
-`@lib-uuid` 是本 repo 已建立的跨環境 UUID 工具套件，
+`@infra/uuid` 是本 repo 已建立的跨環境 UUID 工具套件，
 存在的意義就是作為 domain 對 UUID 生成能力的抽象，
 隱藏底層是 `uuid` npm 包、Web Crypto 還是 Node.js crypto 的實作細節。
 
@@ -7780,9 +7780,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 ## Decision
 
-1. **所有 domain aggregates 改用 `@lib-uuid`**：  
-   `crypto.randomUUID()` → `import { v4 as uuid } from "@lib-uuid"` then `uuid()`
-2. **application use-cases 的 `randomUUID` 同樣改用 `@lib-uuid`**  
+1. **所有 domain aggregates 改用 `@infra/uuid`**：  
+   `crypto.randomUUID()` → `import { v4 as uuid } from "@infra/uuid"` then `uuid()`
+2. **application use-cases 的 `randomUUID` 同樣改用 `@infra/uuid`**  
 3. **`randomBytes` 用於 storage path**：定義 `StoragePathGeneratorPort` 或 `UniqueTokenPort`，由 infrastructure 提供實作；或在 infrastructure adapter 層直接使用 `node:crypto`（不進入 application）。
 4. **建議 ESLint rule**（同 ADR 1101）：限制 domain 和 application 層從 `node:crypto` 直接 import。
 
@@ -7790,7 +7790,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 正面：
 - Domain 可在 Edge Runtime、browser、Node.js 任意環境下執行。
-- 若未來升級 UUID 版本（v7 有時間排序優勢），只需修改 `@lib-uuid` 一處。
+- 若未來升級 UUID 版本（v7 有時間排序優勢），只需修改 `@infra/uuid` 一處。
 
 代價：
 - 14 個 domain aggregates + 13 個 application use-cases + 7 個 infra/interfaces 文件需要機械性 import 替換（無邏輯變更）。
@@ -7799,7 +7799,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 **已解決（2026-04-13）**
 
-與 ADR 1101 同步解決。所有 `crypto.randomUUID()` 和 `import { randomUUID } from "node:crypto"` 已替換為 `import { v4 as uuid } from "@lib-uuid"`。Domain 層現在完全 runtime-agnostic，可在 Edge Runtime、browser、Node.js 任意環境下執行。
+與 ADR 1101 同步解決。所有 `crypto.randomUUID()` 和 `import { randomUUID } from "node:crypto"` 已替換為 `import { v4 as uuid } from "@infra/uuid"`。Domain 層現在完全 runtime-agnostic，可在 Edge Runtime、browser、Node.js 任意環境下執行。
 
 ### 原始證據修正
 
@@ -7808,7 +7808,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 ## 關聯 ADR
 
 - **1101**：這是層次違規的同一實例（同步解決）
-- **4101**：UUID 策略分散 = Change Amplification（解決後策略集中於 `@lib-uuid`）
+- **4101**：UUID 策略分散 = Change Amplification（解決後策略集中於 `@infra/uuid`）
 ````
 
 ## File: docs/decisions/2200-hidden-coupling.md
@@ -8644,28 +8644,28 @@ modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts (4 
 
 ### 對比正確模式
 
-`@lib-uuid` 套件（已存在）是 UUID 生成的集中點：
+`@infra/uuid` 套件（已存在）是 UUID 生成的集中點：
 
 ```
-packages/lib-uuid/     ← 唯一需要修改的地方
+packages/infra/uuid/     ← 唯一需要修改的地方
   index.ts              ← 改這一個文件
 ```
 
-若全部 aggregates 使用 `@lib-uuid`，UUID 策略升級只需修改 `packages/lib-uuid/index.ts`，
+若全部 aggregates 使用 `@infra/uuid`，UUID 策略升級只需修改 `packages/infra/uuid/index.ts`，
 所有 43 個 aggregates 自動受益，**0 個 domain 文件需要修改**。
 
 ### 其他 UUID 策略變更場景
 
 1. **加入 trace context 到 eventId**：`eventId: traceId + '-' + uuid()` — 修改 49 個文件 vs 修改 1 個
-2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@lib-uuid`
+2. **為測試環境使用序列性 ID**（`uuid-001`, `uuid-002`）：需要 global mock 49 處 vs mock 1 個 `@infra/uuid`
 3. **冪等 ID（基於內容雜湊）**：某些 aggregate 決定改用 content-hash ID — 需要知道哪些文件使用了 randomUUID
 
 ## Decision
 
-1. **`@lib-uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
+1. **`@infra/uuid` 作為唯一 UUID 來源**（同 ADR 1101、2101 的技術決定）。
 2. **Change Control Point 原則**：任何「跨多個 domain 文件使用的基礎設施能力」（UUID、時間戳、雜湊、亂數）必須集中在 `packages/lib-*/` 或 port/adapter 中，禁止在 domain 層直接調用。
 3. **記錄已知的 Change Amplification 風險點**：
-   - UUID 生成 → 遷移至 `@lib-uuid`（本 ADR）
+   - UUID 生成 → 遷移至 `@infra/uuid`（本 ADR）
    - `new Date().toISOString()` 在 domain aggregates 中（尚未系統掃描）— 應集中到 `@lib-datetime` 或 Clock port
 
 ## Consequences
@@ -8681,7 +8681,7 @@ packages/lib-uuid/     ← 唯一需要修改的地方
 
 **已解決（2026-04-13）**
 
-所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@lib-uuid`。UUID 策略升級現在只需修改 `packages/lib-uuid/index.ts` 一處。
+所有 34 個文件（14 domain + 13 application + 7 infra/interfaces/api）已遷移至 `@infra/uuid`。UUID 策略升級現在只需修改 `packages/infra/uuid/index.ts` 一處。
 
 ### 原始證據修正
 
@@ -8788,23 +8788,23 @@ workspace 和 notebooklm 已採用 `api/ui.ts` / `api/server.ts` 的分離方式
 ## Context
 
 ADR 4101（`v4 as uuid` in domain layer）確立了 domain 層和 application 層統一使用
-`import { v4 as uuid } from "@lib-uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
+`import { v4 as uuid } from "@infra/uuid"` 的規範，禁止使用 Node.js `crypto.randomUUID()`。
 
 掃描 domain 層 UUID 使用情況：
 
 ```
 # domain aggregates（全部使用 v4）
-Account.ts:             import { v4 as uuid } from "@lib-uuid"
-Organization.ts:        import { v4 as uuid } from "@lib-uuid"
-KnowledgePage.ts:       import { v4 as uuid } from "@lib-uuid"
-Article.ts:             import { v4 as uuid } from "@lib-uuid"
-KnowledgeCollection.ts: import { v4 as uuid } from "@lib-uuid"
-EntitlementGrant.ts:    import { v4 as uuid } from "@lib-uuid"
-Workspace.ts:           import { v4 as uuid } from "@lib-uuid"
+Account.ts:             import { v4 as uuid } from "@infra/uuid"
+Organization.ts:        import { v4 as uuid } from "@infra/uuid"
+KnowledgePage.ts:       import { v4 as uuid } from "@infra/uuid"
+Article.ts:             import { v4 as uuid } from "@infra/uuid"
+KnowledgeCollection.ts: import { v4 as uuid } from "@infra/uuid"
+EntitlementGrant.ts:    import { v4 as uuid } from "@infra/uuid"
+Workspace.ts:           import { v4 as uuid } from "@infra/uuid"
 # ... (全部 16 個已確認的 domain aggregate files 使用 v4)
 
 # domain event factory（例外）
-workspace/domain/events/workspace.events.ts:  import { v7 } from "@lib-uuid"  ← ❌
+workspace/domain/events/workspace.events.ts:  import { v7 } from "@infra/uuid"  ← ❌
 ```
 
 `workspace/domain/events/workspace.events.ts` 是 **repo 中唯一在 domain 層使用 UUID v7 的文件**。
@@ -8828,7 +8828,7 @@ UUID v7 的時序排序特性在某些場景（如 QStash event ordering、Fires
 
 ```typescript
 // modules/workspace/domain/events/workspace.events.ts
-import { v7 } from "@lib-uuid";
+import { v7 } from "@infra/uuid";
 
 export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEvent {
   return {
@@ -8849,7 +8849,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
    **選項 A：改回 v4（推薦）**
    - 修改 `workspace/domain/events/workspace.events.ts`：
      ```typescript
-     import { v4 as uuid } from "@lib-uuid";
+     import { v4 as uuid } from "@infra/uuid";
      // ...
      eventId: uuid(),
      ```
@@ -8869,7 +8869,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
 ## Consequences
 
 正面（選項 A）：
-- domain 層 UUID 使用方式完全一致，`grep "@lib-uuid" modules/` 全部回傳 `v4 as uuid`。
+- domain 層 UUID 使用方式完全一致，`grep "@infra/uuid" modules/` 全部回傳 `v4 as uuid`。
 - 沒有額外的文件或規則例外需要維護。
 
 代價（選項 A）：
@@ -8884,7 +8884,7 @@ export function createWorkspaceCreatedEvent(input: { ... }): WorkspaceCreatedEve
 
 ## Resolution
 
-Replaced `import { v7 } from "@lib-uuid"` with `import { v4 as uuid } from "@lib-uuid"` in `workspace/domain/events/workspace.events.ts`.
+Replaced `import { v7 } from "@infra/uuid"` with `import { v4 as uuid } from "@infra/uuid"` in `workspace/domain/events/workspace.events.ts`.
 All three factory functions (`createWorkspaceCreatedEvent`, `createWorkspaceLifecycleTransitionedEvent`, `createWorkspaceVisibilityChangedEvent`) now use `uuid()` (v4).
 Full repo domain-layer UUID strategy is now consistent.
 ````
@@ -8904,7 +8904,7 @@ ADR 4202 修正了 `workspace/domain/events/workspace.events.ts` 中的 UUID v7 
 使該檔案符合全 repo domain 層使用 v4 的規範。
 
 然而，掃描 `application/` 與 `infrastructure/` 層後發現，更大範圍的 v7 使用問題仍然存在：
-23 個檔案中將 `import { v7 as generateId } from "@lib-uuid"` 用於 entity/document ID 生成，
+23 個檔案中將 `import { v7 as generateId } from "@infra/uuid"` 用於 entity/document ID 生成，
 部分甚至在 **application use-case** 層（理論上應與 UUID strategy 無關的業務流程層）。
 
 ### 違規清單（23 個檔案）
@@ -9015,7 +9015,7 @@ ADR 4202 只針對 domain event factory 函數中的 eventId 生成（`uuid()` �
 ## 關聯 ADR
 
 - **ADR 4202** (Inconsistency — UUID v7 in workspace.events.ts) — 先驅修復
-- **ADR 4101** (Change Amplification — UUID strategy → @lib-uuid) — 規範根源
+- **ADR 4101** (Change Amplification — UUID strategy → @infra/uuid) — 規範根源
 - **ADR 4200** (Inconsistency) — 系列入口文件
 ````
 
@@ -9843,7 +9843,7 @@ notebooklm/application/          : 2 種子目錄（dtos, use-cases）  ← 最�
 3. **移出 `process-managers/`**：
    - 若 `knowledge-to-workflow-materializer.ts` 是讀模型投影 → 移至 `interfaces/` 的 projection 目錄或 infrastructure
    - 若確為 process manager → 保留，但補充 README 解釋為何需要獨立目錄
-4. **`services/` 內容稽核**：
+4. **`services/` 內容日誌**：
    - 如果 `services/` 中的類別能被重構為 use-cases（有 `execute()` 方法），合併至 `use-cases/`
    - 如果是薄薄的 Application Service facade（組合多個 use-cases），移至 `interfaces/composition/`
 5. **`scheduling/application/` 的 `work-demand.use-cases.ts`**：移入 `use-cases/` 子目錄，遵循標準位置。
@@ -10361,7 +10361,7 @@ flowchart LR
 | ID | File | Title | Status |
 |----|------|-------|--------|
 | 1100 | [1100-layer-violation.md](./1100-layer-violation.md) | Layer Violation — `interfaces/api/` 子目錄與 Firebase SDK 在 `api/` 層 | Accepted |
-| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @lib-uuid） | **Resolved** |
+| 1101 | [1101-layer-violation-crypto-in-domain.md](./1101-layer-violation-crypto-in-domain.md) | Layer Violation — `crypto.randomUUID()` 在 Domain 層（14 aggregates + 13 use-cases → @infra/uuid） | **Resolved** |
 | 1102 | [1102-layer-violation-ports-in-application.md](./1102-layer-violation-ports-in-application.md) | Layer Violation — Port 介面定義於 `application/ports/` 而非 `domain/ports/`（部分解決） | Accepted |
 | 1103 | [1103-layer-violation-firebase-sdk-in-api-layer.md](./1103-layer-violation-firebase-sdk-in-api-layer.md) | Layer Violation — Firebase SDK（`collectionGroup` 等）直接出現在 `platform/api/infrastructure-api.ts` | Accepted |
 | 1104 | [1104-layer-violation-globalthis-crypto-in-application-layer.md](./1104-layer-violation-globalthis-crypto-in-application-layer.md) | Layer Violation — `globalThis.crypto?.randomUUID` 出現在 `notebooklm/application/use-cases/wiki-library.helpers.ts` | Accepted |
@@ -10374,7 +10374,7 @@ flowchart LR
 | 1403 | [1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md](./1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md) | Dependency Leakage — 4 個 platform subdomain api/index.ts 使用 `export * from "../interfaces"` 洩漏 React UI 元件與 server actions | Accepted |
 | 1404 | [1404-dependency-leakage-subdomain-api-exports-application-wildcard.md](./1404-dependency-leakage-subdomain-api-exports-application-wildcard.md) | Dependency Leakage — 11 個 subdomain `api/index.ts` 使用 `export * from "../application"` 洩漏 use-case classes | Accepted |
 | 2100 | [2100-tight-coupling.md](./2100-tight-coupling.md) | Tight Coupling — 78 files depending on monolithic platform/api | Accepted |
-| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @lib-uuid | **Resolved** |
+| 2101 | [2101-tight-coupling-crypto-runtime.md](./2101-tight-coupling-crypto-runtime.md) | Tight Coupling — Domain Aggregates 直接綁定 Node.js `crypto` Runtime → @infra/uuid | **Resolved** |
 | 2200 | [2200-hidden-coupling.md](./2200-hidden-coupling.md) | Hidden Coupling | Accepted |
 | 2201 | [2201-hidden-coupling-workspace-aggregate-no-domain-events.md](./2201-hidden-coupling-workspace-aggregate-no-domain-events.md) | Hidden Coupling — `Workspace` 聚合根未內部收集 Domain Events，事件由 use-case 外部組裝 | Accepted |
 | 2300 | [2300-temporal-coupling.md](./2300-temporal-coupling.md) | Temporal Coupling | Accepted |
@@ -10385,7 +10385,7 @@ flowchart LR
 | 3202 | [3202-duplication-source-dto-reimplements-domain-service.md](./3202-duplication-source-dto-reimplements-domain-service.md) | Duplication — Source DTO re-implements domain service logic | **Resolved** |
 | 3203 | [3203-duplication-shell-quick-create-orphaned-platform-copy.md](./3203-duplication-shell-quick-create-orphaned-platform-copy.md) | Duplication — 兩個 `shell-quick-create` 實作（platform/application 版本孤兒化，無消費者） | **Resolved** |
 | 4100 | [4100-change-amplification.md](./4100-change-amplification.md) | Change Amplification | Accepted |
-| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @lib-uuid | **Resolved** |
+| 4101 | [4101-change-amplification-uuid-strategy.md](./4101-change-amplification-uuid-strategy.md) | Change Amplification — UUID 策略集中於 @infra/uuid | **Resolved** |
 | 4200 | [4200-inconsistency.md](./4200-inconsistency.md) | Inconsistency | Accepted |
 | 4201 | [4201-inconsistency-dto-vs-dtos.md](./4201-inconsistency-dto-vs-dtos.md) | Inconsistency — `dto` vs `dtos` 目錄命名不一致（11 vs 13 個模組） | **Resolved** |
 | 4202 | [4202-inconsistency-uuid-v7-in-workspace-domain-events.md](./4202-inconsistency-uuid-v7-in-workspace-domain-events.md) | Inconsistency — `workspace/domain/events/workspace.events.ts` 使用 UUID v7，全 repo domain 層均為 v4 | **Resolved** |
@@ -10451,7 +10451,7 @@ flowchart LR
 4. 若 smell 尚未記錄，按此編號體系新增文件。
 ````
 
-## File: docs/deliveries/AGENT.md
+## File: docs/examples/end-to-end/deliveries/AGENTS.md
 ````markdown
 # Deliveries Agent Guide
 
@@ -10463,7 +10463,7 @@ flowchart LR
 - 保持流程導向，不展開底層架構細節。
 ````
 
-## File: docs/deliveries/README.md
+## File: docs/examples/end-to-end/deliveries/README.md
 ````markdown
 # Deliveries Docs
 
@@ -10477,7 +10477,7 @@ flowchart LR
 - [upload-parse-to-task-flow.md](./upload-parse-to-task-flow.md) — upload → parse → Knowledge Page → task flow 的跨 context handoff 與交付證據。
 ````
 
-## File: docs/deliveries/upload-parse-to-task-flow.md
+## File: docs/examples/end-to-end/deliveries/upload-parse-to-task-flow.md
 ````markdown
 # Upload → Parse → Knowledge Page → Task Flow Delivery
 
@@ -10558,7 +10558,7 @@ flowchart LR
 這次交付不是新增一條繞路流程，而是把既有的知識頁流程，**向下安全延伸到 workspace 任務流程**，並保留事件驅動與 public API 的合規結構。
 ````
 
-## File: docs/feature/AGENT.md
+## File: docs/examples/modules/feature/AGENTS.md
 ````markdown
 # Feature Docs Agent Guide
 
@@ -10570,7 +10570,7 @@ flowchart LR
 - 不展開跨 context 串接流程。
 ````
 
-## File: docs/feature/notebooklm-source-processing-task-flow.md
+## File: docs/examples/modules/feature/notebooklm-source-processing-task-flow.md
 ````markdown
 # NotebookLM Source Processing Task Flow
 
@@ -10660,7 +10660,7 @@ flowchart LR
 這個 feature 的核心不是「直接建任務」，而是把**同一份 source document**安全地推進到多個下游消費能力，同時維持 `notebooklm → notion / workspace` 的邊界清楚。
 ````
 
-## File: docs/feature/README.md
+## File: docs/examples/modules/feature/README.md
 ````markdown
 # Feature Docs
 
@@ -10679,7 +10679,7 @@ flowchart LR
 # 50 Hard Rules — Consolidated Architecture Guardrails
 
 **Status**: Consolidated from user request (2026-04-12)  
-**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical)  
+**Authority**: AGENTS.md (strategic) + module AGENTS.md (tactical)  
 **Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
 
 ---
@@ -10690,13 +10690,13 @@ flowchart LR
 |---|---|---|---|
 | **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
 | **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
-| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENT.md |
+| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENTS.md |
 | **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
 | **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
 | **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** (24-27) | 4 | `docs/context-map.md` | Module AGENT.md |
+| **Cross-Module Contracts** (24-27) | 4 | `docs/context-map.md` | Module AGENTS.md |
 | **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENT.md |
+| **Anti-Patterns** (46-50) | 5 | `AGENTS.md` § Anti-Patterns | Module AGENTS.md |
 
 **Total**: 50 rules consolidated into 8 homes
 
@@ -10977,11 +10977,11 @@ flowchart LR
 
 ---
 
-## 📍 LOCATION 6: Module-Level `AGENT.md` Files
+## 📍 LOCATION 6: Module-Level `AGENTS.md` Files
 
 Each module should have its own constraints section, such as:
 
-### **`modules/platform/AGENT.md`** (Add Section)
+### **`modules/platform/AGENTS.md`** (Add Section)
 
 ```markdown
 ## Platform-Specific Hard Rules
@@ -10992,7 +10992,7 @@ Each module should have its own constraints section, such as:
 4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
 ```
 
-### **`modules/workspace/AGENT.md`** (Add Section)
+### **`modules/workspace/AGENTS.md`** (Add Section)
 
 ```markdown
 ## Workspace-Specific Hard Rules
@@ -11003,7 +11003,7 @@ Each module should have its own constraints section, such as:
 4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
 ```
 
-### **`modules/notion/AGENT.md`** (Add Section)
+### **`modules/notion/AGENTS.md`** (Add Section)
 
 ```markdown
 ## Notion-Specific Hard Rules
@@ -11013,7 +11013,7 @@ Each module should have its own constraints section, such as:
 3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
 ```
 
-### **`modules/notebooklm/AGENT.md`** (Add Section)
+### **`modules/notebooklm/AGENTS.md`** (Add Section)
 
 ```markdown
 ## NotebookLM-Specific Hard Rules
@@ -11097,7 +11097,7 @@ Each module should have its own constraints section, such as:
 | 24-27 | context-map.md | Cross-module contracts |
 | 17 | Platform feature-flag docs | Feature independence |
 | 46-50 | AGENTS.md | Anti-patterns |
-| All | Module AGENT.md | Tactical enforcement |
+| All | Module AGENTS.md | Tactical enforcement |
 
 ---
 
@@ -11113,7 +11113,7 @@ Each module should have its own constraints section, such as:
 - [ ] Application layer orchestrates, not rules
 
 ### Before Each Release:
-- [ ] All rules reviewed in relevant AGENT.md
+- [ ] All rules reviewed in relevant AGENTS.md
 - [ ] ESLint boundary checks passing
 - [ ] Zero anti-pattern violations (46-50)
 - [ ] Event schemas registered & consistent
@@ -11127,10 +11127,10 @@ Each module should have its own constraints section, such as:
 - [.github/instructions/event-driven-state.instructions.md](../.github/instructions/event-driven-state.instructions.md) — Event bus & async
 - [.github/instructions/security-rules.instructions.md](../.github/instructions/security-rules.instructions.md) — File/data/permission
 - [docs/context-map.md](./context-map.md) — Cross-module contracts
-- [modules/platform/AGENT.md](../modules/platform/AGENT.md) — Platform constraints
-- [modules/workspace/AGENT.md](../modules/workspace/AGENT.md) — Workspace constraints
-- [modules/notion/AGENT.md](../modules/notion/AGENT.md) — Notion constraints
-- [modules/notebooklm/AGENT.md](../modules/notebooklm/AGENT.md) — NotebookLM constraints
+- [modules/platform/AGENTS.md](../modules/platform/AGENTS.md) — Platform constraints
+- [modules/workspace/AGENTS.md](../modules/workspace/AGENTS.md) — Workspace constraints
+- [modules/notion/AGENTS.md](../modules/notion/AGENTS.md) — Notion constraints
+- [modules/notebooklm/AGENTS.md](../modules/notebooklm/AGENTS.md) — NotebookLM constraints
 ````
 
 ## File: docs/integration-guidelines.md
@@ -12390,7 +12390,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/iam/AGENT.md
+## File: modules/iam/AGENTS.md
 ````markdown
 # IAM Module Agent Guide
 
@@ -12539,7 +12539,7 @@ applyTo: 'modules/iam/subdomains/**/*.{ts,tsx}'
 # IAM Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/iam/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/iam/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/iam/subdomains.md`.
 
 ## Core Rules
 
@@ -12562,11 +12562,11 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notebooklm/AGENT.md
+## File: modules/notebooklm/AGENTS.md
 ````markdown
 # NotebookLM Agent
 
-> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/notebooklm/AGENTS.md](../../docs/structure/contexts/notebooklm/AGENTS.md)
 
 ## Mission
 
@@ -12734,13 +12734,13 @@ Implementation-level documentation for the notebooklm bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
+Strategic architecture documentation lives in `docs/structure/contexts/notebooklm/`:
 
-- [README.md](../../../docs/contexts/notebooklm/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/notebooklm/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/notebooklm/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/notebooklm/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/notebooklm/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/notebooklm/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/notebooklm/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/notebooklm/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/notebooklm/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/notebooklm/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -12757,7 +12757,7 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/notebooklm/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/notebooklm/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -13381,7 +13381,7 @@ async listParsedDocuments(accountId: string, limitCount: number): Promise<Knowle
  * Firestore collection: ragQueryFeedback/{autoId}
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 ⋮----
 import type { RagQueryFeedbackRepository } from "../../../subdomains/synthesis/domain/repositories/RagQueryFeedbackRepository";
@@ -13610,7 +13610,7 @@ export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: s
 ## File: modules/notebooklm/interfaces/conversation/hooks/useAiChatThread.ts
 ````typescript
 import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
+import { v7 as uuid } from "@infra/uuid";
 ⋮----
 import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
 import {
@@ -13677,7 +13677,7 @@ export function makeNotebookRepo()
 
 ## File: modules/notebooklm/interfaces/source/_actions/source-file.actions.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
@@ -13924,7 +13924,7 @@ onDrop(
 
 ## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { useRef, useState } from "react";
 import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14206,11 +14206,11 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/notebooklm/README.md)
-- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
-- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notebooklm/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/notebooklm/README.md)
+- [Subdomains](../../docs/structure/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/structure/contexts/notebooklm/bounded-contexts.md)
+- [Context Map](../../docs/structure/contexts/notebooklm/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/notebooklm/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -14943,7 +14943,7 @@ async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentRes
  * also callable directly when a document is registered without the upload-init flow.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
 import type {
@@ -15041,7 +15041,7 @@ async execute(
  * RagDocument without creating a duplicate.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { SourceFileRepository } from "../../domain/repositories/SourceFileRepository";
 import type { RagDocumentRepository } from "../../domain/repositories/RagDocumentRepository";
@@ -15087,7 +15087,7 @@ async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFi
  */
 ⋮----
 import { randomBytes } from "node:crypto";
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { SourceFile } from "../../domain/entities/SourceFile";
 import type { SourceFileVersion } from "../../domain/entities/SourceFileVersion";
@@ -15849,7 +15849,7 @@ applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
 # NotebookLM Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/notebooklm/subdomains.md`.
 
 ## Core Rules
 
@@ -15970,7 +15970,7 @@ export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20)
  * - Dependencies typed against interfaces, not concrete classes.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { RagRetrievalRepository } from "../../domain/repositories/RagRetrievalRepository";
 import type {
@@ -16951,7 +16951,7 @@ export interface RagPrompt {
 
 ## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/RelevanceScore.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type RelevanceScore = z.infer<typeof RelevanceScoreSchema>;
 ⋮----
@@ -16960,7 +16960,7 @@ export function createRelevanceScore(raw: number): RelevanceScore
 
 ## File: modules/notebooklm/subdomains/synthesis/domain/value-objects/TopK.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type TopK = z.infer<typeof TopKSchema>;
 ⋮----
@@ -17008,11 +17008,11 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/AGENT.md
+## File: modules/notion/AGENTS.md
 ````markdown
 # Notion Agent
 
-> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/notion/AGENTS.md](../../docs/structure/contexts/notion/AGENTS.md)
 
 ## Mission
 
@@ -17182,13 +17182,13 @@ Implementation-level documentation for the notion bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/notion/`:
+Strategic architecture documentation lives in `docs/structure/contexts/notion/`:
 
-- [README.md](../../../docs/contexts/notion/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/notion/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/notion/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/notion/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/notion/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/notion/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/notion/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/notion/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/notion/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/notion/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -17205,7 +17205,7 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/notion/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/notion/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -17379,7 +17379,7 @@ async delete(accountId: string, categoryId: string): Promise<void>
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { CommentSnapshot, SelectionRange } from "../../../subdomains/collaboration/domain/aggregates/Comment";
 import type {
   CommentRepository,
@@ -17421,7 +17421,7 @@ subscribe(accountId: string, contentId: string, onUpdate: (comments: CommentSnap
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../../subdomains/collaboration/domain/aggregates/Permission";
 import type { PermissionRepository, GrantPermissionInput } from "../../../subdomains/collaboration/domain/repositories/PermissionRepository";
 ⋮----
@@ -17451,7 +17451,7 @@ async listBySubject(accountId: string, subjectId: string): Promise<PermissionSna
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { VersionSnapshot } from "../../../subdomains/collaboration/domain/aggregates/Version";
 import type { VersionRepository, CreateVersionInput } from "../../../subdomains/collaboration/domain/repositories/VersionRepository";
 ⋮----
@@ -17527,7 +17527,7 @@ async listOutboundTargets(accountId: string, sourcePageId: string): Promise<Read
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as _generateId } from "@lib-uuid";
+import { v7 as _generateId } from "@infra/uuid";
 import { ContentBlock } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../../subdomains/knowledge/domain/aggregates/ContentBlock";
 import type { ContentBlockRepository } from "../../../subdomains/knowledge/domain/repositories/ContentBlockRepository";
@@ -17602,7 +17602,7 @@ async listByWorkspaceId(accountId: string, workspaceId: string): Promise<Knowled
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as _generateId } from "@lib-uuid";
+import { v7 as _generateId } from "@infra/uuid";
 import { KnowledgePage } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
 import type { KnowledgePageSnapshot } from "../../../subdomains/knowledge/domain/aggregates/KnowledgePage";
 import type { KnowledgePageRepository } from "../../../subdomains/knowledge/domain/repositories/KnowledgePageRepository";
@@ -17742,7 +17742,7 @@ import {
   VerifyArticleUseCase,
   RequestArticleReviewUseCase,
 } from "../../../subdomains/authoring/application/use-cases/verify-article.use-cases";
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import type {
   CreateArticleSchema,
   UpdateArticleSchema,
@@ -17786,7 +17786,7 @@ import {
   MoveCategoryUseCase,
   DeleteCategoryUseCase,
 } from "../../../subdomains/authoring/application/use-cases/manage-category.use-cases";
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import type {
   CreateCategorySchema,
   RenameCategorySchema,
@@ -18662,7 +18662,7 @@ export async function getKnowledgeCollections(accountId: string): Promise<Knowle
  *          Manages optimistic block operations before persistence.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { create } from "zustand";
 import type { BlockContent } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 ⋮----
@@ -18900,11 +18900,11 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/notion/README.md)
-- [Subdomains](../../docs/contexts/notion/subdomains.md)
-- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notion/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/notion/README.md)
+- [Subdomains](../../docs/structure/contexts/notion/subdomains.md)
+- [Bounded Context](../../docs/structure/contexts/notion/bounded-contexts.md)
+- [Context Map](../../docs/structure/contexts/notion/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/notion/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -18956,7 +18956,7 @@ export type CategoryId = string;
  * Purpose: Zod schemas for Article CQRS inputs.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/authoring.dto.ts
@@ -18975,7 +18975,7 @@ import { z } from "@lib-zod";
  * Purpose: Zod schemas for Category CQRS inputs.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/index.ts
@@ -18996,9 +18996,9 @@ import { z } from "@lib-zod";
  * Purpose: Article lifecycle use cases ??create, update, archive, delete.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { Article } from "../../domain/aggregates/Article";
 import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
 import {
@@ -19035,7 +19035,7 @@ async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult
  * Purpose: Article publication use case.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { Article } from "../../domain/aggregates/Article";
 import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
@@ -19056,9 +19056,9 @@ async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResul
  * Purpose: Category use cases ??create, rename, move, delete.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { Category } from "../../domain/aggregates/Category";
 import type { CategoryRepository } from "../../domain/repositories/CategoryRepository";
 import {
@@ -19095,7 +19095,7 @@ async execute(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResul
  * Purpose: Article verification use cases ??verify and request review.
  */
 ⋮----
-import type { z } from "@lib-zod";
+import type { z } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { Article } from "../../domain/aggregates/Article";
 import type { ArticleRepository } from "../../domain/repositories/ArticleRepository";
@@ -19120,7 +19120,7 @@ async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<Comman
  * Purpose: Article aggregate root — lifecycle, publication, and verification of KB articles.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 ⋮----
 export type ArticleStatus = "draft" | "published" | "archived";
@@ -19462,7 +19462,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
  * Purpose: Zod schemas and DTO types for comment, version, and permission operations.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ── Comment ───────────────────────────────────────────────────────────────────
 ⋮----
@@ -19991,7 +19991,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
  * Purpose: Zod-validated input schemas for ContentBlock use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
 ⋮----
 export type BlockContentDto = z.infer<typeof BlockContentSchema>;
@@ -20020,7 +20020,7 @@ export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>
  * Purpose: Zod-validated input schemas for KnowledgeCollection use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
 ⋮----
@@ -20047,7 +20047,7 @@ export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeColle
  * Purpose: Zod-validated input schemas for KnowledgePage use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
 ⋮----
@@ -20072,7 +20072,7 @@ export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSch
  * Purpose: Zod-validated input schemas for knowledge page lifecycle use cases.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
 ⋮----
@@ -20113,7 +20113,7 @@ async execute(accountId: string, targetPageId: string): Promise<BacklinkIndexSna
 ## File: modules/notion/subdomains/knowledge/application/queries/content-block.queries.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { ContentBlock } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockRepository } from "../../domain/repositories/ContentBlockRepository";
@@ -20226,7 +20226,7 @@ async execute(_accountId: string, _pageId: string): Promise<never[]>
 ## File: modules/notion/subdomains/knowledge/application/use-cases/manage-knowledge-collection.use-cases.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
 import type { CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
 import type { KnowledgeCollectionRepository } from "../../domain/repositories/KnowledgeCollectionRepository";
@@ -20305,7 +20305,7 @@ async execute(input: UpdatePageCoverDto): Promise<CommandResult>
  */
 ⋮----
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
 import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
@@ -20356,7 +20356,7 @@ async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult>
  */
 ⋮----
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type { KnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
 import {
@@ -20442,7 +20442,7 @@ getSnapshot(): Readonly<BacklinkIndexSnapshot>
  * Purpose: ContentBlock aggregate root — atomic content unit inside a Page.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { BlockContent } from "../value-objects/BlockContent";
 import { richTextToPlainText } from "../value-objects/BlockContent";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
@@ -20517,7 +20517,7 @@ pullDomainEvents(): NotionDomainEvent[]
  * Purpose: KnowledgeCollection aggregate root — named grouping / database-view of pages.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 ⋮----
 export type CollectionColumnType =
@@ -20612,7 +20612,7 @@ pullDomainEvents(): NotionDomainEvent[]
  *          static factory methods, business methods, and domain events.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 ⋮----
 export interface KnowledgePageSnapshot {
@@ -21151,7 +21151,7 @@ extractMentions(
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/ApprovalState.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type ApprovalState = z.infer<typeof ApprovalStateSchema>;
 ````
@@ -21250,7 +21250,7 @@ export function plainTextBlockContent(text: string, type: BlockType = "text"): B
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/BlockId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type BlockId = z.infer<typeof BlockIdSchema>;
 ⋮----
@@ -21261,7 +21261,7 @@ export function unsafeBlockId(id: string): BlockId
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/CollectionId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CollectionId = z.infer<typeof CollectionIdSchema>;
 ⋮----
@@ -21277,7 +21277,7 @@ export function unsafeCollectionId(id: string): CollectionId
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/PageId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type PageId = z.infer<typeof PageIdSchema>;
 ⋮----
@@ -21288,14 +21288,14 @@ export function unsafePageId(id: string): PageId
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/PageStatus.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type PageStatus = z.infer<typeof PageStatusSchema>;
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/value-objects/VerificationState.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type VerificationState = z.infer<typeof VerificationStateSchema>;
 ````
@@ -21378,7 +21378,7 @@ export interface RelationDto {
 
 ## File: modules/notion/subdomains/relations/application/use-cases/manage-relation.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Module: notion/subdomains/relations
  * Layer: application/use-cases
@@ -21543,7 +21543,7 @@ applyTo: 'modules/notion/subdomains/**/*.{ts,tsx}'
 # Notion Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/notion/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notion/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/notion/subdomains.md`.
 
 ## Core Rules
 
@@ -21635,7 +21635,7 @@ export interface TaxonomyNodeDto {
 
 ## File: modules/notion/subdomains/taxonomy/application/use-cases/manage-taxonomy.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Module: notion/subdomains/taxonomy
  * Layer: application/use-cases
@@ -21787,11 +21787,11 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/AGENT.md
+## File: modules/platform/AGENTS.md
 ````markdown
 # Platform Agent
 
-> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/platform/AGENTS.md](../../docs/structure/contexts/platform/AGENTS.md)
 
 ## Mission
 
@@ -22118,7 +22118,7 @@ applyTo: 'modules/platform/application/**/*.{ts,tsx}'
 # Platform Application Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -22881,7 +22881,7 @@ export function buildCausationId(triggeringId: string): string
 
 ## File: modules/platform/application/services/build-correlation-id.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * buildCorrelationId — generate a new UUID v4 correlation identifier.
  *
@@ -23130,15 +23130,15 @@ applyTo: 'modules/platform/docs/**/*.md'
 # Platform Docs Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
-- `modules/platform/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/platform/`.
+- `modules/platform/docs/` holds **links and local summaries only** — authoritative content lives in `docs/structure/contexts/platform/`.
 - Do not duplicate strategic knowledge here; point to the canonical source instead.
 - Any new architectural decision affecting platform must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`; do not introduce synonyms or aliases.
-- Keep this directory in sync with `docs/contexts/platform/README.md` whenever the subdomain list changes.
+- Use ubiquitous language from `docs/structure/contexts/platform/ubiquitous-language.md`; do not introduce synonyms or aliases.
+- Keep this directory in sync with `docs/structure/contexts/platform/README.md` whenever the subdomain list changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -23152,13 +23152,13 @@ Implementation-level documentation for the platform bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/platform/`:
+Strategic architecture documentation lives in `docs/structure/contexts/platform/`:
 
-- [README.md](../../../docs/contexts/platform/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/platform/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/platform/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/platform/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/platform/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/platform/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/platform/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/platform/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/platform/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -23168,14 +23168,14 @@ Strategic architecture documentation lives in `docs/contexts/platform/`:
 
 ## Current Sync Points
 
-- Canonical governance route authority stays in [../../../docs/contexts/platform/README.md](../../../docs/contexts/platform/README.md): use flattened account-scoped routes under `/{accountId}/...`; do not treat `/{accountId}/organization/*` as canonical.
-- Account scope string contract authority stays in [../../../docs/contexts/platform/ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md): local implementation docs must use `"user" | "organization"`, not `"personal" | "organization"`.
+- Canonical governance route authority stays in [../../../docs/structure/contexts/platform/README.md](../../../docs/structure/contexts/platform/README.md): use flattened account-scoped routes under `/{accountId}/...`; do not treat `/{accountId}/organization/*` as canonical.
+- Account scope string contract authority stays in [../../../docs/structure/contexts/platform/ubiquitous-language.md](../../../docs/structure/contexts/platform/ubiquitous-language.md): local implementation docs must use `"user" | "organization"`, not `"personal" | "organization"`.
 - Identifier authority also stays in the platform root docs: `accountId` is shell account scope, `organizationId` is organization-scoped domain input, `userId` is a concrete user, `actorId` is acting principal metadata, and `tenantId` is the isolation key.
 - System-wide baseline remains the root architecture set: Hexagonal + DDD, Firebase serverless backend, Genkit orchestration, Zustand/XState frontend state, and Zod runtime validation.
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/platform/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/platform/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -23421,7 +23421,7 @@ applyTo: '*.{ts,tsx}'
 # Domain Modeling (Platform Local)
 
 Use this local file as execution guardrails for `modules/platform/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -25095,7 +25095,7 @@ export function assertNever(value: never): never
  * Returns: AuditClassification
  *
  * @see docs/domain-services.md — Domain Services 清單
- * @see docs/ubiquitous-language.md — 稽核分類
+ * @see docs/ubiquitous-language.md — 日誌分類
  */
 ⋮----
 // TODO: implement AuditClassificationService domain service
@@ -26370,7 +26370,7 @@ applyTo: 'modules/platform/infrastructure/**/*.{ts,tsx}'
 # Platform Infrastructure Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -26790,7 +26790,7 @@ applyTo: 'modules/platform/interfaces/**/*.{ts,tsx}'
 # Platform Interfaces Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/platform/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/structure/contexts/platform/*`.
 
 ## Core Rules
 
@@ -26968,7 +26968,7 @@ modules/platform/
 | access-control | Stub | 存取控制與權限策略 |
 | ai | Stub | 共享 AI provider 路由與能力治理 |
 | analytics | Stub | 平台級分析與指標 |
-| audit-log | Stub | 平台稽核日誌 |
+| audit-log | Stub | 平台日誌日誌 |
 | background-job | Stub | 背景任務排程與管理 |
 | billing | Stub | 計費與支付管理 |
 | compliance | Stub | 合規與法遵管理 |
@@ -27008,10 +27008,10 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/platform/README.md)
-- [Subdomains](../../docs/contexts/platform/subdomains.md)
-- [Context Map](../../docs/contexts/platform/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/platform/README.md)
+- [Subdomains](../../docs/structure/contexts/platform/subdomains.md)
+- [Context Map](../../docs/structure/contexts/platform/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/platform/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -27066,7 +27066,7 @@ async execute(recipientId: string): Promise<CommandResult>
 
 ## File: modules/platform/subdomains/notification/domain/aggregates/NotificationAggregate.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type {
   NotificationDomainEventType,
   NotificationDispatchedEvent,
@@ -27225,7 +27225,7 @@ getUnreadCount(recipientId: string): Promise<number>;
 
 ## File: modules/platform/subdomains/notification/domain/value-objects/NotificationId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type NotificationId = z.infer<typeof NotificationIdSchema>;
 ⋮----
@@ -27564,7 +27564,7 @@ applyTo: 'modules/platform/subdomains/**/*.{ts,tsx}'
 # Platform Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/platform/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/platform/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/platform/subdomains.md`.
 
 ## Core Rules
 
@@ -27580,11 +27580,11 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/workspace/AGENT.md
+## File: modules/workspace/AGENTS.md
 ````markdown
 # Workspace Agent
 
-> Strategic agent documentation: [docs/contexts/workspace/AGENT.md](../../docs/contexts/workspace/AGENT.md)
+> Strategic agent documentation: [docs/structure/contexts/workspace/AGENTS.md](../../docs/structure/contexts/workspace/AGENTS.md)
 
 ## Mission
 
@@ -27687,7 +27687,7 @@ applyTo: 'modules/workspace/application/**/*.{ts,tsx}'
 # Workspace Application Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -27977,15 +27977,15 @@ applyTo: 'modules/workspace/docs/**/*.md'
 # Workspace Docs Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
-- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/workspace/`.
+- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/structure/contexts/workspace/`.
 - Do not duplicate strategic knowledge here; point to the canonical source instead.
 - Any new architectural decision affecting workspace must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
-- Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
+- Use ubiquitous language from `docs/structure/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
+- Keep this directory in sync with `docs/structure/contexts/workspace/README.md` whenever the subdomain list changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -27999,13 +27999,13 @@ Implementation-level documentation for the workspace bounded context.
 
 ## Strategic Documentation (Authority)
 
-Strategic architecture documentation lives in `docs/contexts/workspace/`:
+Strategic architecture documentation lives in `docs/structure/contexts/workspace/`:
 
-- [README.md](../../../docs/contexts/workspace/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/workspace/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/workspace/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/workspace/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md) — Terminology
+- [README.md](../../../docs/structure/contexts/workspace/README.md) — Context overview
+- [subdomains.md](../../../docs/structure/contexts/workspace/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/structure/contexts/workspace/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/structure/contexts/workspace/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/structure/contexts/workspace/ubiquitous-language.md) — Terminology
 
 ## Architecture Reference
 
@@ -28015,14 +28015,14 @@ Strategic architecture documentation lives in `docs/contexts/workspace/`:
 
 ## Current Sync Points
 
-- Canonical workspace route authority stays in [../../../docs/contexts/workspace/README.md](../../../docs/contexts/workspace/README.md): use `/{accountId}/{workspaceId}`, not the legacy `/{accountId}/workspace/{workspaceId}` form.
-- Account scope string contract authority stays in [../../../docs/contexts/workspace/ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md): local implementation docs and read models must use `"user" | "organization"`, not `"personal" | "organization"`.
+- Canonical workspace route authority stays in [../../../docs/structure/contexts/workspace/README.md](../../../docs/structure/contexts/workspace/README.md): use `/{accountId}/{workspaceId}`, not the legacy `/{accountId}/workspace/{workspaceId}` form.
+- Account scope string contract authority stays in [../../../docs/structure/contexts/workspace/ubiquitous-language.md](../../../docs/structure/contexts/workspace/ubiquitous-language.md): local implementation docs and read models must use `"user" | "organization"`, not `"personal" | "organization"`.
 - If workspace wiki/content-tree behavior changes, keep local implementation notes aligned with the root query projection while leaving strategic naming and route ownership in the root docs.
 - System-wide baseline remains the root architecture set: Hexagonal + DDD, Firebase serverless backend, Genkit orchestration, Zustand/XState frontend state, and Zod runtime validation.
 
 ## Conflict Resolution
 
-- Strategic docs in `docs/contexts/workspace/` are the authority for naming, ownership, and boundaries.
+- Strategic docs in `docs/structure/contexts/workspace/` are the authority for naming, ownership, and boundaries.
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
@@ -28036,7 +28036,7 @@ applyTo: '*.{ts,tsx}'
 # Domain Modeling (Workspace Local)
 
 Use this local file as execution guardrails for `modules/workspace/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -28197,7 +28197,7 @@ export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
 
 ## File: modules/workspace/domain/events/workspace.events.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { DomainEvent } from "@shared-types";
 ⋮----
 import type {
@@ -28516,7 +28516,7 @@ delete(id: string): Promise<void>;
 
 ## File: modules/workspace/domain/value-objects/Address.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type Address = z.infer<typeof AddressSchema>;
 export type AddressInput = z.input<typeof AddressSchema>;
@@ -28533,7 +28533,7 @@ export function formatAddress(address: Address): string[]
 
 ## File: modules/workspace/domain/value-objects/WorkspaceLifecycleState.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WorkspaceLifecycleState = z.infer<typeof WorkspaceLifecycleStateSchema>;
 export type WorkspaceLifecycleStateInput = z.input<typeof WorkspaceLifecycleStateSchema>;
@@ -28554,7 +28554,7 @@ export function isTerminalWorkspaceLifecycleState(
 
 ## File: modules/workspace/domain/value-objects/WorkspaceName.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
 export type WorkspaceNameInput = z.input<typeof WorkspaceNameSchema>;
@@ -28566,7 +28566,7 @@ export function workspaceNameEquals(left: WorkspaceName, right: WorkspaceName): 
 
 ## File: modules/workspace/domain/value-objects/WorkspaceVisibility.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WorkspaceVisibility = z.infer<typeof WorkspaceVisibilitySchema>;
 export type WorkspaceVisibilityInput = z.input<typeof WorkspaceVisibilitySchema>;
@@ -28695,7 +28695,7 @@ const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) =>
  * Firebase SDK only exists in this file.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
@@ -28770,7 +28770,7 @@ applyTo: 'modules/workspace/infrastructure/**/*.{ts,tsx}'
 # Workspace Infrastructure Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -28871,7 +28871,7 @@ applyTo: 'modules/workspace/interfaces/**/*.{ts,tsx}'
 # Workspace Interfaces Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/workspace/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/structure/contexts/workspace/*`.
 
 ## Core Rules
 
@@ -29912,7 +29912,7 @@ export function getWorkspaceStorageKey(accountId: string): string
 
 ## File: modules/workspace/interfaces/web/state/workspace-settings.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { WorkspaceEntity } from "../../contracts";
 ⋮----
 export interface WorkspaceCustomRoleDraft {
@@ -30034,7 +30034,7 @@ modules/workspace/
 
 | Subdomain | Status | Purpose |
 |-----------|--------|---------|
-| audit | Active | 不可否認稽核追蹤 |
+| audit | Active | 不可否認日誌追蹤 |
 | feed | Active | 工作區活動投影 |
 | lifecycle | Active | 工作區容器生命週期（建立/修改/刪除/狀態轉換）|
 | membership | Active | 工作區參與者視圖模型與查詢 |
@@ -30090,10 +30090,10 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Strategic Documentation
 
-- [Context README](../../docs/contexts/workspace/README.md)
-- [Subdomains](../../docs/contexts/workspace/subdomains.md)
-- [Context Map](../../docs/contexts/workspace/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
+- [Context README](../../docs/structure/contexts/workspace/README.md)
+- [Subdomains](../../docs/structure/contexts/workspace/subdomains.md)
+- [Context Map](../../docs/structure/contexts/workspace/context-map.md)
+- [Ubiquitous Language](../../docs/structure/contexts/workspace/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
@@ -30107,7 +30107,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { AuditLogSource } from "../entities/AuditLog";
 import type { AuditDomainEventType } from "../events";
 import type { AuditAction } from "../schema";
@@ -30308,7 +30308,7 @@ findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogE
  * Audit subdomain schema — immutable operation records.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 import { BaseEntitySchema } from "@shared-types";
 ⋮----
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -30353,7 +30353,7 @@ record(id: string, input: RecordAuditEntryInput): AuditEntry
 
 ## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 /**
  * ActorId — receives platform's "actor reference" published language token.
@@ -30376,7 +30376,7 @@ export function unsafeActorId(raw: string): ActorId
 
 ## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 import { AUDIT_ACTIONS } from "../schema";
 ⋮----
@@ -30389,7 +30389,7 @@ export function unsafeAuditAction(raw: string): AuditAction
 
 ## File: modules/workspace/subdomains/audit/domain/value-objects/AuditSeverity.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 import { AUDIT_SEVERITIES } from "../schema";
 ⋮----
@@ -30413,7 +30413,7 @@ export function isAtLeast(severity: AuditSeverity, threshold: AuditSeverity): bo
 
 ## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
@@ -30646,7 +30646,7 @@ async getAccountFeed(accountId: string, maxRows = 50): Promise<WorkspaceFeedPost
 
 ## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 /**
  * Application-layer DTO re-exports for the feed subdomain.
@@ -30921,7 +30921,7 @@ share(accountId: string, postId: string, actorAccountId: string): Promise<void>;
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
 ⋮----
@@ -30951,7 +30951,7 @@ async share(accountId: string, postId: string, actorAccountId: string): Promise<
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type {
   CreateWorkspaceFeedPostInput,
@@ -31598,7 +31598,7 @@ export function makeDemandRepo()
  * Purpose: Zod validation schemas for WorkDemand commands.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type CreateDemandInput = z.infer<typeof CreateDemandSchema>;
 ⋮----
@@ -31639,7 +31639,7 @@ export interface AssignMemberInput {
 
 ## File: modules/workspace/subdomains/scheduling/application/use-cases/work-demand.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Module: workspace/subdomains/scheduling
  * Layer: application/use-cases
@@ -32213,7 +32213,7 @@ applyTo: 'modules/workspace/subdomains/**/*.{ts,tsx}'
 # Workspace Subdomains Layer (Local)
 
 Use this file as execution guardrails for `modules/workspace/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/subdomains.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/structure/contexts/workspace/subdomains.md`.
 
 ## Core Rules
 
@@ -32241,7 +32241,7 @@ applyTo: 'modules/workspace/**/*.{ts,tsx,md}'
 # Workspace Bounded Context (Local)
 
 Use this file as execution guardrails for `modules/workspace/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/structure/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
 
 ## Core Rules
 
@@ -32736,7 +32736,7 @@ import axios from "axios";
 // React Virtual
 ````
 
-## File: packages/lib-uuid/index.ts
+## File: packages/infra/uuid/index.ts
 ````typescript
 /**
  * @module libs/uuid
@@ -32899,7 +32899,7 @@ export type Graph2dOptions = InstanceType<Graph2dClass> extends { setOptions(opt
 // ── React hooks (Client Component only) ───────────────────────────────────
 ````
 
-## File: packages/lib-zod/index.ts
+## File: packages/infra/uuid/index.ts
 ````typescript
 /**
  * @module libs/zod
@@ -33127,7 +33127,7 @@ clear(): void
 
 ## File: packages/shared-types/index.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ─── Domain Event base interface ─────────────────────────────────────────────
 ⋮----
@@ -36516,8 +36516,8 @@ import tailwindcssAnimate from 'tailwindcss-animate';
       "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
       "@ui-vis": ["./packages/ui-vis/index.ts"],
       "@lib-date-fns": ["./packages/lib-date-fns/index.ts"],
-      "@lib-zod": ["./packages/lib-zod/index.ts"],
-      "@lib-uuid": ["./packages/lib-uuid/index.ts"],
+      "@infra/uuid": ["./packages/infra/uuid/index.ts"],
+      "@infra/uuid": ["./packages/infra/uuid/index.ts"],
       "@lib-zustand": ["./packages/lib-zustand/index.ts"],
       "@lib-xstate": ["./packages/lib-xstate/index.ts"],
       "@lib-tanstack": ["./packages/lib-tanstack/index.ts"],
@@ -36782,7 +36782,7 @@ handoffs:
 - `modules/**/application/use-cases/**`
 - `modules/**/application/machines/**`
 - `docs/ubiquitous-language.md`
-- `docs/contexts/*/**`
+- `docs/structure/contexts/*/**`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
@@ -36798,7 +36798,7 @@ handoffs:
 - `docs/ubiquitous-language.md`
 - `docs/subdomains.md`
 - `docs/bounded-contexts.md`
-- `docs/contexts/<context>/*`
+- `docs/structure/contexts/<context>/*`
 - `.github/instructions/docs-authority-and-language.instructions.md`
 - `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
@@ -36809,7 +36809,7 @@ handoffs:
 - [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
 - [ ] 程式碼是否位於正確的 bounded context / subdomain？
 - [ ] 跨模組互動是否只透過 `api/` 邊界或領域事件？
-- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
+- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/structure/contexts/<context>/context-map.md` 一致？
 - [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
 - [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
 - [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？
@@ -37861,7 +37861,7 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 1. Start with [docs/README.md](../docs/README.md).
 2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
 3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
 5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
 6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
 
@@ -37882,9 +37882,9 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 | `modules/<context>/` | 完整 Hexagonal DDD 實作；有 `subdomains/`、`infrastructure/`、`interfaces/`、`api/` | 修改現有邊界規則、domain model、跨模組 API |
 | `src/modules/<context>/` | 精簡蒸餾骨架；僅 `domain/`、`application/`、`adapters/inbound/`、`adapters/outbound/` | 撰寫新 use case、adapter、entity 實作 |
 
-- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENT.md` 的 **Route Here / Route Elsewhere** 段落。
+- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
 - 新實作一律以 `src/modules/template` 骨架為基線，不要直接在 `modules/` 內部新增。
-- 閱讀 strategic boundary / published language → `modules/<context>/api/` 與 `modules/<context>/AGENT.md`。
+- 閱讀 strategic boundary / published language → `modules/<context>/api/` 與 `modules/<context>/AGENTS.md`。
 
 ## Operating Rules
 
@@ -37989,7 +37989,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 1. 讀取 `docs/ubiquitous-language.md` — 確認命名符合通用語言，若術語不存在，先在 docs 新增再繼續。
 2. 讀取 `docs/bounded-contexts.md` 與 `docs/subdomains.md` — 確認所屬 bounded context 與子域正確。
-3. 讀取 `docs/contexts/<context>/README.md` — 了解 context-local 語言規則。
+3. 讀取 `docs/structure/contexts/<context>/README.md` — 了解 context-local 語言規則。
 4. 讀取 `.github/instructions/domain-modeling.instructions.md` — 確認 Aggregate / Value Object / Event 設計模式。
 5. 讀取 `.github/instructions/domain-layer-rules.instructions.md` — 確認技術純度規則。
 6. 在 `modules/<context>/[subdomains/<sub>/]domain/` 建立以下結構（視需要）：
@@ -38082,7 +38082,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認命名一致。
+1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/README.md`，確認命名一致。
 2. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `.github/instructions/firestore-schema.instructions.md`，確認層級規則。
 3. 確認 Port 介面定義（在 `domain/repositories/` 或 `domain/ports/`）。
 4. 在 `modules/<context>/[subdomains/<sub>/]infrastructure/` 建立實作檔案：
@@ -38311,7 +38311,7 @@ export type Address = z.infer<typeof AddressSchema>;
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
+1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
 2. 讀取 `.github/instructions/domain-modeling.instructions.md`，確認設計規則。
 3. 確認放置路徑：`modules/<context>/domain/value-objects/<Name>.ts`
 4. 依照上方模式建立值對象檔案。
@@ -38979,7 +38979,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認語言與邊界。
+1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/README.md`，確認語言與邊界。
 2. 讀取 `.github/instructions/architecture-core.instructions.md`，確認 use case 決策規則。
 3. 在 `modules/<context>/[subdomains/<sub>/]application/use-cases/` 建立：
    - 檔案命名：`verb-noun.use-case.ts`（例如 `create-work-demand.use-case.ts`）
@@ -39080,7 +39080,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: docs/contexts/ai/AGENT.md
+## File: docs/structure/contexts/ai/AGENTS.md
 ````markdown
 # AI Context Agent Guide
 
@@ -39179,7 +39179,7 @@ flowchart LR
 - [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 ````
 
-## File: docs/contexts/ai/context-map.md
+## File: docs/structure/contexts/ai/context-map.md
 ````markdown
 # AI Context Map
 
@@ -39233,7 +39233,7 @@ flowchart LR
 ```
 ````
 
-## File: docs/contexts/ai/cross-runtime-contracts.md
+## File: docs/structure/contexts/ai/cross-runtime-contracts.md
 ````markdown
 # AI Context — Cross-Runtime Contracts
 
@@ -39336,7 +39336,7 @@ These are separate from QStash and are defined by Firestore document structure:
 Firestore document schema for these is owned by `src/modules/platform/subdomains/file-storage/` (TypeScript) and mirrored in `py_fn/src/infrastructure/persistence/firestore/`.
 ````
 
-## File: docs/contexts/ai/ddd-strategic-design.md
+## File: docs/structure/contexts/ai/ddd-strategic-design.md
 ````markdown
 # DDD 戰略設計規則 — AI Context
 
@@ -39459,7 +39459,7 @@ Generic Domain（可外包／第三方替換）
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md) — ADR：界限上下文決策
 ````
 
-## File: docs/contexts/ai/ubiquitous-language.md
+## File: docs/structure/contexts/ai/ubiquitous-language.md
 ````markdown
 # AI Ubiquitous Language
 
@@ -39512,7 +39512,7 @@ Generic Domain（可外包／第三方替換）
 - 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
 ````
 
-## File: docs/contexts/notion/AGENT.md
+## File: docs/structure/contexts/notion/AGENTS.md
 ````markdown
 # Notion Agent
 
@@ -39619,7 +39619,7 @@ flowchart LR
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notion/bounded-contexts.md
+## File: docs/structure/contexts/notion/bounded-contexts.md
 ````markdown
 # Notion
 
@@ -39697,7 +39697,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [../../bounded-contexts.md](../../bounded-contexts.md)
@@ -39706,7 +39706,7 @@ flowchart LR
 - [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/contexts/notion/README.md
+## File: docs/structure/contexts/notion/README.md
 ````markdown
 # Notion Context
 
@@ -39765,7 +39765,7 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -39811,7 +39811,7 @@ flowchart LR
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -39827,7 +39827,7 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: docs/contexts/notion/subdomains.md
+## File: docs/structure/contexts/notion/subdomains.md
 ````markdown
 # Notion
 
@@ -39906,7 +39906,7 @@ flowchart LR
 - [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: docs/contexts/platform/ubiquitous-language.md
+## File: docs/structure/contexts/platform/ubiquitous-language.md
 ````markdown
 # Platform
 
@@ -39925,7 +39925,7 @@ flowchart LR
 | Consent | 同意、偏好與資料使用授權紀錄 |
 | Secret | 受控憑證、token 或 integration credential |
 | NotificationRoute | 訊息投遞路由與偏好結果 |
-| AuditLog | 平台級永久稽核證據 |
+| AuditLog | 平台級永久日誌證據 |
 | AccountScope | shell 上由 `accountId` 表示的帳號範疇，對應 `AccountType = "user" | "organization"` 所決定的 account context |
 | PersonalAccount | 對應 `AccountType = "user"` 的 account scope |
 | OrganizationAccount | 對應 `AccountType = "organization"` 的 account scope |
@@ -39945,7 +39945,7 @@ flowchart LR
 | accountId | shell composition 的 account scope id；platform 以它選擇 personal account 或 organization account context |
 | organizationId | organization aggregate、team、taxonomy、relations、ingestion 等 organization-scoped contract 所使用的 id |
 | userId | 具體登入使用者或操作使用者的 id；用於 profile、createdByUserId、verifiedByUserId 等欄位 |
-| actorId | 稽核、事件或 command metadata 中的行為主體 id；可能等於 userId，也可能是 system actor |
+| actorId | 日誌、事件或 command metadata 中的行為主體 id；可能等於 userId，也可能是 system actor |
 | tenantId | tenant isolation id；用於 tenant-scoped policy、storage、rules 與 observability isolation |
 
 ## Language Rules
@@ -39959,7 +39959,7 @@ flowchart LR
 - Organization member 的移除操作使用 `removeMember`（通用）。`dismissPartnerMember` 僅限 external partner 場景，對應 DismissPartnerMember 使用案例。
 - shell route 上的 `accountId` 表示 AccountScope，不等於 workspaceId。
 - shell route 使用 `accountId`，不使用 `organizationId` 當 route param；organization-scoped model 需要時，再由 use case / mapper 顯式轉譯。
-- `userId` 只表示具體使用者；`actorId` 表示行為主體，稽核與事件 metadata 可用 `actorId = "system"` 等非使用者值。
+- `userId` 只表示具體使用者；`actorId` 表示行為主體，日誌與事件 metadata 可用 `actorId = "system"` 等非使用者值。
 - `tenantId` 用於租戶隔離與 storage/rules path，不應與 `accountId` 或 `organizationId` 混成同一層 contract。
 - `AccountType` 的 code-level literal 只使用 `"user" | "organization"`；顯示文字可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成跨邊界字串值。
 - account-scoped governance URL 採 flattened route，不再把 `/{accountId}/organization/*` 當成 canonical surface。
@@ -40041,7 +40041,7 @@ flowchart LR
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
@@ -41382,7 +41382,7 @@ export type { GenerateEmbeddingInput } from './subdomains/embedding/application/
 | P0 | 定義 `ChunkJobPayload` schema | `src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts` |
 | P0 | QStash dispatcher adapter | `src/modules/ai/subdomains/embedding/adapters/outbound/qstash-embedding-dispatcher.ts` |
 | P1 | py_fn 鏡像驗證 | `py_fn/src/application/dto/embedding_job.py`（Pydantic） |
-| P1 | published language 文件 | `docs/contexts/ai/cross-runtime-contracts.md` |
+| P1 | published language 文件 | `docs/structure/contexts/ai/cross-runtime-contracts.md` |
 
 ---
 
@@ -41446,8 +41446,8 @@ export type { GenerateEmbeddingInput } from './subdomains/embedding/application/
 ## Focused Implementation Docs
 
 - [architecture/source-to-task-flow.md](./architecture/source-to-task-flow.md)
-- [feature/notebooklm-source-processing-task-flow.md](./feature/notebooklm-source-processing-task-flow.md)
-- [deliveries/upload-parse-to-task-flow.md](./deliveries/upload-parse-to-task-flow.md)
+- [feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
+- [deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
 - [decisions/0012-source-to-task-orchestration.md](./decisions/0012-source-to-task-orchestration.md)
 
 ## Route Contract Authority
@@ -41484,10 +41484,10 @@ export type { GenerateEmbeddingInput } from './subdomains/embedding/application/
 
 ### 路由規則
 
-- 讀取邊界規則、published language、context map → `modules/<context>/AGENT.md`、`modules/<context>/api/`
+- 讀取邊界規則、published language、context map → `modules/<context>/AGENTS.md`、`modules/<context>/api/`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以 `src/modules/template` 為骨架基線
 - `src/modules/<context>/README.md` 是蒸餾指南，說明哪些概念從 `modules/` 移入、哪些跳過
-- 若需要知道某概念「應放在哪個 src module」，查 `src/modules/<context>/AGENT.md`
+- 若需要知道某概念「應放在哪個 src module」，查 `src/modules/<context>/AGENTS.md`
 
 ### 嚴禁混淆
 
@@ -41887,7 +41887,7 @@ async extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>
 
 ## File: modules/ai/infrastructure/genkit/GenkitToolRuntimeAdapter.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 ⋮----
 import type {
   ToolDescriptor,
@@ -41947,7 +41947,7 @@ import { googleAI } from "@genkit-ai/google-genai";
 
 ## File: modules/ai/infrastructure/llm/GenkitDistillationAdapter.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { z } from "genkit";
 ⋮----
 import {
@@ -42769,7 +42769,7 @@ export function resolveOrganizationRouteFallback(
 
 ## File: modules/iam/subdomains/access-control/application/use-cases/access-control.use-cases.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 /**
  * Access-Control Use Cases — pure application logic.
  */
@@ -42834,7 +42834,7 @@ async execute(policyId: string): Promise<CommandResult>
 
 ## File: modules/iam/subdomains/access-control/domain/aggregates/AccessPolicy.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { AccessPolicyDomainEventType } from "../events/AccessPolicyDomainEvent";
 import type { SubjectRef } from "../value-objects/SubjectRef";
 import type { ResourceRef } from "../value-objects/ResourceRef";
@@ -42989,7 +42989,7 @@ export function isAllow(effect: PolicyEffect): boolean
 
 ## File: modules/iam/subdomains/access-control/domain/value-objects/ResourceRef.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type ResourceRef = z.infer<typeof ResourceRefSchema>;
 ⋮----
@@ -43002,7 +43002,7 @@ export function createResourceRef(
 
 ## File: modules/iam/subdomains/access-control/domain/value-objects/SubjectRef.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type SubjectRef = z.infer<typeof SubjectRefSchema>;
 ⋮----
@@ -43292,7 +43292,7 @@ async execute(actorId: string, input: UpdateAccountProfileInput): Promise<Comman
 
 ## File: modules/iam/subdomains/account/domain/aggregates/Account.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { AccountDomainEventType } from "../events";
 import { canClose, canReactivate, canSuspend } from "../value-objects";
 import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
@@ -43530,7 +43530,7 @@ export interface UpdatePolicyInput {
  * Domain boundary: iam/account
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 import type { AccountEntity } from "./Account";
 ⋮----
@@ -43790,7 +43790,7 @@ getRole(accountId: string): Promise<AccountRoleRecord | null>;
 
 ## File: modules/iam/subdomains/account/domain/value-objects/AccountId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type AccountId = z.infer<typeof AccountIdSchema>;
 ⋮----
@@ -43810,7 +43810,7 @@ export function canReactivate(status: AccountStatus): boolean
 
 ## File: modules/iam/subdomains/account/domain/value-objects/AccountType.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 ⋮----
@@ -43824,7 +43824,7 @@ export function createAccountType(raw: string): AccountType
 
 ## File: modules/iam/subdomains/account/domain/value-objects/WalletAmount.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type WalletAmount = z.infer<typeof WalletAmountSchema>;
 ⋮----
@@ -44321,7 +44321,7 @@ async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): 
 
 ## File: modules/iam/subdomains/identity/domain/aggregates/UserIdentity.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { IdentityDomainEventType } from "../events";
 import { canReactivate, canSuspend } from "../value-objects";
 import { createDisplayName, createEmail, createUserId } from "../value-objects";
@@ -44553,7 +44553,7 @@ subscribe(accountId: string, onSignal: ()
 
 ## File: modules/iam/subdomains/identity/domain/value-objects/DisplayName.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type DisplayName = z.infer<typeof DisplayNameSchema>;
 ⋮----
@@ -44562,7 +44562,7 @@ export function createDisplayName(raw: string): DisplayName
 
 ## File: modules/iam/subdomains/identity/domain/value-objects/Email.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type Email = z.infer<typeof EmailSchema>;
 ⋮----
@@ -44587,7 +44587,7 @@ export function canReactivate(status: IdentityStatus): boolean
 
 ## File: modules/iam/subdomains/identity/domain/value-objects/UserId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type UserId = z.infer<typeof UserIdSchema>;
 ⋮----
@@ -45031,7 +45031,7 @@ async execute(organizationId: string, teamId: string, memberId: string, action: 
 
 ## File: modules/iam/subdomains/organization/domain/aggregates/Organization.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { OrganizationDomainEventType } from "../events/OrganizationDomainEvent";
 import type { ThemeConfig } from "../entities/Organization";
 import {
@@ -45126,7 +45126,7 @@ private static assertRequired(value: string, message: string): void
  * Event discriminants use "iam.organization.*" prefix.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 import type { TeamId } from "../value-objects/TeamId";
 import type { TeamType } from "../value-objects/TeamType";
 import type { OrganizationTeamDomainEvent } from "../events/OrganizationTeamDomainEvent";
@@ -45421,7 +45421,7 @@ export type OrganizationDomainEventType =
  * Naming: past-tense, format `iam.organization.<action>`.
  * occurredAt: ISO 8601 string (not Date) per event convention.
  */
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ── OrganizationTeamCreated ──────────────────────────────────────────────────
 ⋮----
@@ -45577,7 +45577,7 @@ getPolicies(orgId: string): Promise<OrgPolicy[]>;
 
 ## File: modules/iam/subdomains/organization/domain/value-objects/MemberRole.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type MemberRole = z.infer<typeof MemberRoleSchema>;
 ⋮----
@@ -45588,7 +45588,7 @@ export function canManageRole(managerRole: MemberRole, targetRole: MemberRole): 
 
 ## File: modules/iam/subdomains/organization/domain/value-objects/OrganizationId.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type OrganizationId = z.infer<typeof OrganizationIdSchema>;
 ⋮----
@@ -45611,7 +45611,7 @@ export function canReactivate(status: OrganizationStatus): boolean
 /**
  * TeamId — branded value object for OrganizationTeam identity.
  */
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type TeamId = z.infer<typeof TeamIdSchema>;
 ⋮----
@@ -45626,7 +45626,7 @@ export function createTeamId(raw: string): TeamId
  * - internal: members belong to the same Organization
  * - external: members include partner/guest actors outside the Organization
  */
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 export type TeamType = z.infer<typeof TeamTypeSchema>;
 ````
@@ -46816,7 +46816,7 @@ async distill(input: DistillSourcesInput): Promise<DistilledContent>
  */
 ⋮----
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 ⋮----
 import type {
   DatabaseAutomationSnapshot,
@@ -46858,7 +46858,7 @@ async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAut
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { DatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../../subdomains/knowledge-database/domain/repositories/DatabaseRecordRepository";
 import type { DatabaseRecordSnapshot } from "../../../subdomains/knowledge-database/domain/aggregates/DatabaseRecord";
 ⋮----
@@ -46943,7 +46943,7 @@ async listByWorkspace(accountId: string, workspaceId: string): Promise<DatabaseS
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { ViewRepository, CreateViewInput, UpdateViewInput } from "../../../subdomains/knowledge-database/domain/repositories/ViewRepository";
 import type { ViewSnapshot } from "../../../subdomains/knowledge-database/domain/aggregates/View";
 ⋮----
@@ -47744,7 +47744,7 @@ readonly occurredAt: string; // ISO 8601 string
  * Purpose: Zod validation schemas for all database, record, and view commands.
  */
 ⋮----
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 // ----- Shared scope -----
 ⋮----
@@ -48568,7 +48568,7 @@ applyTo: 'modules/platform/api/**/*.{ts,tsx}'
 # Platform 主域互動規範
 
 本文件取代舊制「api 作為跨模組進入點」的概念。
-完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/contexts/platform/context-map.md`。
+完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/structure/contexts/platform/context-map.md`。
 
 ## 主域與子域互動規則
 
@@ -48830,7 +48830,7 @@ export type ActiveAccount = AccountEntity | AuthUser;
 
 ## File: modules/platform/api/service-api.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import { getFirebaseAuth } from "@integration-firebase";
 ⋮----
 import {
@@ -49545,7 +49545,7 @@ applyTo: 'modules/workspace/api/**/*.{ts,tsx}'
 # Workspace 主域互動規範
 
 本文件取代舊制「api 作為跨模組進入點」的概念。
-完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/contexts/workspace/context-map.md`。
+完整架構參考 `.github/instructions/architecture-core.instructions.md` 及 `docs/structure/contexts/workspace/context-map.md`。
 
 ## 主域與子域互動規則
 
@@ -49622,7 +49622,7 @@ export async function buildWikiContentTree(
  * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
  */
 ⋮----
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { Timestamp } from "@shared-types";
 import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
 import type {
@@ -50381,7 +50381,7 @@ execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>
 
 ## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
 ````typescript
-import { v4 as uuid } from "@lib-uuid";
+import { v4 as uuid } from "@infra/uuid";
 import type { RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
 import type { AuditDomainEventType } from "../../domain/events";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";
@@ -51030,7 +51030,7 @@ export function toIssue(id: string, data: Record<string, unknown>): Issue
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
 import type { IssueRepository } from "../../domain/repositories/IssueRepository";
 import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
@@ -51333,7 +51333,7 @@ async execute(dto: MaterializeFromKnowledgeDto): Promise<CommandResult>
  * @description Submit a task materialization batch job in queued status.
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { TaskMaterializationBatchJobRepository } from "../../domain/repositories/TaskMaterializationBatchJobRepository";
 import type { SubmitTaskMaterializationBatchJobDto } from "../dto/submit-task-materialization-batch-job.dto";
@@ -51528,7 +51528,7 @@ export function toTaskMaterializationBatchJob(
  * @description Firestore implementation for TaskMaterializationBatchJobRepository.
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type {
   CompleteTaskMaterializationBatchJobInput,
@@ -52697,7 +52697,7 @@ async delete(itemId: string): Promise<void>
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
 import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
@@ -52976,7 +52976,7 @@ async execute(dto: ExtractTaskCandidatesDto): Promise<ExtractTaskCandidatesResul
  * @description Submit a task formation batch job (queued status).
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { TaskFormationJobRepository } from "../../domain/repositories/TaskFormationJobRepository";
 import type { SubmitTaskFormationJobDto } from "../dto/index";
@@ -53232,7 +53232,7 @@ export function toTaskFormationJob(
  * @description Firestore implementation of TaskFormationJobRepository.
  */
 ⋮----
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import { firestoreInfrastructureApi } from "@/modules/platform/api/infrastructure";
 import type {
   CompleteTaskFormationJobInput,
@@ -54105,7 +54105,7 @@ export function toTask(id: string, data: Record<string, unknown>): Task
 import {
   firestoreInfrastructureApi,
 } from "@/modules/platform/api/infrastructure";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as generateId } from "@infra/uuid";
 import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
@@ -54338,7 +54338,7 @@ Defined in: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payl
 Both sides must stay semantically aligned. Changes to the TypeScript schema
 require corresponding updates here, and vice versa.
 
-See: docs/contexts/ai/cross-runtime-contracts.md
+See: docs/structure/contexts/ai/cross-runtime-contracts.md
 """
 ⋮----
 class ChunkingStrategy(str, Enum)
@@ -54373,7 +54373,7 @@ Defined in: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-
 Both sides must stay semantically aligned. Changes to the TypeScript schema
 require corresponding updates here, and vice versa.
 
-See: docs/contexts/ai/cross-runtime-contracts.md
+See: docs/structure/contexts/ai/cross-runtime-contracts.md
 """
 ⋮----
 class EmbeddingJobPayload(BaseModel)
@@ -55130,7 +55130,7 @@ flowchart LR
 7. [decisions/README.md](./decisions/README.md)
 ````
 
-## File: docs/contexts/ai/bounded-contexts.md
+## File: docs/structure/contexts/ai/bounded-contexts.md
 ````markdown
 # AI Bounded Contexts
 
@@ -55195,7 +55195,7 @@ flowchart LR
 ```
 ````
 
-## File: docs/contexts/ai/README.md
+## File: docs/structure/contexts/ai/README.md
 ````markdown
 # AI Context
 
@@ -55247,7 +55247,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 2. [bounded-contexts.md](./bounded-contexts.md)
 3. [context-map.md](./context-map.md)
 4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+5. [AGENTS.md](./AGENTS.md)
 
 ## Dependency Direction
 
@@ -55263,7 +55263,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
+- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
@@ -55272,7 +55272,7 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 - [../../integration-guidelines.md](../../integration-guidelines.md)
 ````
 
-## File: docs/contexts/ai/subdomains.md
+## File: docs/structure/contexts/ai/subdomains.md
 ````markdown
 # AI Subdomains
 
@@ -55589,10 +55589,10 @@ export class KnowledgePage {
 
 掃描後發現 **43 個 domain 聚合根** 與 **6 個 application use-case** 直接呼叫 `crypto.randomUUID()`
 或透過 `import { randomUUID } from "node:crypto"` 引入 Node.js 內建模組，
-而非使用已建立的 `@lib-uuid` 套件別名。
+而非使用已建立的 `@infra/uuid` 套件別名。
 
 > 對照：`modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`
-> 是唯一正確使用 `import { v4 as randomUUID } from "@lib-uuid"` 的聚合根。
+> 是唯一正確使用 `import { v4 as randomUUID } from "@infra/uuid"` 的聚合根。
 
 ### 受影響的 domain 層（`crypto.randomUUID()` 直呼叫）
 
@@ -55632,20 +55632,20 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 
 1. **可攜性**：`crypto` global 在 Web Worker 環境與 Node.js 環境行為不同，domain 直呼叫使 domain 暗中依賴 Node.js 執行環境。
 2. **測試困難**：無法在 Jest/Vitest 的瀏覽器模擬模式下直接 mock `crypto.randomUUID`，需要全域 polyfill。
-3. **一致性**：`@lib-uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
-4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@lib-uuid`，但 43 個地方違反了這條規範。
+3. **一致性**：`@infra/uuid` 已存在並正確用於 `OrganizationTeam`，其他 43 個 aggregates 卻繞過它，造成混亂。
+4. **ADR 規範破壞**：命名慣例記憶（citations: `modules/platform/subdomains/organization/domain/aggregates/OrganizationTeam.ts`）明確要求使用 `@infra/uuid`，但 43 個地方違反了這條規範。
 
 ## Decision
 
-1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@lib-uuid"` 的 `uuid()`。
-2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@lib-uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
+1. **Domain 層禁止直接使用 `crypto` global 或 `node:crypto`**：所有聚合根中的 `crypto.randomUUID()` 必須替換為 `import { v4 as uuid } from "@infra/uuid"` 的 `uuid()`。
+2. **Application 層的 `node:crypto` import**：`randomUUID` 用途同樣替換為 `@infra/uuid`；`randomBytes` 若確實需要加密安全隨機，可保留 `node:crypto` 用於 infrastructure 層，但 application 層的 `randomBytes` 用途應透過 port 注入。
 3. **建議 lint rule**：在 `eslint.config.mjs` 中加入 `no-restricted-imports` 規則，禁止 `modules/*/domain/**` 和 `modules/*/application/**` 從 `node:crypto`、`crypto` 直接 import `randomUUID`。
 
 ## Consequences
 
 正面：
 - Domain 層從 Node.js runtime 解耦，可在任意 JS 環境（瀏覽器、Edge、Deno）下執行。
-- UUID 生成策略（v4 → v7 等）只需修改 `@lib-uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
+- UUID 生成策略（v4 → v7 等）只需修改 `@infra/uuid` 一個地方，43 個 aggregates 自動受益（見 ADR 4101）。
 - 測試不需要全域 crypto polyfill。
 
 代價：
@@ -55655,7 +55655,7 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 
 **已解決（2026-04-13）**
 
-所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@lib-uuid"`：
+所有 domain 層和 application 層的 `crypto.randomUUID()` 已替換為 `import { v4 as uuid } from "@infra/uuid"`：
 
 - **14 個 domain aggregate 文件**：Account, UserIdentity, Organization, Subscription, EntitlementGrant, AccessPolicy, NotificationAggregate, AccountProfileAggregate, Workspace, AuditEntry, KnowledgePage, KnowledgeCollection, ContentBlock, Article
 - **13 個 application 文件**：use-case 和 service 文件中的 `crypto.randomUUID()` global 和 `import { randomUUID } from "node:crypto"` 均已替換
@@ -55669,7 +55669,7 @@ modules/platform/subdomains/background-job/application/use-cases/background-job.
 ## 關聯 ADR
 
 - **2101**：crypto 直接使用是緊耦合的另一表現（同步解決）
-- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@lib-uuid`）
+- **4101**：UUID 策略分散導致 Change Amplification（解決後策略集中於 `@infra/uuid`）
 ````
 
 ## File: docs/discussions/2026-04-16/07-packages-pyfn-post-migration.md
@@ -56242,7 +56242,7 @@ const anyDomain = (type) => (
 // Domain, application, and outbound adapter layers must be UI-framework-agnostic.
 ````
 
-## File: modules/ai/AGENT.md
+## File: modules/ai/AGENTS.md
 ````markdown
 # AI Module Agent Guide
 
@@ -56844,7 +56844,7 @@ applyTo: 'modules/platform/**/*.{ts,tsx,md}'
 # Platform Bounded Context (Local)
 
 Use this file as execution guardrails for `modules/platform/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/structure/contexts/platform/README.md`, and `docs/bounded-contexts.md`.
 
 ## Core Rules
 
@@ -56852,7 +56852,7 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - Cross-module consumers must import from `modules/platform/api` only — never from `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
 - Route work to the correct subdomain first; do not place subdomain-specific logic in the context-wide `application/` or `domain/` layers.
 - New top-level main domains are forbidden — follow the repo strategic docs for the canonical eight-context model and do not re-centralize IAM or AI back into platform.
-- Use ubiquitous language from `docs/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
+- Use ubiquitous language from `docs/structure/contexts/platform/ubiquitous-language.md`: `Actor` not `User`, `Entitlement` not `Plan`, `Membership` not `User` for workspace participant.
 - Shell account scope uses `accountId`; `organizationId` remains an organization-scoped downstream identifier, not a shell route param.
 - Code-level account scope values remain `"user" | "organization"`; keep personal account / organization account as display language only.
 - Canonical governance URLs are flattened account-scoped routes, not legacy `/{accountId}/organization/*` paths.
@@ -56909,7 +56909,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
  * need to surface the resulting BackgroundJob entity to callers.
  */
 ⋮----
-import { v4 as randomUUID } from "@lib-uuid";
+import { v4 as randomUUID } from "@infra/uuid";
 ⋮----
 import type { DomainError } from "@shared-types";
 ⋮----
@@ -57203,7 +57203,7 @@ advanceStage(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>;
 
 ## File: modules/platform/subdomains/notification/domain/value-objects/WorkspaceNotificationEventType.ts
 ````typescript
-import { z } from "@lib-zod";
+import { z } from "@infra/uuid";
 ⋮----
 /**
  * Canonical workspace event types that can trigger a notification.
@@ -58422,7 +58422,7 @@ async execute(input: CreateTasksFromSourceInput): Promise<CommandResult>
 
 | Subdomain | 功能註解 |
 |---|---|
-| audit | 工作區操作稽核與證據追蹤 |
+| audit | 工作區操作日誌與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
 | approve | 任務驗收與問題單覆核審批流程 |
@@ -58455,14 +58455,14 @@ async execute(input: CreateTasksFromSourceInput): Promise<CommandResult>
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
+| compliance | 資料保留、日誌與法規執行 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
 | background-job | 背景任務提交、排程與監控 |
 | content | 平台級內容資產管理與發布 |
 | search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
+| audit-log | 永久日誌軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
 
@@ -58698,7 +58698,7 @@ flowchart LR
 
 | Subdomain | 功能註解 |
 |---|---|
-| audit | 工作區操作稽核與證據追蹤 |
+| audit | 工作區操作日誌與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
 | approve | 任務驗收與問題單覆核審批流程 |
@@ -58731,14 +58731,14 @@ flowchart LR
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
+| compliance | 資料保留、日誌與法規執行 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
 | background-job | 背景任務提交、排程與監控 |
 | content | 平台級內容資產管理與發布 |
 | search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
+| audit-log | 永久日誌軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
 
@@ -58953,9 +58953,9 @@ import { distillContent, generateAiText, summarize } from "@/modules/ai/api/serv
 ## References
 
 - [modules/ai/README.md](modules/ai/README.md)
-- [docs/contexts/ai/README.md](docs/contexts/ai/README.md)
-- [docs/contexts/ai/subdomains.md](docs/contexts/ai/subdomains.md)
-- [docs/contexts/ai/ubiquitous-language.md](docs/contexts/ai/ubiquitous-language.md)
+- [docs/structure/contexts/ai/README.md](docs/structure/contexts/ai/README.md)
+- [docs/structure/contexts/ai/subdomains.md](docs/structure/contexts/ai/subdomains.md)
+- [docs/structure/contexts/ai/ubiquitous-language.md](docs/structure/contexts/ai/ubiquitous-language.md)
 ````
 
 ## File: modules/workspace/interfaces/facades/workspace-file.facade.ts
@@ -60052,11 +60052,11 @@ export function listAvailableTools(): ReadonlyArray<ToolDescriptor>
 | `observability` | **Platform Observability** | 平台可觀測性 | ✅ | 健康量測、追蹤與告警 |
 | `feature-flag` | **Feature Flag** | 功能開關 | 📋 Baseline | 功能開關策略與發佈節點 |
 | `onboarding` | **Onboarding** | 新主體引導 | 📋 Baseline | 初始設定與引導流程 |
-| `compliance` | **Compliance** | 合規治理 | 📋 Baseline | 資料保留、稽核與法規執行 |
+| `compliance` | **Compliance** | 合規治理 | 📋 Baseline | 資料保留、日誌與法規執行 |
 | `integration` | **External Integration** | 外部整合 | 📋 Baseline | 外部系統整合邊界 |
 | `workflow` | **Platform Workflow** | 平台流程編排 | 📋 Baseline | 平台級狀態驅動執行（≠ workspace-workflow） |
 | `content` | **Platform Content Assets** | 平台內容資產 | 📋 Baseline | 平台級內容資產管理與發布 |
-| `audit-log` | **Audit Log** | 永久稽核軌跡 | 📋 Baseline | 不可否認稽核證據 |
+| `audit-log` | **Audit Log** | 永久日誌軌跡 | 📋 Baseline | 不可否認日誌證據 |
 | `support` | **Support & Ticketing** | 客服工單 | 📋 Baseline | 工單、知識與處理流程 |
 | `consent` | **Consent Management** | 同意管理 | 📋 Gap | 從 compliance 切開的同意授權 |
 | `secret-management` | **Secret Management** | 機密管理 | 📋 Gap | 從 integration 切開的憑證 rotation |
@@ -60066,7 +60066,7 @@ export function listAvailableTools(): ReadonlyArray<ToolDescriptor>
 
 | Folder Name | Semantic Name | Chinese Label | Status | Notes |
 |---|---|---|---|---|
-| `audit` | **Workspace Audit Trail** | 工作區稽核軌跡 | ✅ | 操作稽核與證據追蹤 |
+| `audit` | **Workspace Audit Trail** | 工作區日誌軌跡 | ✅ | 操作日誌與證據追蹤 |
 | `feed` | **Activity Feed** | 活動摘要流 | ✅ | 工作區活動摘要與事件流呈現 |
 | `lifecycle` | **Workspace Lifecycle** | 工作區生命週期 | ✅ | 建立、封存、復原（已從 gap 升為 implemented） |
 | `membership` | **Workspace Membership** | 工作區參與關係 | ✅ | 角色、加入、移除（已從 gap 升為 implemented） |
@@ -60233,7 +60233,7 @@ export function listAvailableTools(): ReadonlyArray<ToolDescriptor>
 
 | 資料夾 | 問題描述 | 已執行解法 |
 |---|---|---|
-| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。**2026-04-15（補完）**：所有 JSDoc 注釋中殘留的 `ingestion`（如 "ingestion pipeline"、"Ingestion document not found"）全部通用化為 `background job`/`document processing pipeline`；`SourceReference.ts` 中 `IngestionJob` 稽核鏈描述更新為 `BackgroundJob`。 |
+| `modules/platform/subdomains/background-job` ✅ | 資料夾名稱 `background-job` 表達通用背景任務管理，原內部 domain entities 全以 `Ingestion*` 命名（IngestionDocument、IngestionChunk、IngestionJob），與資料夾語意不一致 | **已完成 2026-04-15**（Option A）：`IngestionJob` → `BackgroundJob`、`IngestionDocument` → `JobDocument`、`IngestionChunk` → `JobChunk`；`IngestionStatus` → `BackgroundJobStatus`；`IngestionJobRepository` → `BackgroundJobRepository`；`canTransitionIngestionStatus` → `canTransitionJobStatus`；`ingestionService` → `backgroundJobService`；所有 domain event discriminant、error code、use-case 類別名稱、composition service 全部同步更新。資料夾名稱保持 `background-job`。**2026-04-15（補完）**：所有 JSDoc 注釋中殘留的 `ingestion`（如 "ingestion pipeline"、"Ingestion document not found"）全部通用化為 `background job`/`document processing pipeline`；`SourceReference.ts` 中 `IngestionJob` 日誌鏈描述更新為 `BackgroundJob`。 |
 
 ### 7.4 Comment-Level Semantic Cleanup ✅
 

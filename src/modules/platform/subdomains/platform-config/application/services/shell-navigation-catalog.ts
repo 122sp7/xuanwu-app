@@ -211,16 +211,34 @@ const ROUTE_TITLES: Record<string, string> = {
   "/daily": "帳號 · 每日",
   "/schedule": "帳號 · 排程",
   "/schedule/dispatcher": "帳號 · 調度台",
-  "/audit": "帳號 · 稽核",
+  "/audit": "帳號 · 日誌",
   "/workspace": "工作區中心",
   "/dashboard": "儀表板",
-  // Workspace task-lifecycle tabs (query-param based, resolved in resolveShellPageTitle)
-  "workspace:TaskFormation": "工作區 · 任務形成",
-  "workspace:Tasks": "工作區 · 任務",
-  "workspace:Quality": "工作區 · 質檢",
-  "workspace:Approval": "工作區 · 驗收",
-  "workspace:Settlement": "工作區 · 結算",
-  "workspace:Issues": "工作區 · 問題單",
+  // Workspace tabs (query-param based, resolved via workspace:${tab} key in resolveShellPageTitle)
+  // workspace group
+  "workspace:Overview":          "工作區 · 首頁",
+  "workspace:Daily":             "工作區 · 每日",
+  "workspace:Schedule":          "工作區 · 排程",
+  "workspace:Audit":             "工作區 · 日誌",
+  "workspace:Files":             "工作區 · 檔案",
+  "workspace:Members":           "工作區 · 成員",
+  "workspace:WorkspaceSettings": "工作區 · 設定",
+  "workspace:TaskFormation":     "工作區 · 任務形成",
+  "workspace:Tasks":             "工作區 · 任務",
+  "workspace:Quality":           "工作區 · 質檢",
+  "workspace:Approval":          "工作區 · 驗收",
+  "workspace:Settlement":        "工作區 · 結算",
+  "workspace:Issues":            "工作區 · 問題單",
+  // notion group
+  "workspace:Knowledge":         "工作區 · 知識",
+  "workspace:Pages":             "工作區 · 頁面",
+  "workspace:Database":          "工作區 · 資料庫",
+  "workspace:Templates":         "工作區 · 範本",
+  // notebooklm group
+  "workspace:Notebook":          "工作區 · RAG 查詢",
+  "workspace:AiChat":            "工作區 · AI 對話",
+  "workspace:Sources":           "工作區 · 來源文件",
+  "workspace:Research":          "工作區 · 研究摘要",
 };
 
 const BREADCRUMB_LABELS: Record<string, string> = {
@@ -237,7 +255,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   workspaces: "工作區清單",
   schedule: "排程",
   daily: "每日",
-  audit: "稽核",
+  audit: "日誌",
   "task-formation": "任務形成",
   tasks: "任務",
   quality: "質檢",
@@ -256,7 +274,7 @@ export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
   { id: "schedule", label: "排程", href: "/schedule" },
   { id: "dispatcher", label: "調度台", href: "/schedule/dispatcher" },
   { id: "daily", label: "每日", href: "/daily" },
-  { id: "audit", label: "稽核", href: "/audit" },
+  { id: "audit", label: "日誌", href: "/audit" },
 ] as const;
 
 // ── Section labels ────────────────────────────────────────────────────────────
@@ -267,7 +285,7 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   account: "帳號",
   schedule: "排程",
   daily: "每日",
-  audit: "稽核",
+  audit: "日誌",
   members: "成員",
   teams: "團隊",
   permissions: "權限",
@@ -284,7 +302,7 @@ export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "org-teams", href: "/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/teams" },
   { id: "org-daily", href: "/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/daily" },
   { id: "org-schedule", href: "/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/schedule" },
-  { id: "org-audit", href: "/audit", label: "稽核", requiresOrganization: true, activeRoutePrefix: "/audit" },
+  { id: "org-audit", href: "/audit", label: "日誌", requiresOrganization: true, activeRoutePrefix: "/audit" },
   { id: "org-permissions", href: "/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/permissions" },
 ];
 
@@ -328,7 +346,7 @@ export const SHELL_ORG_PRIMARY_NAV_ITEMS: readonly ShellNavItem[] = [
 export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
   { id: "schedule", label: "排程", href: "/schedule" },
   { id: "daily", label: "每日", href: "/daily" },
-  { id: "audit", label: "稽核", href: "/audit" },
+  { id: "audit", label: "日誌", href: "/audit" },
 ];
 
 // ── Section resolvers ─────────────────────────────────────────────────────────

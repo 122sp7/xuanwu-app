@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Consolidated documentation authority and ubiquitous language rules for docs governance and naming discipline.'
 applyTo: '{docs,src/modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 ---
@@ -14,7 +14,7 @@ applyTo: '{docs,src/modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 
 ## Ubiquitous Language Rules
 
-1. Before naming classes, interfaces, types, variables, or domain events, check `docs/ubiquitous-language.md` and context-local glossary docs.
+1. Before naming classes, interfaces, types, variables, or domain events, check `docs/structure/domain/ubiquitous-language.md` and context-local glossary docs.
 2. Do not replace canonical terms with synonyms once defined.
 3. Domain events must use past-tense naming.
 4. Bounded-context names must align with `src/modules/<context>/` folder names.
@@ -36,5 +36,5 @@ applyTo: '{docs,src/modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 - Verify behavioral rules are not restating full strategic docs content.
 - If docs changes affect `.github/skills/` repomix references, regenerate with existing scripts.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

@@ -14,12 +14,18 @@ export class FirestoreTaskFormationJobRepository implements TaskFormationJobRepo
 
   async findById(jobId: string): Promise<TaskFormationJobSnapshot | null> {
     const doc = await this.db.get(this.collection, jobId);
-    return doc ? (doc as unknown as TaskFormationJobSnapshot) : null;
+    if (!doc) return null;
+    const snapshot = doc as unknown as TaskFormationJobSnapshot;
+    // Backward compat: old docs may lack `candidates` field.
+    return { ...snapshot, candidates: snapshot.candidates ?? [] };
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<TaskFormationJobSnapshot[]> {
     const docs = await this.db.query(this.collection, [{ field: "workspaceId", op: "==", value: workspaceId }]);
-    return docs as unknown as TaskFormationJobSnapshot[];
+    return docs.map((d) => {
+      const snapshot = d as unknown as TaskFormationJobSnapshot;
+      return { ...snapshot, candidates: snapshot.candidates ?? [] };
+    });
   }
 
   async save(job: TaskFormationJobSnapshot): Promise<void> {

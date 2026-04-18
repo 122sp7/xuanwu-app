@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/workspace/**
+- Only files matching these patterns are included: src/modules/workspace/**, docs/structure/contexts/workspace/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-215 files | 3,139 lines
+244 files | 5,111 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 209 | 2,637 |
-| TypeScript (TSX) | 4 | 342 |
-| Markdown | 2 | 160 |
+| TypeScript | 215 | 3,066 |
+| TypeScript (TSX) | 19 | 901 |
+| Markdown | 10 | 1,144 |
 
 **Largest files:**
-- `src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx` (187 lines)
+- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (175 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
+- `src/modules/workspace/subdomains/task-formation/AGENTS.md` (166 lines)
+- `docs/structure/contexts/workspace/README.md` (126 lines)
+- `docs/structure/contexts/workspace/ubiquitous-language.md` (120 lines)
+- `docs/structure/contexts/workspace/AGENTS.md` (100 lines)
+- `docs/structure/contexts/workspace/bounded-contexts.md` (93 lines)
+- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (91 lines)
 - `src/modules/workspace/README.md` (85 lines)
-- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (81 lines)
-- `src/modules/workspace/AGENT.md` (75 lines)
-- `src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx` (69 lines)
-- `src/modules/workspace/subdomains/task/domain/entities/Task.ts` (65 lines)
-- `src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts` (60 lines)
-- `src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts` (59 lines)
-- `src/modules/workspace/subdomains/audit/domain/entities/AuditEntry.ts` (59 lines)
-- `src/modules/workspace/subdomains/orchestration/domain/entities/TaskMaterializationJob.ts` (57 lines)

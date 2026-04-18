@@ -161,4 +161,5 @@ Tags: #use skill playwright-mcp-testing
 #use skill shadcn
 #use skill context7
 #use skill serena-mcp
+#use skill repomix
 #use skill next-devtools-mcp

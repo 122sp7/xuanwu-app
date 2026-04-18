@@ -17,3 +17,18 @@ export { InMemoryNotebookRepository } from "./subdomains/notebook/adapters/outbo
 export * from "./subdomains/conversation/domain";
 export * from "./subdomains/conversation/application";
 export { InMemoryConversationRepository } from "./subdomains/conversation/adapters/outbound/memory/InMemoryConversationRepository";
+
+// orchestration — source processing workflow
+export type {
+  TaskMaterializationWorkflowPort,
+  MaterializeTasksInput,
+  MaterializeTasksResult,
+  TaskCandidate,
+} from "./orchestration/TaskMaterializationWorkflowPort";
+export {
+  ProcessSourceDocumentWorkflowUseCase,
+  type ProcessSourceDocumentWorkflowInput,
+  type ProcessSourceDocumentWorkflowResult,
+  type CreateKnowledgePagePort,
+  type StepStatus,
+} from "./orchestration/ProcessSourceDocumentWorkflowUseCase";

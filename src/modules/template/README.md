@@ -1,4 +1,4 @@
-# Template Module
+﻿# Template Module
 
 `src/modules/template` 是一個可複製的 **Hexagonal Architecture + DDD 多子域骨架**，示範多 subdomain 分層結構、具名匯出規範與跨子域協調模式。
 
@@ -8,7 +8,7 @@
 src/modules/template/
   index.ts                          ← 模組對外唯一入口（具名匯出）
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     TemplateFacade.ts               ← 對外統一 Facade（委派各子域 use case）
     TemplateCoordinator.ts          ← 跨子域流程協調（document→generation→ingestion→workflow）
@@ -245,7 +245,7 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 
 ## 路由規則
 
-- 讀取邊界規則、published language → `src/modules/<context>/AGENT.md`
+- 讀取邊界規則、published language → `src/modules/<context>/AGENTS.md`
 - 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
 - 需要跨模組 API boundary → `src/modules/<context>/index.ts`
 
@@ -261,6 +261,6 @@ subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/doma
 ## 文件網絡
 
 - [src/modules/README.md](../README.md) — 模組層狀態總覽
-- [src/modules/template/AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/bounded-context-subdomain-template.md](../../../docs/bounded-context-subdomain-template.md) — 設計藍圖
+- [src/modules/template/AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-context-subdomain-template.md](../../../docs/structure/domain/bounded-context-subdomain-template.md) — 設計藍圖

@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/billing/**
+- Only files matching these patterns are included: src/modules/billing/**, docs/structure/contexts/billing/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-50 files | 734 lines
+56 files | 887 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 48 | 631 |
-| Markdown | 2 | 103 |
+| Markdown | 8 | 256 |
 
 **Largest files:**
+- `docs/structure/contexts/billing/AGENTS.md` (68 lines)
 - `src/modules/billing/README.md` (57 lines)
 - `src/modules/billing/subdomains/subscription/domain/entities/Subscription.ts` (56 lines)
 - `src/modules/billing/subdomains/entitlement/domain/entities/EntitlementGrant.ts` (50 lines)
 - `src/modules/billing/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts` (49 lines)
 - `src/modules/billing/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts` (46 lines)
-- `src/modules/billing/AGENT.md` (46 lines)
+- `src/modules/billing/AGENTS.md` (46 lines)
 - `src/modules/billing/subdomains/usage-metering/domain/entities/UsageRecord.ts` (41 lines)
 - `src/modules/billing/subdomains/subscription/application/use-cases/SubscriptionUseCases.ts` (30 lines)
 - `src/modules/billing/subdomains/entitlement/adapters/outbound/firestore/FirestoreEntitlementGrantRepository.ts` (29 lines)
-- `src/modules/billing/subdomains/entitlement/application/use-cases/EntitlementUseCases.ts` (29 lines)

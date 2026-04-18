@@ -14,4 +14,4 @@
 | `src/app/` | 唯一 Next.js App Router（`app/` 根目錄已刪除） |
 
 - `src/modules/template/` is the COMPLETE reference scaffold — copy when starting new modules
-- `src/app/AGENT.md` + `src/app/README.md` are the routing authority
+- `src/app/AGENTS.md` + `src/app/README.md` are the routing authority

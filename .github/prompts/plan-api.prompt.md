@@ -1,4 +1,4 @@
----
+﻿---
 name: plan-api
 description: Create an API-focused implementation plan covering contracts, facades, consumers, and validation.
 agent: Planner
@@ -14,6 +14,6 @@ argument-hint: Provide API intent, owner module, consumers, and compatibility co
 - Include compatibility and migration strategy.
 - Specify validation and documentation updates.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts

@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/analytics/**
+- Only files matching these patterns are included: src/modules/analytics/**, docs/structure/contexts/analytics/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-65 files | 572 lines
+71 files | 729 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 63 | 457 |
-| Markdown | 2 | 115 |
+| Markdown | 8 | 272 |
 
 **Largest files:**
+- `docs/structure/contexts/analytics/AGENTS.md` (68 lines)
 - `src/modules/analytics/README.md` (64 lines)
-- `src/modules/analytics/AGENT.md` (51 lines)
+- `src/modules/analytics/AGENTS.md` (51 lines)
 - `src/modules/analytics/subdomains/metrics/domain/entities/Metric.ts` (43 lines)
 - `src/modules/analytics/subdomains/event-contracts/domain/entities/AnalyticsEvent.ts` (33 lines)
+- `docs/structure/contexts/analytics/README.md` (27 lines)
 - `src/modules/analytics/subdomains/experimentation/domain/entities/Experiment.ts` (26 lines)
 - `src/modules/analytics/subdomains/realtime-insights/domain/entities/RealtimeMetric.ts` (26 lines)
 - `src/modules/analytics/subdomains/event-contracts/domain/repositories/AnalyticsEventRepository.ts` (25 lines)
 - `src/modules/analytics/subdomains/metrics/domain/repositories/MetricRepository.ts` (25 lines)
-- `src/modules/analytics/subdomains/event-projection/domain/entities/EventProjection.ts` (23 lines)
-- `src/modules/analytics/subdomains/insights/domain/entities/Insight.ts` (23 lines)

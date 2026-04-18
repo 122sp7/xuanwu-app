@@ -1,4 +1,4 @@
----
+﻿---
 name: Hexagonal DDD Architect
 description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
 argument-hint: Provide module name, operation type (create/refactor/split/merge), and migration constraints.
@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'repomix/
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Confirm Domain Ownership
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
   - label: Update Contracts
     agent: TS Interface Writer
@@ -49,4 +49,4 @@ Shape module structures without breaking bounded contexts.
 - Files changed
 - Validation evidence
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

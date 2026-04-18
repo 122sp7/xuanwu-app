@@ -1,4 +1,4 @@
----
+﻿---
 name: debug-error
 description: Reproduce, diagnose, and propose fixes for runtime or logic errors with evidence.
 agent: App Router Agent
@@ -20,6 +20,6 @@ argument-hint: Provide error message, route/module, and reproduction steps.
 3. Propose minimal fix plus regression checks.
 4. State validation commands to confirm resolution.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill next-devtools-mcp
 #use skill vscode-testing-debugging-browser

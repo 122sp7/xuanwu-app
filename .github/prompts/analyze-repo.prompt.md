@@ -1,4 +1,4 @@
----
+﻿---
 name: analyze-repo
 description: Analyze repository structure, ownership boundaries, and change impact before implementation.
 agent: Serena Strategist
@@ -31,5 +31,5 @@ Map ownership, boundaries, and risks before coding.
 - Risk list
 - Suggested next prompt
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

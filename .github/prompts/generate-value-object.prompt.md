@@ -1,4 +1,4 @@
----
+﻿---
 name: generate-value-object
 description: 生成符合 DDD 規範的值對象（Value Object），採用 Zod brand type 確保型別安全，並放置於正確的 domain/value-objects/ 路徑。
 applyTo: 'src/modules/**/domain/value-objects/**/*.{ts,tsx}'
@@ -77,7 +77,7 @@ export type Address = z.infer<typeof AddressSchema>;
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
+1. 讀取 `docs/structure/domain/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/ubiquitous-language.md`，確認命名符合通用語言。
 2. 讀取 `.github/instructions/domain-modeling.instructions.md`，確認設計規則。
 3. 確認放置路徑：`src/modules/<context>/domain/value-objects/<Name>.ts`
 4. 依照上方模式建立值對象檔案。
@@ -97,6 +97,6 @@ export type Address = z.infer<typeof AddressSchema>;
 - `npm run lint` — 確認無 framework import 在 `domain/`
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill zod-validation

@@ -1,4 +1,4 @@
----
+﻿---
 description: 'End-to-end testing rules for browser flows, evidence capture, and release confidence.'
 applyTo: '{src/app,src/modules,debug}/**/*.{ts,tsx}'
 ---
@@ -11,6 +11,6 @@ applyTo: '{src/app,src/modules,debug}/**/*.{ts,tsx}'
 - Capture reproducible evidence for failures.
 - Separate confirmed defects from enhancement suggestions.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill vscode-testing-debugging-browser
 #use skill next-devtools-mcp

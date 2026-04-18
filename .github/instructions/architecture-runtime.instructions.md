@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Consolidated runtime architecture rules across src/app, src/modules, packages, providers, debug, and py_fn with explicit Next.js and worker boundaries.'
 applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
 ---
@@ -35,6 +35,6 @@ applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,j
 - Use external documentation only when local sources are insufficient or behavior is version-sensitive.
 - Prefer local authority first: `AGENTS.md`, `.github/copilot-instructions.md`, module docs, local code.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
 #use skill next-devtools-mcp

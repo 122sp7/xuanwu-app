@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Ingestion and embedding pipeline contract for worker-side RAG preparation.'
 applyTo: '{py_fn/**/*.py,docs/**/*.md}'
 ---
@@ -17,7 +17,7 @@ Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore 
 - Validate converted markdown quality before chunking.
 - Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill xuanwu-rag-runtime-boundary
 #use skill llamaparse
 #use skill liteparse

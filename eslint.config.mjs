@@ -1,22 +1,28 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import boundaries from "eslint-plugin-boundaries";
+import functional from "eslint-plugin-functional";
+import importPlugin from "eslint-plugin-import";
 import jsdoc from "eslint-plugin-jsdoc";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import reactPlugin from "eslint-plugin-react";
+import sonarjs from "eslint-plugin-sonarjs";
 import tseslint from "typescript-eslint";
 
-// ─── Globs ───────────────────────────────────────────────────────────────────
-const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const tsGlobs = ["**/*.{ts,tsx}"];
-
-// src/modules/ adapter boundary globs
-const srcModuleOutboundAdapterGlobs = ["src/modules/*/adapters/outbound/**/*.{ts,tsx,js,jsx}"];
-const srcModuleInboundReactAdapterGlobs = ["src/modules/*/adapters/inbound/react/**/*.{ts,tsx,tsx}"];
-// src/modules files that are NOT adapters/outbound — integration-* must stay out
-const srcModuleNonOutboundGlobs = ["src/modules/**/*.{ts,tsx,js,jsx}"];
-
-// ─── Module boundary helpers ─────────────────────────────────────────────────
 const WARN = "warn";
+const srcGlobs = ["src/**/*.{js,jsx,mjs,cjs,ts,tsx}", "packages/**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const tsGlobs = ["**/*.{ts,tsx}"];
+const reactGlobs = ["**/*.{jsx,tsx}"];
+const srcModuleGlobs = ["src/modules/**/*.{ts,tsx,js,jsx}"];
+const srcAppGlobs = ["src/app/**/*.{ts,tsx,js,jsx}"];
+const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
+const srcModuleOutboundAdapterGlobs = [
+  "src/modules/*/adapters/outbound/**/*.{ts,tsx,js,jsx}",
+  "src/modules/*/subdomains/*/adapters/outbound/**/*.{ts,tsx,js,jsx}",
+];
+const srcModuleInboundReactAdapterGlobs = ["src/modules/*/adapters/inbound/react/**/*.{ts,tsx,js,jsx}"];
+const srcModuleNonOutboundGlobs = ["src/modules/**/*.{ts,tsx,js,jsx}"];
 
 const normalizeWarnSeverity = (ruleConfig) => {
   if (Array.isArray(ruleConfig)) {
@@ -36,7 +42,6 @@ const mapRulesToWarn = (rules = {}) =>
 
 const restrictedImportsRule = (patterns, extraOptions = {}) => [WARN, { patterns, ...extraOptions }];
 
-// ─── Restricted import patterns ───────────────────────────────────────────────
 const legacyAliases = [
   { group: ["@/shared/*"], message: "Use @ui-shadcn/* for UI or direct relative imports from src/modules/shared/ instead." },
   { group: ["@/infrastructure/*"], message: "Use @integration-firebase/* instead." },
@@ -46,31 +51,53 @@ const legacyAliases = [
   { group: ["@/interfaces/*"], message: "Import from module boundaries (src/modules/<context>/index.ts) instead." },
 ];
 
-// ─── Config ───────────────────────────────────────────────────────────────────
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
 
-  // JSDoc
   {
     files: srcGlobs,
-    plugins: { jsdoc },
-    settings: { jsdoc: { mode: "typescript" } },
+    plugins: {
+      boundaries,
+      import: importPlugin,
+      jsdoc,
+      sonarjs,
+    },
+    settings: {
+      jsdoc: { mode: "typescript" },
+      // Used by boundaries/no-unknown-files and reserved for future boundaries/dependencies migration.
+      "boundaries/elements": [
+        { type: "module-public", pattern: "src/modules/*/index.ts", mode: "full", capture: ["context"] },
+        { type: "module-internal", pattern: "src/modules/*/**/*.{ts,tsx,js,jsx}", mode: "full", capture: ["context"] },
+        { type: "app", pattern: "src/app/**/*.{ts,tsx,js,jsx}", mode: "full" },
+        { type: "package", pattern: "packages/**/*.{ts,tsx,js,jsx}", mode: "full" },
+      ],
+    },
     rules: {
+      // TypeScript + Next path aliases are resolved by TS/Next; keep import plugin checks that are resolver-agnostic.
+      "import/no-unresolved": "off",
+      "import/named": "off",
+      "import/default": "off",
+      "import/no-named-as-default-member": "off",
+      "import/no-duplicates": WARN,
+      "sonarjs/cognitive-complexity": [WARN, 20],
       "jsdoc/check-alignment": WARN,
-      "jsdoc/check-syntax":    WARN,
+      "jsdoc/check-syntax": WARN,
       "jsdoc/check-tag-names": WARN,
       "jsdoc/no-blank-blocks": WARN,
+      "boundaries/no-unknown-files": WARN,
     },
   },
 
-  // TypeScript naming + type imports + unused vars
   {
     files: tsGlobs,
     plugins: { "@typescript-eslint": tseslint.plugin },
+    languageOptions: {
+      parser: tseslint.parser,
+    },
     rules: {
       "@typescript-eslint/naming-convention": [WARN,
-        { selector: "typeLike",     format: ["PascalCase"] },
+        { selector: "typeLike", format: ["PascalCase"] },
         { selector: "typeParameter", format: ["PascalCase"] },
         { selector: "variable", modifiers: ["destructured"], format: null },
         { selector: "function", format: ["camelCase", "PascalCase"], leadingUnderscore: "allow" },
@@ -84,25 +111,48 @@ export default defineConfig([
     },
   },
 
-  // React + a11y
   {
-    files: ["**/*.{jsx,tsx}"],
+    files: reactGlobs,
     rules: {
-      "react/react-in-jsx-scope":       "off",
-      "react/prop-types":               "off",
-      "react/self-closing-comp":        WARN,
-      "react/jsx-no-useless-fragment":  [WARN, { allowExpressions: true }],
-      "react-hooks/rules-of-hooks":     "error",
-      "react-hooks/exhaustive-deps":    WARN,
+      ...mapRulesToWarn(reactPlugin.configs.flat.recommended.rules),
+      ...mapRulesToWarn(reactPlugin.configs.flat["jsx-runtime"].rules),
       ...mapRulesToWarn(jsxA11y.flatConfigs.recommended.rules),
+      "react/react-in-jsx-scope": "off",
+      "react/prop-types": "off",
+      "react/self-closing-comp": WARN,
+      "react/jsx-no-useless-fragment": [WARN, { allowExpressions: true }],
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": WARN,
     },
   },
 
-  // Legacy alias migration
-  { rules: { "no-restricted-imports": restrictedImportsRule(legacyAliases) } },
+  {
+    files: srcModuleGlobs,
+    rules: {
+      "no-restricted-imports": restrictedImportsRule([
+        {
+          group: [
+            "@/src/modules/*/*",
+            "@/src/modules/*/adapters/*",
+            "@/src/modules/*/application/*",
+            "@/src/modules/*/domain/*",
+            "@/src/modules/*/infrastructure/*",
+            "@/src/modules/*/interfaces/*",
+            "@/src/modules/*/subdomains/*",
+            "@/modules/*/*",
+            "@/modules/*/adapters/*",
+            "@/modules/*/application/*",
+            "@/modules/*/domain/*",
+            "@/modules/*/infrastructure/*",
+            "@/modules/*/interfaces/*",
+            "@/modules/*/subdomains/*",
+          ],
+          message: "Cross-module access must go through `src/modules/<context>/index.ts` public boundaries.",
+        },
+      ]),
+    },
+  },
 
-  // src/modules: @integration-* packages must only appear in adapters/outbound/.
-  // Domain, application, and inbound adapters must remain infrastructure-agnostic.
   {
     files: srcModuleNonOutboundGlobs,
     ignores: srcModuleOutboundAdapterGlobs,
@@ -116,8 +166,6 @@ export default defineConfig([
     },
   },
 
-  // src/modules: @ui-shadcn and @ui-vis must only appear in adapters/inbound/react/.
-  // Domain, application, and outbound adapter layers must be UI-framework-agnostic.
   {
     files: srcModuleNonOutboundGlobs,
     ignores: srcModuleInboundReactAdapterGlobs,
@@ -130,6 +178,54 @@ export default defineConfig([
       ]),
     },
   },
+
+  {
+    files: srcAppGlobs,
+    rules: {
+      "no-restricted-imports": restrictedImportsRule([
+        {
+          group: [
+            "@/src/modules/*/adapters/*",
+            "@/src/modules/*/application/*",
+            "@/src/modules/*/domain/*",
+            "@/src/modules/*/infrastructure/*",
+            "@/src/modules/*/interfaces/*",
+            "@/src/modules/*/subdomains/*",
+            "@/modules/*/adapters/*",
+            "@/modules/*/application/*",
+            "@/modules/*/domain/*",
+            "@/modules/*/infrastructure/*",
+            "@/modules/*/interfaces/*",
+            "@/modules/*/subdomains/*",
+          ],
+          message: "src/app should compose from module public boundaries (`src/modules/<context>/index.ts`) instead of internal module layers.",
+        },
+      ]),
+    },
+  },
+
+  {
+    files: packageGlobs,
+    rules: {
+      "no-restricted-imports": restrictedImportsRule([
+        {
+          group: ["@/src/modules/*", "@/src/app/*", "@/modules/*", "@/app/*"],
+          message: "packages/ should remain framework-agnostic and must not depend on app/module implementation internals.",
+        },
+      ]),
+    },
+  },
+
+  {
+    files: ["src/modules/**/domain/**/*.{ts,tsx,js,jsx}"],
+    plugins: { functional },
+    rules: {
+      "functional/no-let": WARN,
+      "functional/no-loop-statements": WARN,
+    },
+  },
+
+  { rules: { "no-restricted-imports": restrictedImportsRule(legacyAliases) } },
 
   globalIgnores([".agents/**", ".next/**", "out/**", "build/**", "next-env.d.ts"]),
 ]);

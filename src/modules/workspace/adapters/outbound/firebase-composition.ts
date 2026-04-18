@@ -30,6 +30,41 @@ import {
   ActivateWorkspaceUseCase,
   StopWorkspaceUseCase,
 } from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  TransitionTaskStatusUseCase,
+  DeleteTaskUseCase,
+} from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
+import {
+  OpenIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ResolveIssueUseCase,
+} from "../../subdomains/issue/application/use-cases/IssueUseCases";
+import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
+import {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "../../subdomains/quality/application/use-cases/QualityUseCases";
+import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
+import {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
+import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
+import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
 
 type FirestoreWhereOperator =
   | "<"
@@ -55,7 +90,7 @@ function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository {
   return _workspaceQueryRepo;
 }
 
-function createFirestoreLikeAdapter(): FirestoreLike {
+function createFirestoreLikeAdapter() {
   const {
     doc,
     getDoc,
@@ -65,6 +100,8 @@ function createFirestoreLikeAdapter(): FirestoreLike {
     query,
     where,
     getDocs,
+    updateDoc,
+    increment,
   } = firestoreApi;
 
   return {
@@ -102,6 +139,10 @@ function createFirestoreLikeAdapter(): FirestoreLike {
         ...docSnap.data(),
       }));
     },
+    async increment(collectionName: string, id: string, field: string, delta: number): Promise<void> {
+      const db = getFirebaseFirestore();
+      await updateDoc(doc(db, collectionName, id), { [field]: increment(delta) });
+    },
   };
 }
 
@@ -138,6 +179,79 @@ export function createClientWorkspaceLifecycleUseCases() {
     createWorkspaceUseCase: new CreateWorkspaceUseCase(repo),
     activateWorkspaceUseCase: new ActivateWorkspaceUseCase(repo),
     stopWorkspaceUseCase: new StopWorkspaceUseCase(repo),
+  };
+}
+
+export function createClientTaskFormationUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const jobRepo = new FirestoreTaskFormationJobRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
+  const createTaskUseCase = new CreateTaskUseCase(taskRepo);
+  const extractor = new FirebaseCallableTaskCandidateExtractor();
+  return {
+    extractTaskCandidates: new ExtractTaskCandidatesUseCase(jobRepo, extractor),
+    confirmCandidates: new ConfirmCandidatesUseCase(jobRepo, {
+      createTask: (input) => createTaskUseCase.execute(input),
+    }),
+    getJobSnapshot: (jobId: string) => jobRepo.findById(jobId),
+  };
+}
+
+export function createClientTaskUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const taskRepo = new FirestoreTaskRepository(db);
+  return {
+    createTask: new CreateTaskUseCase(taskRepo),
+    updateTask: new UpdateTaskUseCase(taskRepo),
+    transitionTaskStatus: new TransitionTaskStatusUseCase(taskRepo),
+    deleteTask: new DeleteTaskUseCase(taskRepo),
+    listTasksByWorkspace: (workspaceId: string) => taskRepo.findByWorkspaceId(workspaceId),
+  };
+}
+
+export function createClientIssueUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const issueRepo = new FirestoreIssueRepository(db);
+  return {
+    openIssue: new OpenIssueUseCase(issueRepo),
+    transitionIssueStatus: new TransitionIssueStatusUseCase(issueRepo),
+    resolveIssue: new ResolveIssueUseCase(issueRepo),
+    listIssuesByTask: (taskId: string) => issueRepo.findByTaskId(taskId),
+    listIssuesByWorkspace: (_workspaceId: string) => issueRepo.findByTaskId(""), // workspace-level query via tasks
+  };
+}
+
+export function createClientQualityUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const reviewRepo = new FirestoreQualityReviewRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
+  return {
+    startQualityReview: new StartQualityReviewUseCase(reviewRepo, taskRepo),
+    passQualityReview: new PassQualityReviewUseCase(reviewRepo, taskRepo),
+    failQualityReview: new FailQualityReviewUseCase(reviewRepo, taskRepo),
+    listQualityReviews: new ListQualityReviewsUseCase(reviewRepo),
+  };
+}
+
+export function createClientApprovalUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const decisionRepo = new FirestoreApprovalDecisionRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
+  const issueRepo = new FirestoreIssueRepository(db);
+  return {
+    createApprovalDecision: new CreateApprovalDecisionUseCase(decisionRepo, taskRepo),
+    approveTask: new ApproveTaskUseCase(decisionRepo, taskRepo, issueRepo),
+    rejectApproval: new RejectApprovalUseCase(decisionRepo, taskRepo),
+    listApprovalDecisions: new ListApprovalDecisionsUseCase(decisionRepo),
+  };
+}
+
+export function createClientFeedUseCases() {
+  const db = createFirestoreLikeAdapter();
+  const feedRepo = new FirestoreFeedRepository(db);
+  return {
+    createFeedPost: new CreateFeedPostUseCase(feedRepo),
+    listFeedPosts: new ListFeedPostsUseCase(feedRepo),
   };
 }
 

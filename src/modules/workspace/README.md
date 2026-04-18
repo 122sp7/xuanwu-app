@@ -1,4 +1,4 @@
-# Workspace Module
+﻿# Workspace Module
 
 > `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
 
@@ -11,8 +11,8 @@
 | `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
 | `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
 | `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
-| `audit` | 🔨 骨架建立，實作進行中 | 稽核紀錄實體 |
-| `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
+| `audit` | 🔨 骨架建立，實作進行中 | 日誌紀錄實體 |
+| `feed` | ✅ 實作完成 | 每日動態貼文（IG 風格：文字 + 照片，未來擴展今日任務 / 出勤）|
 | `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
 | `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
 | `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|
@@ -34,7 +34,7 @@
 src/modules/workspace/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     WorkspaceFacade.ts
     WorkspaceCoordinator.ts     ← 跨子域流程（task→settlement 等）
@@ -80,6 +80,6 @@ src/modules/workspace/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖

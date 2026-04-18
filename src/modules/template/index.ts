@@ -81,6 +81,7 @@ export {
   IngestionDomainService,
   IngestionJobStartedEvent,
   IngestionJobCompletedEvent,
+  IngestionJobFailedEvent,
 } from './subdomains/ingestion/domain';
 export type { IngestionJobRepository, IngestionStatus } from './subdomains/ingestion/domain';
 export { StartIngestionUseCase } from './subdomains/ingestion/application';
@@ -99,6 +100,7 @@ export {
   WorkflowDomainService,
   WorkflowInitiatedEvent,
   WorkflowCompletedEvent,
+  WorkflowCancelledEvent,
 } from './subdomains/workflow/domain';
 export type { TemplateWorkflowRepository, WorkflowStatus } from './subdomains/workflow/domain';
 export { InitiateWorkflowUseCase } from './subdomains/workflow/application';

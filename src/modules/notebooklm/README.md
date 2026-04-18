@@ -1,4 +1,4 @@
-# NotebookLM Module
+﻿# NotebookLM Module
 
 ## 子域清單（名詞域）
 
@@ -33,7 +33,7 @@ notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
 src/modules/notebooklm/
   index.ts
   README.md
-  AGENT.md
+  AGENTS.md
   orchestration/
     NotebooklmFacade.ts
     NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
@@ -65,6 +65,6 @@ src/modules/notebooklm/
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/bounded-contexts.md](../../../docs/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖

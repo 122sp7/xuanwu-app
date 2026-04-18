@@ -126,3 +126,4 @@ Tags: #use skill playwright-mcp-testing
 #use skill context7
 #use skill next-devtools-mcp
 #use skill serena-mcp
+#use skill repomix

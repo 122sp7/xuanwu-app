@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Genkit flow design and runtime-boundary rules for AI orchestration in platform.ai and notebooklm.'
 applyTo: '{src/modules/platform/**/*.{ts,tsx,js,jsx},src/modules/notebooklm/**/*.{ts,tsx,js,jsx}}'
 ---
@@ -19,33 +19,6 @@ applyTo: '{src/modules/platform/**/*.{ts,tsx,js,jsx},src/modules/notebooklm/**/*
 - Never use `any`, `unknown`, or untyped objects for flow I/O.
 - Flow name convention: `<module-name>.<action>` (e.g. `notebooklm.synthesis`, `notebooklm.retrieval`).
 - Flow files live in `src/modules/<context>/infrastructure/ai/<name>.flow.ts`.
-
-```typescript
-// ✅ Correct: typed flow with Zod schemas
-import { defineFlow } from '@genkit-ai/core';
-import { z } from 'zod';
-
-const RetrievalInputSchema = z.object({
-  query: z.string().min(1).max(2000),
-  notebookId: z.string().uuid(),
-  limit: z.number().int().min(1).max(20).default(5),
-});
-
-const RetrievalOutputSchema = z.object({
-  chunks: z.array(z.object({
-    chunkId: z.string().uuid(),
-    content: z.string(),
-    score: z.number().min(0).max(1),
-    sourceRef: z.string(),
-  })),
-  retrievedAt: z.string().datetime(),
-});
-
-export const retrievalFlow = defineFlow(
-  { name: 'notebooklm.retrieval', inputSchema: RetrievalInputSchema, outputSchema: RetrievalOutputSchema },
-  async (input) => { /* ... */ }
-);
-```
 
 ## AI Output Validation Rule
 
@@ -107,5 +80,5 @@ Log before sending to AI, log after receiving from AI. Never lose the pair.
 - ❌ Magic string prompts inside use-case files
 - ❌ Skipping traceability logging for any AI request
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

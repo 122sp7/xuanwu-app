@@ -1,3 +1,3 @@
-export type { CreateFeedPostDTO } from "./dto/FeedDTO";
-export { CreateFeedPostSchema } from "./dto/FeedDTO";
-export { CreateFeedPostUseCase } from "./use-cases/FeedUseCases";
+export type { CreateFeedPostDTO, ListFeedPostsDTO } from "./dto/FeedDTO";
+export { CreateFeedPostSchema, ListFeedPostsSchema } from "./dto/FeedDTO";
+export { CreateFeedPostUseCase, ListFeedPostsUseCase } from "./use-cases/FeedUseCases";

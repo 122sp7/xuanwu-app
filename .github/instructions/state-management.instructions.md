@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Zustand client state and XState finite-state workflow rules: placement, slice pattern, naming, decision boundary, and TanStack Query separation.'
 applyTo: '{src/modules/**/interfaces/stores/**,src/modules/**/application/machines/**,src/app/**/*.{ts,tsx}}'
 ---
@@ -34,29 +34,9 @@ One module must not import another module's store directly. If two modules share
 ### Slice Pattern (Mandatory)
 
 Every store must split **state** and **actions** into two slices to minimise re-renders:
-
-```typescript
-// src/modules/workspace/interfaces/stores/panel.store.ts
-import { create } from 'zustand';
-
-interface PanelState {
-  activePanelId: string | null;
-}
-
-interface PanelActions {
-  setActivePanel: (id: string | null) => void;
-  clearPanel: () => void;
-}
-
-export const usePanelStore = create<PanelState & PanelActions>((set) => ({
-  // State slice
-  activePanelId: null,
-
-  // Action slice
-  setActivePanel: (id) => set({ activePanelId: id }),
-  clearPanel: () => set({ activePanelId: null }),
-}));
-```
+- Define `<Noun>State` interface (data fields only).
+- Define `<Noun>Actions` interface (setter/clear functions only).
+- Export `use<Noun>Store = create<State & Actions>(...)` as the combined hook.
 
 ### Naming Rules
 
@@ -100,38 +80,10 @@ Name states with business semantics, not technical or UI language:
 ### Machine + Server Action Integration
 
 Machine `invoke.src` actors call Server Actions; results map back via `onDone` / `onError`:
-
-```typescript
-// src/modules/workspace/application/machines/workspace-creation.machine.ts
-import { createMachine, assign } from 'xstate';
-
-export const workspaceCreationMachine = createMachine({
-  id: 'workspaceCreation',
-  initial: 'idle',
-  context: {
-    workspaceId: null as string | null,
-    error: null as string | null,
-  },
-  states: {
-    idle: { on: { SUBMIT: 'creating' } },
-    creating: {
-      invoke: {
-        src: 'createWorkspaceAction',
-        onDone: {
-          target: 'ready',
-          actions: assign({ workspaceId: ({ event }) => event.output.aggregateId }),
-        },
-        onError: {
-          target: 'failed',
-          actions: assign({ error: ({ event }) => String(event.error) }),
-        },
-      },
-    },
-    ready: {},
-    failed: { on: { RETRY: 'idle' } },
-  },
-});
-```
+- Declare a `creating` state with `invoke.src` pointing to the Server Action name.
+- Use `onDone` to transition to `ready` and `assign` the result (e.g. `aggregateId`).
+- Use `onError` to transition to `failed` and `assign` the error string.
+- Provide `RETRY: 'idle'` transition from `failed` for user-initiated retries.
 
 ### Anti-Patterns
 
@@ -162,5 +114,5 @@ const { data } = useQuery(...);
 useEffect(() => { setWorkspaceData(data); }, [data]);
 ```
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill zustand-xstate

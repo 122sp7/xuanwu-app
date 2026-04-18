@@ -1,4 +1,4 @@
----
+﻿---
 name: Server Action Writer
 description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
 argument-hint: Provide action intent, input shape, target use case, and validation requirements.
@@ -9,7 +9,7 @@ handoffs:
     agent: TS Interface Writer
     prompt: Update or review the DTO and command-result contracts used by this server action.
   - label: Review Domain Boundary
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm the use-case boundary, layer placement, and API ownership for this server action.
   - label: Run Quality Review
     agent: Quality Lead
@@ -31,4 +31,4 @@ handoffs:
 - Place business rules in module use cases.
 - Preserve consistent command-result response shape.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

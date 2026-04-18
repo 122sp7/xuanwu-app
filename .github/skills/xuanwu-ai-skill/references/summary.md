@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/ai/**
+- Only files matching these patterns are included: src/modules/ai/**, docs/structure/contexts/ai/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-84 files | 932 lines
+92 files | 1,569 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 82 | 745 |
-| Markdown | 2 | 187 |
+| Markdown | 10 | 824 |
 
 **Largest files:**
+- `docs/structure/contexts/ai/ddd-strategic-design.md` (119 lines)
 - `src/modules/ai/README.md` (111 lines)
+- `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
+- `docs/structure/contexts/ai/AGENTS.md` (95 lines)
+- `docs/structure/contexts/ai/subdomains.md` (91 lines)
 - `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
-- `src/modules/ai/AGENT.md` (76 lines)
-- `src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts` (49 lines)
-- `src/modules/ai/subdomains/context/domain/entities/ContextSession.ts` (44 lines)
-- `src/modules/ai/subdomains/embedding/domain/entities/Embedding.ts` (44 lines)
-- `src/modules/ai/subdomains/retrieval/domain/ports/RetrievalPorts.ts` (39 lines)
-- `src/modules/ai/subdomains/evaluation/domain/entities/EvaluationResult.ts` (37 lines)
-- `src/modules/ai/subdomains/pipeline/domain/entities/PromptTemplate.ts` (35 lines)
-- `src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts` (34 lines)
+- `src/modules/ai/AGENTS.md` (76 lines)
+- `docs/structure/contexts/ai/README.md` (73 lines)
+- `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
+- `docs/structure/contexts/ai/context-map.md` (50 lines)

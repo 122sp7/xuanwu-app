@@ -4,7 +4,7 @@
     "maxFileSize": 52428800
   },
   "output": {
-    "filePath": "repomix-output.json",
+    "filePath": "repomix-output-py_fn.json",
     "style": "json",
     "parsableStyle": true,
 
@@ -42,10 +42,35 @@
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
-      "__pycache__",
-       "venv",
-       "tests",
-       ".pytest_cache"
+      "__pycache__/**",
+      "venv/**",
+      "tests/**",
+      ".pytest_cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".cache/**",
+
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db"
     ]
   },
   "security": {

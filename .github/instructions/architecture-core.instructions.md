@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Consolidated Hexagonal DDD architecture rules: layer ownership, API-only boundaries, module shape, and bounded-context dependency direction.'
 applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 ---
@@ -47,7 +47,7 @@ applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 
 ## Module Shape and Naming
 
-- Bounded-context root required shape: `index.ts`, `adapters/`, `subdomains/`, `shared/`, `orchestration/`, `README.md`, `AGENT.md`.
+- Bounded-context root required shape: `index.ts`, `adapters/`, `subdomains/`, `shared/`, `orchestration/`, `README.md`, `AGENTS.md`.
 - Subdomain default shape follows core-first (`domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
 - Public boundary is `index.ts`; cross-module consumers import only from module root `index.ts`.
 - Use case file: `verb-noun.use-case.ts`.
@@ -127,11 +127,44 @@ return raw as WorkspaceSnapshot;
 - ❌ Importing Zod in `domain/` for anything other than schema and brand-type definitions
 - ❌ Duplicating the same schema in both `domain/` and `application/` — keep it in one place
 
+### Additional Zod Guardrails
+
+- `z.object().passthrough()` is forbidden for production data paths — use strict schemas.
+- `z.any()` and `z.unknown()` without a subsequent `.parse()` or `.safeParse()` call are validation gaps.
+- Zod schemas must not contain business logic — invariants belong in domain aggregates.
+
+## Review Checklist
+
+Use before merging any change touching `src/modules/` or `src/app/`.
+
+### Dependency Direction
+- [ ] `interfaces/` does not call `infrastructure/` or `domain/` internals directly?
+- [ ] `application/` depends only on `domain/` abstractions, not infrastructure implementations?
+- [ ] `domain/` has zero imports of Firebase / React / HTTP client / ORM?
+- [ ] `index.ts` exposes only the cross-module public surface, no repository factories or container wiring?
+
+### Import Boundary
+- [ ] Cross-module calls go through `src/modules/<target>/index.ts` only — no direct internal path imports?
+- [ ] Route components pass scope via props (`accountId`, `workspaceId`) and do not call foreign module context providers?
+
+### Module Shape
+- [ ] Bounded context root contains `index.ts`, `domain/`, `application/`, `infrastructure/`, `interfaces/`?
+- [ ] Subdomains follow core-first shape (`domain/`, `application/`, optional `ports/`) — `infrastructure/` and `interfaces/` are gate-based?
+
+### Layer Coupling Smells
+- [ ] No God Use Case mixing business rules with infrastructure logic?
+- [ ] No anemic model (aggregate with only getters/setters and no business methods)?
+- [ ] No layer skipping (`interfaces/` calling repositories directly)?
+
+### Runtime Boundary
+- [ ] Next.js does not execute parsing / chunking / embedding pipelines directly?
+- [ ] `py_fn/` contains no browser-facing auth / session / chat logic?
+
 ## Validation
 
 - Use `eslint.config.mjs` restricted-import and boundary rules as enforcement source.
 - Re-check changed imports under `@/modules/` for API-only access.
 - Keep dependency flow acyclic unless an explicit event contract documents an exception.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

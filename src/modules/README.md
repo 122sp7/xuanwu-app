@@ -1,4 +1,4 @@
-# src/modules — 模組實作層
+﻿# src/modules — 模組實作層
 
 ## 模組清單與子域對照
 
@@ -21,7 +21,7 @@
 ```
 需要：                                  去哪裡
 ────────────────────────────────────────────────────────────────
-讀取邊界規則 / published language       src/modules/<context>/AGENT.md
+讀取邊界規則 / published language       src/modules/<context>/AGENTS.md
 撰寫新 use case / entity / adapter      src/modules/<context>/
                                         以 src/modules/template 為骨架
 了解模組目錄與實作狀態                  src/modules/<context>/README.md
@@ -47,7 +47,7 @@ cp -r src/modules/template src/modules/<your-context>
 # Domain → Application → Ports → Adapters → Orchestration
 ```
 
-詳見 [template/README.md](template/README.md) 與 [template/AGENT.md](template/AGENT.md)。
+詳見 [template/README.md](template/README.md) 與 [template/AGENTS.md](template/AGENTS.md)。
 
 ---
 
@@ -61,7 +61,7 @@ cp -r src/modules/template src/modules/<your-context>
 | 在 `domain/` 中 import React、Firebase SDK、HTTP client、ORM | 破壞 domain 純度 |
 | 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
 | 新建或恢復 `workspace-workflow` 子域 | 已拆解（2026-04-15），禁止回歸 |
-| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENT.md |
+| 使用動詞式子域名（approve、scheduling、sharing、authoring、synthesis、conversations）| 子域以名詞命名，見各模組 AGENTS.md |
 | 在 ai 模組定義使用者對話 UX 或 task-formation 業務流程 | 對話屬 notebooklm；task-formation 屬 workspace |
 | 在 notion 模組定義 `knowledge-database`、`authoring`、`relations`、`taxonomy` 子域 | 已整合至名詞域（database / page / view / template）|
 
@@ -70,7 +70,7 @@ cp -r src/modules/template src/modules/<your-context>
 ## 文件網絡
 
 - [src/modules/template/README.md](template/README.md) — 多子域骨架說明
-- [src/modules/template/AGENT.md](template/AGENT.md) — 骨架使用規則（Copilot / Agent 專用）
-- [docs/bounded-contexts.md](../../docs/bounded-contexts.md) — 主域所有權地圖
-- [docs/subdomains.md](../../docs/subdomains.md) — 子域清單
-- [docs/ubiquitous-language.md](../../docs/ubiquitous-language.md) — 術語權威
+- [src/modules/template/AGENTS.md](template/AGENTS.md) — 骨架使用規則（Copilot / Agent 專用）
+- [docs/structure/domain/bounded-contexts.md](../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [docs/structure/domain/subdomains.md](../../docs/structure/domain/subdomains.md) — 子域清單
+- [docs/structure/domain/ubiquitous-language.md](../../docs/structure/domain/ubiquitous-language.md) — 術語權威

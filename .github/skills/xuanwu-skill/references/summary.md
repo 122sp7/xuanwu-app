@@ -42,30 +42,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1298 files | 36,692 lines
+1393 files | 41,289 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 806 | 10,185 |
-| Markdown | 279 | 20,877 |
-| TypeScript (TSX) | 85 | 1,951 |
+| TypeScript | 840 | 11,801 |
+| Markdown | 288 | 22,700 |
+| TypeScript (TSX) | 108 | 2,987 |
+| No Extension | 66 | 71 |
 | Python | 63 | 1,459 |
-| No Extension | 37 | 42 |
-| JSON | 19 | 1,910 |
+| JSON | 19 | 2,025 |
 | Text | 3 | 107 |
+| JavaScript (ESM) | 2 | 10 |
 | RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 32 |
-| YAML | 1 | 64 |
-| Other | 1 | 47 |
+| CSS | 1 | 47 |
+| Other | 1 | 64 |
 
 **Largest files:**
-- `docs/hard-rules-consolidated.md` (459 lines)
 - `firestore.indexes.json` (437 lines)
-- `docs/bounded-contexts.md` (280 lines)
-- `docs/subdomains.md` (279 lines)
+- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (387 lines)
+- `docs/structure/system/hard-rules-consolidated.md` (384 lines)
+- `docs/structure/domain/subdomains.md` (279 lines)
+- `docs/structure/domain/bounded-contexts.md` (278 lines)
 - `src/modules/template/README.md` (266 lines)
 - `py_fn/README.md` (265 lines)
-- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
-- `.github/prompts/enforce-hexagonal-ddd-convergence.prompt.md` (215 lines)
-- `.github/instructions/architecture.instructions.md` (214 lines)
-- `docs/decisions/README.md` (214 lines)
+- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
+- `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
+- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)

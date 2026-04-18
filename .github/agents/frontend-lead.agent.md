@@ -1,4 +1,4 @@
----
+﻿---
 name: Frontend Lead
 description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
 argument-hint: Provide route or feature scope, composition goal, and boundary constraints.
@@ -35,4 +35,4 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 - Consume module behavior via module api only.
 - Prefer server components unless client interactivity is required.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

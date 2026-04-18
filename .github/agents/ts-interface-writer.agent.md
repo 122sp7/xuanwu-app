@@ -1,4 +1,4 @@
----
+﻿---
 name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
 argument-hint: Provide interface or DTO name, owning module, field changes, and consumer compatibility requirements.
@@ -6,7 +6,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Review Domain Ownership
-    agent: Domain Lead
+    agent: Domain Architect
     prompt: Confirm the owning bounded context and public API boundary for these contract changes.
   - label: Write Server Action
     agent: Server Action Writer
@@ -21,7 +21,7 @@ handoffs:
 
 ## Target Scope
 
-- `src/modules/**/api/**`
+- `src/modules/**/application/dto/**`
 - `src/modules/**/application/dto/**`
 - `src/modules/shared/**`
 
@@ -37,4 +37,4 @@ handoffs:
 - Do not leak private infrastructure/entity internals into public API contracts.
 - Coordinate contract changes with consumer updates in the same change.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

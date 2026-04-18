@@ -1,7 +1,7 @@
 # 51 Hard Rules — Consolidated Placement Strategy (updated 2026-04-17)
 
 **Status**: Consolidated and documented  
-**Authority**: AGENTS.md (strategic) + module AGENT.md (tactical) + .github/instructions/* (operational)  
+**Authority**: AGENTS.md (strategic) + module AGENTS.md (tactical) + .github/instructions/* (operational)  
 **Reference Document**: `docs/hard-rules-consolidated.md`
 
 ---
@@ -18,7 +18,7 @@ All 50 hard rules now have assigned homes across 7 primary documents:
 | **security-rules.instructions.md** | 6 | File/metadata/permission (3, 29-32, 37-40) |
 | **context-map.md** | 4 | Cross-module data (24-27) |
 | **ESLint Config** | 3 | Boundary enforcement (2, 6-7, 49) |
-| **Module AGENT.md** | 12 | Tactical per-module rules |
+| **Module AGENTS.md** | 12 | Tactical per-module rules |
 
 **Total**: 51 rules consolidated; zero redundancy; clear enforcement chain
 
@@ -39,11 +39,11 @@ All 50 hard rules now have assigned homes across 7 primary documents:
 - **security-rules**: File lifecycle, metadata, permissions, ownership, scope
 - **context-map**: Cross-module data flow contracts
 
-### Tier 3: Operational (Module AGENT.md)
-- platform/AGENT.md: Infra ownership, Service API layers
-- workspace/AGENT.md: Orchestration constraint, zero business logic
-- notion/AGENT.md: AI agnostic, data ownership via API
-- notebooklm/AGENT.md: Notion API consumption, AI logging, async synthesis
+### Tier 3: Operational (Module AGENTS.md)
+- platform/AGENTS.md: Infra ownership, Service API layers
+- workspace/AGENTS.md: Orchestration constraint, zero business logic
+- notion/AGENTS.md: AI agnostic, data ownership via API
+- notebooklm/AGENTS.md: Notion API consumption, AI logging, async synthesis
 
 ### Tier 4: Enforcement (ESLint)
 - No cross-module internal imports (rule 2, 6-7)
@@ -57,7 +57,7 @@ All 50 hard rules now have assigned homes across 7 primary documents:
 When implementing a feature:
 
 1. **Check AGENTS.md**: Strategic ownership (which module owns this?)
-2. **Check module AGENT.md**: Tactical rules (what this module must/must-not do)
+2. **Check module AGENTS.md**: Tactical rules (what this module must/must-not do)
 3. **Check .github/instructions/**: Operational details (how to implement)
 4. **Run ESLint**: Boundary checks + import restrictions
 5. **Checkpoints**:
@@ -77,7 +77,7 @@ When implementing a feature:
 - `.github/instructions/event-driven-state.instructions.md` → Section "Event Bus Requirement"
 - `.github/instructions/security-rules.instructions.md` → Section "File & Data Ownership"
 - `docs/context-map.md` → Section "Cross-Module Data Contracts"
-- `modules/*/AGENT.md` → Module-specific constraints
+- `modules/*/AGENTS.md` → Module-specific constraints
 
 ---
 

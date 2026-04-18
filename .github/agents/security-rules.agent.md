@@ -1,4 +1,4 @@
----
+﻿---
 name: Security Rules Agent
 description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
 argument-hint: Provide actor roles, access scenarios, constrained collections/paths, and tenancy isolation requirements.
@@ -35,4 +35,4 @@ Prevent unauthorized access while preserving required product flows.
 - Prefer explicit allow conditions with clear actor checks.
 - Pair rule changes with validation scenarios.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

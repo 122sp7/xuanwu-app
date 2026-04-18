@@ -7,7 +7,7 @@ Defined in: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payl
 Both sides must stay semantically aligned. Changes to the TypeScript schema
 require corresponding updates here, and vice versa.
 
-See: docs/contexts/ai/cross-runtime-contracts.md
+See: docs/structure/contexts/ai/cross-runtime-contracts.md
 """
 
 from __future__ import annotations

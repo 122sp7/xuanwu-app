@@ -4,7 +4,7 @@
     "maxFileSize": 52428800
   },
   "output": {
-    "filePath": "repomix-output.json",
+    "filePath": "repomix-output-iam.json",
     "style": "json",
     "parsableStyle": true,
 
@@ -35,7 +35,8 @@
     }
   },
   "include": [
-    "src/modules/iam/**"
+    "src/modules/iam/**",
+    "docs/structure/contexts/iam/**"
   ],
     "ignore": {
     "useGitignore": true,

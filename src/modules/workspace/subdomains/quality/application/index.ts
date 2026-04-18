@@ -1,1 +1,6 @@
-export { SubmitTaskToQaUseCase, PassTaskQaUseCase } from "./use-cases/QualityUseCases";
+export {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "./use-cases/QualityUseCases";

@@ -1,4 +1,4 @@
----
+﻿---
 name: Shadcn Composer
 description: Compose and refactor UI components using shadcn patterns while preserving route and module ownership boundaries.
 argument-hint: Describe component goal, target route, and required interaction states.
@@ -37,4 +37,4 @@ handoffs:
 - Keep styling and behavior consistent with app composition boundaries.
 - Validate interactive states and accessibility basics.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

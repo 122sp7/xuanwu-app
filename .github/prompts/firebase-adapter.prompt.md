@@ -1,4 +1,4 @@
----
+﻿---
 name: firebase-adapter
 description: 將 Domain Ports 轉成 Firebase 基礎設施實作，生成 repository / gateway adapter，嚴格遵守 Hexagonal Architecture 的 infrastructure 層職責。
 applyTo: 'src/modules/**/infrastructure/**/*.{ts,tsx}'
@@ -33,7 +33,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 
 ## 工作流程
 
-1. 讀取 `docs/ubiquitous-language.md` 與對應 `docs/contexts/<context>/README.md`，確認命名一致。
+1. 讀取 `docs/structure/domain/ubiquitous-language.md` 與對應 `docs/structure/contexts/<context>/README.md`，確認命名一致。
 2. 讀取 `.github/instructions/architecture-core.instructions.md` 與 `.github/instructions/firestore-schema.instructions.md`，確認層級規則。
 3. 確認 Port 介面定義（在 `domain/repositories/` 或 `domain/ports/`）。
 4. 在 `src/modules/<context>/[subdomains/<sub>/]infrastructure/` 建立實作檔案：
@@ -59,5 +59,5 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 - `npm run lint` — 確認無邊界違規
 - `npm run build` — 確認型別一致
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd

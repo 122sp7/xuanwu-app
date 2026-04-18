@@ -1,4 +1,4 @@
----
+﻿---
 name: Firestore Schema Agent
 description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
 argument-hint: Provide collection name, document fields, query access patterns, and migration constraints.
@@ -31,4 +31,4 @@ handoffs:
 - Keep schema and index plans aligned with read and write paths.
 - Track migration impact and backward compatibility.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

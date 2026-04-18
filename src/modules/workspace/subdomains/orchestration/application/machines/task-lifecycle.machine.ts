@@ -50,6 +50,7 @@ export const taskLifecycleMachine = setup({
   types: {
     context: {} as TaskLifecycleContext,
     events: {} as TaskLifecycleEvent,
+    input: {} as { taskId: string; workspaceId: string },
   },
   actions: {
     setQaBlocked: assign({
@@ -78,7 +79,7 @@ export const taskLifecycleMachine = setup({
 }).createMachine({
   id: "taskLifecycle",
   initial: "draft",
-  context: ({ input }: { input: { taskId: string; workspaceId: string } }) => ({
+  context: ({ input }) => ({
     taskId: input.taskId,
     workspaceId: input.workspaceId,
     openIssueCount: 0,

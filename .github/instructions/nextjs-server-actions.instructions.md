@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Server Action rules for thin orchestration, validation at boundaries, and stable result contracts.'
 applyTo: '{src/app,src/modules}/**/*.{ts,tsx}'
 ---
@@ -13,6 +13,6 @@ applyTo: '{src/app,src/modules}/**/*.{ts,tsx}'
 - Validate inputs at action boundaries using shared validators where applicable.
 - Keep infrastructure access out of route files and action wrappers.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

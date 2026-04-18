@@ -1,4 +1,4 @@
----
+﻿---
 name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
 argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/py_fn), and quality constraints.
@@ -39,4 +39,4 @@ handoffs:
 - Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
 - Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

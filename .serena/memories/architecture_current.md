@@ -5,6 +5,7 @@
 - Shared boundaries live in `packages/*` behind `@shared-*`, `@integration-*`, `@ui-*`, and `@lib-*` aliases; legacy `@/shared/*`, `@/libs/*`, and similar paths are blocked.
 - Runtime split: Next.js owns browser-facing UX, auth/session, and orchestration; `py_fn` owns ingestion, parsing, chunking, embedding, and worker jobs.
 - Current topology baseline: `src/modules/` 是唯一模組實作層（`modules/` 根目錄已於 2026-04-17 刪除）。
+- Account + Organization 聚合根 ownership：已完全從 platform 遷入 iam/subdomains/account/ 與 iam/subdomains/organization/。所有系統文件（architecture-overview、context-map、module-graph、bounded-contexts、subdomains、ubiquitous-language）皆已更新，platform 不再宣稱 Account/Organization 正典所有權。
 
 ## Module & App Path Guardrail (SINGLE-LAYER — 2026-04-17+)
 
@@ -15,5 +16,5 @@
 
 - ❌ 不再有 `modules/<context>/` 根目錄（已刪除）
 - ❌ 不再有平行 `app/` 根目錄（已刪除）
-- ✅ 若不確定 → 查 `src/modules/<context>/AGENT.md` 的 Route Here/Elsewhere 段落
+- ✅ 若不確定 → 查 `src/modules/<context>/AGENTS.md` 的 Route Here/Elsewhere 段落
 - ✅ `src/modules/template/` 是新模組的骨架基線（完整多子域範本）

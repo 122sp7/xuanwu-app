@@ -1,4 +1,4 @@
----
+﻿---
 name: Test Scenario Writer
 description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
 argument-hint: Provide module or feature scope, happy path, known risk areas, and test coverage targets.
@@ -31,4 +31,4 @@ handoffs:
 - Boundary and negative paths
 - Error handling and regression-sensitive paths
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill 
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

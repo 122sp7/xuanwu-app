@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Parallel-route UI block composition rules with isolated local state and API-only module access.'
 applyTo: 'src/app/**/*.{ts,tsx}'
 ---
@@ -11,7 +11,7 @@ applyTo: 'src/app/**/*.{ts,tsx}'
 - Avoid hidden coupling between unrelated slots.
 - Consume cross-domain behavior through module APIs only.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill app-router-parallel-routes
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

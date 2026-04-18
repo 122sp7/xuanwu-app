@@ -4,7 +4,7 @@
     "maxFileSize": 52428800
   },
   "output": {
-    "filePath": "repomix-output.json",
+    "filePath": "repomix-output-ai.json",
     "style": "json",
     "parsableStyle": true,
 
@@ -35,7 +35,8 @@
     }
   },
   "include": [
-    "src/modules/ai/**"
+    "src/modules/ai/**",
+    "docs/structure/contexts/ai/**"
   ],
     "ignore": {
     "useGitignore": true,

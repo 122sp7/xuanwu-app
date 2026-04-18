@@ -4,7 +4,7 @@
     "maxFileSize": 52428800
   },
   "output": {
-    "filePath": "repomix-output.json",
+    "filePath": "repomix-output-packages.json",
     "style": "json",
     "parsableStyle": true,
 
@@ -42,10 +42,44 @@
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
-      "__pycache__",
-       "venv",
-       "tests",
-       ".pytest_cache"
+      ".next/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+
+      "repomix-output.*",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      "skills-lock.json",
+
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db",
+      ".github/skills/**/references/**"
     ]
   },
   "security": {

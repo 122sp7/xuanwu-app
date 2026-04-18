@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/platform/**
+- Only files matching these patterns are included: src/modules/platform/**, docs/structure/contexts/platform/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-92 files | 1,881 lines
+100 files | 2,806 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 72 | 926 |
-| TypeScript (TSX) | 18 | 813 |
-| Markdown | 2 | 142 |
+| TypeScript | 74 | 1,060 |
+| TypeScript (TSX) | 18 | 964 |
+| Markdown | 8 | 782 |
 
 **Largest files:**
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (190 lines)
+- `docs/structure/contexts/platform/ubiquitous-language.md` (141 lines)
+- `docs/structure/contexts/platform/README.md` (133 lines)
+- `docs/structure/contexts/platform/AGENTS.md` (108 lines)
 - `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
-- `src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (89 lines)
+- `src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (94 lines)
+- `docs/structure/contexts/platform/bounded-contexts.md` (89 lines)
+- `docs/structure/contexts/platform/subdomains.md` (89 lines)
 - `src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx` (86 lines)
 - `src/modules/platform/README.md` (84 lines)
-- `src/modules/platform/adapters/inbound/react/useAccountRouteContext.ts` (77 lines)
-- `src/modules/platform/adapters/inbound/react/shell/AccountSwitcher.tsx` (61 lines)
-- `src/modules/platform/adapters/inbound/react/shell/ShellRootLayout.tsx` (58 lines)
-- `src/modules/platform/adapters/inbound/react/shell/ShellDashboardSidebar.tsx` (58 lines)
-- `src/modules/platform/AGENT.md` (58 lines)
-- `src/modules/platform/adapters/inbound/react/shell/ShellSidebarNavData.tsx` (57 lines)

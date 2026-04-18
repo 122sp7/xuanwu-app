@@ -96,3 +96,6 @@ mcp_playwright-mc_browser_take_screenshot → 儲存至 scratchpad/
 | 輸出測試報告 | `mcp_markitdown_convert_to_markdown` |
 
 Tags: #use skill playwright-mcp-testing
+#use skill repomix
+#use skill context7
+#use skill serena-mcp

@@ -9,7 +9,7 @@
  */
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
@@ -48,6 +48,7 @@ import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
 export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { state: authState, logout } = useAuth();
   const { state: appState, dispatch: appDispatch } = useApp();
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
@@ -68,7 +69,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     });
   }
 
-  const pageTitle = resolveShellPageTitle(pathname);
+  const pageTitle = resolveShellPageTitle(pathname, searchParams.get("tab"));
   const organizationAccounts = Object.values(appState.accounts ?? {});
   const accountWorkspaces: WorkspaceEntity[] = Object.values(wsState.workspaces ?? {});
   const showAccountManagement = isOrganizationActor(appState.activeAccount);

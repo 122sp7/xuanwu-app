@@ -1,4 +1,4 @@
----
+﻿---
 description: 'Lint and formatting expectations for TypeScript and Python changes.'
 applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 ---
@@ -16,5 +16,5 @@ applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,j
 - Fix new lint errors introduced by your change.
 - Do not hide violations by broad rule disables.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-skill
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill vscode-typescript-workbench
