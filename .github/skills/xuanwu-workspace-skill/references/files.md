@@ -1646,7 +1646,7 @@ delete(taskId: string): Promise<void>;
 
 ## Mission
 
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、日誌、排程與工作流，而不是吸收平台治理或知識內容正典。
 
 ## Canonical Ownership
 
@@ -1930,13 +1930,13 @@ flowchart LR
 
 ## Purpose
 
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、日誌、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
 
 ## Why This Context Exists
 
 - 把工作區容器語意與平台治理語意分離。
 - 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+- 把活動流、日誌、排程與流程協調收斂為同一主域內的高凝聚能力。
 
 ## Context Summary
 
@@ -2062,7 +2062,7 @@ flowchart LR
 
 | Subdomain | Responsibility |
 |---|---|
-| audit | 工作區操作稽核與證據追蹤 |
+| audit | 工作區操作日誌與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
 | approve | 任務驗收與問題單覆核審批流程 |
@@ -4685,7 +4685,7 @@ export function createClientWorkspaceLifecycleUseCases()
 | `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
 | `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
 | `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
-| `audit` | 稽核紀錄實體 | 🔨 骨架建立，實作進行中 |
+| `audit` | 日誌紀錄實體 | 🔨 骨架建立，實作進行中 |
 | `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
 | `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
 | `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
@@ -4762,7 +4762,7 @@ export function createClientWorkspaceLifecycleUseCases()
 | `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
 | `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
 | `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
-| `audit` | 🔨 骨架建立，實作進行中 | 稽核紀錄實體 |
+| `audit` | 🔨 骨架建立，實作進行中 | 日誌紀錄實體 |
 | `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
 | `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
 | `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|

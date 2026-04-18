@@ -16783,7 +16783,7 @@ export function createClientWorkspaceLifecycleUseCases()
 | `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
 | `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
 | `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
-| `audit` | 稽核紀錄實體 | 🔨 骨架建立，實作進行中 |
+| `audit` | 日誌紀錄實體 | 🔨 骨架建立，實作進行中 |
 | `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
 | `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
 | `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
@@ -16860,7 +16860,7 @@ export function createClientWorkspaceLifecycleUseCases()
 | `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
 | `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
 | `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
-| `audit` | 🔨 骨架建立，實作進行中 | 稽核紀錄實體 |
+| `audit` | 🔨 骨架建立，實作進行中 | 日誌紀錄實體 |
 | `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
 | `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
 | `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|

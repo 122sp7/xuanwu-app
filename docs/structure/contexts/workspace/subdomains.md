@@ -6,7 +6,7 @@
 
 | Subdomain | Responsibility |
 |---|---|
-| audit | 工作區操作稽核與證據追蹤 |
+| audit | 工作區操作日誌與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
 | approve | 任務驗收與問題單覆核審批流程 |

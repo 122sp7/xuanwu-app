@@ -107,7 +107,7 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| audit | 工作區操作稽核與證據追蹤 |
+| audit | 工作區操作日誌與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
 | approve | 任務驗收與問題單覆核審批流程 |
@@ -136,14 +136,14 @@
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
+| compliance | 資料保留、日誌與法規執行 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
 | background-job | 背景任務提交、排程與監控 |
 | content | 平台級內容資產管理與發布 |
 | search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
+| audit-log | 永久日誌軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
 
@@ -217,7 +217,7 @@
 - billing 關心商業生命週期與有效權益。
 - ai 關心共享 AI capability 與模型政策。
 - analytics 關心下游分析、指標與 read model 投影。
-- platform 關心 operational service（通知、搜尋、稽核、可觀測性等），不再擁有 account 與 organization。
+- platform 關心 operational service（通知、搜尋、日誌、可觀測性等），不再擁有 account 與 organization。
 - workspace 關心協作範疇。
 - notion 關心正典知識內容。
 - notebooklm 關心推理與衍生輸出。
