@@ -3,9 +3,13 @@
 /**
  * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
  * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
+ *
+ * Closed-loop design: uploaded documents are the entry point of the data loop.
+ * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
  */
 
-import { Upload, RefreshCw, FileUp } from "lucide-react";
+import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus } from "lucide-react";
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { Button } from "@ui-shadcn/ui/button";
 import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
@@ -74,6 +78,9 @@ export function NotebooklmSourcesSection({
   };
 
   const isPending = isRefreshing || isUploading;
+  const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
+
+  const hasReadyDocs = documents.some((d) => d.status === "active");
 
   return (
     <div className="space-y-4">
@@ -125,6 +132,20 @@ export function NotebooklmSourcesSection({
         </p>
       )}
 
+      {/* Processing chain banner — always visible once loaded */}
+      {loaded && (
+        <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/40 bg-muted/20 px-4 py-3 text-xs">
+          <span className="shrink-0 text-muted-foreground font-medium">處理鏈：</span>
+          <span className="shrink-0 rounded bg-orange-500/10 px-2 py-0.5 text-orange-600">① 上傳</span>
+          <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
+          <span className="shrink-0 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600">② py_fn 解析</span>
+          <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
+          <span className="shrink-0 rounded bg-purple-500/10 px-2 py-0.5 text-purple-600">③ RAG 索引</span>
+          <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
+          <span className="shrink-0 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600">④ 就緒</span>
+        </div>
+      )}
+
       {loaded && documents.length === 0 && (
         <p className="text-sm text-muted-foreground">
           尚無來源文件。請點擊「上傳文件」，或直接上傳至
@@ -162,6 +183,34 @@ export function NotebooklmSourcesSection({
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Downstream CTAs when documents are ready */}
+      {loaded && hasReadyDocs && (
+        <div className="flex flex-wrap gap-2 border-t border-border/30 pt-3">
+          <p className="w-full text-xs text-muted-foreground">已就緒文件可用於：</p>
+          <Link
+            href={`${base}?tab=Notebook`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-xs hover:bg-muted"
+          >
+            <BookOpen className="size-3.5" />
+            RAG 查詢
+          </Link>
+          <Link
+            href={`${base}?tab=Research`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-xs hover:bg-muted"
+          >
+            <BookOpen className="size-3.5" />
+            研究合成
+          </Link>
+          <Link
+            href={`${base}?tab=TaskFormation`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs text-primary hover:bg-primary/10"
+          >
+            <ListPlus className="size-3.5" />
+            任務形成
+          </Link>
+        </div>
       )}
     </div>
   ) as React.ReactElement;

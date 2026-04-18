@@ -2,9 +2,13 @@
 
 /**
  * NotionPagesSection — notion.pages tab — hierarchical page list.
+ *
+ * Closed-loop design: pages are the knowledge output of document parsing.
+ * Each page can be sent to workspace.task-formation as a task generation source.
  */
 
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, ListPlus } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@ui-shadcn/ui/button";
 import { Input } from "@ui-shadcn/ui/input";
@@ -15,6 +19,10 @@ interface NotionPagesSectionProps {
   workspaceId: string;
   accountId: string;
   currentUserId: string;
+}
+
+function taskFormationHref(accountId: string, workspaceId: string) {
+  return `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=TaskFormation`;
 }
 
 export function NotionPagesSection({
@@ -86,13 +94,28 @@ export function NotionPagesSection({
               {pages.map((page) => (
                 <li
                   key={page.id}
-                  className="rounded-lg border border-border/40 px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2 text-sm"
                 >
-                  <span className="font-medium">{page.title}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">{page.status}</span>
+                  <div>
+                    <span className="font-medium">{page.title}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{page.status}</span>
+                  </div>
+                  <Link
+                    href={taskFormationHref(accountId, workspaceId)}
+                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title="發送至任務形成"
+                  >
+                    <ListPlus className="size-3" />
+                    → 任務形成
+                  </Link>
                 </li>
               ))}
             </ul>
+          )}
+          {pages.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              點擊頁面右側「→ 任務形成」可將此頁面作為任務生成的來源。
+            </p>
           )}
         </>
       )}

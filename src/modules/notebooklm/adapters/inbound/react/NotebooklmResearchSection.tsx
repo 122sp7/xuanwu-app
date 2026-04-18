@@ -3,9 +3,13 @@
 /**
  * NotebooklmResearchSection — notebooklm.research tab — workspace synthesis.
  * Calls rag_query with a synthesis prompt to summarise all workspace documents.
+ *
+ * Closed-loop design: the synthesis result can be forwarded to
+ * workspace.task-formation as the AI research source for task generation.
  */
 
-import { BookOpen, FlaskConical } from "lucide-react";
+import { BookOpen, FlaskConical, ListPlus } from "lucide-react";
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@ui-shadcn/ui/button";
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
@@ -14,6 +18,10 @@ import { synthesizeWorkspaceAction } from "../server-actions/notebook-actions";
 interface NotebooklmResearchSectionProps {
   workspaceId: string;
   accountId: string;
+}
+
+function taskFormationHref(accountId: string, workspaceId: string) {
+  return `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=TaskFormation`;
 }
 
 export function NotebooklmResearchSection({
@@ -97,6 +105,23 @@ export function NotebooklmResearchSection({
               </p>
             </div>
           )}
+
+          {/* Closed-loop CTA: forward research result to task formation */}
+          <div className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+            <div className="space-y-0.5">
+              <p className="text-xs font-medium text-emerald-700">研究摘要已就緒</p>
+              <p className="text-xs text-emerald-600/80">
+                可將此 AI 研究合成結果作為任務形成的來源依據。
+              </p>
+            </div>
+            <Link
+              href={taskFormationHref(accountId, workspaceId)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-500/20"
+            >
+              <ListPlus className="size-3.5" />
+              → 生成任務
+            </Link>
+          </div>
         </div>
       )}
     </div>
