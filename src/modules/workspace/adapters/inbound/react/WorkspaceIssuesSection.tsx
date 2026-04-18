@@ -52,13 +52,12 @@ export function WorkspaceIssuesSection({
 }: WorkspaceIssuesSectionProps): React.ReactElement {
   const [filter, setFilter] = useState<IssueFilter>("全部");
   const [issues, setIssues] = useState<IssueSnapshot[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const isLoading = loadedWorkspaceId !== workspaceId;
 
-  useEffect(() => {
-    setIsLoading(true);
-    // Load all tasks, then load issues for each task
-    listTasksByWorkspaceAction(workspaceId)
+  const loadIssues = (targetWorkspaceId: string) =>
+    listTasksByWorkspaceAction(targetWorkspaceId)
       .then(async (tasks) => {
         const issueArrays = await Promise.all(
           tasks.map((t) => listIssuesByTaskAction(t.id)),
@@ -66,7 +65,11 @@ export function WorkspaceIssuesSection({
         return issueArrays.flat();
       })
       .then(setIssues)
-      .finally(() => setIsLoading(false));
+      .catch(() => setIssues([]))
+      .finally(() => setLoadedWorkspaceId(targetWorkspaceId));
+
+  useEffect(() => {
+    loadIssues(workspaceId);
   }, [workspaceId]);
 
   const filteredIssues = issues.filter((i) =>
@@ -75,14 +78,7 @@ export function WorkspaceIssuesSection({
 
   const handleRefresh = () => {
     startTransition(() => {
-      listTasksByWorkspaceAction(workspaceId)
-        .then(async (tasks) => {
-          const issueArrays = await Promise.all(
-            tasks.map((t) => listIssuesByTaskAction(t.id)),
-          );
-          return issueArrays.flat();
-        })
-        .then(setIssues);
+      loadIssues(workspaceId);
     });
   };
 
@@ -181,4 +177,3 @@ export function WorkspaceIssuesSection({
     </div>
   ) as React.ReactElement;
 }
-
