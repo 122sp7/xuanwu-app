@@ -101,84 +101,18 @@
   copilot-instructions.md (95 lines)
 docs/
   decisions/
-    0001-hexagonal-architecture.md (80 lines)
-    0002-bounded-contexts.md (81 lines)
-    0003-context-map.md (79 lines)
-    0004-ubiquitous-language.md (79 lines)
-    0005-anti-corruption-layer.md (80 lines)
-    0006-domain-event-discriminant-format.md (117 lines)
-    0007-infrastructure-in-api-layer.md (73 lines)
-    0008-repository-interface-placement.md (83 lines)
-    0009-anemic-aggregates.md (81 lines)
-    0010-aggregate-domain-event-emission.md (114 lines)
-    0011-use-case-bundling.md (129 lines)
-    0012-source-to-task-orchestration.md (73 lines)
-    0014-main-domain-resplit.md (46 lines)
-    0015-api-layer-removal.md (76 lines)
-    1100-layer-violation.md (86 lines)
-    1101-layer-violation-crypto-in-domain.md (97 lines)
-    1102-layer-violation-ports-in-application.md (127 lines)
-    1103-layer-violation-firebase-sdk-in-api-layer.md (90 lines)
-    1104-layer-violation-globalthis-crypto-in-application-layer.md (78 lines)
-    1200-boundary-violation.md (107 lines)
-    1201-boundary-violation-business-logic-in-infrastructure.md (119 lines)
-    1300-cyclic-dependency.md (117 lines)
-    1400-dependency-leakage.md (64 lines)
-    1401-dependency-leakage-infrastructure-api-in-platform-api.md (119 lines)
-    1402-dependency-leakage-use-case-classes-in-platform-api.md (124 lines)
-    1403-dependency-leakage-subdomain-api-exports-interfaces-wildcard.md (81 lines)
-    1404-dependency-leakage-subdomain-api-exports-application-wildcard.md (90 lines)
-    2100-tight-coupling.md (71 lines)
-    2101-tight-coupling-crypto-runtime.md (98 lines)
-    2200-hidden-coupling.md (59 lines)
-    2201-hidden-coupling-workspace-aggregate-no-domain-events.md (162 lines)
-    2300-temporal-coupling.md (63 lines)
-    3100-low-cohesion.md (89 lines)
-    3101-low-cohesion-platform-application-layer.md (105 lines)
-    3200-duplication.md (95 lines)
-    3201-duplication-event-discriminant-format.md (111 lines)
-    3202-duplication-source-dto-reimplements-domain-service.md (68 lines)
-    3203-duplication-shell-quick-create-orphaned-platform-copy.md (143 lines)
-    4100-change-amplification.md (71 lines)
-    4101-change-amplification-uuid-strategy.md (93 lines)
-    4200-inconsistency.md (78 lines)
-    4201-inconsistency-dto-vs-dtos.md (110 lines)
-    4202-inconsistency-uuid-v7-in-workspace-domain-events.md (109 lines)
-    4203-inconsistency-uuid-v7-application-infrastructure-layers.md (126 lines)
-    4300-semantic-drift.md (75 lines)
-    4301-semantic-drift-application-subdirectory-names.md (113 lines)
-    4302-semantic-drift-notion-notebooklm-event-discriminant-format.md (75 lines)
-    4303-semantic-drift-workspace-event-discriminants-use-underscore.md (119 lines)
-    5100-accidental-complexity.md (89 lines)
-    5101-accidental-complexity-platform-domain-stubs.md (144 lines)
-    5200-cognitive-load.md (105 lines)
-    5201-cognitive-load-workspace-workflow-application.md (151 lines)
-    5202-cognitive-load-workspace-dto-mixes-types-and-factory-functions.md (157 lines)
-    5203-cognitive-load-subdomain-api-unscoped-wildcard-exports.md (107 lines)
-    6100-migration-gap-registry.md (75 lines)
-    6101-lost-notebooklm-source-subdomain.md (89 lines)
-    6102-lost-notebooklm-synthesis-subdomain.md (80 lines)
-    6103-lost-notebooklm-interfaces-layer.md (76 lines)
-    6104-lost-notion-authoring-subdomain.md (95 lines)
-    6105-lost-notion-knowledge-database-subdomain.md (87 lines)
-    6106-lost-notion-knowledge-subdomain.md (76 lines)
-    6107-lost-platform-domain-model.md (109 lines)
-    6108-lost-platform-api-contracts.md (76 lines)
-    6109-lost-workspace-interfaces-layer.md (82 lines)
-    6110-lost-ai-prompt-pipeline-subdomain.md (102 lines)
-    6111-lost-ai-missing-subdomains.md (108 lines)
-    6112-lost-ai-governance-docs.md (81 lines)
-    6113-lost-packages.md (93 lines)
-    6114-lost-docs-semantic-model.md (113 lines)
-    6115-lost-docs-discussions.md (99 lines)
-    6116-gained-shell-ui-components.md (60 lines)
-    6117-gained-packages-ui-shadcn.md (62 lines)
-    6118-gained-modules-template.md (69 lines)
-    6119-gained-workspace-new-subdomains.md (91 lines)
-    6120-gained-platform-new-subdomains.md (76 lines)
-    6121-gained-ai-restructured-subdomains.md (73 lines)
-    README.md (214 lines)
-    SMELL-INDEX.md (121 lines)
+    ai/
+      .gitkeep (0 lines)
+    architecture/
+      .gitkeep (0 lines)
+    data/
+      .gitkeep (0 lines)
+    domain/
+      .gitkeep (0 lines)
+    meta/
+      .gitkeep (0 lines)
+    platform/
+      .gitkeep (0 lines)
   examples/
     ai/
       .gitkeep (0 lines)
@@ -193,7 +127,6 @@ docs/
         AGENTS.md (8 lines)
         README.md (10 lines)
         upload-parse-to-task-flow.md (77 lines)
-      .gitkeep (0 lines)
     modules/
       feature/
         AGENTS.md (8 lines)
@@ -201,9 +134,9 @@ docs/
         py-fn-ts-capability-bridge.md (387 lines)
         README.md (12 lines)
         workspace-nav-notion-notebooklm-implementation-guide.md (241 lines)
-      .gitkeep (0 lines)
-    .gitkeep (0 lines)
   structure/
+    ai/
+      .gitkeep (0 lines)
     contexts/
       ai/
         AGENTS.md (95 lines)
@@ -264,6 +197,8 @@ docs/
         subdomains.md (80 lines)
         ubiquitous-language.md (120 lines)
       _template.md (144 lines)
+    data/
+      .gitkeep (0 lines)
     domain/
       bounded-context-subdomain-template.md (203 lines)
       bounded-contexts.md (278 lines)
@@ -271,6 +206,8 @@ docs/
       event-driven-design.md (189 lines)
       subdomains.md (279 lines)
       ubiquitous-language.md (166 lines)
+    modules/
+      .gitkeep (0 lines)
     system/
       architecture-overview.md (135 lines)
       context-map.md (121 lines)
@@ -281,24 +218,21 @@ docs/
       source-to-task-flow.md (94 lines)
       strategic-patterns.md (79 lines)
       ui-ux-closed-loop.md (134 lines)
-    .gitkeep (0 lines)
+    templates/
+      .gitkeep (0 lines)
   tooling/
     ci-cd/
       .gitkeep (0 lines)
     cli/
       .gitkeep (0 lines)
     firebase/
-      .gitkeep (0 lines)
       firebase-architecture.md (197 lines)
     firestore/
       .gitkeep (0 lines)
     genkit/
-      .gitkeep (0 lines)
       genkit-flow-standards.md (229 lines)
     nextjs/
-      .gitkeep (0 lines)
       state-machine-model.md (186 lines)
-    .gitkeep (0 lines)
     commands-reference.md (54 lines)
     knowledge-base-reference.md (41 lines)
   AGENTS.md (39 lines)
@@ -306,21 +240,22 @@ docs/
 packages/
   infra/
     client-state/
-      .gitkeep (0 lines)
-    date/
-      .gitkeep (0 lines)
-    genkit/
-      .gitkeep (0 lines)
+      AGENTS.md (33 lines)
     http/
-      .gitkeep (0 lines)
+      AGENTS.md (34 lines)
     serialization/
-      .gitkeep (0 lines)
+      AGENTS.md (33 lines)
+    state/
+      AGENTS.md (35 lines)
+    trpc/
+      AGENTS.md (35 lines)
     uuid/
-      .gitkeep (0 lines)
+      AGENTS.md (43 lines)
     zod/
-      .gitkeep (0 lines)
-  integration-data/
-    .gitkeep (0 lines)
+      AGENTS.md (34 lines)
+    AGENTS.md (35 lines)
+  integration-ai/
+    AGENTS.md (45 lines)
   integration-firebase/
     auth/
       .gitkeep (0 lines)
@@ -338,16 +273,14 @@ packages/
     index.ts (4 lines)
     README.md (48 lines)
     storage.ts (19 lines)
-  integration-state/
-    .gitkeep (0 lines)
-  integration-trpc/
-    .gitkeep (0 lines)
+  integration-queue/
+    AGENTS.md (42 lines)
   ui-components/
-    .gitkeep (0 lines)
+    AGENTS.md (35 lines)
   ui-editor/
-    .gitkeep (0 lines)
+    AGENTS.md (42 lines)
   ui-markdown/
-    .gitkeep (0 lines)
+    AGENTS.md (35 lines)
   ui-shadcn/
     hooks/
       use-mobile.ts (3 lines)
@@ -422,9 +355,10 @@ packages/
     index.ts (15 lines)
     README.md (86 lines)
   ui-visualization/
-    .gitkeep (0 lines)
-  AGENTS.md (59 lines)
-  README.md (82 lines)
+    AGENTS.md (35 lines)
+  AGENTS.md (95 lines)
+  index.ts (0 lines)
+  README.md (106 lines)
 py_fn/
   .serena/
     .gitkeep (0 lines)
@@ -1710,8 +1644,8 @@ src/
             entities/
               Template.ts (40 lines)
             events/
-              TemplateCreatedEvent.ts (12 lines)
-              TemplateUpdatedEvent.ts (12 lines)
+              TemplateCreatedEvent.ts (13 lines)
+              TemplateUpdatedEvent.ts (13 lines)
             repositories/
               TemplateRepository.ts (16 lines)
             services/
@@ -1753,7 +1687,7 @@ src/
             entities/
               GeneratedTemplate.ts (30 lines)
             events/
-              GenerationCompletedEvent.ts (7 lines)
+              GenerationCompletedEvent.ts (13 lines)
             repositories/
               GenerationRepository.ts (16 lines)
             services/
@@ -1792,9 +1726,9 @@ src/
             index.ts (2 lines)
           domain/
             entities/
-              IngestionJob.ts (39 lines)
+              IngestionJob.ts (46 lines)
             events/
-              IngestionJobEvents.ts (13 lines)
+              IngestionJobEvents.ts (24 lines)
             repositories/
               IngestionJobRepository.ts (15 lines)
             services/
@@ -1828,9 +1762,10 @@ src/
             index.ts (2 lines)
           domain/
             entities/
-              TemplateWorkflow.ts (47 lines)
+              template-state-model.test.ts (5 lines)
+              TemplateWorkflow.ts (59 lines)
             events/
-              WorkflowEvents.ts (13 lines)
+              WorkflowEvents.ts (40 lines)
             repositories/
               TemplateWorkflowRepository.ts (13 lines)
             services/
