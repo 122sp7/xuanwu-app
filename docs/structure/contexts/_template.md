@@ -133,12 +133,12 @@ flowchart LR
 
 ## Document Network
 
-- [../README.md](../README.md)
-- [../architecture-overview.md](../architecture-overview.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../bounded-contexts.md](../bounded-contexts.md)
-- [../context-map.md](../context-map.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-- [../subdomains.md](../subdomains.md)
-- [../ubiquitous-language.md](../ubiquitous-language.md)
-- [../decisions/README.md](../decisions/README.md)
+- [../README.md](../../README.md)
+- [../architecture-overview.md](../system/architecture-overview.md)
+- [../bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [../bounded-contexts.md](../domain/bounded-contexts.md)
+- [../context-map.md](../system/context-map.md)
+- [../integration-guidelines.md](../system/integration-guidelines.md)
+- [../subdomains.md](../domain/subdomains.md)
+- [../ubiquitous-language.md](../domain/ubiquitous-language.md)
+- ../decisions/README.md

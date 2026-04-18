@@ -1,4 +1,4 @@
-# Bounded Contexts
+﻿# Bounded Contexts
 
 ## Strategic Bounded Context Model
 
@@ -274,5 +274,5 @@ flowchart LR
 - [context-map.md](../system/context-map.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](../system/project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+- decisions/0001-hexagonal-architecture.md
+- decisions/0002-bounded-contexts.md

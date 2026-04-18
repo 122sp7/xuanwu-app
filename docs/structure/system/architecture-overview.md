@@ -1,4 +1,4 @@
-# Architecture Overview
+﻿# Architecture Overview
 
 ## System Shape
 
@@ -122,7 +122,7 @@ flowchart LR
 - [strategic-patterns.md](./strategic-patterns.md)
 - [bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- decisions/0001-hexagonal-architecture.md
 
 ## Reading Path
 
@@ -132,4 +132,4 @@ flowchart LR
 4. [ubiquitous-language.md](../domain/ubiquitous-language.md)
 5. [integration-guidelines.md](./integration-guidelines.md)
 6. [strategic-patterns.md](./strategic-patterns.md)
-7. [decisions/README.md](../../decisions/README.md)
+7. decisions/README.md

@@ -1,7 +1,7 @@
-
+﻿
 # System-Wide Module Graph
 
-本圖反映 [0014-main-domain-resplit.md](../../decisions/0014-main-domain-resplit.md) 確立的八主域重切 baseline。
+本圖反映 0014-main-domain-resplit.md 確立的八主域重切 baseline。
 
 凡例：
   subdomain          = Baseline subdomain（已基線化）

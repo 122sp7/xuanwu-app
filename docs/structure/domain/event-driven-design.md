@@ -183,7 +183,7 @@ occurredAt: Timestamp.now()            // Firestore Timestamp（domain 不能有
 
 ## Document Network
 
-- [firebase-architecture.md](./firebase-architecture.md)
-- [state-machine-model.md](./state-machine-model.md)
-- [`../.github/instructions/event-driven-state.instructions.md`](../../.github/instructions/event-driven-state.instructions.md)
-- [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md)
+- [firebase-architecture.md](../../tooling/firebase/firebase-architecture.md)
+- [state-machine-model.md](../../tooling/nextjs/state-machine-model.md)
+- [`../.github/instructions/event-driven-state.instructions.md`](../../../.github/instructions/event-driven-state.instructions.md)
+- [`docs/structure/system/hard-rules-consolidated.md`](../system/hard-rules-consolidated.md)
