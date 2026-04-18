@@ -1,4 +1,4 @@
-# DDD 戰略設計規則 — AI Context
+﻿# DDD 戰略設計規則 — AI Context
 
 本文件整理 Domain-Driven Design 的核心戰略概念，並直接對應 `ai` bounded context 的設計決策。
 
@@ -115,5 +115,5 @@ Generic Domain（可外包／第三方替換）
 - [bounded-contexts.md](./bounded-contexts.md) — 邊界責任定義
 - [context-map.md](./context-map.md) — 與其他 context 的關係圖
 - [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
-- [../../bounded-contexts.md](../../bounded-contexts.md) — 全域主域所有權地圖
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md) — ADR：界限上下文決策
+- [../../bounded-contexts.md](../domain/bounded-contexts.md) — 全域主域所有權地圖
+- ../../decisions/0002-bounded-contexts.md — ADR：界限上下文決策

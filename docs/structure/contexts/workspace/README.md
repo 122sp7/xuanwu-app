@@ -1,4 +1,4 @@
-# Workspace Context
+﻿# Workspace Context
 
 本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
 
@@ -115,9 +115,9 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../README.md](../../../README.md)
+- [../../architecture-overview.md](../system/architecture-overview.md)
+- [../../integration-guidelines.md](../system/integration-guidelines.md)
 
 ## Constraints
 

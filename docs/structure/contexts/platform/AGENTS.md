@@ -1,4 +1,4 @@
-# Platform Agent
+﻿# Platform Agent
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
@@ -101,8 +101,8 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+- [../../architecture-overview.md](../system/architecture-overview.md)
+- [../../integration-guidelines.md](../system/integration-guidelines.md)
+- ../../decisions/0001-hexagonal-architecture.md
+- ../../decisions/0003-context-map.md
+- ../../decisions/0005-anti-corruption-layer.md

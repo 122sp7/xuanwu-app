@@ -1,4 +1,4 @@
-# AI Context Agent Guide
+﻿# AI Context Agent Guide
 
 ## Mission
 
@@ -90,6 +90,6 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../architecture-overview.md](../system/architecture-overview.md)
+- ../../decisions/0001-hexagonal-architecture.md
+- ../../decisions/0003-context-map.md

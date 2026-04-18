@@ -1,4 +1,4 @@
-# AI Context
+﻿# AI Context
 
 ## Purpose
 
@@ -69,5 +69,5 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../architecture-overview.md](../system/architecture-overview.md)
+- [../../integration-guidelines.md](../system/integration-guidelines.md)
