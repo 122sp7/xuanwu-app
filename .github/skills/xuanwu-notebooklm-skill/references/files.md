@@ -1,5 +1,76 @@
 # Files
 
+## File: src/modules/notebooklm/shared/errors/index.ts
+````typescript
+// notebooklm shared/errors placeholder
+````
+
+## File: src/modules/notebooklm/shared/events/index.ts
+````typescript
+// notebooklm shared/events placeholder
+````
+
+## File: src/modules/notebooklm/shared/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/shared/types/index.ts
+````typescript
+// notebooklm shared/types placeholder
+````
+
+## File: src/modules/notebooklm/subdomains/conversation/adapters/inbound/index.ts
+````typescript
+// conversation — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notebooklm/subdomains/conversation/adapters/index.ts
+````typescript
+// conversation — adapters aggregate
+````
+
+## File: src/modules/notebooklm/subdomains/conversation/adapters/outbound/index.ts
+````typescript
+// conversation — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notebooklm/subdomains/document/adapters/inbound/index.ts
+````typescript
+// document — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notebooklm/subdomains/document/adapters/index.ts
+````typescript
+// document — adapters aggregate
+````
+
+## File: src/modules/notebooklm/subdomains/document/adapters/outbound/index.ts
+````typescript
+// document — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/adapters/inbound/index.ts
+````typescript
+// notebook — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/adapters/index.ts
+````typescript
+// notebook — adapters aggregate
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/adapters/outbound/index.ts
+````typescript
+// notebook — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
 ## File: docs/structure/contexts/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Agent
@@ -553,48 +624,390 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
+## File: src/modules/notebooklm/adapters/inbound/react/index.ts
+````typescript
+/**
+ * notebooklm/adapters/inbound/react — barrel.
+ * Section components for notebooklm tabs in the workspace view.
+ */
+````
+
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmAiChatSection.tsx
+````typescript
+/**
+ * NotebooklmAiChatSection — notebooklm.ai-chat tab — RAG Q&A interface.
+ * Calls py_fn rag_query callable via ragQueryAction server action.
+ */
+⋮----
+import { MessageSquare, Send } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
+import { ragQueryAction } from "../server-actions/notebook-actions";
+⋮----
+interface NotebooklmAiChatSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: RagQueryOutput["citations"];
+}
+⋮----
+const handleSubmit = () =>
+````
+
+## File: src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts
+````typescript
+/**
+ * document-actions — notebooklm document server actions.
+ *
+ * Handles document upload (via Firebase Storage) and listing.
+ * py_fn Storage Trigger runs parse + RAG automatically after upload.
+ */
+⋮----
+import { z } from "zod";
+import {
+  createClientNotebooklmDocumentUseCases,
+} from "../../outbound/firebase-composition";
+⋮----
+// ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+// ── Actions ───────────────────────────────────────────────────────────────────
+⋮----
+/**
+ * queryDocumentsAction — list documents for a workspace.
+ * Reads from Firestore (accounts/{accountId}/documents).
+ */
+export async function queryDocumentsAction(rawInput: unknown)
+⋮----
+/**
+ * registerUploadedDocumentAction — register a document snapshot after upload.
+ *
+ * Call this after uploadDocumentToStorage() completes on the client.
+ * py_fn's Storage Trigger will also fire automatically to run parse + RAG.
+ * This action records the document in the local domain for immediate UI feedback.
+ */
+export async function registerUploadedDocumentAction(rawInput: unknown)
+````
+
+## File: src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts
+````typescript
+/**
+ * FirebaseCallableAdapter — HTTPS Callable bridge to py_fn.
+ *
+ * Wraps Firebase Cloud Function callables for:
+ *   - rag_query  (RAG retrieval + generation)
+ *   - parse_document (manual trigger for document parsing)
+ *   - rag_reindex_document (re-embed a document)
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/callable/
+ * which matches src/modules/<context>/adapters/outbound/**.
+ */
+⋮----
+import { getFirebaseFunctions, httpsCallable } from "@integration-firebase/functions";
+⋮----
+// ── Input / output contracts ──────────────────────────────────────────────────
+⋮----
+export interface RagQueryInput {
+  readonly account_id: string;
+  readonly workspace_id: string;
+  readonly query: string;
+  readonly top_k?: number;
+}
+⋮----
+export interface RagQueryCitation {
+  readonly doc_id: string;
+  readonly chunk_id: string;
+  readonly filename: string;
+  readonly score: number;
+}
+⋮----
+export interface RagQueryOutput {
+  readonly answer: string;
+  readonly citations: RagQueryCitation[];
+  readonly cache: "hit" | "miss";
+  readonly vector_hits: number;
+  readonly search_hits: number;
+}
+⋮----
+export interface ParseDocumentInput {
+  readonly account_id: string;
+  readonly workspace_id: string;
+  readonly gcs_uri: string;
+  readonly doc_id?: string;
+  readonly filename?: string;
+}
+⋮----
+export interface ReindexDocumentInput {
+  readonly account_id: string;
+  readonly doc_id: string;
+}
+⋮----
+// ── Callable wrappers ─────────────────────────────────────────────────────────
+⋮----
+export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput>
+⋮----
+export async function callParseDocument(input: ParseDocumentInput): Promise<void>
+⋮----
+export async function callReindexDocument(input: ReindexDocumentInput): Promise<void>
+````
+
+## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — notebooklm module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the notebooklm module.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
+import { getFirebaseStorage, ref, uploadBytes } from "@integration-firebase/storage";
+import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
+import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
+import {
+  AddDocumentUseCase,
+  ArchiveDocumentUseCase,
+  QueryDocumentsUseCase,
+} from "../../subdomains/document/application/use-cases/DocumentUseCases";
+import {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
+import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
+import { callRagQuery, type RagQueryInput, type RagQueryOutput } from "./callable/FirebaseCallableAdapter";
+⋮----
+// ── Singleton repositories ────────────────────────────────────────────────────
+⋮----
+function getDocumentRepo(): FirestoreDocumentRepository
+⋮----
+function getNotebookRepo(): InMemoryNotebookRepository
+⋮----
+// ── RagQuery generation port bridge ──────────────────────────────────────────
+⋮----
+class RagQueryGenerationPort implements NotebookGenerationPort {
+⋮----
+constructor(
+⋮----
+async generateResponse(input: {
+    prompt: string;
+    notebookId: string;
+    model?: string;
+}): Promise<
+⋮----
+// ── Factory functions ─────────────────────────────────────────────────────────
+⋮----
+export function createClientNotebooklmDocumentUseCases()
+⋮----
+export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
+⋮----
+// ── Storage upload helper ─────────────────────────────────────────────────────
+⋮----
+/**
+ * Upload a document to the GCS path expected by the py_fn Storage Trigger.
+ * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
+ * The Storage Trigger automatically runs parse + RAG on this prefix.
+ */
+export async function uploadDocumentToStorage(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+// keep firestore & firestoreApi accessible within this composition module
+````
+
+## File: src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts
+````typescript
+/**
+ * TaskMaterializationWorkflowAdapter — stub implementation of the task handoff port.
+ *
+ * This adapter bridges notebooklm's task candidate handoff to the workspace
+ * task flow. Currently returns a stub response. Replace with a real workspace
+ * Server Action call when the workspace task domain is ready.
+ *
+ * ESLint: @integration-firebase is NOT imported here — this adapter delegates
+ * via a published language boundary, not direct Firestore access.
+ */
+⋮----
+import type {
+  TaskMaterializationWorkflowPort,
+  MaterializeTasksInput,
+  MaterializeTasksResult,
+} from "../../orchestration/TaskMaterializationWorkflowPort";
+⋮----
+export class TaskMaterializationWorkflowAdapter implements TaskMaterializationWorkflowPort {
+⋮----
+async materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>
+⋮----
+// TODO: replace with real workspace Server Action call when workspace
+// task materialization domain is implemented.
+````
+
 ## File: src/modules/notebooklm/orchestration/index.ts
 ````typescript
 // notebooklm — orchestration layer
 // Cross-subdomain composition and facade lives here.
-// TODO: implement NotebooklmFacade if needed.
 ````
 
-## File: src/modules/notebooklm/shared/errors/index.ts
+## File: src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts
 ````typescript
-// notebooklm shared/errors placeholder
+/**
+ * ProcessSourceDocumentWorkflowUseCase — orchestrates the full source processing flow.
+ *
+ * After a document is uploaded and parsed (by py_fn), this use case orchestrates
+ * the optional downstream steps the user selects in the processing dialog:
+ *   1. Parse (already done by py_fn — this step validates parse status)
+ *   2. RAG index (already done by py_fn — this step validates RAG status)
+ *   3. Create Knowledge Page via notion boundary
+ *   4. Extract task candidates + hand off via TaskMaterializationWorkflowPort
+ *
+ * Guardrails:
+ *   - notebooklm does NOT write workspace repositories directly.
+ *   - Knowledge Page is the required canonical carrier before task creation.
+ *   - Task handoff only via TaskMaterializationWorkflowPort.
+ *   - parse failure stops all downstream steps.
+ */
+⋮----
+import type { TaskMaterializationWorkflowPort } from "./TaskMaterializationWorkflowPort";
+⋮----
+// ── Input / output contracts ──────────────────────────────────────────────────
+⋮----
+export type StepStatus = "skipped" | "success" | "failed";
+⋮----
+export interface ProcessSourceDocumentWorkflowInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+  readonly documentTitle: string;
+  readonly parsedTextSummary?: string;
+  readonly shouldCreateRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly shouldCreateTasks: boolean;
+  readonly requestedByUserId?: string;
+}
+⋮----
+export interface ProcessSourceDocumentWorkflowResult {
+  readonly parseStatus: StepStatus;
+  readonly ragStatus: StepStatus;
+  readonly pageStatus: StepStatus;
+  readonly taskStatus: StepStatus;
+  readonly pageHref?: string;
+  readonly workflowHref?: string;
+  readonly taskCount: number;
+  readonly pageCount: number;
+  readonly errors: readonly string[];
+}
+⋮----
+// ── Create Knowledge Page port (notion boundary) ──────────────────────────────
+⋮----
+export interface CreateKnowledgePagePort {
+  createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    sourceDocumentId: string;
+    requestedByUserId?: string;
+  }): Promise<{ ok: boolean; pageId?: string; pageHref?: string; error?: string }>;
+}
+⋮----
+createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    sourceDocumentId: string;
+    requestedByUserId?: string;
+}): Promise<
+⋮----
+// ── Use case ──────────────────────────────────────────────────────────────────
+⋮----
+export class ProcessSourceDocumentWorkflowUseCase {
+⋮----
+constructor(
+⋮----
+async execute(
+    input: ProcessSourceDocumentWorkflowInput,
+): Promise<ProcessSourceDocumentWorkflowResult>
+⋮----
+private async _runPageStep(input: ProcessSourceDocumentWorkflowInput)
+⋮----
+private async _runTaskStep(
+    input: ProcessSourceDocumentWorkflowInput,
+    parsedText: string,
+    pageId: string,
+)
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+interface ResultArgs {
+  parseStatus: StepStatus;
+  ragStatus: StepStatus;
+  errors: string[];
+  pageStatus?: StepStatus;
+  pageHref?: string;
+  pageCount?: number;
+  taskStatus?: StepStatus;
+  taskCount?: number;
+  workflowHref?: string;
+}
+⋮----
+function buildResult(args: ResultArgs): ProcessSourceDocumentWorkflowResult
+⋮----
+function extractTaskCandidates(
+  text: string,
+): Array<
+⋮----
+// Minimal heuristic extraction: split on sentence boundaries.
+// In production, this should call an AI flow for proper extraction.
 ````
 
-## File: src/modules/notebooklm/shared/events/index.ts
+## File: src/modules/notebooklm/orchestration/TaskMaterializationWorkflowPort.ts
 ````typescript
-// notebooklm shared/events placeholder
-````
-
-## File: src/modules/notebooklm/shared/index.ts
-````typescript
-
-````
-
-## File: src/modules/notebooklm/shared/types/index.ts
-````typescript
-// notebooklm shared/types placeholder
-````
-
-## File: src/modules/notebooklm/subdomains/conversation/adapters/inbound/index.ts
-````typescript
-// conversation — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notebooklm/subdomains/conversation/adapters/index.ts
-````typescript
-// conversation — adapters aggregate
-````
-
-## File: src/modules/notebooklm/subdomains/conversation/adapters/outbound/index.ts
-````typescript
-// conversation — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
+/**
+ * TaskMaterializationWorkflowPort — outbound port for task materialization.
+ *
+ * notebooklm/source calls this port to hand off task candidates to the
+ * workspace task flow. notebooklm does NOT directly write workspace repositories.
+ *
+ * Implementors: TaskMaterializationWorkflowAdapter (adapters/outbound/)
+ */
+⋮----
+export interface TaskCandidate {
+  readonly title: string;
+  readonly description?: string;
+  readonly sourceRef?: string;
+}
+⋮----
+export interface MaterializeTasksInput {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly sourceDocumentId: string;
+  readonly knowledgePageId: string;
+  readonly candidates: readonly TaskCandidate[];
+  readonly requestedByUserId?: string;
+}
+⋮----
+export interface MaterializeTasksResult {
+  readonly ok: boolean;
+  readonly taskCount: number;
+  readonly workflowHref?: string;
+  readonly error?: string;
+}
+⋮----
+export interface TaskMaterializationWorkflowPort {
+  materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
+}
+⋮----
+materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
 ````
 
 ## File: src/modules/notebooklm/subdomains/conversation/adapters/outbound/memory/InMemoryConversationRepository.ts
@@ -613,6 +1026,16 @@ async findByNotebookId(notebookId: string): Promise<ConversationSnapshot[]>
 async findByAccountId(accountId: string, limit = 50): Promise<ConversationSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notebooklm/subdomains/conversation/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/conversation/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/notebooklm/subdomains/conversation/domain/repositories/ConversationRepository.ts
@@ -634,21 +1057,105 @@ findByAccountId(accountId: string, limit?: number): Promise<ConversationSnapshot
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/notebooklm/subdomains/document/adapters/inbound/index.ts
+## File: src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository.ts
 ````typescript
-// document — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notebooklm/subdomains/document/adapters/index.ts
-````typescript
-// document — adapters aggregate
-````
-
-## File: src/modules/notebooklm/subdomains/document/adapters/outbound/index.ts
-````typescript
-// document — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
+/**
+ * FirestoreDocumentRepository — read-only Firestore adapter for notebooklm documents.
+ *
+ * py_fn owns all writes to accounts/{accountId}/documents/{docId}.
+ * TypeScript side is read-only: it subscribes to Firestore status updates
+ * written by the py_fn pipeline (parse + RAG ingestion).
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import {
+  getFirebaseFirestore,
+  firestoreApi,
+} from "@integration-firebase";
+import type {
+  DocumentSnapshot as DocumentSnap,
+  DocumentStatus,
+} from "../../../domain/entities/Document";
+import type {
+  DocumentRepository,
+  DocumentQuery,
+} from "../../../domain/repositories/DocumentRepository";
+⋮----
+// ── Firestore record shape written by py_fn ───────────────────────────────────
+⋮----
+interface PyFnDocumentRecord {
+  id?: string;
+  title?: string;
+  status?: string;
+  account_id?: string;
+  spaceId?: string;
+  source?: {
+    gcs_uri?: string;
+    filename?: string;
+    display_name?: string;
+    original_filename?: string;
+    size_bytes?: number;
+    uploaded_at?: { toDate?: () => Date };
+    mime_type?: string;
+  };
+  parsed?: {
+    json_gcs_uri?: string;
+    page_count?: number;
+    parsed_at?: { toDate?: () => Date };
+    extraction_ms?: number;
+  };
+  rag?: {
+    status?: string;
+    chunk_count?: number;
+    vector_count?: number;
+    embedding_model?: string;
+    embedding_dimensions?: number;
+    indexed_at?: { toDate?: () => Date };
+  };
+  error?: {
+    message?: string;
+    timestamp?: { toDate?: () => Date };
+  };
+  metadata?: {
+    filename?: string;
+    display_name?: string;
+    space_id?: string;
+  };
+}
+⋮----
+// ── Mapping helpers ───────────────────────────────────────────────────────────
+⋮----
+function mapPyFnStatus(docStatus: string | undefined, ragStatus: string | undefined): DocumentStatus
+⋮----
+function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap
+⋮----
+// ── Repository implementation ─────────────────────────────────────────────────
+⋮----
+export class FirestoreDocumentRepository implements DocumentRepository {
+⋮----
+async save(_snapshot: DocumentSnap): Promise<void>
+⋮----
+// Intentionally no-op: py_fn is the sole writer for this collection.
+// TypeScript side is read-only.
+⋮----
+async findById(id: string): Promise<DocumentSnap | null>
+⋮----
+// findById requires accountId context; use query() for list operations.
+// This minimal implementation returns null — callers should use query().
+⋮----
+async findByNotebookId(notebookId: string): Promise<DocumentSnap[]>
+⋮----
+// Notebook → document relationship is managed by the Notebook aggregate.
+// Fall back to empty until a cross-reference index is available.
+⋮----
+async query(params: DocumentQuery): Promise<DocumentSnap[]>
+⋮----
+async delete(_id: string): Promise<void>
+⋮----
+// py_fn manages deletions; TypeScript side does not delete.
 ````
 
 ## File: src/modules/notebooklm/subdomains/document/adapters/outbound/memory/InMemoryDocumentRepository.ts
@@ -667,6 +1174,16 @@ async findByNotebookId(notebookId: string): Promise<DocumentSnapshot[]>
 async query(params: DocumentQuery): Promise<DocumentSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notebooklm/subdomains/document/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/document/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/notebooklm/subdomains/document/domain/repositories/DocumentRepository.ts
@@ -697,23 +1214,6 @@ query(params: DocumentQuery): Promise<DocumentSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/notebooklm/subdomains/notebook/adapters/inbound/index.ts
-````typescript
-// notebook — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notebooklm/subdomains/notebook/adapters/index.ts
-````typescript
-// notebook — adapters aggregate
-````
-
-## File: src/modules/notebooklm/subdomains/notebook/adapters/outbound/index.ts
-````typescript
-// notebook — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
 ## File: src/modules/notebooklm/subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository.ts
 ````typescript
 import type { NotebookSnapshot } from "../../../domain/entities/Notebook";
@@ -730,6 +1230,16 @@ async findByWorkspaceId(workspaceId: string): Promise<NotebookSnapshot[]>
 async findByAccountId(accountId: string): Promise<NotebookSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/notebooklm/subdomains/notebook/domain/ports/NotebookGenerationPort.ts
@@ -770,6 +1280,108 @@ findByAccountId(accountId: string): Promise<NotebookSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmNotebookSection.tsx
+````typescript
+/**
+ * NotebooklmNotebookSection — notebooklm.notebook tab — RAG query interface.
+ * Input a question → AI retrieves from indexed documents → displays answer + citations.
+ */
+⋮----
+import { Brain, Search } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
+import { ragQueryAction } from "../server-actions/notebook-actions";
+⋮----
+interface NotebooklmNotebookSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+const handleQuery = () =>
+````
+
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmResearchSection.tsx
+````typescript
+/**
+ * NotebooklmResearchSection — notebooklm.research tab — workspace synthesis.
+ * Calls rag_query with a synthesis prompt to summarise all workspace documents.
+ */
+⋮----
+import { BookOpen, FlaskConical } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
+import { synthesizeWorkspaceAction } from "../server-actions/notebook-actions";
+⋮----
+interface NotebooklmResearchSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+const handleSynthesize = () =>
+````
+
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
+````typescript
+/**
+ * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
+ * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
+ */
+⋮----
+import { Upload, RefreshCw, FileUp } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
+import { uploadDocumentToStorage } from "../../../adapters/outbound/firebase-composition";
+⋮----
+interface NotebooklmSourcesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+const load = () =>
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+// reload list after upload
+⋮----
+{/* hidden file input */}
+````
+
+## File: src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts
+````typescript
+/**
+ * notebook-actions — notebooklm notebook + RAG server actions.
+ */
+⋮----
+import { z } from "zod";
+import {
+  callRagQuery,
+  createClientNotebooklmNotebookUseCases,
+} from "../../outbound/firebase-composition";
+⋮----
+// ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+// ── Actions ───────────────────────────────────────────────────────────────────
+⋮----
+export async function createNotebookAction(rawInput: unknown)
+⋮----
+/**
+ * ragQueryAction — RAG retrieval + generation via py_fn rag_query callable.
+ * Returns AI-generated answer with source citations.
+ */
+export async function ragQueryAction(rawInput: unknown)
+⋮----
+/**
+ * synthesizeWorkspaceAction — RAG synthesis across all workspace documents.
+ * Uses a fixed synthesis prompt to summarise key themes.
+ */
+export async function synthesizeWorkspaceAction(rawInput: unknown)
+````
+
 ## File: src/modules/notebooklm/index.ts
 ````typescript
 /**
@@ -782,11 +1394,82 @@ delete(id: string): Promise<void>;
 // notebook
 ⋮----
 // conversation
+⋮----
+// orchestration — source processing workflow
 ````
 
-## File: src/modules/notebooklm/subdomains/conversation/application/index.ts
-````typescript
+## File: src/modules/notebooklm/README.md
+````markdown
+# NotebookLM Module
 
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
+| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
+| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
+
+---
+
+## 子域邊界示意（notebooklm vs ai）
+
+```
+notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
+notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
+notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
+notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
+notebooklm/conversation ─引用取得→  ai/citation（標注來源）
+```
+
+notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/notebooklm/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotebooklmFacade.ts
+    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
+  shared/
+    domain/index.ts
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    document/
+      domain/
+      application/
+      adapters/outbound/
+    conversation/
+    notebook/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
+| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
+| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
+| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notebooklm/subdomains/conversation/application/use-cases/ConversationUseCases.ts
@@ -867,16 +1550,6 @@ get workspaceId(): string
 getSnapshot(): Readonly<ConversationSnapshot>
 ⋮----
 pullDomainEvents()
-````
-
-## File: src/modules/notebooklm/subdomains/conversation/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notebooklm/subdomains/document/application/index.ts
-````typescript
-
 ````
 
 ## File: src/modules/notebooklm/subdomains/document/application/use-cases/DocumentUseCases.ts
@@ -966,16 +1639,6 @@ getSnapshot(): Readonly<DocumentSnapshot>
 pullDomainEvents()
 ````
 
-## File: src/modules/notebooklm/subdomains/document/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notebooklm/subdomains/notebook/application/index.ts
-````typescript
-
-````
-
 ## File: src/modules/notebooklm/subdomains/notebook/application/use-cases/NotebookUseCases.ts
 ````typescript
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
@@ -1058,85 +1721,6 @@ get documentIds(): readonly string[]
 getSnapshot(): Readonly<NotebookSnapshot>
 ⋮----
 pullDomainEvents()
-````
-
-## File: src/modules/notebooklm/subdomains/notebook/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notebooklm/README.md
-````markdown
-# NotebookLM Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
-| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
-| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
-
----
-
-## 子域邊界示意（notebooklm vs ai）
-
-```
-notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
-notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
-notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
-notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
-notebooklm/conversation ─引用取得→  ai/citation（標注來源）
-```
-
-notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notebooklm/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    NotebooklmFacade.ts
-    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
-  shared/
-    domain/index.ts
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    document/
-      domain/
-      application/
-      adapters/outbound/
-    conversation/
-    notebook/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
-| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
-| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
-| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notebooklm/AGENT.md

@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-853 files | 13,320 lines
+875 files | 14,034 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 797 | 10,273 |
-| TypeScript (TSX) | 31 | 1,322 |
+| TypeScript | 811 | 10,812 |
+| TypeScript (TSX) | 39 | 1,497 |
 | Markdown | 24 | 1,678 |
 | CSS | 1 | 47 |
 
@@ -55,10 +55,10 @@ This skill contains the following reference files:
 - `src/modules/template/README.md` (266 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
 - `src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts` (159 lines)
-- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (147 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (151 lines)
 - `src/modules/iam/adapters/outbound/firebase-composition.ts` (140 lines)
 - `src/modules/iam/subdomains/organization/domain/entities/Organization.ts` (111 lines)
 - `src/modules/ai/README.md` (111 lines)
+- `src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts` (107 lines)
 - `src/modules/shared/index.ts` (107 lines)
 - `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
-- `src/modules/template/AGENT.md` (99 lines)

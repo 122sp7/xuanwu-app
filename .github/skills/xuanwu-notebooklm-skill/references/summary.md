@@ -42,21 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-42 files | 1,034 lines
+55 files | 1,566 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 34 | 376 |
+| TypeScript | 43 | 824 |
 | Markdown | 8 | 658 |
+| TypeScript (TSX) | 4 | 84 |
 
 **Largest files:**
 - `docs/structure/contexts/notebooklm/README.md` (113 lines)
+- `src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts` (107 lines)
+- `src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository.ts` (97 lines)
 - `docs/structure/contexts/notebooklm/ubiquitous-language.md` (94 lines)
 - `docs/structure/contexts/notebooklm/AGENT.md` (92 lines)
 - `docs/structure/contexts/notebooklm/bounded-contexts.md` (83 lines)
 - `docs/structure/contexts/notebooklm/context-map.md` (79 lines)
 - `src/modules/notebooklm/README.md` (70 lines)
 - `docs/structure/contexts/notebooklm/subdomains.md` (68 lines)
-- `src/modules/notebooklm/subdomains/document/domain/entities/Document.ts` (62 lines)
-- `src/modules/notebooklm/AGENT.md` (59 lines)
-- `src/modules/notebooklm/subdomains/notebook/domain/entities/Notebook.ts` (52 lines)
+- `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (64 lines)

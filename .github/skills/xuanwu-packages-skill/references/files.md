@@ -419,12 +419,40 @@ import { firebaseClientApp } from "./client";
 export function getFirebaseFirestore(): Firestore
 ````
 
-## File: packages/integration-firebase/index.ts
+## File: packages/integration-firebase/functions.ts
 ````typescript
 /**
- * @module integration-firebase
- * Public surface for the Firebase client integration package.
+ * @module integration-firebase/functions
+ * Firebase Cloud Functions (HTTPS Callable) client helpers.
  */
+⋮----
+import { getFunctions, httpsCallable, type Functions } from "firebase/functions";
+import { firebaseClientApp } from "./client";
+⋮----
+export function getFirebaseFunctions(): Functions
+````
+
+## File: packages/integration-firebase/storage.ts
+````typescript
+/**
+ * @module integration-firebase/storage
+ * Firebase Cloud Storage client helpers.
+ */
+⋮----
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  uploadBytesResumable,
+  getDownloadURL,
+  type FirebaseStorage,
+  type StorageReference,
+  type UploadResult,
+  type UploadTask,
+} from "firebase/storage";
+import { firebaseClientApp } from "./client";
+⋮----
+export function getFirebaseStorage(): FirebaseStorage
 ````
 
 ## File: packages/AGENT.md
@@ -488,6 +516,14 @@ import { getFirestore } from 'firebase/firestore'
 - [integration-http/AGENTS.md](./integration-http/AGENTS.md)
 - [integration-trpc/AGENTS.md](./integration-trpc/AGENTS.md)
 - [ui-shadcn/AGENTS.md](./ui-shadcn/AGENTS.md)
+````
+
+## File: packages/integration-firebase/index.ts
+````typescript
+/**
+ * @module integration-firebase
+ * Public surface for the Firebase client integration package.
+ */
 ````
 
 ## File: packages/ui-shadcn/ui/accordion.tsx

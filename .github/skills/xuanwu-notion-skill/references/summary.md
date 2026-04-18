@@ -42,12 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-63 files | 1,228 lines
+72 files | 1,379 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 55 | 554 |
+| TypeScript | 60 | 639 |
 | Markdown | 8 | 674 |
+| TypeScript (TSX) | 4 | 66 |
 
 **Largest files:**
 - `docs/structure/contexts/notion/README.md` (117 lines)
@@ -58,5 +59,5 @@ This skill contains the following reference files:
 - `docs/structure/contexts/notion/subdomains.md` (75 lines)
 - `src/modules/notion/subdomains/block/domain/entities/Block.ts` (68 lines)
 - `src/modules/notion/AGENT.md` (62 lines)
-- `src/modules/notion/subdomains/page/domain/entities/Page.ts` (60 lines)
 - `src/modules/notion/README.md` (60 lines)
+- `src/modules/notion/subdomains/page/domain/entities/Page.ts` (60 lines)

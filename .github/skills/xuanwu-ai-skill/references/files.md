@@ -1,5 +1,274 @@
 # Files
 
+## File: src/modules/ai/orchestration/index.ts
+````typescript
+// ai — orchestration layer
+// Cross-subdomain composition and facade lives here.
+// TODO: implement AiFacade if needed.
+````
+
+## File: src/modules/ai/shared/errors/index.ts
+````typescript
+// ai shared/errors placeholder
+````
+
+## File: src/modules/ai/shared/events/index.ts
+````typescript
+// ai shared/events placeholder
+````
+
+## File: src/modules/ai/shared/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/shared/types/index.ts
+````typescript
+// ai shared/types placeholder
+````
+
+## File: src/modules/ai/subdomains/chunk/adapters/inbound/index.ts
+````typescript
+// chunk — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/chunk/adapters/index.ts
+````typescript
+// chunk — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/citation/adapters/inbound/index.ts
+````typescript
+// citation — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/citation/adapters/index.ts
+````typescript
+// citation — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/citation/adapters/outbound/index.ts
+````typescript
+// citation — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/ai/subdomains/citation/application/index.ts
+````typescript
+// citation — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/ai/subdomains/citation/domain/index.ts
+````typescript
+// citation — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/context/adapters/inbound/index.ts
+````typescript
+// context — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/context/adapters/index.ts
+````typescript
+// context — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/context/adapters/outbound/index.ts
+````typescript
+// context — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/ai/subdomains/context/application/index.ts
+````typescript
+// context — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/ai/subdomains/context/domain/index.ts
+````typescript
+// context — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/embedding/adapters/inbound/index.ts
+````typescript
+// embedding — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/embedding/adapters/index.ts
+````typescript
+// embedding — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/evaluation/adapters/inbound/index.ts
+````typescript
+// evaluation — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/evaluation/adapters/index.ts
+````typescript
+// evaluation — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/evaluation/adapters/outbound/index.ts
+````typescript
+// evaluation — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/ai/subdomains/evaluation/application/index.ts
+````typescript
+// evaluation — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/ai/subdomains/evaluation/domain/index.ts
+````typescript
+// evaluation — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/generation/adapters/inbound/index.ts
+````typescript
+// generation — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/generation/adapters/index.ts
+````typescript
+// generation — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/generation/adapters/outbound/index.ts
+````typescript
+// generation — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/ai/subdomains/memory/adapters/inbound/index.ts
+````typescript
+// memory — adapters/inbound placeholder
+// TODO: export inbound adapters (HTTP handlers, action wrappers)
+````
+
+## File: src/modules/ai/subdomains/memory/adapters/index.ts
+````typescript
+// memory — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/memory/adapters/outbound/index.ts
+````typescript
+// memory — adapters/outbound placeholder
+// TODO: export outbound adapters (repository implementations, external services)
+````
+
+## File: src/modules/ai/subdomains/memory/application/index.ts
+````typescript
+// memory — application layer placeholder
+// TODO: export use-cases, DTOs, application services
+````
+
+## File: src/modules/ai/subdomains/memory/domain/index.ts
+````typescript
+// memory — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/pipeline/adapters/inbound/index.ts
+````typescript
+// pipeline — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/pipeline/adapters/index.ts
+````typescript
+// pipeline — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/pipeline/adapters/outbound/index.ts
+````typescript
+// pipeline — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/ai/subdomains/pipeline/application/index.ts
+````typescript
+// pipeline — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/ai/subdomains/pipeline/domain/index.ts
+````typescript
+// pipeline — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/retrieval/adapters/inbound/index.ts
+````typescript
+// retrieval — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/ai/subdomains/retrieval/adapters/index.ts
+````typescript
+// retrieval — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/retrieval/adapters/outbound/index.ts
+````typescript
+// retrieval — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/ai/subdomains/retrieval/application/index.ts
+````typescript
+// retrieval — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/ai/subdomains/retrieval/domain/index.ts
+````typescript
+// retrieval — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/tool-calling/adapters/inbound/index.ts
+````typescript
+// tool-calling — adapters/inbound placeholder
+// TODO: export inbound adapters (HTTP handlers, action wrappers)
+````
+
+## File: src/modules/ai/subdomains/tool-calling/adapters/index.ts
+````typescript
+// tool-calling — adapters aggregate
+````
+
+## File: src/modules/ai/subdomains/tool-calling/adapters/outbound/index.ts
+````typescript
+// tool-calling — adapters/outbound placeholder
+// TODO: export outbound adapters (repository implementations, external services)
+````
+
+## File: src/modules/ai/subdomains/tool-calling/application/index.ts
+````typescript
+// tool-calling — application layer placeholder
+// TODO: export use-cases, DTOs, application services
+````
+
+## File: src/modules/ai/subdomains/tool-calling/domain/index.ts
+````typescript
+// tool-calling — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
 ## File: docs/structure/contexts/ai/AGENT.md
 ````markdown
 # AI Context Agent Guide
@@ -669,42 +938,37 @@ flowchart LR
 - 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
 ````
 
-## File: src/modules/ai/orchestration/index.ts
+## File: src/modules/ai/index.ts
 ````typescript
-// ai — orchestration layer
-// Cross-subdomain composition and facade lives here.
-// TODO: implement AiFacade if needed.
+/**
+ * AI Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// generation
+⋮----
+// chunk
+⋮----
+// embedding
+⋮----
+// retrieval
+⋮----
+// context
+⋮----
+// pipeline
+⋮----
+// citation
+⋮----
+// evaluation
+⋮----
+// memory
+⋮----
+// tool-calling
 ````
 
-## File: src/modules/ai/shared/errors/index.ts
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/index.ts
 ````typescript
-// ai shared/errors placeholder
-````
-
-## File: src/modules/ai/shared/events/index.ts
-````typescript
-// ai shared/events placeholder
-````
-
-## File: src/modules/ai/shared/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/shared/types/index.ts
-````typescript
-// ai shared/types placeholder
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/inbound/index.ts
-````typescript
-// chunk — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/index.ts
-````typescript
-// chunk — adapters aggregate
+// chunk — outbound adapters
 ````
 
 ## File: src/modules/ai/subdomains/chunk/adapters/outbound/memory/InMemoryChunkRepository.ts
@@ -727,6 +991,16 @@ async query(params: ChunkQuery): Promise<ChunkSnapshot[]>
 async delete(id: string): Promise<void>
 ⋮----
 async deleteBySourceId(sourceId: string): Promise<void>
+````
+
+## File: src/modules/ai/subdomains/chunk/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/chunk/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/ai/subdomains/chunk/domain/repositories/ChunkRepository.ts
@@ -757,29 +1031,6 @@ findBySourceId(sourceId: string): Promise<ChunkSnapshot[]>;
 query(params: ChunkQuery): Promise<ChunkSnapshot[]>;
 delete(id: string): Promise<void>;
 deleteBySourceId(sourceId: string): Promise<void>;
-````
-
-## File: src/modules/ai/subdomains/citation/adapters/inbound/index.ts
-````typescript
-// citation — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/ai/subdomains/citation/adapters/index.ts
-````typescript
-// citation — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/citation/adapters/outbound/index.ts
-````typescript
-// citation — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/ai/subdomains/citation/application/index.ts
-````typescript
-// citation — application layer placeholder
-// TODO: export use-cases, DTOs, ports
 ````
 
 ## File: src/modules/ai/subdomains/citation/application/use-cases/CitationUseCases.ts
@@ -817,41 +1068,6 @@ findById(id: string): Promise<Citation | null>;
 findByResponseId(responseId: string): Promise<Citation | null>;
 ````
 
-## File: src/modules/ai/subdomains/citation/domain/index.ts
-````typescript
-// citation — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
-
-## File: src/modules/ai/subdomains/context/adapters/inbound/index.ts
-````typescript
-// context — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/ai/subdomains/context/adapters/index.ts
-````typescript
-// context — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/context/adapters/outbound/index.ts
-````typescript
-// context — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/ai/subdomains/context/application/index.ts
-````typescript
-// context — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-````
-
-## File: src/modules/ai/subdomains/context/domain/index.ts
-````typescript
-// context — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
-
 ## File: src/modules/ai/subdomains/context/domain/repositories/ContextSessionRepository.ts
 ````typescript
 import type { ContextSessionSnapshot } from "../entities/ContextSession";
@@ -869,15 +1085,19 @@ findByActorId(actorId: string, limit?: number): Promise<ContextSessionSnapshot[]
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/ai/subdomains/embedding/adapters/inbound/index.ts
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/index.ts
 ````typescript
-// embedding — inbound adapters placeholder
-// TODO: export server actions / route handlers
+// embedding — outbound adapters
 ````
 
-## File: src/modules/ai/subdomains/embedding/adapters/index.ts
+## File: src/modules/ai/subdomains/embedding/application/index.ts
 ````typescript
-// embedding — adapters aggregate
+
+````
+
+## File: src/modules/ai/subdomains/embedding/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/ai/subdomains/embedding/domain/repositories/EmbeddingRepository.ts
@@ -901,29 +1121,6 @@ findByChunkId(chunkId: string): Promise<EmbeddingSnapshot | null>;
 findBySourceId(sourceId: string): Promise<EmbeddingSnapshot[]>;
 delete(id: string): Promise<void>;
 deleteBySourceId(sourceId: string): Promise<void>;
-````
-
-## File: src/modules/ai/subdomains/evaluation/adapters/inbound/index.ts
-````typescript
-// evaluation — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/ai/subdomains/evaluation/adapters/index.ts
-````typescript
-// evaluation — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/evaluation/adapters/outbound/index.ts
-````typescript
-// evaluation — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/ai/subdomains/evaluation/application/index.ts
-````typescript
-// evaluation — application layer placeholder
-// TODO: export use-cases, DTOs, ports
 ````
 
 ## File: src/modules/ai/subdomains/evaluation/application/use-cases/EvaluationUseCases.ts
@@ -972,27 +1169,9 @@ evaluate(input: {
   }): Promise<Omit<EvaluationResult, "id" | "responseId" | "evaluatedAtISO">>;
 ````
 
-## File: src/modules/ai/subdomains/evaluation/domain/index.ts
+## File: src/modules/ai/subdomains/generation/application/index.ts
 ````typescript
-// evaluation — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
 
-## File: src/modules/ai/subdomains/generation/adapters/inbound/index.ts
-````typescript
-// generation — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/ai/subdomains/generation/adapters/index.ts
-````typescript
-// generation — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/generation/adapters/outbound/index.ts
-````typescript
-// generation — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
 ````
 
 ## File: src/modules/ai/subdomains/generation/application/use-cases/GenerationUseCases.ts
@@ -1026,6 +1205,11 @@ export class ExtractTasksUseCase {
 constructor(private readonly port: TaskExtractionPort)
 ⋮----
 async execute(input: TaskExtractionInput): Promise<
+````
+
+## File: src/modules/ai/subdomains/generation/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts
@@ -1115,29 +1299,6 @@ export interface TaskExtractionPort {
 extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
 ````
 
-## File: src/modules/ai/subdomains/memory/adapters/inbound/index.ts
-````typescript
-// memory — adapters/inbound placeholder
-// TODO: export inbound adapters (HTTP handlers, action wrappers)
-````
-
-## File: src/modules/ai/subdomains/memory/adapters/index.ts
-````typescript
-// memory — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/memory/adapters/outbound/index.ts
-````typescript
-// memory — adapters/outbound placeholder
-// TODO: export outbound adapters (repository implementations, external services)
-````
-
-## File: src/modules/ai/subdomains/memory/application/index.ts
-````typescript
-// memory — application layer placeholder
-// TODO: export use-cases, DTOs, application services
-````
-
 ## File: src/modules/ai/subdomains/memory/application/use-cases/MemoryUseCases.ts
 ````typescript
 // TODO: implement memory upsert/query use-cases
@@ -1167,35 +1328,6 @@ save(item: MemoryItem): Promise<void>;
 findByActorAndKey(actorId: string, key: string): Promise<MemoryItem | null>;
 findByActor(actorId: string, tags?: string[]): Promise<MemoryItem[]>;
 delete(id: string): Promise<void>;
-````
-
-## File: src/modules/ai/subdomains/memory/domain/index.ts
-````typescript
-// memory — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
-
-## File: src/modules/ai/subdomains/pipeline/adapters/inbound/index.ts
-````typescript
-// pipeline — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/ai/subdomains/pipeline/adapters/index.ts
-````typescript
-// pipeline — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/pipeline/adapters/outbound/index.ts
-````typescript
-// pipeline — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/ai/subdomains/pipeline/application/index.ts
-````typescript
-// pipeline — application layer placeholder
-// TODO: export use-cases, DTOs, ports
 ````
 
 ## File: src/modules/ai/subdomains/pipeline/application/use-cases/PipelineUseCases.ts
@@ -1242,35 +1374,6 @@ export interface PromptRenderPort {
 render(template: PromptTemplate, variables: Record<string, string>): RenderedPrompt;
 ````
 
-## File: src/modules/ai/subdomains/pipeline/domain/index.ts
-````typescript
-// pipeline — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
-
-## File: src/modules/ai/subdomains/retrieval/adapters/inbound/index.ts
-````typescript
-// retrieval — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/ai/subdomains/retrieval/adapters/index.ts
-````typescript
-// retrieval — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/retrieval/adapters/outbound/index.ts
-````typescript
-// retrieval — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/ai/subdomains/retrieval/application/index.ts
-````typescript
-// retrieval — application layer placeholder
-// TODO: export use-cases, DTOs, ports
-````
-
 ## File: src/modules/ai/subdomains/retrieval/application/use-cases/RetrievalUseCases.ts
 ````typescript
 import type { SemanticSearchPort, SemanticSearchInput, VectorSearchResult } from "../../domain/ports/RetrievalPorts";
@@ -1280,12 +1383,6 @@ export class SemanticSearchUseCase {
 constructor(private readonly port: SemanticSearchPort)
 ⋮----
 async execute(input: SemanticSearchInput): Promise<VectorSearchResult[]>
-````
-
-## File: src/modules/ai/subdomains/retrieval/domain/index.ts
-````typescript
-// retrieval — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
 ````
 
 ## File: src/modules/ai/subdomains/retrieval/domain/ports/RetrievalPorts.ts
@@ -1331,29 +1428,6 @@ export interface SemanticSearchPort {
 semanticSearch(input: SemanticSearchInput): Promise<VectorSearchResult[]>;
 ````
 
-## File: src/modules/ai/subdomains/tool-calling/adapters/inbound/index.ts
-````typescript
-// tool-calling — adapters/inbound placeholder
-// TODO: export inbound adapters (HTTP handlers, action wrappers)
-````
-
-## File: src/modules/ai/subdomains/tool-calling/adapters/index.ts
-````typescript
-// tool-calling — adapters aggregate
-````
-
-## File: src/modules/ai/subdomains/tool-calling/adapters/outbound/index.ts
-````typescript
-// tool-calling — adapters/outbound placeholder
-// TODO: export outbound adapters (repository implementations, external services)
-````
-
-## File: src/modules/ai/subdomains/tool-calling/application/index.ts
-````typescript
-// tool-calling — application layer placeholder
-// TODO: export use-cases, DTOs, application services
-````
-
 ## File: src/modules/ai/subdomains/tool-calling/application/use-cases/ToolCallingUseCases.ts
 ````typescript
 // TODO: implement tool invocation and registration use-cases
@@ -1388,358 +1462,6 @@ export interface ToolRuntimePort {
 ⋮----
 call(input: ToolCallInput): Promise<ToolCallOutput>;
 listAvailable(): Promise<AiTool[]>;
-````
-
-## File: src/modules/ai/subdomains/tool-calling/domain/index.ts
-````typescript
-// tool-calling — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
-
-## File: src/modules/ai/index.ts
-````typescript
-/**
- * AI Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// generation
-⋮----
-// chunk
-⋮----
-// embedding
-⋮----
-// retrieval
-⋮----
-// context
-⋮----
-// pipeline
-⋮----
-// citation
-⋮----
-// evaluation
-⋮----
-// memory
-⋮----
-// tool-calling
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/index.ts
-````typescript
-// chunk — outbound adapters
-````
-
-## File: src/modules/ai/subdomains/chunk/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/chunk/application/use-cases/ChunkUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Chunk, type CreateChunkInput } from "../../domain/entities/Chunk";
-import type { ChunkRepository } from "../../domain/repositories/ChunkRepository";
-⋮----
-export class CreateChunkUseCase {
-⋮----
-constructor(private readonly repo: ChunkRepository)
-⋮----
-async execute(input: CreateChunkInput): Promise<CommandResult>
-⋮----
-export class BulkCreateChunksUseCase {
-⋮----
-async execute(inputs: CreateChunkInput[]): Promise<CommandResult>
-⋮----
-export class GetChunksBySourceUseCase {
-⋮----
-async execute(sourceId: string)
-````
-
-## File: src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts
-````typescript
-import { z } from "zod";
-import { v4 as uuid } from "uuid";
-⋮----
-export type ChunkId = z.infer<typeof ChunkIdSchema>;
-⋮----
-export type ChunkStatus = z.infer<typeof ChunkStatusSchema>;
-⋮----
-export interface ChunkSnapshot {
-  readonly id: string;
-  readonly sourceId: string;
-  readonly sourceType: string;
-  readonly content: string;
-  readonly order: number;
-  readonly tokenCount?: number;
-  readonly metadata: Record<string, unknown>;
-  readonly status: ChunkStatus;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateChunkInput {
-  readonly sourceId: string;
-  readonly sourceType: string;
-  readonly content: string;
-  readonly order: number;
-  readonly tokenCount?: number;
-  readonly metadata?: Record<string, unknown>;
-}
-⋮----
-export class Chunk {
-⋮----
-private constructor(private _props: ChunkSnapshot)
-⋮----
-static create(input: CreateChunkInput): Chunk
-⋮----
-static reconstitute(snapshot: ChunkSnapshot): Chunk
-⋮----
-markEmbedded(): void
-⋮----
-markIndexed(): void
-⋮----
-markFailed(): void
-⋮----
-get id(): string
-get sourceId(): string
-get content(): string
-get status(): ChunkStatus
-⋮----
-getSnapshot(): Readonly<ChunkSnapshot>
-````
-
-## File: src/modules/ai/subdomains/chunk/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/context/application/use-cases/ContextUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { ContextSession } from "../../domain/entities/ContextSession";
-import type { ContextSessionRepository } from "../../domain/repositories/ContextSessionRepository";
-⋮----
-export class CreateContextSessionUseCase {
-⋮----
-constructor(private readonly repo: ContextSessionRepository)
-⋮----
-async execute(input:
-⋮----
-export class AddContextMessageUseCase {
-````
-
-## File: src/modules/ai/subdomains/context/domain/entities/ContextSession.ts
-````typescript
-import { z } from "zod";
-import { v4 as uuid } from "uuid";
-⋮----
-export type ContextSessionId = z.infer<typeof ContextSessionIdSchema>;
-⋮----
-export type ContextRole = "user" | "assistant" | "system";
-⋮----
-export interface ContextMessage {
-  readonly id: string;
-  readonly role: ContextRole;
-  readonly content: string;
-  readonly createdAtISO: string;
-}
-⋮----
-export interface ContextSessionSnapshot {
-  readonly id: string;
-  readonly actorId?: string;
-  readonly workspaceId?: string;
-  readonly messages: ContextMessage[];
-  readonly systemPrompt?: string;
-  readonly model?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export class ContextSession {
-⋮----
-private constructor(private _props: ContextSessionSnapshot)
-⋮----
-static create(input: {
-    actorId?: string;
-    workspaceId?: string;
-    systemPrompt?: string;
-    model?: string;
-}): ContextSession
-⋮----
-static reconstitute(snapshot: ContextSessionSnapshot): ContextSession
-⋮----
-addMessage(role: ContextRole, content: string): void
-⋮----
-get id(): string
-get messages(): ContextMessage[]
-⋮----
-getSnapshot(): Readonly<ContextSessionSnapshot>
-````
-
-## File: src/modules/ai/subdomains/embedding/adapters/outbound/index.ts
-````typescript
-// embedding — outbound adapters
-````
-
-## File: src/modules/ai/subdomains/embedding/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/embedding/application/use-cases/EmbeddingUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Embedding } from "../../domain/entities/Embedding";
-import type { EmbeddingGenerationPort } from "../../domain/entities/Embedding";
-import type { EmbeddingRepository } from "../../domain/repositories/EmbeddingRepository";
-⋮----
-export class GenerateAndStoreEmbeddingUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: {
-    chunkId: string;
-    sourceId: string;
-    text: string;
-    model?: string;
-}): Promise<CommandResult>
-````
-
-## File: src/modules/ai/subdomains/embedding/domain/entities/Embedding.ts
-````typescript
-import { z } from "zod";
-import { v4 as uuid } from "uuid";
-⋮----
-export type EmbeddingId = z.infer<typeof EmbeddingIdSchema>;
-⋮----
-export interface EmbeddingSnapshot {
-  readonly id: string;
-  readonly chunkId: string;
-  readonly sourceId: string;
-  readonly vector: number[];
-  readonly model: string;
-  readonly dimensions: number;
-  readonly createdAtISO: string;
-}
-⋮----
-export interface CreateEmbeddingInput {
-  readonly chunkId: string;
-  readonly sourceId: string;
-  readonly vector: number[];
-  readonly model: string;
-}
-⋮----
-export class Embedding {
-⋮----
-private constructor(private readonly _props: EmbeddingSnapshot)
-⋮----
-static create(input: CreateEmbeddingInput): Embedding
-⋮----
-static reconstitute(snapshot: EmbeddingSnapshot): Embedding
-⋮----
-get id(): string
-get chunkId(): string
-get vector(): number[]
-get model(): string
-⋮----
-getSnapshot(): Readonly<EmbeddingSnapshot>
-⋮----
-export interface EmbeddingGenerationPort {
-  generateEmbedding(text: string, model?: string): Promise<{ vector: number[]; model: string }>;
-  generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<{ vector: number[]; model: string }>>;
-}
-⋮----
-generateEmbedding(text: string, model?: string): Promise<
-generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<
-````
-
-## File: src/modules/ai/subdomains/embedding/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/generation/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/generation/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
-````typescript
-/**
- * chunk-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching chunking jobs
- * to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The raw document content to be chunked */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Source type (e.g. "notion-page", "uploaded-file") */
-⋮----
-/** Optional hint for chunking strategy */
-⋮----
-/** Max token count per chunk; py_fn uses default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
-````
-
-## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
-````typescript
-/**
- * embedding-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching embedding generation
- * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The document/artifact that sourced these chunks */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Chunk IDs to generate embeddings for (at least one required) */
-⋮----
-/** Optional model hint; py_fn selects default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ````
 
 ## File: src/modules/ai/README.md
@@ -1857,6 +1579,210 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
+## File: src/modules/ai/subdomains/chunk/application/use-cases/ChunkUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { Chunk, type CreateChunkInput } from "../../domain/entities/Chunk";
+import type { ChunkRepository } from "../../domain/repositories/ChunkRepository";
+⋮----
+export class CreateChunkUseCase {
+⋮----
+constructor(private readonly repo: ChunkRepository)
+⋮----
+async execute(input: CreateChunkInput): Promise<CommandResult>
+⋮----
+export class BulkCreateChunksUseCase {
+⋮----
+async execute(inputs: CreateChunkInput[]): Promise<CommandResult>
+⋮----
+export class GetChunksBySourceUseCase {
+⋮----
+async execute(sourceId: string)
+````
+
+## File: src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts
+````typescript
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
+⋮----
+export type ChunkId = z.infer<typeof ChunkIdSchema>;
+⋮----
+export type ChunkStatus = z.infer<typeof ChunkStatusSchema>;
+⋮----
+export interface ChunkSnapshot {
+  readonly id: string;
+  readonly sourceId: string;
+  readonly sourceType: string;
+  readonly content: string;
+  readonly order: number;
+  readonly tokenCount?: number;
+  readonly metadata: Record<string, unknown>;
+  readonly status: ChunkStatus;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateChunkInput {
+  readonly sourceId: string;
+  readonly sourceType: string;
+  readonly content: string;
+  readonly order: number;
+  readonly tokenCount?: number;
+  readonly metadata?: Record<string, unknown>;
+}
+⋮----
+export class Chunk {
+⋮----
+private constructor(private _props: ChunkSnapshot)
+⋮----
+static create(input: CreateChunkInput): Chunk
+⋮----
+static reconstitute(snapshot: ChunkSnapshot): Chunk
+⋮----
+markEmbedded(): void
+⋮----
+markIndexed(): void
+⋮----
+markFailed(): void
+⋮----
+get id(): string
+get sourceId(): string
+get content(): string
+get status(): ChunkStatus
+⋮----
+getSnapshot(): Readonly<ChunkSnapshot>
+````
+
+## File: src/modules/ai/subdomains/context/application/use-cases/ContextUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { ContextSession } from "../../domain/entities/ContextSession";
+import type { ContextSessionRepository } from "../../domain/repositories/ContextSessionRepository";
+⋮----
+export class CreateContextSessionUseCase {
+⋮----
+constructor(private readonly repo: ContextSessionRepository)
+⋮----
+async execute(input:
+⋮----
+export class AddContextMessageUseCase {
+````
+
+## File: src/modules/ai/subdomains/context/domain/entities/ContextSession.ts
+````typescript
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
+⋮----
+export type ContextSessionId = z.infer<typeof ContextSessionIdSchema>;
+⋮----
+export type ContextRole = "user" | "assistant" | "system";
+⋮----
+export interface ContextMessage {
+  readonly id: string;
+  readonly role: ContextRole;
+  readonly content: string;
+  readonly createdAtISO: string;
+}
+⋮----
+export interface ContextSessionSnapshot {
+  readonly id: string;
+  readonly actorId?: string;
+  readonly workspaceId?: string;
+  readonly messages: ContextMessage[];
+  readonly systemPrompt?: string;
+  readonly model?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export class ContextSession {
+⋮----
+private constructor(private _props: ContextSessionSnapshot)
+⋮----
+static create(input: {
+    actorId?: string;
+    workspaceId?: string;
+    systemPrompt?: string;
+    model?: string;
+}): ContextSession
+⋮----
+static reconstitute(snapshot: ContextSessionSnapshot): ContextSession
+⋮----
+addMessage(role: ContextRole, content: string): void
+⋮----
+get id(): string
+get messages(): ContextMessage[]
+⋮----
+getSnapshot(): Readonly<ContextSessionSnapshot>
+````
+
+## File: src/modules/ai/subdomains/embedding/application/use-cases/EmbeddingUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { Embedding } from "../../domain/entities/Embedding";
+import type { EmbeddingGenerationPort } from "../../domain/entities/Embedding";
+import type { EmbeddingRepository } from "../../domain/repositories/EmbeddingRepository";
+⋮----
+export class GenerateAndStoreEmbeddingUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: {
+    chunkId: string;
+    sourceId: string;
+    text: string;
+    model?: string;
+}): Promise<CommandResult>
+````
+
+## File: src/modules/ai/subdomains/embedding/domain/entities/Embedding.ts
+````typescript
+import { z } from "zod";
+import { v4 as uuid } from "uuid";
+⋮----
+export type EmbeddingId = z.infer<typeof EmbeddingIdSchema>;
+⋮----
+export interface EmbeddingSnapshot {
+  readonly id: string;
+  readonly chunkId: string;
+  readonly sourceId: string;
+  readonly vector: number[];
+  readonly model: string;
+  readonly dimensions: number;
+  readonly createdAtISO: string;
+}
+⋮----
+export interface CreateEmbeddingInput {
+  readonly chunkId: string;
+  readonly sourceId: string;
+  readonly vector: number[];
+  readonly model: string;
+}
+⋮----
+export class Embedding {
+⋮----
+private constructor(private readonly _props: EmbeddingSnapshot)
+⋮----
+static create(input: CreateEmbeddingInput): Embedding
+⋮----
+static reconstitute(snapshot: EmbeddingSnapshot): Embedding
+⋮----
+get id(): string
+get chunkId(): string
+get vector(): number[]
+get model(): string
+⋮----
+getSnapshot(): Readonly<EmbeddingSnapshot>
+⋮----
+export interface EmbeddingGenerationPort {
+  generateEmbedding(text: string, model?: string): Promise<{ vector: number[]; model: string }>;
+  generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<{ vector: number[]; model: string }>>;
+}
+⋮----
+generateEmbedding(text: string, model?: string): Promise<
+generateEmbeddingBatch(texts: string[], model?: string): Promise<Array<
+````
+
 ## File: src/modules/ai/AGENT.md
 ````markdown
 # AI Module — Agent Guide
@@ -1935,4 +1861,78 @@ ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
+````typescript
+/**
+ * chunk-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching chunking jobs
+ * to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The raw document content to be chunked */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Source type (e.g. "notion-page", "uploaded-file") */
+⋮----
+/** Optional hint for chunking strategy */
+⋮----
+/** Max token count per chunk; py_fn uses default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
+````
+
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
+````typescript
+/**
+ * embedding-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching embedding generation
+ * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The document/artifact that sourced these chunks */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Chunk IDs to generate embeddings for (at least one required) */
+⋮----
+/** Optional model hint; py_fn selects default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
 ````

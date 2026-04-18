@@ -42,17 +42,17 @@ This skill contains the following reference files:
 
 ## Statistics
 
-224 files | 3,931 lines
+224 files | 3,962 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 210 | 2,811 |
+| TypeScript | 210 | 2,817 |
 | Markdown | 8 | 758 |
-| TypeScript (TSX) | 6 | 362 |
+| TypeScript (TSX) | 6 | 387 |
 
 **Largest files:**
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
-- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (147 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (151 lines)
 - `docs/structure/contexts/workspace/README.md` (126 lines)
 - `docs/structure/contexts/workspace/ubiquitous-language.md` (120 lines)
 - `docs/structure/contexts/workspace/AGENT.md` (100 lines)

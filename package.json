@@ -18,6 +18,7 @@
     "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
     "deploy:functions:all": "npx firebase deploy --only functions",
     "deploy:firebase": "npx firebase deploy",
+    "repomix:all": "npm run repomix:skill && npm run repomix:ai && npm run repomix:analytics && npm run repomix:billing && npm run repomix:iam && npm run repomix:platform && npm run repomix:src && npm run repomix:py_fn && npm run repomix:packages && npm run repomix:markdown && npm run repomix:notebooklm && npm run repomix:notion && npm run repomix:workspace",
     "repomix:skill": "npx repomix --config repomix.config.json --skill-generate xuanwu-skill --skill-output .github/skills/xuanwu-skill --force",
     "repomix:ai": "npx repomix --config repomix-ai.config.json --skill-generate xuanwu-ai-skill --skill-output .github/skills/xuanwu-ai-skill --force",
     "repomix:analytics": "npx repomix --config repomix-analytics.config.json --skill-generate xuanwu-analytics-skill --skill-output .github/skills/xuanwu-analytics-skill --force",

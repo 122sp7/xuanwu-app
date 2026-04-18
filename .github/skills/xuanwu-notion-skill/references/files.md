@@ -1,5 +1,170 @@
 # Files
 
+## File: src/modules/notion/orchestration/index.ts
+````typescript
+// notion — orchestration layer
+// Cross-subdomain composition and facade lives here.
+// TODO: implement NotionFacade if needed.
+````
+
+## File: src/modules/notion/shared/errors/index.ts
+````typescript
+// notion shared/errors placeholder
+````
+
+## File: src/modules/notion/shared/events/index.ts
+````typescript
+// notion shared/events placeholder
+````
+
+## File: src/modules/notion/shared/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/shared/types/index.ts
+````typescript
+// notion shared/types placeholder
+````
+
+## File: src/modules/notion/subdomains/block/adapters/inbound/index.ts
+````typescript
+// block — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notion/subdomains/block/adapters/index.ts
+````typescript
+// block — adapters aggregate
+````
+
+## File: src/modules/notion/subdomains/block/adapters/outbound/index.ts
+````typescript
+// block — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notion/subdomains/collaboration/adapters/inbound/index.ts
+````typescript
+// collaboration — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notion/subdomains/collaboration/adapters/index.ts
+````typescript
+// collaboration — adapters aggregate
+````
+
+## File: src/modules/notion/subdomains/collaboration/adapters/outbound/index.ts
+````typescript
+// collaboration — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notion/subdomains/collaboration/application/index.ts
+````typescript
+// collaboration — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/notion/subdomains/collaboration/domain/index.ts
+````typescript
+// collaboration — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/notion/subdomains/database/adapters/inbound/index.ts
+````typescript
+// database — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notion/subdomains/database/adapters/index.ts
+````typescript
+// database — adapters aggregate
+````
+
+## File: src/modules/notion/subdomains/database/adapters/outbound/index.ts
+````typescript
+// database — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notion/subdomains/page/adapters/inbound/index.ts
+````typescript
+// page — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notion/subdomains/page/adapters/index.ts
+````typescript
+// page — adapters aggregate
+````
+
+## File: src/modules/notion/subdomains/page/adapters/outbound/index.ts
+````typescript
+// page — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notion/subdomains/template/adapters/inbound/index.ts
+````typescript
+// template — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notion/subdomains/template/adapters/index.ts
+````typescript
+// template — adapters aggregate
+````
+
+## File: src/modules/notion/subdomains/template/adapters/outbound/index.ts
+````typescript
+// template — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notion/subdomains/template/application/index.ts
+````typescript
+// template — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/notion/subdomains/template/domain/index.ts
+````typescript
+// template — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/notion/subdomains/view/adapters/inbound/index.ts
+````typescript
+// view — inbound adapters placeholder
+// TODO: export server actions / route handlers
+````
+
+## File: src/modules/notion/subdomains/view/adapters/index.ts
+````typescript
+// view — adapters aggregate
+````
+
+## File: src/modules/notion/subdomains/view/adapters/outbound/index.ts
+````typescript
+// view — outbound adapters placeholder
+// TODO: export Firestore repositories, external clients
+````
+
+## File: src/modules/notion/subdomains/view/application/index.ts
+````typescript
+// view — application layer placeholder
+// TODO: export use-cases, DTOs, ports
+````
+
+## File: src/modules/notion/subdomains/view/domain/index.ts
+````typescript
+// view — domain layer placeholder
+// TODO: export entities, value-objects, repositories, events, services
+````
+
 ## File: docs/structure/contexts/notion/AGENT.md
 ````markdown
 # Notion Agent
@@ -576,6 +741,193 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
+## File: src/modules/notion/adapters/inbound/react/index.ts
+````typescript
+/**
+ * notion/adapters/inbound/react — barrel.
+ * Section components for notion tabs in the workspace view.
+ */
+````
+
+## File: src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx
+````typescript
+/**
+ * NotionDatabaseSection — notion.database tab — structured database list.
+ */
+⋮----
+import { LayoutGrid } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
+import { queryDatabasesAction } from "../server-actions/database-actions";
+⋮----
+interface NotionDatabaseSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+const load = () =>
+````
+
+## File: src/modules/notion/adapters/inbound/react/NotionKnowledgeSection.tsx
+````typescript
+/**
+ * NotionKnowledgeSection — top-level knowledge hub for the notion.knowledge tab.
+ * Shows page count summary and quick links.
+ */
+⋮----
+import { FileText, BookOpen, Layout, LayoutGrid } from "lucide-react";
+import Link from "next/link";
+⋮----
+interface NotionKnowledgeSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+export function NotionKnowledgeSection(
+````
+
+## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
+````typescript
+/**
+ * NotionPagesSection — notion.pages tab — hierarchical page list.
+ */
+⋮----
+import { FileText, Plus } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
+import { queryPagesAction, createPageAction } from "../server-actions/page-actions";
+⋮----
+interface NotionPagesSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId: string;
+}
+⋮----
+const load = () =>
+⋮----
+const handleCreate = () =>
+````
+
+## File: src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx
+````typescript
+/**
+ * NotionTemplatesSection — notion.templates tab — template library.
+ */
+⋮----
+import { Layout } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { Template } from "../../../subdomains/template/domain/entities/Template";
+import { queryTemplatesAction } from "../server-actions/template-actions";
+⋮----
+interface NotionTemplatesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+const load = () =>
+````
+
+## File: src/modules/notion/adapters/inbound/server-actions/database-actions.ts
+````typescript
+/**
+ * database-actions — notion database server actions.
+ */
+⋮----
+import { z } from "zod";
+import { createClientNotionDatabaseUseCases } from "../../outbound/firebase-composition";
+⋮----
+// ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+// ── Actions ───────────────────────────────────────────────────────────────────
+⋮----
+export async function queryDatabasesAction(rawInput: unknown)
+⋮----
+export async function createDatabaseAction(rawInput: unknown)
+````
+
+## File: src/modules/notion/adapters/inbound/server-actions/page-actions.ts
+````typescript
+/**
+ * page-actions — notion page server actions.
+ */
+⋮----
+import { z } from "zod";
+import { createClientNotionPageUseCases } from "../../outbound/firebase-composition";
+⋮----
+// ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+// ── Actions ───────────────────────────────────────────────────────────────────
+⋮----
+export async function queryPagesAction(rawInput: unknown)
+⋮----
+export async function createPageAction(rawInput: unknown)
+⋮----
+export async function renamePageAction(rawInput: unknown)
+⋮----
+export async function archivePageAction(rawInput: unknown)
+````
+
+## File: src/modules/notion/adapters/inbound/server-actions/template-actions.ts
+````typescript
+/**
+ * template-actions — notion template server actions (stub).
+ *
+ * Templates use case is not yet implemented. These actions return empty
+ * results until TemplateUseCases are implemented.
+ */
+⋮----
+import { z } from "zod";
+import type { Template } from "../../../subdomains/template/domain/entities/Template";
+⋮----
+export async function queryTemplatesAction(rawInput: unknown): Promise<Template[]>
+⋮----
+// TODO: implement when TemplateUseCases are available
+````
+
+## File: src/modules/notion/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — notion module outbound composition root.
+ *
+ * Currently uses InMemory repositories — no Firestore adapter exists yet
+ * for notion (it is pure TypeScript DDD; py_fn has no corresponding capability).
+ * Replace InMemory repos with real Firestore implementations when the notion
+ * Firestore schema is finalized.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { InMemoryPageRepository } from "../../subdomains/page/adapters/outbound/memory/InMemoryPageRepository";
+import { InMemoryDatabaseRepository } from "../../subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository";
+import {
+  CreatePageUseCase,
+  RenamePageUseCase,
+  ArchivePageUseCase,
+  QueryPagesUseCase,
+} from "../../subdomains/page/application/use-cases/PageUseCases";
+import {
+  CreateDatabaseUseCase,
+  AddPropertyUseCase,
+} from "../../subdomains/database/application/use-cases/DatabaseUseCases";
+⋮----
+// ── Singleton repositories ────────────────────────────────────────────────────
+⋮----
+function getPageRepo(): InMemoryPageRepository
+⋮----
+function getDatabaseRepo(): InMemoryDatabaseRepository
+⋮----
+// ── Factory functions ─────────────────────────────────────────────────────────
+⋮----
+export function createClientNotionPageUseCases()
+⋮----
+export function createClientNotionDatabaseUseCases()
+````
+
 ## File: src/modules/notion/adapters/outbound/notion-page-stub.ts
 ````typescript
 /**
@@ -605,48 +957,24 @@ export async function createKnowledgePage(
 ): Promise<CreateKnowledgePageResult>
 ````
 
-## File: src/modules/notion/orchestration/index.ts
+## File: src/modules/notion/index.ts
 ````typescript
-// notion — orchestration layer
-// Cross-subdomain composition and facade lives here.
-// TODO: implement NotionFacade if needed.
-````
-
-## File: src/modules/notion/shared/errors/index.ts
-````typescript
-// notion shared/errors placeholder
-````
-
-## File: src/modules/notion/shared/events/index.ts
-````typescript
-// notion shared/events placeholder
-````
-
-## File: src/modules/notion/shared/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/shared/types/index.ts
-````typescript
-// notion shared/types placeholder
-````
-
-## File: src/modules/notion/subdomains/block/adapters/inbound/index.ts
-````typescript
-// block — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notion/subdomains/block/adapters/index.ts
-````typescript
-// block — adapters aggregate
-````
-
-## File: src/modules/notion/subdomains/block/adapters/outbound/index.ts
-````typescript
-// block — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
 ````
 
 ## File: src/modules/notion/subdomains/block/adapters/outbound/memory/InMemoryBlockRepository.ts
@@ -671,6 +999,16 @@ async delete(id: string): Promise<void>
 async deleteByPageId(pageId: string): Promise<void>
 ````
 
+## File: src/modules/notion/subdomains/block/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/block/domain/index.ts
+````typescript
+
+````
+
 ## File: src/modules/notion/subdomains/block/domain/repositories/BlockRepository.ts
 ````typescript
 import type { BlockSnapshot } from "../entities/Block";
@@ -692,29 +1030,6 @@ findByPageId(pageId: string): Promise<BlockSnapshot[]>;
 findChildren(parentBlockId: string): Promise<BlockSnapshot[]>;
 delete(id: string): Promise<void>;
 deleteByPageId(pageId: string): Promise<void>;
-````
-
-## File: src/modules/notion/subdomains/collaboration/adapters/inbound/index.ts
-````typescript
-// collaboration — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notion/subdomains/collaboration/adapters/index.ts
-````typescript
-// collaboration — adapters aggregate
-````
-
-## File: src/modules/notion/subdomains/collaboration/adapters/outbound/index.ts
-````typescript
-// collaboration — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/notion/subdomains/collaboration/application/index.ts
-````typescript
-// collaboration — application layer placeholder
-// TODO: export use-cases, DTOs, ports
 ````
 
 ## File: src/modules/notion/subdomains/collaboration/application/use-cases/CollaborationUseCases.ts
@@ -760,29 +1075,6 @@ resolveComment(id: string): Promise<void>;
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/notion/subdomains/collaboration/domain/index.ts
-````typescript
-// collaboration — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
-
-## File: src/modules/notion/subdomains/database/adapters/inbound/index.ts
-````typescript
-// database — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notion/subdomains/database/adapters/index.ts
-````typescript
-// database — adapters aggregate
-````
-
-## File: src/modules/notion/subdomains/database/adapters/outbound/index.ts
-````typescript
-// database — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
 ## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
 ````typescript
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
@@ -799,6 +1091,16 @@ async findByPageId(pageId: string): Promise<DatabaseSnapshot[]>
 async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/database/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/database/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts
@@ -820,23 +1122,6 @@ findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/notion/subdomains/page/adapters/inbound/index.ts
-````typescript
-// page — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notion/subdomains/page/adapters/index.ts
-````typescript
-// page — adapters aggregate
-````
-
-## File: src/modules/notion/subdomains/page/adapters/outbound/index.ts
-````typescript
-// page — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
 ## File: src/modules/notion/subdomains/page/adapters/outbound/memory/InMemoryPageRepository.ts
 ````typescript
 import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
@@ -855,6 +1140,16 @@ async findChildren(parentPageId: string): Promise<PageSnapshot[]>
 async query(params: PageQuery): Promise<PageSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/page/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/page/domain/index.ts
+````typescript
+
 ````
 
 ## File: src/modules/notion/subdomains/page/domain/repositories/PageRepository.ts
@@ -885,29 +1180,6 @@ findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>;
 findChildren(parentPageId: string): Promise<PageSnapshot[]>;
 query(params: PageQuery): Promise<PageSnapshot[]>;
 delete(id: string): Promise<void>;
-````
-
-## File: src/modules/notion/subdomains/template/adapters/inbound/index.ts
-````typescript
-// template — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notion/subdomains/template/adapters/index.ts
-````typescript
-// template — adapters aggregate
-````
-
-## File: src/modules/notion/subdomains/template/adapters/outbound/index.ts
-````typescript
-// template — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/notion/subdomains/template/application/index.ts
-````typescript
-// template — application layer placeholder
-// TODO: export use-cases, DTOs, ports
 ````
 
 ## File: src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts
@@ -953,35 +1225,6 @@ findById(id: string): Promise<Template | null>;
 findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>;
 listByCategory(category: TemplateCategory): Promise<Template[]>;
 delete(id: string): Promise<void>;
-````
-
-## File: src/modules/notion/subdomains/template/domain/index.ts
-````typescript
-// template — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
-
-## File: src/modules/notion/subdomains/view/adapters/inbound/index.ts
-````typescript
-// view — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notion/subdomains/view/adapters/index.ts
-````typescript
-// view — adapters aggregate
-````
-
-## File: src/modules/notion/subdomains/view/adapters/outbound/index.ts
-````typescript
-// view — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/notion/subdomains/view/application/index.ts
-````typescript
-// view — application layer placeholder
-// TODO: export use-cases, DTOs, ports
 ````
 
 ## File: src/modules/notion/subdomains/view/application/use-cases/ViewUseCases.ts
@@ -1034,35 +1277,68 @@ findByDatabaseId(databaseId: string): Promise<ViewSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/notion/subdomains/view/domain/index.ts
-````typescript
-// view — domain layer placeholder
-// TODO: export entities, value-objects, repositories, events, services
-````
+## File: src/modules/notion/README.md
+````markdown
+# Notion Module
 
-## File: src/modules/notion/index.ts
-````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-````
+## 子域清單（名詞域）
 
-## File: src/modules/notion/subdomains/block/application/index.ts
-````typescript
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
+> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
 
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
+| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
+| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
+| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
+| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
+| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/notion/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    NotionFacade.ts
+  shared/
+    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    page/
+      domain/
+      application/
+      adapters/outbound/
+    block/
+    database/
+    view/
+    collaboration/
+    template/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
+| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
+| 在 barrel 使用 `export *` | 破壞可追蹤性 |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notion/subdomains/block/application/use-cases/BlockUseCases.ts
@@ -1158,16 +1434,6 @@ get order(): number
 getSnapshot(): Readonly<BlockSnapshot>
 ````
 
-## File: src/modules/notion/subdomains/block/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/database/application/index.ts
-````typescript
-
-````
-
 ## File: src/modules/notion/subdomains/database/application/use-cases/DatabaseUseCases.ts
 ````typescript
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
@@ -1244,16 +1510,6 @@ get pageId(): string
 get properties(): DatabaseProperty[]
 ⋮----
 getSnapshot(): Readonly<DatabaseSnapshot>
-````
-
-## File: src/modules/notion/subdomains/database/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/subdomains/page/application/index.ts
-````typescript
-
 ````
 
 ## File: src/modules/notion/subdomains/page/application/use-cases/PageUseCases.ts
@@ -1343,75 +1599,6 @@ get parentPageId(): string | null
 getSnapshot(): Readonly<PageSnapshot>
 ⋮----
 pullDomainEvents()
-````
-
-## File: src/modules/notion/subdomains/page/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/notion/README.md
-````markdown
-# Notion Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
-| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
-| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
-| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
-| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
-| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notion/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    NotionFacade.ts
-  shared/
-    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    page/
-      domain/
-      application/
-      adapters/outbound/
-    block/
-    database/
-    view/
-    collaboration/
-    template/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
-| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
-| 在 barrel 使用 `export *` | 破壞可追蹤性 |
-
----
-
-## 文件網絡
-
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notion/AGENT.md

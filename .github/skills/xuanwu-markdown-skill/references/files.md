@@ -33838,94 +33838,6 @@ applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
-## File: .github/instructions/genkit-flow.instructions.md
-````markdown
----
-description: 'Genkit flow design and runtime-boundary rules for AI orchestration in platform.ai and notebooklm.'
-applyTo: '{src/modules/platform/**/*.{ts,tsx,js,jsx},src/modules/notebooklm/**/*.{ts,tsx,js,jsx}}'
----
-
-# Genkit Flow
-
-## Ownership and Boundary
-
-- `platform/subdomains/ai/` owns provider selection, quota, safety policy, and the AI adapter port.
-- `notebooklm/` owns flow definitions for retrieval, grounding, synthesis, and evaluation.
-- `notion/` has zero imports from Genkit or platform.ai — notion is AI-agnostic.
-- `workspace/` never calls platform.ai directly; it calls `notebooklm.api` which routes internally.
-- No Genkit symbol (`defineFlow`, `defineTool`, `generate`, etc.) may appear in any `domain/` layer.
-
-## Flow Design Rules
-
-- Every flow must declare explicit `inputSchema` and `outputSchema` using Zod.
-- Never use `any`, `unknown`, or untyped objects for flow I/O.
-- Flow name convention: `<module-name>.<action>` (e.g. `notebooklm.synthesis`, `notebooklm.retrieval`).
-- Flow files live in `src/modules/<context>/infrastructure/ai/<name>.flow.ts`.
-
-## AI Output Validation Rule
-
-- AI output must be validated with `outputSchema.parse()` or Genkit's built-in schema validation before entering any use case.
-- If validation fails, treat as external error — do not propagate raw AI output into domain.
-- Never assign AI response directly to a domain aggregate without validation.
-
-## Use Case ↔ Flow Integration
-
-- Use cases depend on a port interface (`AIOrchestrationPort`), not on `defineFlow` directly.
-- The port implementation (in `infrastructure/`) calls the flow and validates the result.
-- Use case receives a strongly-typed result from the port — it never sees raw AI output.
-
-```typescript
-// ✅ Correct: use case depends on port, not on flow directly
-export class SynthesizeAnswerUseCase {
-  constructor(private readonly aiPort: AIOrchestrationPort) {}
-  async execute(cmd: SynthesizeAnswerCommand): Promise<SynthesisResult> {
-    return this.aiPort.runSynthesis(cmd);  // port hides Genkit details
-  }
-}
-
-// ❌ Wrong: use case imports flow directly
-import { synthesisFlow } from '../infrastructure/ai/synthesis.flow';
-```
-
-## Tool Calling Rules
-
-- Tool definition files live in `src/modules/<context>/infrastructure/ai/tools/<name>.tool.ts`.
-- Every tool must have a clear `description` — the model uses this to decide when to invoke the tool.
-- Tool input and output must be typed with Zod schemas.
-- Tool results must be validated; never passthrough raw tool output.
-
-## Prompt Management
-
-- Do not scatter prompt strings inside use-case or service files.
-- Use `definePrompt` or a typed template function.
-- System prompt and user prompt are defined separately.
-- Prompts that vary by model or language belong in `platform.ai`'s prompt registry.
-
-## Observability (Mandatory)
-
-Every flow execution must log: `traceId`, `source` (module + use-case), `flowName`, `modelVersion`, `inputHash`, `initiatedAt`, `completedAt`, `status` (`success` | `failed`), and `errorCode` on failure.
-
-Log before sending to AI, log after receiving from AI. Never lose the pair.
-
-## Provider and Safety Governance
-
-- Provider config (model name, API key, region) is owned by `platform.ai` — never hardcoded in `notebooklm`.
-- Safety filters and content policy are applied at the `platform.ai` adapter layer before result returns to caller.
-- `notebooklm` requests capabilities via the port; it does not configure the model directly.
-
-## Anti-Patterns
-
-- ❌ Importing Genkit in `domain/` or `application/` (except through the injected port interface)
-- ❌ Passing unvalidated AI output to domain methods
-- ❌ Calling AI from `notion/` or `workspace/` directly
-- ❌ Flow without `inputSchema` or `outputSchema`
-- ❌ Magic string prompts inside use-case files
-- ❌ Skipping traceability logging for any AI request
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill hexagonal-ddd
-````
-
 ## File: .github/instructions/hexagonal-rules.instructions.md
 ````markdown
 ---
@@ -34123,128 +34035,6 @@ applyTo: '{src/app,src/modules,packages}/**/*.{ts,tsx}'
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill shadcn
 #use skill web-design-guidelines
-````
-
-## File: .github/instructions/state-management.instructions.md
-````markdown
----
-description: 'Zustand client state and XState finite-state workflow rules: placement, slice pattern, naming, decision boundary, and TanStack Query separation.'
-applyTo: '{src/modules/**/interfaces/stores/**,src/modules/**/application/machines/**,src/app/**/*.{ts,tsx}}'
----
-
-# State Management
-
-## Responsibility Decision Table
-
-Before writing any state code, apply this rule:
-
-| State type | Tool | Location |
-|---|---|---|
-| Cross-component UI preference (panel, modal, theme) | **Zustand** | `src/modules/<context>/interfaces/stores/<name>.store.ts` |
-| Multi-step workflow (wizard, approval, async lifecycle) | **XState** | `src/modules/<context>/application/machines/<noun>-<flow>.machine.ts` |
-| Server-fetched async data | **TanStack Query** | `src/modules/<context>/interfaces/queries/<name>.query.ts` |
-| Domain aggregate / entity state | **Firestore via use case** | Never persist in frontend store |
-
-Never use Zustand for server data and never use XState for simple UI toggles.
-
----
-
-## Zustand Rules
-
-### Store Placement
-
-```
-src/modules/<context>/interfaces/stores/<name>.store.ts   ← module-owned store
-src/app/(shell)/stores/<name>.store.ts                    ← shell-only store
-```
-
-One module must not import another module's store directly. If two modules share UI state, lift it to `src/app/(shell)/stores/`.
-
-### Slice Pattern (Mandatory)
-
-Every store must split **state** and **actions** into two slices to minimise re-renders:
-- Define `<Noun>State` interface (data fields only).
-- Define `<Noun>Actions` interface (setter/clear functions only).
-- Export `use<Noun>Store = create<State & Actions>(...)` as the combined hook.
-
-### Naming Rules
-
-- File: `<noun>.store.ts` (e.g. `panel.store.ts`, `draft.store.ts`)
-- Hook export: `use<Noun>Store` (e.g. `usePanelStore`)
-- State type: `<Noun>State`
-- Actions type: `<Noun>Actions`
-
-### Anti-Patterns
-
-- ❌ `useEffect(() => setStore(data), [data])` — copying server data into Zustand
-- ❌ Domain aggregate instances in store context (`WorkspaceAggregate` as store value)
-- ❌ Business rule conditions inside store actions (`if (user.role === 'admin')`)
-- ❌ Cross-module store imports (each module owns its own stores)
-- ❌ Importing Zustand in `domain/` or `application/` layers
-
----
-
-## XState Rules
-
-### Machine Placement
-
-```
-src/modules/<context>/application/machines/<noun>-<flow>.machine.ts
-```
-
-Machine definitions are **application layer** concerns — they model business workflow transitions, not UI rendering. Components consume machines via `useMachine()` but do not define them.
-
-### State Naming
-
-Name states with business semantics, not technical or UI language:
-
-| ✅ Use | ❌ Avoid |
-|---|---|
-| `idle` | `initial` |
-| `creating` | `loading` |
-| `ready` | `success` |
-| `failed` | `error` |
-| `reviewing` | `step2` |
-
-### Machine + Server Action Integration
-
-Machine `invoke.src` actors call Server Actions; results map back via `onDone` / `onError`:
-- Declare a `creating` state with `invoke.src` pointing to the Server Action name.
-- Use `onDone` to transition to `ready` and `assign` the result (e.g. `aggregateId`).
-- Use `onError` to transition to `failed` and `assign` the error string.
-- Provide `RETRY: 'idle'` transition from `failed` for user-initiated retries.
-
-### Anti-Patterns
-
-- ❌ Machine defined inline inside a React component
-- ❌ Machine importing Firebase SDK or calling repositories directly
-- ❌ Machine `actions` containing business invariant logic
-- ❌ Machine event type `workspace.created` reused as domain event discriminant (keep them separate)
-- ❌ XState for simple boolean toggles or panel open/close (use Zustand)
-
----
-
-## TanStack Query — Boundary Rule
-
-TanStack Query is the **server state** authority. Never mirror its data into Zustand:
-
-```typescript
-// ✅ Correct: TanStack Query owns server data
-const { data: workspace } = useQuery({
-  queryKey: ['workspace', workspaceId],
-  queryFn: () => fetchWorkspace(workspaceId),
-});
-
-// ✅ Correct: Zustand owns UI state
-const { activePanelId } = usePanelStore();
-
-// ❌ Wrong: copying query result into Zustand
-const { data } = useQuery(...);
-useEffect(() => { setWorkspaceData(data); }, [data]);
-```
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill zustand-xstate
 ````
 
 ## File: .github/instructions/tailwind-design-system.instructions.md
@@ -35607,6 +35397,94 @@ adapters/inbound → application → domain ← adapters/outbound
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
+## File: src/modules/platform/README.md
+````markdown
+# Platform Module
+
+> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
+
+## 子域清單
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
+| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
+| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
+| `notification` | ✅ 完成 | 通知發送 |
+| `platform-config` | ✅ 完成 | 平台設定 |
+| `search` | ✅ 完成 | 跨域搜尋 |
+
+**已遷移（不在 platform）：**
+
+| 子域 | 遷移目標 |
+|---|---|
+| `account` | `src/modules/iam/subdomains/account/` |
+| `organization` | `src/modules/iam/subdomains/organization/` |
+
+---
+
+## 目錄結構
+
+```
+src/modules/platform/
+  index.ts
+  README.md
+  AGENT.md
+  orchestration/
+    PlatformFacade.ts
+  shared/
+    domain/index.ts
+    events/index.ts             ← Platform Published Language Events
+    types/index.ts
+  subdomains/
+    notification/
+      domain/
+      application/
+      adapters/outbound/
+    background-job/
+      domain/                   ← BackgroundJob / JobDocument / JobChunk
+      application/
+      adapters/outbound/
+    cache/
+    file-storage/
+    platform-config/
+    search/
+```
+
+---
+
+## 依賴方向
+
+Platform 是 T1 operational support，依賴方向固定：
+
+```
+iam     → platform
+billing → platform (entitlement governance)
+platform → workspace
+(platform 也被 notion, notebooklm 以 Service API 形式消費)
+```
+
+Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
+| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
+| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
+
+---
+
+## 文件網絡
+
+- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
 ## File: src/modules/README.md
 ````markdown
 # src/modules — 模組實作層
@@ -36551,84 +36429,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill hexagonal-ddd
 ````
 
-## File: .github/instructions/domain-modeling.instructions.md
-````markdown
----
-description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 Hexagonal Architecture with Domain-Driven Design 戰術設計原則。'
-applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
----
-
-# 領域模型設計規範 (Domain Modeling)
-
-> 完整邊界參考：**先查 `docs/structure/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
-> 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
-
-## 聚合根 (Aggregate Root)
-
-- 每個聚合必須有**唯一識別碼**（使用 Zod 品牌型別 `z.string().uuid().brand('...')`）。
-- 使用**私有建構函式**加靜態工廠方法 `create()` 與 `reconstitute()`。
-- 所有狀態修改必須透過**封裝的命令方法**，不允許直接修改屬性。
-- **業務規則（不變數）**只在聚合內部執行，違規時拋出帶有描述的 `Error`。
-- 每次狀態修改必須產生對應的**領域事件**並存入 `_domainEvents` 私有陣列。
-- 使用 `pullDomainEvents()` 方法提取並清空待發布事件。
-- `getSnapshot()` 回傳 `Readonly<State>`，防止外部直接修改狀態。
-
-## 值對象 (Value Object)
-
-- 使用 **Zod Schema** 定義並驗證，並使用 `z.brand()` 確保型別安全。
-- 值對象必須是**不可變的**（Immutable）。
-- 相等性以**值內容**判斷，不以物件參考判斷。
-- 不應包含識別碼欄位。
-
-```typescript
-// 值對象：品牌型別模式
-import { z } from 'zod';
-
-export const WorkspaceIdSchema = z.string().uuid().brand('WorkspaceId');
-export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
-
-export const WorkspaceNameSchema = z.string().min(1).max(100).trim().brand('WorkspaceName');
-export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
-```
-
-## 實體 (Entity)
-
-- 具有唯一識別碼，以識別碼判斷相等性。
-- 狀態可變，但修改應透過方法封裝。
-- 不要設計成只有 Getter/Setter 的**貧血模型**（Anemic Domain Model）。
-- 識別碼使用品牌型別值對象保護型別安全。
-
-## Zod 驗證規範
-
-- 所有 Domain 物件的 Schema 定義必須放在 `domain/` 層（不依賴外部框架）。
-- 使用 `z.infer<typeof Schema>` 產生 TypeScript 型別，避免型別重複定義。
-- 在聚合的工廠方法或命令方法中執行輸入驗證。
-- `CommandResult` 使用 `@shared-types` 的共用型別。
-
-## 禁止模式 (Anti-Patterns)
-
-- ❌ **貧血領域模型**：只有資料屬性（`id`, `name`, `status`），無業務邏輯。
-- ❌ **直接暴露可變狀態**：`public state: MyState`。
-- ❌ **在 `domain/` 層匯入外部框架**：Firebase、HTTP 客戶端、React。
-- ❌ **跨聚合直接操作**：在聚合 A 中直接修改聚合 B 的狀態。
-- ❌ **過大聚合**：聚合包含過多子實體，應重新評估邊界。
-
-## 目錄結構
-
-```
-src/modules/<context>/domain/
-├── aggregates/        # 聚合根類別
-├── entities/          # 子實體類別與型別定義
-├── value-objects/     # 值對象（品牌型別）
-├── events/            # 領域事件定義（Zod Schema）
-├── repositories/      # 儲存庫介面（只有介面，無實作）
-└── services/          # 領域服務（無狀態業務邏輯）
-```
-
-Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
-#use skill hexagonal-ddd
-````
-
 ## File: .github/instructions/event-driven-state.instructions.md
 ````markdown
 ---
@@ -36784,6 +36584,94 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill xuanwu-development-contracts
 ````
 
+## File: .github/instructions/genkit-flow.instructions.md
+````markdown
+---
+description: 'Genkit flow design and runtime-boundary rules for AI orchestration in platform.ai and notebooklm.'
+applyTo: '{src/modules/platform/**/*.{ts,tsx,js,jsx},src/modules/notebooklm/**/*.{ts,tsx,js,jsx}}'
+---
+
+# Genkit Flow
+
+## Ownership and Boundary
+
+- `platform/subdomains/ai/` owns provider selection, quota, safety policy, and the AI adapter port.
+- `notebooklm/` owns flow definitions for retrieval, grounding, synthesis, and evaluation.
+- `notion/` has zero imports from Genkit or platform.ai — notion is AI-agnostic.
+- `workspace/` never calls platform.ai directly; it calls `notebooklm.api` which routes internally.
+- No Genkit symbol (`defineFlow`, `defineTool`, `generate`, etc.) may appear in any `domain/` layer.
+
+## Flow Design Rules
+
+- Every flow must declare explicit `inputSchema` and `outputSchema` using Zod.
+- Never use `any`, `unknown`, or untyped objects for flow I/O.
+- Flow name convention: `<module-name>.<action>` (e.g. `notebooklm.synthesis`, `notebooklm.retrieval`).
+- Flow files live in `src/modules/<context>/infrastructure/ai/<name>.flow.ts`.
+
+## AI Output Validation Rule
+
+- AI output must be validated with `outputSchema.parse()` or Genkit's built-in schema validation before entering any use case.
+- If validation fails, treat as external error — do not propagate raw AI output into domain.
+- Never assign AI response directly to a domain aggregate without validation.
+
+## Use Case ↔ Flow Integration
+
+- Use cases depend on a port interface (`AIOrchestrationPort`), not on `defineFlow` directly.
+- The port implementation (in `infrastructure/`) calls the flow and validates the result.
+- Use case receives a strongly-typed result from the port — it never sees raw AI output.
+
+```typescript
+// ✅ Correct: use case depends on port, not on flow directly
+export class SynthesizeAnswerUseCase {
+  constructor(private readonly aiPort: AIOrchestrationPort) {}
+  async execute(cmd: SynthesizeAnswerCommand): Promise<SynthesisResult> {
+    return this.aiPort.runSynthesis(cmd);  // port hides Genkit details
+  }
+}
+
+// ❌ Wrong: use case imports flow directly
+import { synthesisFlow } from '../infrastructure/ai/synthesis.flow';
+```
+
+## Tool Calling Rules
+
+- Tool definition files live in `src/modules/<context>/infrastructure/ai/tools/<name>.tool.ts`.
+- Every tool must have a clear `description` — the model uses this to decide when to invoke the tool.
+- Tool input and output must be typed with Zod schemas.
+- Tool results must be validated; never passthrough raw tool output.
+
+## Prompt Management
+
+- Do not scatter prompt strings inside use-case or service files.
+- Use `definePrompt` or a typed template function.
+- System prompt and user prompt are defined separately.
+- Prompts that vary by model or language belong in `platform.ai`'s prompt registry.
+
+## Observability (Mandatory)
+
+Every flow execution must log: `traceId`, `source` (module + use-case), `flowName`, `modelVersion`, `inputHash`, `initiatedAt`, `completedAt`, `status` (`success` | `failed`), and `errorCode` on failure.
+
+Log before sending to AI, log after receiving from AI. Never lose the pair.
+
+## Provider and Safety Governance
+
+- Provider config (model name, API key, region) is owned by `platform.ai` — never hardcoded in `notebooklm`.
+- Safety filters and content policy are applied at the `platform.ai` adapter layer before result returns to caller.
+- `notebooklm` requests capabilities via the port; it does not configure the model directly.
+
+## Anti-Patterns
+
+- ❌ Importing Genkit in `domain/` or `application/` (except through the injected port interface)
+- ❌ Passing unvalidated AI output to domain methods
+- ❌ Calling AI from `notion/` or `workspace/` directly
+- ❌ Flow without `inputSchema` or `outputSchema`
+- ❌ Magic string prompts inside use-case files
+- ❌ Skipping traceability logging for any AI request
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+#use skill hexagonal-ddd
+````
+
 ## File: .github/instructions/security-rules.instructions.md
 ````markdown
 ---
@@ -36817,6 +36705,128 @@ applyTo: '{firestore.rules,storage.rules,src/modules/**/infrastructure/**/*.{ts,
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill xuanwu-development-contracts
+````
+
+## File: .github/instructions/state-management.instructions.md
+````markdown
+---
+description: 'Zustand client state and XState finite-state workflow rules: placement, slice pattern, naming, decision boundary, and TanStack Query separation.'
+applyTo: '{src/modules/**/interfaces/stores/**,src/modules/**/application/machines/**,src/app/**/*.{ts,tsx}}'
+---
+
+# State Management
+
+## Responsibility Decision Table
+
+Before writing any state code, apply this rule:
+
+| State type | Tool | Location |
+|---|---|---|
+| Cross-component UI preference (panel, modal, theme) | **Zustand** | `src/modules/<context>/interfaces/stores/<name>.store.ts` |
+| Multi-step workflow (wizard, approval, async lifecycle) | **XState** | `src/modules/<context>/application/machines/<noun>-<flow>.machine.ts` |
+| Server-fetched async data | **TanStack Query** | `src/modules/<context>/interfaces/queries/<name>.query.ts` |
+| Domain aggregate / entity state | **Firestore via use case** | Never persist in frontend store |
+
+Never use Zustand for server data and never use XState for simple UI toggles.
+
+---
+
+## Zustand Rules
+
+### Store Placement
+
+```
+src/modules/<context>/interfaces/stores/<name>.store.ts   ← module-owned store
+src/app/(shell)/stores/<name>.store.ts                    ← shell-only store
+```
+
+One module must not import another module's store directly. If two modules share UI state, lift it to `src/app/(shell)/stores/`.
+
+### Slice Pattern (Mandatory)
+
+Every store must split **state** and **actions** into two slices to minimise re-renders:
+- Define `<Noun>State` interface (data fields only).
+- Define `<Noun>Actions` interface (setter/clear functions only).
+- Export `use<Noun>Store = create<State & Actions>(...)` as the combined hook.
+
+### Naming Rules
+
+- File: `<noun>.store.ts` (e.g. `panel.store.ts`, `draft.store.ts`)
+- Hook export: `use<Noun>Store` (e.g. `usePanelStore`)
+- State type: `<Noun>State`
+- Actions type: `<Noun>Actions`
+
+### Anti-Patterns
+
+- ❌ `useEffect(() => setStore(data), [data])` — copying server data into Zustand
+- ❌ Domain aggregate instances in store context (`WorkspaceAggregate` as store value)
+- ❌ Business rule conditions inside store actions (`if (user.role === 'admin')`)
+- ❌ Cross-module store imports (each module owns its own stores)
+- ❌ Importing Zustand in `domain/` or `application/` layers
+
+---
+
+## XState Rules
+
+### Machine Placement
+
+```
+src/modules/<context>/application/machines/<noun>-<flow>.machine.ts
+```
+
+Machine definitions are **application layer** concerns — they model business workflow transitions, not UI rendering. Components consume machines via `useMachine()` but do not define them.
+
+### State Naming
+
+Name states with business semantics, not technical or UI language:
+
+| ✅ Use | ❌ Avoid |
+|---|---|
+| `idle` | `initial` |
+| `creating` | `loading` |
+| `ready` | `success` |
+| `failed` | `error` |
+| `reviewing` | `step2` |
+
+### Machine + Server Action Integration
+
+Machine `invoke.src` actors call Server Actions; results map back via `onDone` / `onError`:
+- Declare a `creating` state with `invoke.src` pointing to the Server Action name.
+- Use `onDone` to transition to `ready` and `assign` the result (e.g. `aggregateId`).
+- Use `onError` to transition to `failed` and `assign` the error string.
+- Provide `RETRY: 'idle'` transition from `failed` for user-initiated retries.
+
+### Anti-Patterns
+
+- ❌ Machine defined inline inside a React component
+- ❌ Machine importing Firebase SDK or calling repositories directly
+- ❌ Machine `actions` containing business invariant logic
+- ❌ Machine event type `workspace.created` reused as domain event discriminant (keep them separate)
+- ❌ XState for simple boolean toggles or panel open/close (use Zustand)
+
+---
+
+## TanStack Query — Boundary Rule
+
+TanStack Query is the **server state** authority. Never mirror its data into Zustand:
+
+```typescript
+// ✅ Correct: TanStack Query owns server data
+const { data: workspace } = useQuery({
+  queryKey: ['workspace', workspaceId],
+  queryFn: () => fetchWorkspace(workspaceId),
+});
+
+// ✅ Correct: Zustand owns UI state
+const { activePanelId } = usePanelStore();
+
+// ❌ Wrong: copying query result into Zustand
+const { data } = useQuery(...);
+useEffect(() => { setWorkspaceData(data); }, [data]);
+```
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+#use skill zustand-xstate
 ````
 
 ## File: .github/prompts/generate-aggregate.prompt.md
@@ -37026,90 +37036,64 @@ import { firestoreApi } from '@integration-firebase'
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/platform/README.md
+## File: src/modules/platform/AGENT.md
 ````markdown
-# Platform Module
+# Platform Module — Agent Guide
 
-> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
+## Purpose
+
+`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
+
+> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
 
 ## 子域清單
 
-| 子域 | 狀態 | 說明 |
+| 子域 | 說明 | 狀態 |
 |---|---|---|
-| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
-| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
-| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
-| `notification` | ✅ 完成 | 通知發送 |
-| `platform-config` | ✅ 完成 | 平台設定 |
-| `search` | ✅ 完成 | 跨域搜尋 |
+| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
+| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
+| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
+| `notification` | 通知發送 | ✅ 完成 |
+| `platform-config` | 平台設定 | ✅ 完成 |
+| `search` | 跨域搜尋 | ✅ 完成 |
 
-**已遷移（不在 platform）：**
+**已遷移子域（不在 platform）：**
+- `account` → `src/modules/iam/subdomains/account/`
+- `organization` → `src/modules/iam/subdomains/organization/`
 
-| 子域 | 遷移目標 |
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
+- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
+
+## Route Here When
+
+- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
+- 實作 notification、background-job 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/platform/AGENT.md`
+- Account / Organization → `src/modules/iam/`（已遷入）
+- 跨模組 API boundary → `src/modules/platform/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
 |---|---|
-| `account` | `src/modules/iam/subdomains/account/` |
-| `organization` | `src/modules/iam/subdomains/organization/` |
+| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
+| 跨模組 API boundary | `src/modules/platform/index.ts` |
 
----
-
-## 目錄結構
-
-```
-src/modules/platform/
-  index.ts
-  README.md
-  AGENT.md
-  orchestration/
-    PlatformFacade.ts
-  shared/
-    domain/index.ts
-    events/index.ts             ← Platform Published Language Events
-    types/index.ts
-  subdomains/
-    notification/
-      domain/
-      application/
-      adapters/outbound/
-    background-job/
-      domain/                   ← BackgroundJob / JobDocument / JobChunk
-      application/
-      adapters/outbound/
-    cache/
-    file-storage/
-    platform-config/
-    search/
-```
-
----
-
-## 依賴方向
-
-Platform 是 T1 operational support，依賴方向固定：
-
-```
-iam     → platform
-billing → platform (entitlement governance)
-platform → workspace
-(platform 也被 notion, notebooklm 以 Service API 形式消費)
-```
-
-Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
-| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
-
----
+**嚴禁事項：**
+- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
+- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
+- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
 
 ## 文件網絡
 
-- [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
+- [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
@@ -37457,6 +37441,84 @@ applyTo: 'src/modules/**/*.{ts,tsx,js,jsx,md}'
 - 確認每個 Context 有獨立的 Ubiquitous Language 定義。
 - 確認跨 Context 通訊使用 API boundary 或 event contract。
 - 確認不存在跨 Context 的 Domain Model 重用。
+
+Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/domain-modeling.instructions.md
+````markdown
+---
+description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 Hexagonal Architecture with Domain-Driven Design 戰術設計原則。'
+applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
+---
+
+# 領域模型設計規範 (Domain Modeling)
+
+> 完整邊界參考：**先查 `docs/structure/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
+
+## 聚合根 (Aggregate Root)
+
+- 每個聚合必須有**唯一識別碼**（使用 Zod 品牌型別 `z.string().uuid().brand('...')`）。
+- 使用**私有建構函式**加靜態工廠方法 `create()` 與 `reconstitute()`。
+- 所有狀態修改必須透過**封裝的命令方法**，不允許直接修改屬性。
+- **業務規則（不變數）**只在聚合內部執行，違規時拋出帶有描述的 `Error`。
+- 每次狀態修改必須產生對應的**領域事件**並存入 `_domainEvents` 私有陣列。
+- 使用 `pullDomainEvents()` 方法提取並清空待發布事件。
+- `getSnapshot()` 回傳 `Readonly<State>`，防止外部直接修改狀態。
+
+## 值對象 (Value Object)
+
+- 使用 **Zod Schema** 定義並驗證，並使用 `z.brand()` 確保型別安全。
+- 值對象必須是**不可變的**（Immutable）。
+- 相等性以**值內容**判斷，不以物件參考判斷。
+- 不應包含識別碼欄位。
+
+```typescript
+// 值對象：品牌型別模式
+import { z } from 'zod';
+
+export const WorkspaceIdSchema = z.string().uuid().brand('WorkspaceId');
+export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
+
+export const WorkspaceNameSchema = z.string().min(1).max(100).trim().brand('WorkspaceName');
+export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
+```
+
+## 實體 (Entity)
+
+- 具有唯一識別碼，以識別碼判斷相等性。
+- 狀態可變，但修改應透過方法封裝。
+- 不要設計成只有 Getter/Setter 的**貧血模型**（Anemic Domain Model）。
+- 識別碼使用品牌型別值對象保護型別安全。
+
+## Zod 驗證規範
+
+- 所有 Domain 物件的 Schema 定義必須放在 `domain/` 層（不依賴外部框架）。
+- 使用 `z.infer<typeof Schema>` 產生 TypeScript 型別，避免型別重複定義。
+- 在聚合的工廠方法或命令方法中執行輸入驗證。
+- `CommandResult` 使用 `@shared-types` 的共用型別。
+
+## 禁止模式 (Anti-Patterns)
+
+- ❌ **貧血領域模型**：只有資料屬性（`id`, `name`, `status`），無業務邏輯。
+- ❌ **直接暴露可變狀態**：`public state: MyState`。
+- ❌ **在 `domain/` 層匯入外部框架**：Firebase、HTTP 客戶端、React。
+- ❌ **跨聚合直接操作**：在聚合 A 中直接修改聚合 B 的狀態。
+- ❌ **過大聚合**：聚合包含過多子實體，應重新評估邊界。
+
+## 目錄結構
+
+```
+src/modules/<context>/domain/
+├── aggregates/        # 聚合根類別
+├── entities/          # 子實體類別與型別定義
+├── value-objects/     # 值對象（品牌型別）
+├── events/            # 領域事件定義（Zod Schema）
+├── repositories/      # 儲存庫介面（只有介面，無實作）
+└── services/          # 領域服務（無狀態業務邏輯）
+```
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
@@ -38313,68 +38375,6 @@ flowchart LR
 
 - 本文件集是 Context7-only 的 architecture-first 版本。
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
-````
-
-## File: src/modules/platform/AGENT.md
-````markdown
-# Platform Module — Agent Guide
-
-## Purpose
-
-`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
-
-> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
-| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
-| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
-| `notification` | 通知發送 | ✅ 完成 |
-| `platform-config` | 平台設定 | ✅ 完成 |
-| `search` | 跨域搜尋 | ✅ 完成 |
-
-**已遷移子域（不在 platform）：**
-- `account` → `src/modules/iam/subdomains/account/`
-- `organization` → `src/modules/iam/subdomains/organization/`
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
-
-## Route Here When
-
-- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
-- 實作 notification、background-job 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/platform/AGENT.md`
-- Account / Organization → `src/modules/iam/`（已遷入）
-- 跨模組 API boundary → `src/modules/platform/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/platform/AGENT.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
-| 跨模組 API boundary | `src/modules/platform/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
-- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
-- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: .github/agents/domain-architect.agent.md
