@@ -17,7 +17,10 @@ const reactGlobs = ["**/*.{jsx,tsx}"];
 const srcModuleGlobs = ["src/modules/**/*.{ts,tsx,js,jsx}"];
 const srcAppGlobs = ["src/app/**/*.{ts,tsx,js,jsx}"];
 const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
-const srcModuleOutboundAdapterGlobs = ["src/modules/*/adapters/outbound/**/*.{ts,tsx,js,jsx}"];
+const srcModuleOutboundAdapterGlobs = [
+  "src/modules/*/adapters/outbound/**/*.{ts,tsx,js,jsx}",
+  "src/modules/*/subdomains/*/adapters/outbound/**/*.{ts,tsx,js,jsx}",
+];
 const srcModuleInboundReactAdapterGlobs = ["src/modules/*/adapters/inbound/react/**/*.{ts,tsx,js,jsx}"];
 const srcModuleNonOutboundGlobs = ["src/modules/**/*.{ts,tsx,js,jsx}"];
 

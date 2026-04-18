@@ -17,3 +17,21 @@ export {
   firestoreApi,
   type Firestore,
 } from "./firestore";
+
+export {
+  getFirebaseFunctions,
+  httpsCallable,
+  type Functions,
+} from "./functions";
+
+export {
+  getFirebaseStorage,
+  ref,
+  uploadBytes,
+  uploadBytesResumable,
+  getDownloadURL,
+  type FirebaseStorage,
+  type StorageReference,
+  type UploadResult,
+  type UploadTask,
+} from "./storage";
