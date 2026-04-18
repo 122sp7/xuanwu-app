@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .serena/**/*.md, .github/**/*.md, docs/**/*.md, src/**/*.md, packages/**/*.md, py_fn/**/*.md
+- Only files matching these patterns are included: .github/**/*.md, docs/**/*.md, src/**/*.md, packages/**/*.md, py_fn/**/*.md
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/xuanwu-*/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,16 +42,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-402 files | 36,011 lines
+413 files | 37,236 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 402 | 36,011 |
+| Markdown | 413 | 37,236 |
 
 **Largest files:**
 - `.github/skills/vercel-react-best-practices/AGENTS.md` (3,810 lines)
 - `.github/skills/sleek-design-mobile-apps/SKILL.md` (476 lines)
-- `docs/hard-rules-consolidated.md` (459 lines)
+- `docs/structure/system/hard-rules-consolidated.md` (459 lines)
 - `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
 - `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
 - `.github/skills/agent-browser/references/authentication.md` (303 lines)
