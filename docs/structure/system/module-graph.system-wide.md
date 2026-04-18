@@ -117,10 +117,10 @@ SINK  ANALYTICS
 
 ## Ownership Rules（速查）
 
-  iam         → 身份、tenant、access decision；不擁有商業、內容、推理正典
+  iam         → 身份、tenant、access decision、**account、organization**；不擁有商業、內容、推理正典
   billing     → subscription、entitlement；不擁有身份治理或內容正典
   ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
-  platform    → account、organization、operational services；不再是所有治理的總擁有者
+  platform    → operational services（notification、search、audit-log 等）；account/org 已遷入 iam
   workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
   notion      → 正典知識內容；不擁有治理或推理流程
   notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容

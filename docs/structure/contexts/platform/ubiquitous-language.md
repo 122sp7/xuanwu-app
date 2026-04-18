@@ -2,14 +2,17 @@
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
+## Consumed from iam（consumed, not owned）
+
+| Term | Source |
+|---|---|
+| Account | iam — 帳號聚合根，platform 消費其 published language |
+| Organization | iam — 組織聚合根，platform 消費其 published language |
+
 ## Canonical Terms
 
 | Term | Meaning |
 |---|---|
-| Account | 平台帳號生命週期聚合根 |
-| AccountProfile | 帳號附屬屬性與偏好 |
-| Organization | 多主體營運與治理表面 |
-| OrganizationTeam | Organization 邊界內的成員分組實體 |
 | PlatformConfig | 平台設定輪廓與配置管理 |
 | FeatureFlag | 功能暴露與 rollout 的治理開關 |
 | Consent | 同意、偏好與資料使用授權紀錄 |
@@ -40,7 +43,7 @@
 
 ## Language Rules
 
-- platform 以 Account、Organization、NotificationRoute、AuditLog 等營運語言為主。
+- platform 以 NotificationRoute、AuditLog、AccountScope 等營運與 shell composition 語言為主。Account 與 Organization 聚合根己遷入 iam；platform 只消費其 published language。
 - Actor、Identity、Tenant、AccessDecision 屬於 iam 的 canonical language；platform 只消費其結果。
 - Entitlement、BillingEvent、Subscription 屬於 billing 的 canonical language；platform 不再主張其所有權。
 - 使用 Consent 表示授權與同意，不用 Preference 混稱法律或治理語意。

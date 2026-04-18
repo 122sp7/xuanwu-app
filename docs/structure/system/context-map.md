@@ -49,7 +49,7 @@
 - `iam` 只提供身份、租戶與 access decision，不接管商業、內容或推理語言。
 - `billing` 只提供 entitlement 與 subscription capability signal，不接管 workspace、knowledge 或 notebook 的正典模型。
 - `ai` 提供共享 AI capability、model policy 與 safety result，但不移轉內容或推理所有權。
-- `platform` 保留 account、organization 與 operational surface，不再作為所有治理能力的總擁有者。
+- `platform` 保留 operational surface（notification、search、audit-log 等），不再作為所有治理能力的總擁有者。account 與 organization 正典己遷入 iam。
 - `workspace -> notion` 與 `workspace -> notebooklm` 只提供 scope 與 membership 邊界，不輸出 workspace 內部模型。
 - `notion -> notebooklm` 僅提供可引用內容語言，不允許 notebooklm 直接回寫 notion 正典內容。
 - `analytics` 只消費投影與訊號，不反向成為上游 canonical owner。

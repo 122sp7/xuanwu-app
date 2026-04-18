@@ -6,11 +6,11 @@
 
 系統以八個主域 / bounded context 組成，每個主域都視為一個有自己語言與規則的邊界：
 
-- iam：身份、租戶、存取判定與安全治理
+- iam：身份、租戶、存取判定、安全治理、**account 與 organization 聚合根**
 - billing：訂閱、權益、推薦與商業生命週期
 - ai：共享 AI capability orchestration、content generation / distillation、context assembly、prompt pipeline、safety 與 quality / observability policy
 - analytics：報表、指標、儀表板與下游 read model 投影
-- platform：account、organization、notification、search、audit 與 operational services
+- platform：notification、search、audit、營運服務（account 與 organization 已遷入 iam）
 - workspace：協作容器與工作區範疇
 - notion：正典知識內容生命週期
 - notebooklm：對話、來源處理與推理輸出
@@ -31,11 +31,11 @@
 
 | Main Domain | Strategic Role | What It Owns |
 |---|---|---|
-| iam | 治理上游 | actor、identity、tenant、access decision、security policy |
+| iam | 治理上游 | actor、identity、tenant、access decision、security policy、**account、organization** |
 | billing | 商業上游 | subscription、entitlement、billing event、referral |
 | ai | 共享能力上游 | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing；provider-routing / model-policy 為後續治理延伸 |
 | analytics | 分析下游 | reporting、metrics、dashboard、projection read model |
-| platform | 平台營運支撐 | account、organization、team、notification、search、audit-log、observability、operational workflow |
+| platform | 平台營運支擐 | notification、search、audit-log、observability、operational workflow（account、organization 已遷入 iam） |
 | workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、task、issue、settlement、approve、quality、orchestration |
 | notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
 | notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
@@ -49,7 +49,7 @@
 | iam | workspace / notion / notebooklm | 提供 actor、tenant、access decision |
 | billing | workspace / notion / notebooklm | 提供 entitlement 與 subscription capability signal |
 | ai | notion / notebooklm | 提供 shared AI capability、prompt orchestration、content distillation / generation support、model policy 與 safety |
-| platform | workspace | 提供 account、organization 與 shared operational surface |
+| platform | workspace | 提供 account scope、organization surface 與 shared operational surface（account/org 正典己遷入 iam） |
 | workspace | notion / notebooklm | 提供 workspace scope、membership scope、share scope |
 | notion | notebooklm | 提供可引用的正典知識內容來源 |
 | iam / billing / platform / workspace / notion / notebooklm | analytics | 輸出事件與 read model 供分析使用 |
