@@ -2,42 +2,44 @@
 
 ## Purpose
 
-`.github/` 是 Copilot 行為治理層，定義 Copilot 在本 repo 的工作規則、工具流程與技能包。
+`.github/` 是 Copilot 行為治理層，定義工作規則、流程模板與工具能力路由。
+
+## Start Here
+
+- `TOOLING.md`：Tooling Documentation + AI Agent instruction 設計總入口
+- `copilot-instructions.md`：always-on 全域契約
 
 ## Directory Map
 
-| 路徑 | 職責 |
+| Path | Responsibility |
 |---|---|
-| `copilot-instructions.md` | 永遠啟用的 workspace 全域 Copilot 指引 |
-| `instructions/` | 範圍化行為規則（`.instructions.md`，依 `applyTo` 生效） |
-| `agents/` | 專門 Agent 定義與 `commands.md`（build/lint/test/deploy 指令） |
-| `prompts/` | 可重用的 Copilot 工作流提示範本 |
-| `skills/` | 技能包（`SKILL.md`），提供專門能力知識與執行工作流 |
+| `copilot-instructions.md` | 全域會話契約（精簡且穩定） |
+| `instructions/` | `applyTo` 驅動的檔案範圍規則 |
+| `prompts/` | 可重用工作流模板（plan / implement / review / test） |
+| `skills/` | 工具型能力包（Toolbooks） |
+| `agents/` | Agent profile 與 command contract（獨立維護） |
 
 ## Governance Rules
 
-- `.github/` 定義 Copilot **行為規則**；不重複或競爭 `docs/` 的架構真相。
-- 架構知識（主域、子域、ubiquitous language、context map）的權威是 `docs/`。
-- 把細節放在 `instructions/`；讓 `copilot-instructions.md` 保持精簡穩定。
-- Skills 不是戰略權威；它們是執行流程的輔助工具包。
+- `.github/` 只定義「行為與流程」，不複製 `docs/` 戰略真相。
+- `copilot-instructions.md` 保持薄；細節下放到 `instructions/`。
+- 同一主題只保留一份權威，其餘入口用 router/shim 連結。
+
+## Read Order
+
+1. `TOOLING.md`
+2. `copilot-instructions.md`
+3. `instructions/README.md`
+4. `prompts/README.md`
+5. `../docs/README.md`
 
 ## Route Here When
 
-- 新增或修改 Copilot 行為規則（`instructions/`）。
-- 新增或修改 agent 定義或指令（`agents/`）。
-- 新增或修改可重用提示範本（`prompts/`）。
-- 新增或修改技能包（`skills/`）。
+- 需要新增/調整 Copilot 行為規則
+- 需要新增/調整 prompt workflow
+- 需要更新 skill/tool 操作流程
 
 ## Route Elsewhere When
 
-- 需要修改架構邊界、subdomain 定義或 context map → `docs/`。
-- 需要修改模組實作規則 → `src/modules/<context>/AGENT.md`。
-- 需要修改全域專案說明 → `AGENTS.md` 或 `CLAUDE.md`（根目錄）。
-
-## Document Network
-
-- [copilot-instructions.md](./copilot-instructions.md) — 全域 Copilot workspace 指引
-- [agents/commands.md](./agents/commands.md) — build/lint/test/deploy 指令清單
-- [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) — 模組架構規則
-- [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) — runtime split 規則
-- [../docs/README.md](../docs/README.md) — 架構文件索引（權威）
+- 主域邊界、術語、context map → `docs/**/*`
+- 模組內實作路由 → `src/modules/<context>/AGENT.md`

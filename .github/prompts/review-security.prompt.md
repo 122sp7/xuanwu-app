@@ -1,7 +1,7 @@
 ---
 name: review-security
 description: Review security posture for access control, data exposure, and rule/authorization regressions.
-agent: quality-lead
+agent: Quality Lead
 argument-hint: Provide changed auth/rules/critical data paths and threat concerns.
 ---
 
