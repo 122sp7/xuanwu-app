@@ -22,9 +22,15 @@
 
 | 類型 | 正確套件 |
 |---|---|
+| AI SDK 整合（Genkit flow 呼叫、Google AI、OpenAI） | `integration-ai/` → `@integration-ai` |
+| 認證整合（Firebase Auth、session 管理） | `integration-auth/` → `@integration-auth` |
 | 通用資料層整合（Firestore 以外） | `integration-data/` → `@integration-data` |
-| Firebase App / Auth / Firestore / Storage | `integration-firebase/` → `@integration-firebase` |
+| Firebase App / Firestore 基礎設施原語 | `integration-firebase/` → `@integration-firebase` |
+| Cloud Functions 呼叫（HTTP callable、onCall） | `integration-functions/` → `@integration-functions` |
+| 訊息佇列整合（QStash、Cloud Tasks） | `integration-queue/` → `@integration-queue` |
+| 即時資料整合（Firestore realtime / RTDB / WebSocket） | `integration-realtime/` → `@integration-realtime` |
 | 跨模組狀態整合（Zustand factory、XState helpers） | `integration-state/` → `@integration-state` |
+| 物件儲存整合（Firebase Storage、Cloud Storage） | `integration-storage/` → `@integration-storage` |
 | tRPC 客戶端設定與 Provider | `integration-trpc/` → `@integration-trpc` |
 
 ### 🎨 ui-* — UI 元件層
@@ -84,9 +90,15 @@ import { getFirestore } from 'firebase/firestore'
 - [infra/zod/AGENTS.md](./infra/zod/AGENTS.md)
 
 **integration-***
+- [integration-ai/AGENTS.md](./integration-ai/AGENTS.md)
+- [integration-auth/AGENTS.md](./integration-auth/AGENTS.md)
 - [integration-data/AGENTS.md](./integration-data/AGENTS.md)
 - [integration-firebase/AGENTS.md](./integration-firebase/AGENTS.md)
+- [integration-functions/AGENTS.md](./integration-functions/AGENTS.md)
+- [integration-queue/AGENTS.md](./integration-queue/AGENTS.md)
+- [integration-realtime/AGENTS.md](./integration-realtime/AGENTS.md)
 - [integration-state/AGENTS.md](./integration-state/AGENTS.md)
+- [integration-storage/AGENTS.md](./integration-storage/AGENTS.md)
 - [integration-trpc/AGENTS.md](./integration-trpc/AGENTS.md)
 
 **ui-***

@@ -45,9 +45,15 @@ src/app / src/modules  →  packages  →  third-party libraries
 
 | 套件 | alias | 封裝目標 |
 |---|---|---|
+| `integration-ai` | `@integration-ai` | AI SDK 整合（Genkit flow 呼叫、Google AI、OpenAI） |
+| `integration-auth` | `@integration-auth` | 認證整合（Firebase Auth、session 管理） |
 | `integration-data` | `@integration-data` | 通用資料層整合（Firestore 以外的資料來源） |
-| `integration-firebase` | `@integration-firebase` | Firebase App / Auth / Firestore / Storage |
+| `integration-firebase` | `@integration-firebase` | Firebase App / Firestore 基礎設施原語 |
+| `integration-functions` | `@integration-functions` | Cloud Functions 呼叫（HTTP callable、onCall） |
+| `integration-queue` | `@integration-queue` | 訊息佇列整合（QStash、Cloud Tasks） |
+| `integration-realtime` | `@integration-realtime` | 即時資料整合（Firestore realtime / RTDB / WebSocket） |
 | `integration-state` | `@integration-state` | 跨模組狀態整合（Zustand store factory、XState helpers） |
+| `integration-storage` | `@integration-storage` | 物件儲存整合（Firebase Storage、Cloud Storage） |
 | `integration-trpc` | `@integration-trpc` | tRPC 客戶端設定與 Provider |
 
 ---
