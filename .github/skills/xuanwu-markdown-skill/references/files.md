@@ -2946,47 +2946,6 @@ When this skill is used, provide:
 5. the validation step that proves the simpler path still works.
 ````
 
-## File: .github/skills/playwright-mcp-testing/AGENTS.md
-````markdown
-# Playwright MCP Testing Skill
-
-## Purpose
-
-This skill enables browser-based test execution for Xuanwu App using the Playwright MCP toolchain combined with Next.js DevTools, shadcn, context7, Serena, and markitdown MCPs.
-
-## When to Use This Skill
-
-Load [SKILL.md](SKILL.md) when:
-
-- Running UI functional tests via simulate click / fill / navigate
-- Detecting missing features or anti-intuitive UX gaps
-- Validating form flows (create/edit/submit) with evidence
-- Taking and documenting screenshots for test reports
-- Checking Console errors and API response behaviour
-- Testing login, workspace switching, and account-context flows
-
-## Quick Start
-
-```bash
-# Ensure dev server is running
-npm run dev
-```
-
-Then use the [playwright-mcp-test prompt](../../.github/prompts/playwright-mcp-test.prompt.md) or [playwright-mcp-inspect prompt](../../.github/prompts/playwright-mcp-inspect.prompt.md).
-
-## Tools in This Skill
-
-| Tool | Role |
-|------|------|
-| `mcp_playwright-mc_*` | Primary browser automation |
-| `mcp_io_github_ver_browser_eval` | Fallback when playwright-mcp is closed |
-| `mcp_io_github_ver_nextjs_*` | Next.js runtime diagnostics |
-| `mcp_shadcn_*` | Component lookup |
-| `mcp_context7_*` | API documentation verification |
-| `mcp_oraios_serena_*` | Source code symbol search |
-| `mcp_markitdown_*` | Test evidence to Markdown |
-````
-
 ## File: .github/skills/playwright-mcp-testing/SKILL.md
 ````markdown
 ---
@@ -5397,3820 +5356,6 @@ Use this skill only when the request clearly matches its description/frontmatter
 - Prefer checklist-style guidance over long prose.
 - Keep this file focused on skill-specific execution intent.
 - Remove repeated conceptual background that exists elsewhere.
-````
-
-## File: .github/skills/vercel-react-best-practices/AGENTS.md
-````markdown
-# React Best Practices
-
-**Version 1.0.0**  
-Vercel Engineering  
-January 2026
-
-> **Note:**  
-> This document is mainly for agents and LLMs to follow when maintaining,  
-> generating, or refactoring React and Next.js codebases. Humans  
-> may also find it useful, but guidance here is optimized for automation  
-> and consistency by AI-assisted workflows.
-
----
-
-## Abstract
-
-Comprehensive performance optimization guide for React and Next.js applications, designed for AI agents and LLMs. Contains 40+ rules across 8 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.
-
----
-
-## Table of Contents
-
-1. [Eliminating Waterfalls](#1-eliminating-waterfalls) — **CRITICAL**
-   - 1.1 [Check Cheap Conditions Before Async Flags](#11-check-cheap-conditions-before-async-flags)
-   - 1.2 [Defer Await Until Needed](#12-defer-await-until-needed)
-   - 1.3 [Dependency-Based Parallelization](#13-dependency-based-parallelization)
-   - 1.4 [Prevent Waterfall Chains in API Routes](#14-prevent-waterfall-chains-in-api-routes)
-   - 1.5 [Promise.all() for Independent Operations](#15-promiseall-for-independent-operations)
-   - 1.6 [Strategic Suspense Boundaries](#16-strategic-suspense-boundaries)
-2. [Bundle Size Optimization](#2-bundle-size-optimization) — **CRITICAL**
-   - 2.1 [Avoid Barrel File Imports](#21-avoid-barrel-file-imports)
-   - 2.2 [Conditional Module Loading](#22-conditional-module-loading)
-   - 2.3 [Defer Non-Critical Third-Party Libraries](#23-defer-non-critical-third-party-libraries)
-   - 2.4 [Dynamic Imports for Heavy Components](#24-dynamic-imports-for-heavy-components)
-   - 2.5 [Prefer Statically Analyzable Paths](#25-prefer-statically-analyzable-paths)
-   - 2.6 [Preload Based on User Intent](#26-preload-based-on-user-intent)
-3. [Server-Side Performance](#3-server-side-performance) — **HIGH**
-   - 3.1 [Authenticate Server Actions Like API Routes](#31-authenticate-server-actions-like-api-routes)
-   - 3.2 [Avoid Duplicate Serialization in RSC Props](#32-avoid-duplicate-serialization-in-rsc-props)
-   - 3.3 [Avoid Shared Module State for Request Data](#33-avoid-shared-module-state-for-request-data)
-   - 3.4 [Cross-Request LRU Caching](#34-cross-request-lru-caching)
-   - 3.5 [Hoist Static I/O to Module Level](#35-hoist-static-io-to-module-level)
-   - 3.6 [Minimize Serialization at RSC Boundaries](#36-minimize-serialization-at-rsc-boundaries)
-   - 3.7 [Parallel Data Fetching with Component Composition](#37-parallel-data-fetching-with-component-composition)
-   - 3.8 [Parallel Nested Data Fetching](#38-parallel-nested-data-fetching)
-   - 3.9 [Per-Request Deduplication with React.cache()](#39-per-request-deduplication-with-reactcache)
-   - 3.10 [Use after() for Non-Blocking Operations](#310-use-after-for-non-blocking-operations)
-4. [Client-Side Data Fetching](#4-client-side-data-fetching) — **MEDIUM-HIGH**
-   - 4.1 [Deduplicate Global Event Listeners](#41-deduplicate-global-event-listeners)
-   - 4.2 [Use Passive Event Listeners for Scrolling Performance](#42-use-passive-event-listeners-for-scrolling-performance)
-   - 4.3 [Use SWR for Automatic Deduplication](#43-use-swr-for-automatic-deduplication)
-   - 4.4 [Version and Minimize localStorage Data](#44-version-and-minimize-localstorage-data)
-5. [Re-render Optimization](#5-re-render-optimization) — **MEDIUM**
-   - 5.1 [Calculate Derived State During Rendering](#51-calculate-derived-state-during-rendering)
-   - 5.2 [Defer State Reads to Usage Point](#52-defer-state-reads-to-usage-point)
-   - 5.3 [Do not wrap a simple expression with a primitive result type in useMemo](#53-do-not-wrap-a-simple-expression-with-a-primitive-result-type-in-usememo)
-   - 5.4 [Don't Define Components Inside Components](#54-dont-define-components-inside-components)
-   - 5.5 [Extract Default Non-primitive Parameter Value from Memoized Component to Constant](#55-extract-default-non-primitive-parameter-value-from-memoized-component-to-constant)
-   - 5.6 [Extract to Memoized Components](#56-extract-to-memoized-components)
-   - 5.7 [Narrow Effect Dependencies](#57-narrow-effect-dependencies)
-   - 5.8 [Put Interaction Logic in Event Handlers](#58-put-interaction-logic-in-event-handlers)
-   - 5.9 [Split Combined Hook Computations](#59-split-combined-hook-computations)
-   - 5.10 [Subscribe to Derived State](#510-subscribe-to-derived-state)
-   - 5.11 [Use Functional setState Updates](#511-use-functional-setstate-updates)
-   - 5.12 [Use Lazy State Initialization](#512-use-lazy-state-initialization)
-   - 5.13 [Use Transitions for Non-Urgent Updates](#513-use-transitions-for-non-urgent-updates)
-   - 5.14 [Use useDeferredValue for Expensive Derived Renders](#514-use-usedeferredvalue-for-expensive-derived-renders)
-   - 5.15 [Use useRef for Transient Values](#515-use-useref-for-transient-values)
-6. [Rendering Performance](#6-rendering-performance) — **MEDIUM**
-   - 6.1 [Animate SVG Wrapper Instead of SVG Element](#61-animate-svg-wrapper-instead-of-svg-element)
-   - 6.2 [CSS content-visibility for Long Lists](#62-css-content-visibility-for-long-lists)
-   - 6.3 [Hoist Static JSX Elements](#63-hoist-static-jsx-elements)
-   - 6.4 [Optimize SVG Precision](#64-optimize-svg-precision)
-   - 6.5 [Prevent Hydration Mismatch Without Flickering](#65-prevent-hydration-mismatch-without-flickering)
-   - 6.6 [Suppress Expected Hydration Mismatches](#66-suppress-expected-hydration-mismatches)
-   - 6.7 [Use Activity Component for Show/Hide](#67-use-activity-component-for-showhide)
-   - 6.8 [Use defer or async on Script Tags](#68-use-defer-or-async-on-script-tags)
-   - 6.9 [Use Explicit Conditional Rendering](#69-use-explicit-conditional-rendering)
-   - 6.10 [Use React DOM Resource Hints](#610-use-react-dom-resource-hints)
-   - 6.11 [Use useTransition Over Manual Loading States](#611-use-usetransition-over-manual-loading-states)
-7. [JavaScript Performance](#7-javascript-performance) — **LOW-MEDIUM**
-   - 7.1 [Avoid Layout Thrashing](#71-avoid-layout-thrashing)
-   - 7.2 [Build Index Maps for Repeated Lookups](#72-build-index-maps-for-repeated-lookups)
-   - 7.3 [Cache Property Access in Loops](#73-cache-property-access-in-loops)
-   - 7.4 [Cache Repeated Function Calls](#74-cache-repeated-function-calls)
-   - 7.5 [Cache Storage API Calls](#75-cache-storage-api-calls)
-   - 7.6 [Combine Multiple Array Iterations](#76-combine-multiple-array-iterations)
-   - 7.7 [Defer Non-Critical Work with requestIdleCallback](#77-defer-non-critical-work-with-requestidlecallback)
-   - 7.8 [Early Length Check for Array Comparisons](#78-early-length-check-for-array-comparisons)
-   - 7.9 [Early Return from Functions](#79-early-return-from-functions)
-   - 7.10 [Hoist RegExp Creation](#710-hoist-regexp-creation)
-   - 7.11 [Use flatMap to Map and Filter in One Pass](#711-use-flatmap-to-map-and-filter-in-one-pass)
-   - 7.12 [Use Loop for Min/Max Instead of Sort](#712-use-loop-for-minmax-instead-of-sort)
-   - 7.13 [Use Set/Map for O(1) Lookups](#713-use-setmap-for-o1-lookups)
-   - 7.14 [Use toSorted() Instead of sort() for Immutability](#714-use-tosorted-instead-of-sort-for-immutability)
-8. [Advanced Patterns](#8-advanced-patterns) — **LOW**
-   - 8.1 [Do Not Put Effect Events in Dependency Arrays](#81-do-not-put-effect-events-in-dependency-arrays)
-   - 8.2 [Initialize App Once, Not Per Mount](#82-initialize-app-once-not-per-mount)
-   - 8.3 [Store Event Handlers in Refs](#83-store-event-handlers-in-refs)
-   - 8.4 [useEffectEvent for Stable Callback Refs](#84-useeffectevent-for-stable-callback-refs)
-
----
-
-## 1. Eliminating Waterfalls
-
-**Impact: CRITICAL**
-
-Waterfalls are the #1 performance killer. Each sequential await adds full network latency. Eliminating them yields the largest gains.
-
-### 1.1 Check Cheap Conditions Before Async Flags
-
-**Impact: HIGH (avoids unnecessary async work when a synchronous guard already fails)**
-
-When a branch uses `await` for a flag or remote value and also requires a **cheap synchronous** condition (local props, request metadata, already-loaded state), evaluate the cheap condition **first**. Otherwise you pay for the async call even when the compound condition can never be true.
-
-This is a specialization of [Defer Await Until Needed](./async-defer-await.md) for `flag && cheapCondition` style checks.
-
-**Incorrect:**
-
-```typescript
-const someFlag = await getFlag()
-
-if (someFlag && someCondition) {
-  // ...
-}
-```
-
-**Correct:**
-
-```typescript
-if (someCondition) {
-  const someFlag = await getFlag()
-  if (someFlag) {
-    // ...
-  }
-}
-```
-
-This matters when `getFlag` hits the network, a feature-flag service, or `React.cache` / DB work: skipping it when `someCondition` is false removes that cost on the cold path.
-
-Keep the original order if `someCondition` is expensive, depends on the flag, or you must run side effects in a fixed order.
-
-### 1.2 Defer Await Until Needed
-
-**Impact: HIGH (avoids blocking unused code paths)**
-
-Move `await` operations into the branches where they're actually used to avoid blocking code paths that don't need them.
-
-**Incorrect: blocks both branches**
-
-```typescript
-async function handleRequest(userId: string, skipProcessing: boolean) {
-  const userData = await fetchUserData(userId)
-  
-  if (skipProcessing) {
-    // Returns immediately but still waited for userData
-    return { skipped: true }
-  }
-  
-  // Only this branch uses userData
-  return processUserData(userData)
-}
-```
-
-**Correct: only blocks when needed**
-
-```typescript
-async function handleRequest(userId: string, skipProcessing: boolean) {
-  if (skipProcessing) {
-    // Returns immediately without waiting
-    return { skipped: true }
-  }
-  
-  // Fetch only when needed
-  const userData = await fetchUserData(userId)
-  return processUserData(userData)
-}
-```
-
-**Another example: early return optimization**
-
-```typescript
-// Incorrect: always fetches permissions
-async function updateResource(resourceId: string, userId: string) {
-  const permissions = await fetchPermissions(userId)
-  const resource = await getResource(resourceId)
-  
-  if (!resource) {
-    return { error: 'Not found' }
-  }
-  
-  if (!permissions.canEdit) {
-    return { error: 'Forbidden' }
-  }
-  
-  return await updateResourceData(resource, permissions)
-}
-
-// Correct: fetches only when needed
-async function updateResource(resourceId: string, userId: string) {
-  const resource = await getResource(resourceId)
-  
-  if (!resource) {
-    return { error: 'Not found' }
-  }
-  
-  const permissions = await fetchPermissions(userId)
-  
-  if (!permissions.canEdit) {
-    return { error: 'Forbidden' }
-  }
-  
-  return await updateResourceData(resource, permissions)
-}
-```
-
-This optimization is especially valuable when the skipped branch is frequently taken, or when the deferred operation is expensive.
-
-For `await getFlag()` combined with a cheap synchronous guard (`flag && someCondition`), see [Check Cheap Conditions Before Async Flags](./async-cheap-condition-before-await.md).
-
-### 1.3 Dependency-Based Parallelization
-
-**Impact: CRITICAL (2-10× improvement)**
-
-For operations with partial dependencies, use `better-all` to maximize parallelism. It automatically starts each task at the earliest possible moment.
-
-**Incorrect: profile waits for config unnecessarily**
-
-```typescript
-const [user, config] = await Promise.all([
-  fetchUser(),
-  fetchConfig()
-])
-const profile = await fetchProfile(user.id)
-```
-
-**Correct: config and profile run in parallel**
-
-```typescript
-import { all } from 'better-all'
-
-const { user, config, profile } = await all({
-  async user() { return fetchUser() },
-  async config() { return fetchConfig() },
-  async profile() {
-    return fetchProfile((await this.$.user).id)
-  }
-})
-```
-
-**Alternative without extra dependencies:**
-
-```typescript
-const userPromise = fetchUser()
-const profilePromise = userPromise.then(user => fetchProfile(user.id))
-
-const [user, config, profile] = await Promise.all([
-  userPromise,
-  fetchConfig(),
-  profilePromise
-])
-```
-
-We can also create all the promises first, and do `Promise.all()` at the end.
-
-Reference: [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
-
-### 1.4 Prevent Waterfall Chains in API Routes
-
-**Impact: CRITICAL (2-10× improvement)**
-
-In API routes and Server Actions, start independent operations immediately, even if you don't await them yet.
-
-**Incorrect: config waits for auth, data waits for both**
-
-```typescript
-export async function GET(request: Request) {
-  const session = await auth()
-  const config = await fetchConfig()
-  const data = await fetchData(session.user.id)
-  return Response.json({ data, config })
-}
-```
-
-**Correct: auth and config start immediately**
-
-```typescript
-export async function GET(request: Request) {
-  const sessionPromise = auth()
-  const configPromise = fetchConfig()
-  const session = await sessionPromise
-  const [config, data] = await Promise.all([
-    configPromise,
-    fetchData(session.user.id)
-  ])
-  return Response.json({ data, config })
-}
-```
-
-For operations with more complex dependency chains, use `better-all` to automatically maximize parallelism (see Dependency-Based Parallelization).
-
-### 1.5 Promise.all() for Independent Operations
-
-**Impact: CRITICAL (2-10× improvement)**
-
-When async operations have no interdependencies, execute them concurrently using `Promise.all()`.
-
-**Incorrect: sequential execution, 3 round trips**
-
-```typescript
-const user = await fetchUser()
-const posts = await fetchPosts()
-const comments = await fetchComments()
-```
-
-**Correct: parallel execution, 1 round trip**
-
-```typescript
-const [user, posts, comments] = await Promise.all([
-  fetchUser(),
-  fetchPosts(),
-  fetchComments()
-])
-```
-
-### 1.6 Strategic Suspense Boundaries
-
-**Impact: HIGH (faster initial paint)**
-
-Instead of awaiting data in async components before returning JSX, use Suspense boundaries to show the wrapper UI faster while data loads.
-
-**Incorrect: wrapper blocked by data fetching**
-
-```tsx
-async function Page() {
-  const data = await fetchData() // Blocks entire page
-  
-  return (
-    <div>
-      <div>Sidebar</div>
-      <div>Header</div>
-      <div>
-        <DataDisplay data={data} />
-      </div>
-      <div>Footer</div>
-    </div>
-  )
-}
-```
-
-The entire layout waits for data even though only the middle section needs it.
-
-**Correct: wrapper shows immediately, data streams in**
-
-```tsx
-function Page() {
-  return (
-    <div>
-      <div>Sidebar</div>
-      <div>Header</div>
-      <div>
-        <Suspense fallback={<Skeleton />}>
-          <DataDisplay />
-        </Suspense>
-      </div>
-      <div>Footer</div>
-    </div>
-  )
-}
-
-async function DataDisplay() {
-  const data = await fetchData() // Only blocks this component
-  return <div>{data.content}</div>
-}
-```
-
-Sidebar, Header, and Footer render immediately. Only DataDisplay waits for data.
-
-**Alternative: share promise across components**
-
-```tsx
-function Page() {
-  // Start fetch immediately, but don't await
-  const dataPromise = fetchData()
-  
-  return (
-    <div>
-      <div>Sidebar</div>
-      <div>Header</div>
-      <Suspense fallback={<Skeleton />}>
-        <DataDisplay dataPromise={dataPromise} />
-        <DataSummary dataPromise={dataPromise} />
-      </Suspense>
-      <div>Footer</div>
-    </div>
-  )
-}
-
-function DataDisplay({ dataPromise }: { dataPromise: Promise<Data> }) {
-  const data = use(dataPromise) // Unwraps the promise
-  return <div>{data.content}</div>
-}
-
-function DataSummary({ dataPromise }: { dataPromise: Promise<Data> }) {
-  const data = use(dataPromise) // Reuses the same promise
-  return <div>{data.summary}</div>
-}
-```
-
-Both components share the same promise, so only one fetch occurs. Layout renders immediately while both components wait together.
-
-**When NOT to use this pattern:**
-
-- Critical data needed for layout decisions (affects positioning)
-
-- SEO-critical content above the fold
-
-- Small, fast queries where suspense overhead isn't worth it
-
-- When you want to avoid layout shift (loading → content jump)
-
-**Trade-off:** Faster initial paint vs potential layout shift. Choose based on your UX priorities.
-
----
-
-## 2. Bundle Size Optimization
-
-**Impact: CRITICAL**
-
-Reducing initial bundle size improves Time to Interactive and Largest Contentful Paint.
-
-### 2.1 Avoid Barrel File Imports
-
-**Impact: CRITICAL (200-800ms import cost, slow builds)**
-
-Import directly from source files instead of barrel files to avoid loading thousands of unused modules. **Barrel files** are entry points that re-export multiple modules (e.g., `index.js` that does `export * from './module'`).
-
-Popular icon and component libraries can have **up to 10,000 re-exports** in their entry file. For many React packages, **it takes 200-800ms just to import them**, affecting both development speed and production cold starts.
-
-**Why tree-shaking doesn't help:** When a library is marked as external (not bundled), the bundler can't optimize it. If you bundle it to enable tree-shaking, builds become substantially slower analyzing the entire module graph.
-
-**Incorrect: imports entire library**
-
-```tsx
-import { Check, X, Menu } from 'lucide-react'
-// Loads 1,583 modules, takes ~2.8s extra in dev
-// Runtime cost: 200-800ms on every cold start
-
-import { Button, TextField } from '@mui/material'
-// Loads 2,225 modules, takes ~4.2s extra in dev
-```
-
-**Correct - Next.js 13.5+ (recommended):**
-
-```tsx
-// Keep the standard imports - Next.js transforms them to direct imports
-import { Check, X, Menu } from 'lucide-react'
-// Full TypeScript support, no manual path wrangling
-```
-
-This is the recommended approach because it preserves TypeScript type safety and editor autocompletion while still eliminating the barrel import cost.
-
-**Correct - Direct imports (non-Next.js projects):**
-
-```tsx
-import Button from '@mui/material/Button'
-import TextField from '@mui/material/TextField'
-// Loads only what you use
-```
-
-> **TypeScript warning:** Some libraries (notably `lucide-react`) don't ship `.d.ts` files for their deep import paths. Importing from `lucide-react/dist/esm/icons/check` resolves to an implicit `any` type, causing errors under `strict` or `noImplicitAny`. Prefer `optimizePackageImports` when available, or verify the library exports types for its subpaths before using direct imports.
-
-These optimizations provide 15-70% faster dev boot, 28% faster builds, 40% faster cold starts, and significantly faster HMR.
-
-Libraries commonly affected: `lucide-react`, `@mui/material`, `@mui/icons-material`, `@tabler/icons-react`, `react-icons`, `@headlessui/react`, `@radix-ui/react-*`, `lodash`, `ramda`, `date-fns`, `rxjs`, `react-use`.
-
-Reference: [https://vercel.com/blog/how-we-optimized-package-imports-in-next-js](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js)
-
-### 2.2 Conditional Module Loading
-
-**Impact: HIGH (loads large data only when needed)**
-
-Load large data or modules only when a feature is activated.
-
-**Example: lazy-load animation frames**
-
-```tsx
-function AnimationPlayer({ enabled, setEnabled }: { enabled: boolean; setEnabled: React.Dispatch<React.SetStateAction<boolean>> }) {
-  const [frames, setFrames] = useState<Frame[] | null>(null)
-
-  useEffect(() => {
-    if (enabled && !frames && typeof window !== 'undefined') {
-      import('./animation-frames.js')
-        .then(mod => setFrames(mod.frames))
-        .catch(() => setEnabled(false))
-    }
-  }, [enabled, frames, setEnabled])
-
-  if (!frames) return <Skeleton />
-  return <Canvas frames={frames} />
-}
-```
-
-The `typeof window !== 'undefined'` check prevents bundling this module for SSR, optimizing server bundle size and build speed.
-
-### 2.3 Defer Non-Critical Third-Party Libraries
-
-**Impact: MEDIUM (loads after hydration)**
-
-Analytics, logging, and error tracking don't block user interaction. Load them after hydration.
-
-**Incorrect: blocks initial bundle**
-
-```tsx
-import { Analytics } from '@vercel/analytics/react'
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        <Analytics />
-      </body>
-    </html>
-  )
-}
-```
-
-**Correct: loads after hydration**
-
-```tsx
-import dynamic from 'next/dynamic'
-
-const Analytics = dynamic(
-  () => import('@vercel/analytics/react').then(m => m.Analytics),
-  { ssr: false }
-)
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        {children}
-        <Analytics />
-      </body>
-    </html>
-  )
-}
-```
-
-### 2.4 Dynamic Imports for Heavy Components
-
-**Impact: CRITICAL (directly affects TTI and LCP)**
-
-Use `next/dynamic` to lazy-load large components not needed on initial render.
-
-**Incorrect: Monaco bundles with main chunk ~300KB**
-
-```tsx
-import { MonacoEditor } from './monaco-editor'
-
-function CodePanel({ code }: { code: string }) {
-  return <MonacoEditor value={code} />
-}
-```
-
-**Correct: Monaco loads on demand**
-
-```tsx
-import dynamic from 'next/dynamic'
-
-const MonacoEditor = dynamic(
-  () => import('./monaco-editor').then(m => m.MonacoEditor),
-  { ssr: false }
-)
-
-function CodePanel({ code }: { code: string }) {
-  return <MonacoEditor value={code} />
-}
-```
-
-### 2.5 Prefer Statically Analyzable Paths
-
-**Impact: HIGH (avoids accidental broad bundles and file traces)**
-
-Build tools work best when import and file-system paths are obvious at build time. If you hide the real path inside a variable or compose it too dynamically, the tool either has to include a broad set of possible files, warn that it cannot analyze the import, or widen file tracing to stay safe.
-
-Prefer explicit maps or literal paths so the set of reachable files stays narrow and predictable. This is the same rule whether you are choosing modules with `import()` or reading files in server/build code.
-
-When analysis becomes too broad, the cost is real:
-
-- Larger server bundles
-
-- Slower builds
-
-- Worse cold starts
-
-- More memory use
-
-**Incorrect: the bundler cannot tell what may be imported**
-
-```ts
-const PAGE_MODULES = {
-  home: './pages/home',
-  settings: './pages/settings',
-} as const
-
-const Page = await import(PAGE_MODULES[pageName])
-```
-
-**Correct: use an explicit map of allowed modules**
-
-```ts
-const PAGE_MODULES = {
-  home: () => import('./pages/home'),
-  settings: () => import('./pages/settings'),
-} as const
-
-const Page = await PAGE_MODULES[pageName]()
-```
-
-**Incorrect: a 2-value enum still hides the final path from static analysis**
-
-```ts
-const baseDir = path.join(process.cwd(), 'content/' + contentKind)
-```
-
-**Correct: make each final path literal at the callsite**
-
-```ts
-const baseDir =
-  kind === ContentKind.Blog
-    ? path.join(process.cwd(), 'content/blog')
-    : path.join(process.cwd(), 'content/docs')
-```
-
-In Next.js server code, this matters for output file tracing too. `path.join(process.cwd(), someVar)` can widen the traced file set because Next.js statically analyze `import`, `require`, and `fs` usage.
-
-Reference: [https://nextjs.org/docs/app/api-reference/config/next-config-js/output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [https://nextjs.org/learn/seo/dynamic-imports](https://nextjs.org/learn/seo/dynamic-imports), [https://vite.dev/guide/features.html](https://vite.dev/guide/features.html), [https://esbuild.github.io/api/](https://esbuild.github.io/api/), [https://www.npmjs.com/package/@rollup/plugin-dynamic-import-vars](https://www.npmjs.com/package/@rollup/plugin-dynamic-import-vars), [https://webpack.js.org/guides/dependency-management/](https://webpack.js.org/guides/dependency-management/)
-
-### 2.6 Preload Based on User Intent
-
-**Impact: MEDIUM (reduces perceived latency)**
-
-Preload heavy bundles before they're needed to reduce perceived latency.
-
-**Example: preload on hover/focus**
-
-```tsx
-function EditorButton({ onClick }: { onClick: () => void }) {
-  const preload = () => {
-    if (typeof window !== 'undefined') {
-      void import('./monaco-editor')
-    }
-  }
-
-  return (
-    <button
-      onMouseEnter={preload}
-      onFocus={preload}
-      onClick={onClick}
-    >
-      Open Editor
-    </button>
-  )
-}
-```
-
-**Example: preload when feature flag is enabled**
-
-```tsx
-function FlagsProvider({ children, flags }: Props) {
-  useEffect(() => {
-    if (flags.editorEnabled && typeof window !== 'undefined') {
-      void import('./monaco-editor').then(mod => mod.init())
-    }
-  }, [flags.editorEnabled])
-
-  return <FlagsContext.Provider value={flags}>
-    {children}
-  </FlagsContext.Provider>
-}
-```
-
-The `typeof window !== 'undefined'` check prevents bundling preloaded modules for SSR, optimizing server bundle size and build speed.
-
----
-
-## 3. Server-Side Performance
-
-**Impact: HIGH**
-
-Optimizing server-side rendering and data fetching eliminates server-side waterfalls and reduces response times.
-
-### 3.1 Authenticate Server Actions Like API Routes
-
-**Impact: CRITICAL (prevents unauthorized access to server mutations)**
-
-Server Actions (functions with `"use server"`) are exposed as public endpoints, just like API routes. Always verify authentication and authorization **inside** each Server Action—do not rely solely on middleware, layout guards, or page-level checks, as Server Actions can be invoked directly.
-
-Next.js documentation explicitly states: "Treat Server Actions with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation."
-
-**Incorrect: no authentication check**
-
-```typescript
-'use server'
-
-export async function deleteUser(userId: string) {
-  // Anyone can call this! No auth check
-  await db.user.delete({ where: { id: userId } })
-  return { success: true }
-}
-```
-
-**Correct: authentication inside the action**
-
-```typescript
-'use server'
-
-import { verifySession } from '@/lib/auth'
-import { unauthorized } from '@/lib/errors'
-
-export async function deleteUser(userId: string) {
-  // Always check auth inside the action
-  const session = await verifySession()
-  
-  if (!session) {
-    throw unauthorized('Must be logged in')
-  }
-  
-  // Check authorization too
-  if (session.user.role !== 'admin' && session.user.id !== userId) {
-    throw unauthorized('Cannot delete other users')
-  }
-  
-  await db.user.delete({ where: { id: userId } })
-  return { success: true }
-}
-```
-
-**With input validation:**
-
-```typescript
-'use server'
-
-import { verifySession } from '@/lib/auth'
-import { z } from 'zod'
-
-const updateProfileSchema = z.object({
-  userId: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  email: z.string().email()
-})
-
-export async function updateProfile(data: unknown) {
-  // Validate input first
-  const validated = updateProfileSchema.parse(data)
-  
-  // Then authenticate
-  const session = await verifySession()
-  if (!session) {
-    throw new Error('Unauthorized')
-  }
-  
-  // Then authorize
-  if (session.user.id !== validated.userId) {
-    throw new Error('Can only update own profile')
-  }
-  
-  // Finally perform the mutation
-  await db.user.update({
-    where: { id: validated.userId },
-    data: {
-      name: validated.name,
-      email: validated.email
-    }
-  })
-  
-  return { success: true }
-}
-```
-
-Reference: [https://nextjs.org/docs/app/guides/authentication](https://nextjs.org/docs/app/guides/authentication)
-
-### 3.2 Avoid Duplicate Serialization in RSC Props
-
-**Impact: LOW (reduces network payload by avoiding duplicate serialization)**
-
-RSC→client serialization deduplicates by object reference, not value. Same reference = serialized once; new reference = serialized again. Do transformations (`.toSorted()`, `.filter()`, `.map()`) in client, not server.
-
-**Incorrect: duplicates array**
-
-```tsx
-// RSC: sends 6 strings (2 arrays × 3 items)
-<ClientList usernames={usernames} usernamesOrdered={usernames.toSorted()} />
-```
-
-**Correct: sends 3 strings**
-
-```tsx
-// RSC: send once
-<ClientList usernames={usernames} />
-
-// Client: transform there
-'use client'
-const sorted = useMemo(() => [...usernames].sort(), [usernames])
-```
-
-**Nested deduplication behavior:**
-
-```tsx
-// string[] - duplicates everything
-usernames={['a','b']} sorted={usernames.toSorted()} // sends 4 strings
-
-// object[] - duplicates array structure only
-users={[{id:1},{id:2}]} sorted={users.toSorted()} // sends 2 arrays + 2 unique objects (not 4)
-```
-
-Deduplication works recursively. Impact varies by data type:
-
-- `string[]`, `number[]`, `boolean[]`: **HIGH impact** - array + all primitives fully duplicated
-
-- `object[]`: **LOW impact** - array duplicated, but nested objects deduplicated by reference
-
-**Operations breaking deduplication: create new references**
-
-- Arrays: `.toSorted()`, `.filter()`, `.map()`, `.slice()`, `[...arr]`
-
-- Objects: `{...obj}`, `Object.assign()`, `structuredClone()`, `JSON.parse(JSON.stringify())`
-
-**More examples:**
-
-```tsx
-// ❌ Bad
-<C users={users} active={users.filter(u => u.active)} />
-<C product={product} productName={product.name} />
-
-// ✅ Good
-<C users={users} />
-<C product={product} />
-// Do filtering/destructuring in client
-```
-
-**Exception:** Pass derived data when transformation is expensive or client doesn't need original.
-
-### 3.3 Avoid Shared Module State for Request Data
-
-**Impact: HIGH (prevents concurrency bugs and request data leaks)**
-
-For React Server Components and client components rendered during SSR, avoid using mutable module-level variables to share request-scoped data. Server renders can run concurrently in the same process. If one render writes to shared module state and another render reads it, you can get race conditions, cross-request contamination, and security bugs where one user's data appears in another user's response.
-
-Treat module scope on the server as process-wide shared memory, not request-local state.
-
-**Incorrect: request data leaks across concurrent renders**
-
-```tsx
-let currentUser: User | null = null
-
-export default async function Page() {
-  currentUser = await auth()
-  return <Dashboard />
-}
-
-async function Dashboard() {
-  return <div>{currentUser?.name}</div>
-}
-```
-
-If two requests overlap, request A can set `currentUser`, then request B overwrites it before request A finishes rendering `Dashboard`.
-
-**Correct: keep request data local to the render tree**
-
-```tsx
-export default async function Page() {
-  const user = await auth()
-  return <Dashboard user={user} />
-}
-
-function Dashboard({ user }: { user: User | null }) {
-  return <div>{user?.name}</div>
-}
-```
-
-Safe exceptions:
-
-- Immutable static assets or config loaded once at module scope
-
-- Shared caches intentionally designed for cross-request reuse and keyed correctly
-
-- Process-wide singletons that do not store request- or user-specific mutable data
-
-For static assets and config, see [Hoist Static I/O to Module Level](./server-hoist-static-io.md).
-
-### 3.4 Cross-Request LRU Caching
-
-**Impact: HIGH (caches across requests)**
-
-`React.cache()` only works within one request. For data shared across sequential requests (user clicks button A then button B), use an LRU cache.
-
-**Implementation:**
-
-```typescript
-import { LRUCache } from 'lru-cache'
-
-const cache = new LRUCache<string, any>({
-  max: 1000,
-  ttl: 5 * 60 * 1000  // 5 minutes
-})
-
-export async function getUser(id: string) {
-  const cached = cache.get(id)
-  if (cached) return cached
-
-  const user = await db.user.findUnique({ where: { id } })
-  cache.set(id, user)
-  return user
-}
-
-// Request 1: DB query, result cached
-// Request 2: cache hit, no DB query
-```
-
-Use when sequential user actions hit multiple endpoints needing the same data within seconds.
-
-**With Vercel's [Fluid Compute](https://vercel.com/docs/fluid-compute):** LRU caching is especially effective because multiple concurrent requests can share the same function instance and cache. This means the cache persists across requests without needing external storage like Redis.
-
-**In traditional serverless:** Each invocation runs in isolation, so consider Redis for cross-process caching.
-
-Reference: [https://github.com/isaacs/node-lru-cache](https://github.com/isaacs/node-lru-cache)
-
-### 3.5 Hoist Static I/O to Module Level
-
-**Impact: HIGH (avoids repeated file/network I/O per request)**
-
-When loading static assets (fonts, logos, images, config files) in route handlers or server functions, hoist the I/O operation to module level. Module-level code runs once when the module is first imported, not on every request. This eliminates redundant file system reads or network fetches that would otherwise run on every invocation.
-
-**Incorrect: reads font file on every request**
-
-```typescript
-// app/api/og/route.tsx
-import { ImageResponse } from 'next/og'
-
-export async function GET(request: Request) {
-  // Runs on EVERY request - expensive!
-  const fontData = await fetch(
-    new URL('./fonts/Inter.ttf', import.meta.url)
-  ).then(res => res.arrayBuffer())
-
-  const logoData = await fetch(
-    new URL('./images/logo.png', import.meta.url)
-  ).then(res => res.arrayBuffer())
-
-  return new ImageResponse(
-    <div style={{ fontFamily: 'Inter' }}>
-      <img src={logoData} />
-      Hello World
-    </div>,
-    { fonts: [{ name: 'Inter', data: fontData }] }
-  )
-}
-```
-
-**Correct: loads once at module initialization**
-
-```typescript
-// app/api/og/route.tsx
-import { ImageResponse } from 'next/og'
-
-// Module-level: runs ONCE when module is first imported
-const fontData = fetch(
-  new URL('./fonts/Inter.ttf', import.meta.url)
-).then(res => res.arrayBuffer())
-
-const logoData = fetch(
-  new URL('./images/logo.png', import.meta.url)
-).then(res => res.arrayBuffer())
-
-export async function GET(request: Request) {
-  // Await the already-started promises
-  const [font, logo] = await Promise.all([fontData, logoData])
-
-  return new ImageResponse(
-    <div style={{ fontFamily: 'Inter' }}>
-      <img src={logo} />
-      Hello World
-    </div>,
-    { fonts: [{ name: 'Inter', data: font }] }
-  )
-}
-```
-
-**Correct: synchronous fs at module level**
-
-```typescript
-// app/api/og/route.tsx
-import { ImageResponse } from 'next/og'
-import { readFileSync } from 'fs'
-import { join } from 'path'
-
-// Synchronous read at module level - blocks only during module init
-const fontData = readFileSync(
-  join(process.cwd(), 'public/fonts/Inter.ttf')
-)
-
-const logoData = readFileSync(
-  join(process.cwd(), 'public/images/logo.png')
-)
-
-export async function GET(request: Request) {
-  return new ImageResponse(
-    <div style={{ fontFamily: 'Inter' }}>
-      <img src={logoData} />
-      Hello World
-    </div>,
-    { fonts: [{ name: 'Inter', data: fontData }] }
-  )
-}
-```
-
-**Incorrect: reads config on every call**
-
-```typescript
-import fs from 'node:fs/promises'
-
-export async function processRequest(data: Data) {
-  const config = JSON.parse(
-    await fs.readFile('./config.json', 'utf-8')
-  )
-  const template = await fs.readFile('./template.html', 'utf-8')
-
-  return render(template, data, config)
-}
-```
-
-**Correct: hoists config and template to module level**
-
-```typescript
-import fs from 'node:fs/promises'
-
-const configPromise = fs
-  .readFile('./config.json', 'utf-8')
-  .then(JSON.parse)
-const templatePromise = fs.readFile('./template.html', 'utf-8')
-
-export async function processRequest(data: Data) {
-  const [config, template] = await Promise.all([
-    configPromise,
-    templatePromise,
-  ])
-
-  return render(template, data, config)
-}
-```
-
-When to use this pattern:
-
-- Loading fonts for OG image generation
-
-- Loading static logos, icons, or watermarks
-
-- Reading configuration files that don't change at runtime
-
-- Loading email templates or other static templates
-
-- Any static asset that's the same across all requests
-
-When not to use this pattern:
-
-- Assets that vary per request or user
-
-- Files that may change during runtime (use caching with TTL instead)
-
-- Large files that would consume too much memory if kept loaded
-
-- Sensitive data that shouldn't persist in memory
-
-With Vercel's [Fluid Compute](https://vercel.com/docs/fluid-compute), module-level caching is especially effective because multiple concurrent requests share the same function instance. The static assets stay loaded in memory across requests without cold start penalties.
-
-In traditional serverless, each cold start re-executes module-level code, but subsequent warm invocations reuse the loaded assets until the instance is recycled.
-
-### 3.6 Minimize Serialization at RSC Boundaries
-
-**Impact: HIGH (reduces data transfer size)**
-
-The React Server/Client boundary serializes all object properties into strings and embeds them in the HTML response and subsequent RSC requests. This serialized data directly impacts page weight and load time, so **size matters a lot**. Only pass fields that the client actually uses.
-
-**Incorrect: serializes all 50 fields**
-
-```tsx
-async function Page() {
-  const user = await fetchUser()  // 50 fields
-  return <Profile user={user} />
-}
-
-'use client'
-function Profile({ user }: { user: User }) {
-  return <div>{user.name}</div>  // uses 1 field
-}
-```
-
-**Correct: serializes only 1 field**
-
-```tsx
-async function Page() {
-  const user = await fetchUser()
-  return <Profile name={user.name} />
-}
-
-'use client'
-function Profile({ name }: { name: string }) {
-  return <div>{name}</div>
-}
-```
-
-### 3.7 Parallel Data Fetching with Component Composition
-
-**Impact: CRITICAL (eliminates server-side waterfalls)**
-
-React Server Components execute sequentially within a tree. Restructure with composition to parallelize data fetching.
-
-**Incorrect: Sidebar waits for Page's fetch to complete**
-
-```tsx
-export default async function Page() {
-  const header = await fetchHeader()
-  return (
-    <div>
-      <div>{header}</div>
-      <Sidebar />
-    </div>
-  )
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-```
-
-**Correct: both fetch simultaneously**
-
-```tsx
-async function Header() {
-  const data = await fetchHeader()
-  return <div>{data}</div>
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-export default function Page() {
-  return (
-    <div>
-      <Header />
-      <Sidebar />
-    </div>
-  )
-}
-```
-
-**Alternative with children prop:**
-
-```tsx
-async function Header() {
-  const data = await fetchHeader()
-  return <div>{data}</div>
-}
-
-async function Sidebar() {
-  const items = await fetchSidebarItems()
-  return <nav>{items.map(renderItem)}</nav>
-}
-
-function Layout({ children }: { children: ReactNode }) {
-  return (
-    <div>
-      <Header />
-      {children}
-    </div>
-  )
-}
-
-export default function Page() {
-  return (
-    <Layout>
-      <Sidebar />
-    </Layout>
-  )
-}
-```
-
-### 3.8 Parallel Nested Data Fetching
-
-**Impact: CRITICAL (eliminates server-side waterfalls)**
-
-When fetching nested data in parallel, chain dependent fetches within each item's promise so a slow item doesn't block the rest.
-
-**Incorrect: a single slow item blocks all nested fetches**
-
-```tsx
-const chats = await Promise.all(
-  chatIds.map(id => getChat(id))
-)
-
-const chatAuthors = await Promise.all(
-  chats.map(chat => getUser(chat.author))
-)
-```
-
-If one `getChat(id)` out of 100 is extremely slow, the authors of the other 99 chats can't start loading even though their data is ready.
-
-**Correct: each item chains its own nested fetch**
-
-```tsx
-const chatAuthors = await Promise.all(
-  chatIds.map(id => getChat(id).then(chat => getUser(chat.author)))
-)
-```
-
-Each item independently chains `getChat` → `getUser`, so a slow chat doesn't block author fetches for the others.
-
-### 3.9 Per-Request Deduplication with React.cache()
-
-**Impact: MEDIUM (deduplicates within request)**
-
-Use `React.cache()` for server-side request deduplication. Authentication and database queries benefit most.
-
-**Usage:**
-
-```typescript
-import { cache } from 'react'
-
-export const getCurrentUser = cache(async () => {
-  const session = await auth()
-  if (!session?.user?.id) return null
-  return await db.user.findUnique({
-    where: { id: session.user.id }
-  })
-})
-```
-
-Within a single request, multiple calls to `getCurrentUser()` execute the query only once.
-
-**Avoid inline objects as arguments:**
-
-`React.cache()` uses shallow equality (`Object.is`) to determine cache hits. Inline objects create new references each call, preventing cache hits.
-
-**Incorrect: always cache miss**
-
-```typescript
-const getUser = cache(async (params: { uid: number }) => {
-  return await db.user.findUnique({ where: { id: params.uid } })
-})
-
-// Each call creates new object, never hits cache
-getUser({ uid: 1 })
-getUser({ uid: 1 })  // Cache miss, runs query again
-```
-
-**Correct: cache hit**
-
-```typescript
-const params = { uid: 1 }
-getUser(params)  // Query runs
-getUser(params)  // Cache hit (same reference)
-```
-
-If you must pass objects, pass the same reference:
-
-**Next.js-Specific Note:**
-
-In Next.js, the `fetch` API is automatically extended with request memoization. Requests with the same URL and options are automatically deduplicated within a single request, so you don't need `React.cache()` for `fetch` calls. However, `React.cache()` is still essential for other async tasks:
-
-- Database queries (Prisma, Drizzle, etc.)
-
-- Heavy computations
-
-- Authentication checks
-
-- File system operations
-
-- Any non-fetch async work
-
-Use `React.cache()` to deduplicate these operations across your component tree.
-
-Reference: [https://react.dev/reference/react/cache](https://react.dev/reference/react/cache)
-
-### 3.10 Use after() for Non-Blocking Operations
-
-**Impact: MEDIUM (faster response times)**
-
-Use Next.js's `after()` to schedule work that should execute after a response is sent. This prevents logging, analytics, and other side effects from blocking the response.
-
-**Incorrect: blocks response**
-
-```tsx
-import { logUserAction } from '@/app/utils'
-
-export async function POST(request: Request) {
-  // Perform mutation
-  await updateDatabase(request)
-  
-  // Logging blocks the response
-  const userAgent = request.headers.get('user-agent') || 'unknown'
-  await logUserAction({ userAgent })
-  
-  return new Response(JSON.stringify({ status: 'success' }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  })
-}
-```
-
-**Correct: non-blocking**
-
-```tsx
-import { after } from 'next/server'
-import { headers, cookies } from 'next/headers'
-import { logUserAction } from '@/app/utils'
-
-export async function POST(request: Request) {
-  // Perform mutation
-  await updateDatabase(request)
-  
-  // Log after response is sent
-  after(async () => {
-    const userAgent = (await headers()).get('user-agent') || 'unknown'
-    const sessionCookie = (await cookies()).get('session-id')?.value || 'anonymous'
-    
-    logUserAction({ sessionCookie, userAgent })
-  })
-  
-  return new Response(JSON.stringify({ status: 'success' }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  })
-}
-```
-
-The response is sent immediately while logging happens in the background.
-
-**Common use cases:**
-
-- Analytics tracking
-
-- Audit logging
-
-- Sending notifications
-
-- Cache invalidation
-
-- Cleanup tasks
-
-**Important notes:**
-
-- `after()` runs even if the response fails or redirects
-
-- Works in Server Actions, Route Handlers, and Server Components
-
-Reference: [https://nextjs.org/docs/app/api-reference/functions/after](https://nextjs.org/docs/app/api-reference/functions/after)
-
----
-
-## 4. Client-Side Data Fetching
-
-**Impact: MEDIUM-HIGH**
-
-Automatic deduplication and efficient data fetching patterns reduce redundant network requests.
-
-### 4.1 Deduplicate Global Event Listeners
-
-**Impact: LOW (single listener for N components)**
-
-Use `useSWRSubscription()` to share global event listeners across component instances.
-
-**Incorrect: N instances = N listeners**
-
-```tsx
-function useKeyboardShortcut(key: string, callback: () => void) {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key === key) {
-        callback()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [key, callback])
-}
-```
-
-When using the `useKeyboardShortcut` hook multiple times, each instance will register a new listener.
-
-**Correct: N instances = 1 listener**
-
-```tsx
-import useSWRSubscription from 'swr/subscription'
-
-// Module-level Map to track callbacks per key
-const keyCallbacks = new Map<string, Set<() => void>>()
-
-function useKeyboardShortcut(key: string, callback: () => void) {
-  // Register this callback in the Map
-  useEffect(() => {
-    if (!keyCallbacks.has(key)) {
-      keyCallbacks.set(key, new Set())
-    }
-    keyCallbacks.get(key)!.add(callback)
-
-    return () => {
-      const set = keyCallbacks.get(key)
-      if (set) {
-        set.delete(callback)
-        if (set.size === 0) {
-          keyCallbacks.delete(key)
-        }
-      }
-    }
-  }, [key, callback])
-
-  useSWRSubscription('global-keydown', () => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.metaKey && keyCallbacks.has(e.key)) {
-        keyCallbacks.get(e.key)!.forEach(cb => cb())
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  })
-}
-
-function Profile() {
-  // Multiple shortcuts will share the same listener
-  useKeyboardShortcut('p', () => { /* ... */ }) 
-  useKeyboardShortcut('k', () => { /* ... */ })
-  // ...
-}
-```
-
-### 4.2 Use Passive Event Listeners for Scrolling Performance
-
-**Impact: MEDIUM (eliminates scroll delay caused by event listeners)**
-
-Add `{ passive: true }` to touch and wheel event listeners to enable immediate scrolling. Browsers normally wait for listeners to finish to check if `preventDefault()` is called, causing scroll delay.
-
-**Incorrect:**
-
-```typescript
-useEffect(() => {
-  const handleTouch = (e: TouchEvent) => console.log(e.touches[0].clientX)
-  const handleWheel = (e: WheelEvent) => console.log(e.deltaY)
-  
-  document.addEventListener('touchstart', handleTouch)
-  document.addEventListener('wheel', handleWheel)
-  
-  return () => {
-    document.removeEventListener('touchstart', handleTouch)
-    document.removeEventListener('wheel', handleWheel)
-  }
-}, [])
-```
-
-**Correct:**
-
-```typescript
-useEffect(() => {
-  const handleTouch = (e: TouchEvent) => console.log(e.touches[0].clientX)
-  const handleWheel = (e: WheelEvent) => console.log(e.deltaY)
-  
-  document.addEventListener('touchstart', handleTouch, { passive: true })
-  document.addEventListener('wheel', handleWheel, { passive: true })
-  
-  return () => {
-    document.removeEventListener('touchstart', handleTouch)
-    document.removeEventListener('wheel', handleWheel)
-  }
-}, [])
-```
-
-**Use passive when:** tracking/analytics, logging, any listener that doesn't call `preventDefault()`.
-
-**Don't use passive when:** implementing custom swipe gestures, custom zoom controls, or any listener that needs `preventDefault()`.
-
-### 4.3 Use SWR for Automatic Deduplication
-
-**Impact: MEDIUM-HIGH (automatic deduplication)**
-
-SWR enables request deduplication, caching, and revalidation across component instances.
-
-**Incorrect: no deduplication, each instance fetches**
-
-```tsx
-function UserList() {
-  const [users, setUsers] = useState([])
-  useEffect(() => {
-    fetch('/api/users')
-      .then(r => r.json())
-      .then(setUsers)
-  }, [])
-}
-```
-
-**Correct: multiple instances share one request**
-
-```tsx
-import useSWR from 'swr'
-
-function UserList() {
-  const { data: users } = useSWR('/api/users', fetcher)
-}
-```
-
-**For immutable data:**
-
-```tsx
-import { useImmutableSWR } from '@/lib/swr'
-
-function StaticContent() {
-  const { data } = useImmutableSWR('/api/config', fetcher)
-}
-```
-
-**For mutations:**
-
-```tsx
-import { useSWRMutation } from 'swr/mutation'
-
-function UpdateButton() {
-  const { trigger } = useSWRMutation('/api/user', updateUser)
-  return <button onClick={() => trigger()}>Update</button>
-}
-```
-
-Reference: [https://swr.vercel.app](https://swr.vercel.app)
-
-### 4.4 Version and Minimize localStorage Data
-
-**Impact: MEDIUM (prevents schema conflicts, reduces storage size)**
-
-Add version prefix to keys and store only needed fields. Prevents schema conflicts and accidental storage of sensitive data.
-
-**Incorrect:**
-
-```typescript
-// No version, stores everything, no error handling
-localStorage.setItem('userConfig', JSON.stringify(fullUserObject))
-const data = localStorage.getItem('userConfig')
-```
-
-**Correct:**
-
-```typescript
-const VERSION = 'v2'
-
-function saveConfig(config: { theme: string; language: string }) {
-  try {
-    localStorage.setItem(`userConfig:${VERSION}`, JSON.stringify(config))
-  } catch {
-    // Throws in incognito/private browsing, quota exceeded, or disabled
-  }
-}
-
-function loadConfig() {
-  try {
-    const data = localStorage.getItem(`userConfig:${VERSION}`)
-    return data ? JSON.parse(data) : null
-  } catch {
-    return null
-  }
-}
-
-// Migration from v1 to v2
-function migrate() {
-  try {
-    const v1 = localStorage.getItem('userConfig:v1')
-    if (v1) {
-      const old = JSON.parse(v1)
-      saveConfig({ theme: old.darkMode ? 'dark' : 'light', language: old.lang })
-      localStorage.removeItem('userConfig:v1')
-    }
-  } catch {}
-}
-```
-
-**Store minimal fields from server responses:**
-
-```typescript
-// User object has 20+ fields, only store what UI needs
-function cachePrefs(user: FullUser) {
-  try {
-    localStorage.setItem('prefs:v1', JSON.stringify({
-      theme: user.preferences.theme,
-      notifications: user.preferences.notifications
-    }))
-  } catch {}
-}
-```
-
-**Always wrap in try-catch:** `getItem()` and `setItem()` throw in incognito/private browsing (Safari, Firefox), when quota exceeded, or when disabled.
-
-**Benefits:** Schema evolution via versioning, reduced storage size, prevents storing tokens/PII/internal flags.
-
----
-
-## 5. Re-render Optimization
-
-**Impact: MEDIUM**
-
-Reducing unnecessary re-renders minimizes wasted computation and improves UI responsiveness.
-
-### 5.1 Calculate Derived State During Rendering
-
-**Impact: MEDIUM (avoids redundant renders and state drift)**
-
-If a value can be computed from current props/state, do not store it in state or update it in an effect. Derive it during render to avoid extra renders and state drift. Do not set state in effects solely in response to prop changes; prefer derived values or keyed resets instead.
-
-**Incorrect: redundant state and effect**
-
-```tsx
-function Form() {
-  const [firstName, setFirstName] = useState('First')
-  const [lastName, setLastName] = useState('Last')
-  const [fullName, setFullName] = useState('')
-
-  useEffect(() => {
-    setFullName(firstName + ' ' + lastName)
-  }, [firstName, lastName])
-
-  return <p>{fullName}</p>
-}
-```
-
-**Correct: derive during render**
-
-```tsx
-function Form() {
-  const [firstName, setFirstName] = useState('First')
-  const [lastName, setLastName] = useState('Last')
-  const fullName = firstName + ' ' + lastName
-
-  return <p>{fullName}</p>
-}
-```
-
-Reference: [https://react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect)
-
-### 5.2 Defer State Reads to Usage Point
-
-**Impact: MEDIUM (avoids unnecessary subscriptions)**
-
-Don't subscribe to dynamic state (searchParams, localStorage) if you only read it inside callbacks.
-
-**Incorrect: subscribes to all searchParams changes**
-
-```tsx
-function ShareButton({ chatId }: { chatId: string }) {
-  const searchParams = useSearchParams()
-
-  const handleShare = () => {
-    const ref = searchParams.get('ref')
-    shareChat(chatId, { ref })
-  }
-
-  return <button onClick={handleShare}>Share</button>
-}
-```
-
-**Correct: reads on demand, no subscription**
-
-```tsx
-function ShareButton({ chatId }: { chatId: string }) {
-  const handleShare = () => {
-    const params = new URLSearchParams(window.location.search)
-    const ref = params.get('ref')
-    shareChat(chatId, { ref })
-  }
-
-  return <button onClick={handleShare}>Share</button>
-}
-```
-
-### 5.3 Do not wrap a simple expression with a primitive result type in useMemo
-
-**Impact: LOW-MEDIUM (wasted computation on every render)**
-
-When an expression is simple (few logical or arithmetical operators) and has a primitive result type (boolean, number, string), do not wrap it in `useMemo`.
-
-Calling `useMemo` and comparing hook dependencies may consume more resources than the expression itself.
-
-**Incorrect:**
-
-```tsx
-function Header({ user, notifications }: Props) {
-  const isLoading = useMemo(() => {
-    return user.isLoading || notifications.isLoading
-  }, [user.isLoading, notifications.isLoading])
-
-  if (isLoading) return <Skeleton />
-  // return some markup
-}
-```
-
-**Correct:**
-
-```tsx
-function Header({ user, notifications }: Props) {
-  const isLoading = user.isLoading || notifications.isLoading
-
-  if (isLoading) return <Skeleton />
-  // return some markup
-}
-```
-
-### 5.4 Don't Define Components Inside Components
-
-**Impact: HIGH (prevents remount on every render)**
-
-Defining a component inside another component creates a new component type on every render. React sees a different component each time and fully remounts it, destroying all state and DOM.
-
-A common reason developers do this is to access parent variables without passing props. Always pass props instead.
-
-**Incorrect: remounts on every render**
-
-```tsx
-function UserProfile({ user, theme }) {
-  // Defined inside to access `theme` - BAD
-  const Avatar = () => (
-    <img
-      src={user.avatarUrl}
-      className={theme === 'dark' ? 'avatar-dark' : 'avatar-light'}
-    />
-  )
-
-  // Defined inside to access `user` - BAD
-  const Stats = () => (
-    <div>
-      <span>{user.followers} followers</span>
-      <span>{user.posts} posts</span>
-    </div>
-  )
-
-  return (
-    <div>
-      <Avatar />
-      <Stats />
-    </div>
-  )
-}
-```
-
-Every time `UserProfile` renders, `Avatar` and `Stats` are new component types. React unmounts the old instances and mounts new ones, losing any internal state, running effects again, and recreating DOM nodes.
-
-**Correct: pass props instead**
-
-```tsx
-function Avatar({ src, theme }: { src: string; theme: string }) {
-  return (
-    <img
-      src={src}
-      className={theme === 'dark' ? 'avatar-dark' : 'avatar-light'}
-    />
-  )
-}
-
-function Stats({ followers, posts }: { followers: number; posts: number }) {
-  return (
-    <div>
-      <span>{followers} followers</span>
-      <span>{posts} posts</span>
-    </div>
-  )
-}
-
-function UserProfile({ user, theme }) {
-  return (
-    <div>
-      <Avatar src={user.avatarUrl} theme={theme} />
-      <Stats followers={user.followers} posts={user.posts} />
-    </div>
-  )
-}
-```
-
-**Symptoms of this bug:**
-
-- Input fields lose focus on every keystroke
-
-- Animations restart unexpectedly
-
-- `useEffect` cleanup/setup runs on every parent render
-
-- Scroll position resets inside the component
-
-### 5.5 Extract Default Non-primitive Parameter Value from Memoized Component to Constant
-
-**Impact: MEDIUM (restores memoization by using a constant for default value)**
-
-When memoized component has a default value for some non-primitive optional parameter, such as an array, function, or object, calling the component without that parameter results in broken memoization. This is because new value instances are created on every rerender, and they do not pass strict equality comparison in `memo()`.
-
-To address this issue, extract the default value into a constant.
-
-**Incorrect: `onClick` has different values on every rerender**
-
-```tsx
-const UserAvatar = memo(function UserAvatar({ onClick = () => {} }: { onClick?: () => void }) {
-  // ...
-})
-
-// Used without optional onClick
-<UserAvatar />
-```
-
-**Correct: stable default value**
-
-```tsx
-const NOOP = () => {};
-
-const UserAvatar = memo(function UserAvatar({ onClick = NOOP }: { onClick?: () => void }) {
-  // ...
-})
-
-// Used without optional onClick
-<UserAvatar />
-```
-
-### 5.6 Extract to Memoized Components
-
-**Impact: MEDIUM (enables early returns)**
-
-Extract expensive work into memoized components to enable early returns before computation.
-
-**Incorrect: computes avatar even when loading**
-
-```tsx
-function Profile({ user, loading }: Props) {
-  const avatar = useMemo(() => {
-    const id = computeAvatarId(user)
-    return <Avatar id={id} />
-  }, [user])
-
-  if (loading) return <Skeleton />
-  return <div>{avatar}</div>
-}
-```
-
-**Correct: skips computation when loading**
-
-```tsx
-const UserAvatar = memo(function UserAvatar({ user }: { user: User }) {
-  const id = useMemo(() => computeAvatarId(user), [user])
-  return <Avatar id={id} />
-})
-
-function Profile({ user, loading }: Props) {
-  if (loading) return <Skeleton />
-  return (
-    <div>
-      <UserAvatar user={user} />
-    </div>
-  )
-}
-```
-
-**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, manual memoization with `memo()` and `useMemo()` is not necessary. The compiler automatically optimizes re-renders.
-
-### 5.7 Narrow Effect Dependencies
-
-**Impact: LOW (minimizes effect re-runs)**
-
-Specify primitive dependencies instead of objects to minimize effect re-runs.
-
-**Incorrect: re-runs on any user field change**
-
-```tsx
-useEffect(() => {
-  console.log(user.id)
-}, [user])
-```
-
-**Correct: re-runs only when id changes**
-
-```tsx
-useEffect(() => {
-  console.log(user.id)
-}, [user.id])
-```
-
-**For derived state, compute outside effect:**
-
-```tsx
-// Incorrect: runs on width=767, 766, 765...
-useEffect(() => {
-  if (width < 768) {
-    enableMobileMode()
-  }
-}, [width])
-
-// Correct: runs only on boolean transition
-const isMobile = width < 768
-useEffect(() => {
-  if (isMobile) {
-    enableMobileMode()
-  }
-}, [isMobile])
-```
-
-### 5.8 Put Interaction Logic in Event Handlers
-
-**Impact: MEDIUM (avoids effect re-runs and duplicate side effects)**
-
-If a side effect is triggered by a specific user action (submit, click, drag), run it in that event handler. Do not model the action as state + effect; it makes effects re-run on unrelated changes and can duplicate the action.
-
-**Incorrect: event modeled as state + effect**
-
-```tsx
-function Form() {
-  const [submitted, setSubmitted] = useState(false)
-  const theme = useContext(ThemeContext)
-
-  useEffect(() => {
-    if (submitted) {
-      post('/api/register')
-      showToast('Registered', theme)
-    }
-  }, [submitted, theme])
-
-  return <button onClick={() => setSubmitted(true)}>Submit</button>
-}
-```
-
-**Correct: do it in the handler**
-
-```tsx
-function Form() {
-  const theme = useContext(ThemeContext)
-
-  function handleSubmit() {
-    post('/api/register')
-    showToast('Registered', theme)
-  }
-
-  return <button onClick={handleSubmit}>Submit</button>
-}
-```
-
-Reference: [https://react.dev/learn/removing-effect-dependencies#should-this-code-move-to-an-event-handler](https://react.dev/learn/removing-effect-dependencies#should-this-code-move-to-an-event-handler)
-
-### 5.9 Split Combined Hook Computations
-
-**Impact: MEDIUM (avoids recomputing independent steps)**
-
-When a hook contains multiple independent tasks with different dependencies, split them into separate hooks. A combined hook reruns all tasks when any dependency changes, even if some tasks don't use the changed value.
-
-**Incorrect: changing `sortOrder` recomputes filtering**
-
-```tsx
-const sortedProducts = useMemo(() => {
-  const filtered = products.filter((p) => p.category === category)
-  const sorted = filtered.toSorted((a, b) =>
-    sortOrder === "asc" ? a.price - b.price : b.price - a.price
-  )
-  return sorted
-}, [products, category, sortOrder])
-```
-
-**Correct: filtering only recomputes when products or category change**
-
-```tsx
-const filteredProducts = useMemo(
-  () => products.filter((p) => p.category === category),
-  [products, category]
-)
-
-const sortedProducts = useMemo(
-  () =>
-    filteredProducts.toSorted((a, b) =>
-      sortOrder === "asc" ? a.price - b.price : b.price - a.price
-    ),
-  [filteredProducts, sortOrder]
-)
-```
-
-This pattern also applies to `useEffect` when combining unrelated side effects:
-
-**Incorrect: both effects run when either dependency changes**
-
-```tsx
-useEffect(() => {
-  analytics.trackPageView(pathname)
-  document.title = `${pageTitle} | My App`
-}, [pathname, pageTitle])
-```
-
-**Correct: effects run independently**
-
-```tsx
-useEffect(() => {
-  analytics.trackPageView(pathname)
-}, [pathname])
-
-useEffect(() => {
-  document.title = `${pageTitle} | My App`
-}, [pageTitle])
-```
-
-**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, it automatically optimizes dependency tracking and may handle some of these cases for you.
-
-### 5.10 Subscribe to Derived State
-
-**Impact: MEDIUM (reduces re-render frequency)**
-
-Subscribe to derived boolean state instead of continuous values to reduce re-render frequency.
-
-**Incorrect: re-renders on every pixel change**
-
-```tsx
-function Sidebar() {
-  const width = useWindowWidth()  // updates continuously
-  const isMobile = width < 768
-  return <nav className={isMobile ? 'mobile' : 'desktop'} />
-}
-```
-
-**Correct: re-renders only when boolean changes**
-
-```tsx
-function Sidebar() {
-  const isMobile = useMediaQuery('(max-width: 767px)')
-  return <nav className={isMobile ? 'mobile' : 'desktop'} />
-}
-```
-
-### 5.11 Use Functional setState Updates
-
-**Impact: MEDIUM (prevents stale closures and unnecessary callback recreations)**
-
-When updating state based on the current state value, use the functional update form of setState instead of directly referencing the state variable. This prevents stale closures, eliminates unnecessary dependencies, and creates stable callback references.
-
-**Incorrect: requires state as dependency**
-
-```tsx
-function TodoList() {
-  const [items, setItems] = useState(initialItems)
-  
-  // Callback must depend on items, recreated on every items change
-  const addItems = useCallback((newItems: Item[]) => {
-    setItems([...items, ...newItems])
-  }, [items])  // ❌ items dependency causes recreations
-  
-  // Risk of stale closure if dependency is forgotten
-  const removeItem = useCallback((id: string) => {
-    setItems(items.filter(item => item.id !== id))
-  }, [])  // ❌ Missing items dependency - will use stale items!
-  
-  return <ItemsEditor items={items} onAdd={addItems} onRemove={removeItem} />
-}
-```
-
-The first callback is recreated every time `items` changes, which can cause child components to re-render unnecessarily. The second callback has a stale closure bug—it will always reference the initial `items` value.
-
-**Correct: stable callbacks, no stale closures**
-
-```tsx
-function TodoList() {
-  const [items, setItems] = useState(initialItems)
-  
-  // Stable callback, never recreated
-  const addItems = useCallback((newItems: Item[]) => {
-    setItems(curr => [...curr, ...newItems])
-  }, [])  // ✅ No dependencies needed
-  
-  // Always uses latest state, no stale closure risk
-  const removeItem = useCallback((id: string) => {
-    setItems(curr => curr.filter(item => item.id !== id))
-  }, [])  // ✅ Safe and stable
-  
-  return <ItemsEditor items={items} onAdd={addItems} onRemove={removeItem} />
-}
-```
-
-**Benefits:**
-
-1. **Stable callback references** - Callbacks don't need to be recreated when state changes
-
-2. **No stale closures** - Always operates on the latest state value
-
-3. **Fewer dependencies** - Simplifies dependency arrays and reduces memory leaks
-
-4. **Prevents bugs** - Eliminates the most common source of React closure bugs
-
-**When to use functional updates:**
-
-- Any setState that depends on the current state value
-
-- Inside useCallback/useMemo when state is needed
-
-- Event handlers that reference state
-
-- Async operations that update state
-
-**When direct updates are fine:**
-
-- Setting state to a static value: `setCount(0)`
-
-- Setting state from props/arguments only: `setName(newName)`
-
-- State doesn't depend on previous value
-
-**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, the compiler can automatically optimize some cases, but functional updates are still recommended for correctness and to prevent stale closure bugs.
-
-### 5.12 Use Lazy State Initialization
-
-**Impact: MEDIUM (wasted computation on every render)**
-
-Pass a function to `useState` for expensive initial values. Without the function form, the initializer runs on every render even though the value is only used once.
-
-**Incorrect: runs on every render**
-
-```tsx
-function FilteredList({ items }: { items: Item[] }) {
-  // buildSearchIndex() runs on EVERY render, even after initialization
-  const [searchIndex, setSearchIndex] = useState(buildSearchIndex(items))
-  const [query, setQuery] = useState('')
-  
-  // When query changes, buildSearchIndex runs again unnecessarily
-  return <SearchResults index={searchIndex} query={query} />
-}
-
-function UserProfile() {
-  // JSON.parse runs on every render
-  const [settings, setSettings] = useState(
-    JSON.parse(localStorage.getItem('settings') || '{}')
-  )
-  
-  return <SettingsForm settings={settings} onChange={setSettings} />
-}
-```
-
-**Correct: runs only once**
-
-```tsx
-function FilteredList({ items }: { items: Item[] }) {
-  // buildSearchIndex() runs ONLY on initial render
-  const [searchIndex, setSearchIndex] = useState(() => buildSearchIndex(items))
-  const [query, setQuery] = useState('')
-  
-  return <SearchResults index={searchIndex} query={query} />
-}
-
-function UserProfile() {
-  // JSON.parse runs only on initial render
-  const [settings, setSettings] = useState(() => {
-    const stored = localStorage.getItem('settings')
-    return stored ? JSON.parse(stored) : {}
-  })
-  
-  return <SettingsForm settings={settings} onChange={setSettings} />
-}
-```
-
-Use lazy initialization when computing initial values from localStorage/sessionStorage, building data structures (indexes, maps), reading from the DOM, or performing heavy transformations.
-
-For simple primitives (`useState(0)`), direct references (`useState(props.value)`), or cheap literals (`useState({})`), the function form is unnecessary.
-
-### 5.13 Use Transitions for Non-Urgent Updates
-
-**Impact: MEDIUM (maintains UI responsiveness)**
-
-Mark frequent, non-urgent state updates as transitions to maintain UI responsiveness.
-
-**Incorrect: blocks UI on every scroll**
-
-```tsx
-function ScrollTracker() {
-  const [scrollY, setScrollY] = useState(0)
-  useEffect(() => {
-    const handler = () => setScrollY(window.scrollY)
-    window.addEventListener('scroll', handler, { passive: true })
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
-}
-```
-
-**Correct: non-blocking updates**
-
-```tsx
-import { startTransition } from 'react'
-
-function ScrollTracker() {
-  const [scrollY, setScrollY] = useState(0)
-  useEffect(() => {
-    const handler = () => {
-      startTransition(() => setScrollY(window.scrollY))
-    }
-    window.addEventListener('scroll', handler, { passive: true })
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
-}
-```
-
-### 5.14 Use useDeferredValue for Expensive Derived Renders
-
-**Impact: MEDIUM (keeps input responsive during heavy computation)**
-
-When user input triggers expensive computations or renders, use `useDeferredValue` to keep the input responsive. The deferred value lags behind, allowing React to prioritize the input update and render the expensive result when idle.
-
-**Incorrect: input feels laggy while filtering**
-
-```tsx
-function Search({ items }: { items: Item[] }) {
-  const [query, setQuery] = useState('')
-  const filtered = items.filter(item => fuzzyMatch(item, query))
-
-  return (
-    <>
-      <input value={query} onChange={e => setQuery(e.target.value)} />
-      <ResultsList results={filtered} />
-    </>
-  )
-}
-```
-
-**Correct: input stays snappy, results render when ready**
-
-```tsx
-function Search({ items }: { items: Item[] }) {
-  const [query, setQuery] = useState('')
-  const deferredQuery = useDeferredValue(query)
-  const filtered = useMemo(
-    () => items.filter(item => fuzzyMatch(item, deferredQuery)),
-    [items, deferredQuery]
-  )
-  const isStale = query !== deferredQuery
-
-  return (
-    <>
-      <input value={query} onChange={e => setQuery(e.target.value)} />
-      <div style={{ opacity: isStale ? 0.7 : 1 }}>
-        <ResultsList results={filtered} />
-      </div>
-    </>
-  )
-}
-```
-
-**When to use:**
-
-- Filtering/searching large lists
-
-- Expensive visualizations (charts, graphs) reacting to input
-
-- Any derived state that causes noticeable render delays
-
-**Note:** Wrap the expensive computation in `useMemo` with the deferred value as a dependency, otherwise it still runs on every render.
-
-Reference: [https://react.dev/reference/react/useDeferredValue](https://react.dev/reference/react/useDeferredValue)
-
-### 5.15 Use useRef for Transient Values
-
-**Impact: MEDIUM (avoids unnecessary re-renders on frequent updates)**
-
-When a value changes frequently and you don't want a re-render on every update (e.g., mouse trackers, intervals, transient flags), store it in `useRef` instead of `useState`. Keep component state for UI; use refs for temporary DOM-adjacent values. Updating a ref does not trigger a re-render.
-
-**Incorrect: renders every update**
-
-```tsx
-function Tracker() {
-  const [lastX, setLastX] = useState(0)
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => setLastX(e.clientX)
-    window.addEventListener('mousemove', onMove)
-    return () => window.removeEventListener('mousemove', onMove)
-  }, [])
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: lastX,
-        width: 8,
-        height: 8,
-        background: 'black',
-      }}
-    />
-  )
-}
-```
-
-**Correct: no re-render for tracking**
-
-```tsx
-function Tracker() {
-  const lastXRef = useRef(0)
-  const dotRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      lastXRef.current = e.clientX
-      const node = dotRef.current
-      if (node) {
-        node.style.transform = `translateX(${e.clientX}px)`
-      }
-    }
-    window.addEventListener('mousemove', onMove)
-    return () => window.removeEventListener('mousemove', onMove)
-  }, [])
-
-  return (
-    <div
-      ref={dotRef}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: 8,
-        height: 8,
-        background: 'black',
-        transform: 'translateX(0px)',
-      }}
-    />
-  )
-}
-```
-
----
-
-## 6. Rendering Performance
-
-**Impact: MEDIUM**
-
-Optimizing the rendering process reduces the work the browser needs to do.
-
-### 6.1 Animate SVG Wrapper Instead of SVG Element
-
-**Impact: LOW (enables hardware acceleration)**
-
-Many browsers don't have hardware acceleration for CSS3 animations on SVG elements. Wrap SVG in a `<div>` and animate the wrapper instead.
-
-**Incorrect: animating SVG directly - no hardware acceleration**
-
-```tsx
-function LoadingSpinner() {
-  return (
-    <svg 
-      className="animate-spin"
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24"
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" />
-    </svg>
-  )
-}
-```
-
-**Correct: animating wrapper div - hardware accelerated**
-
-```tsx
-function LoadingSpinner() {
-  return (
-    <div className="animate-spin">
-      <svg 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24"
-      >
-        <circle cx="12" cy="12" r="10" stroke="currentColor" />
-      </svg>
-    </div>
-  )
-}
-```
-
-This applies to all CSS transforms and transitions (`transform`, `opacity`, `translate`, `scale`, `rotate`). The wrapper div allows browsers to use GPU acceleration for smoother animations.
-
-### 6.2 CSS content-visibility for Long Lists
-
-**Impact: HIGH (faster initial render)**
-
-Apply `content-visibility: auto` to defer off-screen rendering.
-
-**CSS:**
-
-```css
-.message-item {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 80px;
-}
-```
-
-**Example:**
-
-```tsx
-function MessageList({ messages }: { messages: Message[] }) {
-  return (
-    <div className="overflow-y-auto h-screen">
-      {messages.map(msg => (
-        <div key={msg.id} className="message-item">
-          <Avatar user={msg.author} />
-          <div>{msg.content}</div>
-        </div>
-      ))}
-    </div>
-  )
-}
-```
-
-For 1000 messages, browser skips layout/paint for ~990 off-screen items (10× faster initial render).
-
-### 6.3 Hoist Static JSX Elements
-
-**Impact: LOW (avoids re-creation)**
-
-Extract static JSX outside components to avoid re-creation.
-
-**Incorrect: recreates element every render**
-
-```tsx
-function LoadingSkeleton() {
-  return <div className="animate-pulse h-20 bg-gray-200" />
-}
-
-function Container() {
-  return (
-    <div>
-      {loading && <LoadingSkeleton />}
-    </div>
-  )
-}
-```
-
-**Correct: reuses same element**
-
-```tsx
-const loadingSkeleton = (
-  <div className="animate-pulse h-20 bg-gray-200" />
-)
-
-function Container() {
-  return (
-    <div>
-      {loading && loadingSkeleton}
-    </div>
-  )
-}
-```
-
-This is especially helpful for large and static SVG nodes, which can be expensive to recreate on every render.
-
-**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, the compiler automatically hoists static JSX elements and optimizes component re-renders, making manual hoisting unnecessary.
-
-### 6.4 Optimize SVG Precision
-
-**Impact: LOW (reduces file size)**
-
-Reduce SVG coordinate precision to decrease file size. The optimal precision depends on the viewBox size, but in general reducing precision should be considered.
-
-**Incorrect: excessive precision**
-
-```svg
-<path d="M 10.293847 20.847362 L 30.938472 40.192837" />
-```
-
-**Correct: 1 decimal place**
-
-```svg
-<path d="M 10.3 20.8 L 30.9 40.2" />
-```
-
-**Automate with SVGO:**
-
-```bash
-npx svgo --precision=1 --multipass icon.svg
-```
-
-### 6.5 Prevent Hydration Mismatch Without Flickering
-
-**Impact: MEDIUM (avoids visual flicker and hydration errors)**
-
-When rendering content that depends on client-side storage (localStorage, cookies), avoid both SSR breakage and post-hydration flickering by injecting a synchronous script that updates the DOM before React hydrates.
-
-**Incorrect: breaks SSR**
-
-```tsx
-function ThemeWrapper({ children }: { children: ReactNode }) {
-  // localStorage is not available on server - throws error
-  const theme = localStorage.getItem('theme') || 'light'
-  
-  return (
-    <div className={theme}>
-      {children}
-    </div>
-  )
-}
-```
-
-Server-side rendering will fail because `localStorage` is undefined.
-
-**Incorrect: visual flickering**
-
-```tsx
-function ThemeWrapper({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState('light')
-  
-  useEffect(() => {
-    // Runs after hydration - causes visible flash
-    const stored = localStorage.getItem('theme')
-    if (stored) {
-      setTheme(stored)
-    }
-  }, [])
-  
-  return (
-    <div className={theme}>
-      {children}
-    </div>
-  )
-}
-```
-
-Component first renders with default value (`light`), then updates after hydration, causing a visible flash of incorrect content.
-
-**Correct: no flicker, no hydration mismatch**
-
-```tsx
-function ThemeWrapper({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <div id="theme-wrapper">
-        {children}
-      </div>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              try {
-                var theme = localStorage.getItem('theme') || 'light';
-                var el = document.getElementById('theme-wrapper');
-                if (el) el.className = theme;
-              } catch (e) {}
-            })();
-          `,
-        }}
-      />
-    </>
-  )
-}
-```
-
-The inline script executes synchronously before showing the element, ensuring the DOM already has the correct value. No flickering, no hydration mismatch.
-
-This pattern is especially useful for theme toggles, user preferences, authentication states, and any client-only data that should render immediately without flashing default values.
-
-### 6.6 Suppress Expected Hydration Mismatches
-
-**Impact: LOW-MEDIUM (avoids noisy hydration warnings for known differences)**
-
-In SSR frameworks (e.g., Next.js), some values are intentionally different on server vs client (random IDs, dates, locale/timezone formatting). For these *expected* mismatches, wrap the dynamic text in an element with `suppressHydrationWarning` to prevent noisy warnings. Do not use this to hide real bugs. Don’t overuse it.
-
-**Incorrect: known mismatch warnings**
-
-```tsx
-function Timestamp() {
-  return <span>{new Date().toLocaleString()}</span>
-}
-```
-
-**Correct: suppress expected mismatch only**
-
-```tsx
-function Timestamp() {
-  return (
-    <span suppressHydrationWarning>
-      {new Date().toLocaleString()}
-    </span>
-  )
-}
-```
-
-### 6.7 Use Activity Component for Show/Hide
-
-**Impact: MEDIUM (preserves state/DOM)**
-
-Use React's `<Activity>` to preserve state/DOM for expensive components that frequently toggle visibility.
-
-**Usage:**
-
-```tsx
-import { Activity } from 'react'
-
-function Dropdown({ isOpen }: Props) {
-  return (
-    <Activity mode={isOpen ? 'visible' : 'hidden'}>
-      <ExpensiveMenu />
-    </Activity>
-  )
-}
-```
-
-Avoids expensive re-renders and state loss.
-
-### 6.8 Use defer or async on Script Tags
-
-**Impact: HIGH (eliminates render-blocking)**
-
-Script tags without `defer` or `async` block HTML parsing while the script downloads and executes. This delays First Contentful Paint and Time to Interactive.
-
-- **`defer`**: Downloads in parallel, executes after HTML parsing completes, maintains execution order
-
-- **`async`**: Downloads in parallel, executes immediately when ready, no guaranteed order
-
-Use `defer` for scripts that depend on DOM or other scripts. Use `async` for independent scripts like analytics.
-
-**Incorrect: blocks rendering**
-
-```tsx
-export default function Document() {
-  return (
-    <html>
-      <head>
-        <script src="https://example.com/analytics.js" />
-        <script src="/scripts/utils.js" />
-      </head>
-      <body>{/* content */}</body>
-    </html>
-  )
-}
-```
-
-**Correct: non-blocking**
-
-```tsx
-import Script from 'next/script'
-
-export default function Page() {
-  return (
-    <>
-      <Script src="https://example.com/analytics.js" strategy="afterInteractive" />
-      <Script src="/scripts/utils.js" strategy="beforeInteractive" />
-    </>
-  )
-}
-```
-
-**Note:** In Next.js, prefer the `next/script` component with `strategy` prop instead of raw script tags:
-
-Reference: [https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#defer](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#defer)
-
-### 6.9 Use Explicit Conditional Rendering
-
-**Impact: LOW (prevents rendering 0 or NaN)**
-
-Use explicit ternary operators (`? :`) instead of `&&` for conditional rendering when the condition can be `0`, `NaN`, or other falsy values that render.
-
-**Incorrect: renders "0" when count is 0**
-
-```tsx
-function Badge({ count }: { count: number }) {
-  return (
-    <div>
-      {count && <span className="badge">{count}</span>}
-    </div>
-  )
-}
-
-// When count = 0, renders: <div>0</div>
-// When count = 5, renders: <div><span class="badge">5</span></div>
-```
-
-**Correct: renders nothing when count is 0**
-
-```tsx
-function Badge({ count }: { count: number }) {
-  return (
-    <div>
-      {count > 0 ? <span className="badge">{count}</span> : null}
-    </div>
-  )
-}
-
-// When count = 0, renders: <div></div>
-// When count = 5, renders: <div><span class="badge">5</span></div>
-```
-
-### 6.10 Use React DOM Resource Hints
-
-**Impact: HIGH (reduces load time for critical resources)**
-
-React DOM provides APIs to hint the browser about resources it will need. These are especially useful in server components to start loading resources before the client even receives the HTML.
-
-- **`prefetchDNS(href)`**: Resolve DNS for a domain you expect to connect to
-
-- **`preconnect(href)`**: Establish connection (DNS + TCP + TLS) to a server
-
-- **`preload(href, options)`**: Fetch a resource (stylesheet, font, script, image) you'll use soon
-
-- **`preloadModule(href)`**: Fetch an ES module you'll use soon
-
-- **`preinit(href, options)`**: Fetch and evaluate a stylesheet or script
-
-- **`preinitModule(href)`**: Fetch and evaluate an ES module
-
-**Example: preconnect to third-party APIs**
-
-```tsx
-import { preconnect, prefetchDNS } from 'react-dom'
-
-export default function App() {
-  prefetchDNS('https://analytics.example.com')
-  preconnect('https://api.example.com')
-
-  return <main>{/* content */}</main>
-}
-```
-
-**Example: preload critical fonts and styles**
-
-```tsx
-import { preload, preinit } from 'react-dom'
-
-export default function RootLayout({ children }) {
-  // Preload font file
-  preload('/fonts/inter.woff2', { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' })
-
-  // Fetch and apply critical stylesheet immediately
-  preinit('/styles/critical.css', { as: 'style' })
-
-  return (
-    <html>
-      <body>{children}</body>
-    </html>
-  )
-}
-```
-
-**Example: preload modules for code-split routes**
-
-```tsx
-import { preloadModule, preinitModule } from 'react-dom'
-
-function Navigation() {
-  const preloadDashboard = () => {
-    preloadModule('/dashboard.js', { as: 'script' })
-  }
-
-  return (
-    <nav>
-      <a href="/dashboard" onMouseEnter={preloadDashboard}>
-        Dashboard
-      </a>
-    </nav>
-  )
-}
-```
-
-**When to use each:**
-
-| API | Use case |
-
-|-----|----------|
-
-| `prefetchDNS` | Third-party domains you'll connect to later |
-
-| `preconnect` | APIs or CDNs you'll fetch from immediately |
-
-| `preload` | Critical resources needed for current page |
-
-| `preloadModule` | JS modules for likely next navigation |
-
-| `preinit` | Stylesheets/scripts that must execute early |
-
-| `preinitModule` | ES modules that must execute early |
-
-Reference: [https://react.dev/reference/react-dom#resource-preloading-apis](https://react.dev/reference/react-dom#resource-preloading-apis)
-
-### 6.11 Use useTransition Over Manual Loading States
-
-**Impact: LOW (reduces re-renders and improves code clarity)**
-
-Use `useTransition` instead of manual `useState` for loading states. This provides built-in `isPending` state and automatically manages transitions.
-
-**Incorrect: manual loading state**
-
-```tsx
-function SearchResults() {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
-
-  const handleSearch = async (value: string) => {
-    setIsLoading(true)
-    setQuery(value)
-    const data = await fetchResults(value)
-    setResults(data)
-    setIsLoading(false)
-  }
-
-  return (
-    <>
-      <input onChange={(e) => handleSearch(e.target.value)} />
-      {isLoading && <Spinner />}
-      <ResultsList results={results} />
-    </>
-  )
-}
-```
-
-**Correct: useTransition with built-in pending state**
-
-```tsx
-import { useTransition, useState } from 'react'
-
-function SearchResults() {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [isPending, startTransition] = useTransition()
-
-  const handleSearch = (value: string) => {
-    setQuery(value) // Update input immediately
-    
-    startTransition(async () => {
-      // Fetch and update results
-      const data = await fetchResults(value)
-      setResults(data)
-    })
-  }
-
-  return (
-    <>
-      <input onChange={(e) => handleSearch(e.target.value)} />
-      {isPending && <Spinner />}
-      <ResultsList results={results} />
-    </>
-  )
-}
-```
-
-**Benefits:**
-
-- **Automatic pending state**: No need to manually manage `setIsLoading(true/false)`
-
-- **Error resilience**: Pending state correctly resets even if the transition throws
-
-- **Better responsiveness**: Keeps the UI responsive during updates
-
-- **Interrupt handling**: New transitions automatically cancel pending ones
-
-Reference: [https://react.dev/reference/react/useTransition](https://react.dev/reference/react/useTransition)
-
----
-
-## 7. JavaScript Performance
-
-**Impact: LOW-MEDIUM**
-
-Micro-optimizations for hot paths can add up to meaningful improvements.
-
-### 7.1 Avoid Layout Thrashing
-
-**Impact: MEDIUM (prevents forced synchronous layouts and reduces performance bottlenecks)**
-
-Avoid interleaving style writes with layout reads. When you read a layout property (like `offsetWidth`, `getBoundingClientRect()`, or `getComputedStyle()`) between style changes, the browser is forced to trigger a synchronous reflow.
-
-**This is OK: browser batches style changes**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  // Each line invalidates style, but browser batches the recalculation
-  element.style.width = '100px'
-  element.style.height = '200px'
-  element.style.backgroundColor = 'blue'
-  element.style.border = '1px solid black'
-}
-```
-
-**Incorrect: interleaved reads and writes force reflows**
-
-```typescript
-function layoutThrashing(element: HTMLElement) {
-  element.style.width = '100px'
-  const width = element.offsetWidth  // Forces reflow
-  element.style.height = '200px'
-  const height = element.offsetHeight  // Forces another reflow
-}
-```
-
-**Correct: batch writes, then read once**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  // Batch all writes together
-  element.style.width = '100px'
-  element.style.height = '200px'
-  element.style.backgroundColor = 'blue'
-  element.style.border = '1px solid black'
-  
-  // Read after all writes are done (single reflow)
-  const { width, height } = element.getBoundingClientRect()
-}
-```
-
-**Correct: batch reads, then writes**
-
-```typescript
-function updateElementStyles(element: HTMLElement) {
-  element.classList.add('highlighted-box')
-  
-  const { width, height } = element.getBoundingClientRect()
-}
-```
-
-**Better: use CSS classes**
-
-**React example:**
-
-```tsx
-// Incorrect: interleaving style changes with layout queries
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  
-  useEffect(() => {
-    if (ref.current && isHighlighted) {
-      ref.current.style.width = '100px'
-      const width = ref.current.offsetWidth // Forces layout
-      ref.current.style.height = '200px'
-    }
-  }, [isHighlighted])
-  
-  return <div ref={ref}>Content</div>
-}
-
-// Correct: toggle class
-function Box({ isHighlighted }: { isHighlighted: boolean }) {
-  return (
-    <div className={isHighlighted ? 'highlighted-box' : ''}>
-      Content
-    </div>
-  )
-}
-```
-
-Prefer CSS classes over inline styles when possible. CSS files are cached by the browser, and classes provide better separation of concerns and are easier to maintain.
-
-See [this gist](https://gist.github.com/paulirish/5d52fb081b3570c81e3a) and [CSS Triggers](https://csstriggers.com/) for more information on layout-forcing operations.
-
-### 7.2 Build Index Maps for Repeated Lookups
-
-**Impact: LOW-MEDIUM (1M ops to 2K ops)**
-
-Multiple `.find()` calls by the same key should use a Map.
-
-**Incorrect (O(n) per lookup):**
-
-```typescript
-function processOrders(orders: Order[], users: User[]) {
-  return orders.map(order => ({
-    ...order,
-    user: users.find(u => u.id === order.userId)
-  }))
-}
-```
-
-**Correct (O(1) per lookup):**
-
-```typescript
-function processOrders(orders: Order[], users: User[]) {
-  const userById = new Map(users.map(u => [u.id, u]))
-
-  return orders.map(order => ({
-    ...order,
-    user: userById.get(order.userId)
-  }))
-}
-```
-
-Build map once (O(n)), then all lookups are O(1).
-
-For 1000 orders × 1000 users: 1M ops → 2K ops.
-
-### 7.3 Cache Property Access in Loops
-
-**Impact: LOW-MEDIUM (reduces lookups)**
-
-Cache object property lookups in hot paths.
-
-**Incorrect: 3 lookups × N iterations**
-
-```typescript
-for (let i = 0; i < arr.length; i++) {
-  process(obj.config.settings.value)
-}
-```
-
-**Correct: 1 lookup total**
-
-```typescript
-const value = obj.config.settings.value
-const len = arr.length
-for (let i = 0; i < len; i++) {
-  process(value)
-}
-```
-
-### 7.4 Cache Repeated Function Calls
-
-**Impact: MEDIUM (avoid redundant computation)**
-
-Use a module-level Map to cache function results when the same function is called repeatedly with the same inputs during render.
-
-**Incorrect: redundant computation**
-
-```typescript
-function ProjectList({ projects }: { projects: Project[] }) {
-  return (
-    <div>
-      {projects.map(project => {
-        // slugify() called 100+ times for same project names
-        const slug = slugify(project.name)
-        
-        return <ProjectCard key={project.id} slug={slug} />
-      })}
-    </div>
-  )
-}
-```
-
-**Correct: cached results**
-
-```typescript
-// Module-level cache
-const slugifyCache = new Map<string, string>()
-
-function cachedSlugify(text: string): string {
-  if (slugifyCache.has(text)) {
-    return slugifyCache.get(text)!
-  }
-  const result = slugify(text)
-  slugifyCache.set(text, result)
-  return result
-}
-
-function ProjectList({ projects }: { projects: Project[] }) {
-  return (
-    <div>
-      {projects.map(project => {
-        // Computed only once per unique project name
-        const slug = cachedSlugify(project.name)
-        
-        return <ProjectCard key={project.id} slug={slug} />
-      })}
-    </div>
-  )
-}
-```
-
-**Simpler pattern for single-value functions:**
-
-```typescript
-let isLoggedInCache: boolean | null = null
-
-function isLoggedIn(): boolean {
-  if (isLoggedInCache !== null) {
-    return isLoggedInCache
-  }
-  
-  isLoggedInCache = document.cookie.includes('auth=')
-  return isLoggedInCache
-}
-
-// Clear cache when auth changes
-function onAuthChange() {
-  isLoggedInCache = null
-}
-```
-
-Use a Map (not a hook) so it works everywhere: utilities, event handlers, not just React components.
-
-Reference: [https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast](https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast)
-
-### 7.5 Cache Storage API Calls
-
-**Impact: LOW-MEDIUM (reduces expensive I/O)**
-
-`localStorage`, `sessionStorage`, and `document.cookie` are synchronous and expensive. Cache reads in memory.
-
-**Incorrect: reads storage on every call**
-
-```typescript
-function getTheme() {
-  return localStorage.getItem('theme') ?? 'light'
-}
-// Called 10 times = 10 storage reads
-```
-
-**Correct: Map cache**
-
-```typescript
-const storageCache = new Map<string, string | null>()
-
-function getLocalStorage(key: string) {
-  if (!storageCache.has(key)) {
-    storageCache.set(key, localStorage.getItem(key))
-  }
-  return storageCache.get(key)
-}
-
-function setLocalStorage(key: string, value: string) {
-  localStorage.setItem(key, value)
-  storageCache.set(key, value)  // keep cache in sync
-}
-```
-
-Use a Map (not a hook) so it works everywhere: utilities, event handlers, not just React components.
-
-**Cookie caching:**
-
-```typescript
-let cookieCache: Record<string, string> | null = null
-
-function getCookie(name: string) {
-  if (!cookieCache) {
-    cookieCache = Object.fromEntries(
-      document.cookie.split('; ').map(c => c.split('='))
-    )
-  }
-  return cookieCache[name]
-}
-```
-
-**Important: invalidate on external changes**
-
-```typescript
-window.addEventListener('storage', (e) => {
-  if (e.key) storageCache.delete(e.key)
-})
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    storageCache.clear()
-  }
-})
-```
-
-If storage can change externally (another tab, server-set cookies), invalidate cache:
-
-### 7.6 Combine Multiple Array Iterations
-
-**Impact: LOW-MEDIUM (reduces iterations)**
-
-Multiple `.filter()` or `.map()` calls iterate the array multiple times. Combine into one loop.
-
-**Incorrect: 3 iterations**
-
-```typescript
-const admins = users.filter(u => u.isAdmin)
-const testers = users.filter(u => u.isTester)
-const inactive = users.filter(u => !u.isActive)
-```
-
-**Correct: 1 iteration**
-
-```typescript
-const admins: User[] = []
-const testers: User[] = []
-const inactive: User[] = []
-
-for (const user of users) {
-  if (user.isAdmin) admins.push(user)
-  if (user.isTester) testers.push(user)
-  if (!user.isActive) inactive.push(user)
-}
-```
-
-### 7.7 Defer Non-Critical Work with requestIdleCallback
-
-**Impact: MEDIUM (keeps UI responsive during background tasks)**
-
-Use `requestIdleCallback()` to schedule non-critical work during browser idle periods. This keeps the main thread free for user interactions and animations, reducing jank and improving perceived performance.
-
-**Incorrect: blocks main thread during user interaction**
-
-```typescript
-function handleSearch(query: string) {
-  const results = searchItems(query)
-  setResults(results)
-
-  // These block the main thread immediately
-  analytics.track('search', { query })
-  saveToRecentSearches(query)
-  prefetchTopResults(results.slice(0, 3))
-}
-```
-
-**Correct: defers non-critical work to idle time**
-
-```typescript
-function handleSearch(query: string) {
-  const results = searchItems(query)
-  setResults(results)
-
-  // Defer non-critical work to idle periods
-  requestIdleCallback(() => {
-    analytics.track('search', { query })
-  })
-
-  requestIdleCallback(() => {
-    saveToRecentSearches(query)
-  })
-
-  requestIdleCallback(() => {
-    prefetchTopResults(results.slice(0, 3))
-  })
-}
-```
-
-**With timeout for required work:**
-
-```typescript
-// Ensure analytics fires within 2 seconds even if browser stays busy
-requestIdleCallback(
-  () => analytics.track('page_view', { path: location.pathname }),
-  { timeout: 2000 }
-)
-```
-
-**Chunking large tasks:**
-
-```typescript
-function processLargeDataset(items: Item[]) {
-  let index = 0
-
-  function processChunk(deadline: IdleDeadline) {
-    // Process items while we have idle time (aim for <50ms chunks)
-    while (index < items.length && deadline.timeRemaining() > 0) {
-      processItem(items[index])
-      index++
-    }
-
-    // Schedule next chunk if more items remain
-    if (index < items.length) {
-      requestIdleCallback(processChunk)
-    }
-  }
-
-  requestIdleCallback(processChunk)
-}
-```
-
-**With fallback for unsupported browsers:**
-
-```typescript
-const scheduleIdleWork = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1))
-
-scheduleIdleWork(() => {
-  // Non-critical work
-})
-```
-
-**When to use:**
-
-- Analytics and telemetry
-
-- Saving state to localStorage/IndexedDB
-
-- Prefetching resources for likely next actions
-
-- Processing non-urgent data transformations
-
-- Lazy initialization of non-critical features
-
-**When NOT to use:**
-
-- User-initiated actions that need immediate feedback
-
-- Rendering updates the user is waiting for
-
-- Time-sensitive operations
-
-### 7.8 Early Length Check for Array Comparisons
-
-**Impact: MEDIUM-HIGH (avoids expensive operations when lengths differ)**
-
-When comparing arrays with expensive operations (sorting, deep equality, serialization), check lengths first. If lengths differ, the arrays cannot be equal.
-
-In real-world applications, this optimization is especially valuable when the comparison runs in hot paths (event handlers, render loops).
-
-**Incorrect: always runs expensive comparison**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Always sorts and joins, even when lengths differ
-  return current.sort().join() !== original.sort().join()
-}
-```
-
-Two O(n log n) sorts run even when `current.length` is 5 and `original.length` is 100. There is also overhead of joining the arrays and comparing the strings.
-
-**Correct (O(1) length check first):**
-
-```typescript
-function hasChanges(current: string[], original: string[]) {
-  // Early return if lengths differ
-  if (current.length !== original.length) {
-    return true
-  }
-  // Only sort when lengths match
-  const currentSorted = current.toSorted()
-  const originalSorted = original.toSorted()
-  for (let i = 0; i < currentSorted.length; i++) {
-    if (currentSorted[i] !== originalSorted[i]) {
-      return true
-    }
-  }
-  return false
-}
-```
-
-This new approach is more efficient because:
-
-- It avoids the overhead of sorting and joining the arrays when lengths differ
-
-- It avoids consuming memory for the joined strings (especially important for large arrays)
-
-- It avoids mutating the original arrays
-
-- It returns early when a difference is found
-
-### 7.9 Early Return from Functions
-
-**Impact: LOW-MEDIUM (avoids unnecessary computation)**
-
-Return early when result is determined to skip unnecessary processing.
-
-**Incorrect: processes all items even after finding answer**
-
-```typescript
-function validateUsers(users: User[]) {
-  let hasError = false
-  let errorMessage = ''
-  
-  for (const user of users) {
-    if (!user.email) {
-      hasError = true
-      errorMessage = 'Email required'
-    }
-    if (!user.name) {
-      hasError = true
-      errorMessage = 'Name required'
-    }
-    // Continues checking all users even after error found
-  }
-  
-  return hasError ? { valid: false, error: errorMessage } : { valid: true }
-}
-```
-
-**Correct: returns immediately on first error**
-
-```typescript
-function validateUsers(users: User[]) {
-  for (const user of users) {
-    if (!user.email) {
-      return { valid: false, error: 'Email required' }
-    }
-    if (!user.name) {
-      return { valid: false, error: 'Name required' }
-    }
-  }
-
-  return { valid: true }
-}
-```
-
-### 7.10 Hoist RegExp Creation
-
-**Impact: LOW-MEDIUM (avoids recreation)**
-
-Don't create RegExp inside render. Hoist to module scope or memoize with `useMemo()`.
-
-**Incorrect: new RegExp every render**
-
-```tsx
-function Highlighter({ text, query }: Props) {
-  const regex = new RegExp(`(${query})`, 'gi')
-  const parts = text.split(regex)
-  return <>{parts.map((part, i) => ...)}</>
-}
-```
-
-**Correct: memoize or hoist**
-
-```tsx
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-function Highlighter({ text, query }: Props) {
-  const regex = useMemo(
-    () => new RegExp(`(${escapeRegex(query)})`, 'gi'),
-    [query]
-  )
-  const parts = text.split(regex)
-  return <>{parts.map((part, i) => ...)}</>
-}
-```
-
-**Warning: global regex has mutable state**
-
-```typescript
-const regex = /foo/g
-regex.test('foo')  // true, lastIndex = 3
-regex.test('foo')  // false, lastIndex = 0
-```
-
-Global regex (`/g`) has mutable `lastIndex` state:
-
-### 7.11 Use flatMap to Map and Filter in One Pass
-
-**Impact: LOW-MEDIUM (eliminates intermediate array)**
-
-Chaining `.map().filter(Boolean)` creates an intermediate array and iterates twice. Use `.flatMap()` to transform and filter in a single pass.
-
-**Incorrect: 2 iterations, intermediate array**
-
-```typescript
-const userNames = users
-  .map(user => user.isActive ? user.name : null)
-  .filter(Boolean)
-```
-
-**Correct: 1 iteration, no intermediate array**
-
-```typescript
-const userNames = users.flatMap(user =>
-  user.isActive ? [user.name] : []
-)
-```
-
-**More examples:**
-
-```typescript
-// Extract valid emails from responses
-// Before
-const emails = responses
-  .map(r => r.success ? r.data.email : null)
-  .filter(Boolean)
-
-// After
-const emails = responses.flatMap(r =>
-  r.success ? [r.data.email] : []
-)
-
-// Parse and filter valid numbers
-// Before
-const numbers = strings
-  .map(s => parseInt(s, 10))
-  .filter(n => !isNaN(n))
-
-// After
-const numbers = strings.flatMap(s => {
-  const n = parseInt(s, 10)
-  return isNaN(n) ? [] : [n]
-})
-```
-
-**When to use:**
-
-- Transforming items while filtering some out
-
-- Conditional mapping where some inputs produce no output
-
-- Parsing/validating where invalid inputs should be skipped
-
-### 7.12 Use Loop for Min/Max Instead of Sort
-
-**Impact: LOW (O(n) instead of O(n log n))**
-
-Finding the smallest or largest element only requires a single pass through the array. Sorting is wasteful and slower.
-
-**Incorrect (O(n log n) - sort to find latest):**
-
-```typescript
-interface Project {
-  id: string
-  name: string
-  updatedAt: number
-}
-
-function getLatestProject(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
-  return sorted[0]
-}
-```
-
-Sorts the entire array just to find the maximum value.
-
-**Incorrect (O(n log n) - sort for oldest and newest):**
-
-```typescript
-function getOldestAndNewest(projects: Project[]) {
-  const sorted = [...projects].sort((a, b) => a.updatedAt - b.updatedAt)
-  return { oldest: sorted[0], newest: sorted[sorted.length - 1] }
-}
-```
-
-Still sorts unnecessarily when only min/max are needed.
-
-**Correct (O(n) - single loop):**
-
-```typescript
-function getLatestProject(projects: Project[]) {
-  if (projects.length === 0) return null
-  
-  let latest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt > latest.updatedAt) {
-      latest = projects[i]
-    }
-  }
-  
-  return latest
-}
-
-function getOldestAndNewest(projects: Project[]) {
-  if (projects.length === 0) return { oldest: null, newest: null }
-  
-  let oldest = projects[0]
-  let newest = projects[0]
-  
-  for (let i = 1; i < projects.length; i++) {
-    if (projects[i].updatedAt < oldest.updatedAt) oldest = projects[i]
-    if (projects[i].updatedAt > newest.updatedAt) newest = projects[i]
-  }
-  
-  return { oldest, newest }
-}
-```
-
-Single pass through the array, no copying, no sorting.
-
-**Alternative: Math.min/Math.max for small arrays**
-
-```typescript
-const numbers = [5, 2, 8, 1, 9]
-const min = Math.min(...numbers)
-const max = Math.max(...numbers)
-```
-
-This works for small arrays, but can be slower or just throw an error for very large arrays due to spread operator limitations. Maximal array length is approximately 124000 in Chrome 143 and 638000 in Safari 18; exact numbers may vary - see [the fiddle](https://jsfiddle.net/qw1jabsx/4/). Use the loop approach for reliability.
-
-### 7.13 Use Set/Map for O(1) Lookups
-
-**Impact: LOW-MEDIUM (O(n) to O(1))**
-
-Convert arrays to Set/Map for repeated membership checks.
-
-**Incorrect (O(n) per check):**
-
-```typescript
-const allowedIds = ['a', 'b', 'c', ...]
-items.filter(item => allowedIds.includes(item.id))
-```
-
-**Correct (O(1) per check):**
-
-```typescript
-const allowedIds = new Set(['a', 'b', 'c', ...])
-items.filter(item => allowedIds.has(item.id))
-```
-
-### 7.14 Use toSorted() Instead of sort() for Immutability
-
-**Impact: MEDIUM-HIGH (prevents mutation bugs in React state)**
-
-`.sort()` mutates the array in place, which can cause bugs with React state and props. Use `.toSorted()` to create a new sorted array without mutation.
-
-**Incorrect: mutates original array**
-
-```typescript
-function UserList({ users }: { users: User[] }) {
-  // Mutates the users prop array!
-  const sorted = useMemo(
-    () => users.sort((a, b) => a.name.localeCompare(b.name)),
-    [users]
-  )
-  return <div>{sorted.map(renderUser)}</div>
-}
-```
-
-**Correct: creates new array**
-
-```typescript
-function UserList({ users }: { users: User[] }) {
-  // Creates new sorted array, original unchanged
-  const sorted = useMemo(
-    () => users.toSorted((a, b) => a.name.localeCompare(b.name)),
-    [users]
-  )
-  return <div>{sorted.map(renderUser)}</div>
-}
-```
-
-**Why this matters in React:**
-
-1. Props/state mutations break React's immutability model - React expects props and state to be treated as read-only
-
-2. Causes stale closure bugs - Mutating arrays inside closures (callbacks, effects) can lead to unexpected behavior
-
-**Browser support: fallback for older browsers**
-
-```typescript
-// Fallback for older browsers
-const sorted = [...items].sort((a, b) => a.value - b.value)
-```
-
-`.toSorted()` is available in all modern browsers (Chrome 110+, Safari 16+, Firefox 115+, Node.js 20+). For older environments, use spread operator:
-
-**Other immutable array methods:**
-
-- `.toSorted()` - immutable sort
-
-- `.toReversed()` - immutable reverse
-
-- `.toSpliced()` - immutable splice
-
-- `.with()` - immutable element replacement
-
----
-
-## 8. Advanced Patterns
-
-**Impact: LOW**
-
-Advanced patterns for specific cases that require careful implementation.
-
-### 8.1 Do Not Put Effect Events in Dependency Arrays
-
-**Impact: LOW (avoids unnecessary effect re-runs and lint errors)**
-
-Effect Event functions do not have a stable identity. Their identity intentionally changes on every render. Do not include the function returned by `useEffectEvent` in a `useEffect` dependency array. Keep the actual reactive values as dependencies and call the Effect Event from inside the effect body or subscriptions created by that effect.
-
-**Incorrect: Effect Event added as a dependency**
-
-```tsx
-import { useEffect, useEffectEvent } from 'react'
-
-function ChatRoom({ roomId, onConnected }: {
-  roomId: string
-  onConnected: () => void
-}) {
-  const handleConnected = useEffectEvent(onConnected)
-
-  useEffect(() => {
-    const connection = createConnection(roomId)
-    connection.on('connected', handleConnected)
-    connection.connect()
-
-    return () => connection.disconnect()
-  }, [roomId, handleConnected])
-}
-```
-
-Including the Effect Event in dependencies makes the effect re-run every render and triggers the React Hooks lint rule.
-
-**Correct: depend on reactive values, not the Effect Event**
-
-```tsx
-import { useEffect, useEffectEvent } from 'react'
-
-function ChatRoom({ roomId, onConnected }: {
-  roomId: string
-  onConnected: () => void
-}) {
-  const handleConnected = useEffectEvent(onConnected)
-
-  useEffect(() => {
-    const connection = createConnection(roomId)
-    connection.on('connected', handleConnected)
-    connection.connect()
-
-    return () => connection.disconnect()
-  }, [roomId])
-}
-```
-
-Reference: [https://react.dev/reference/react/useEffectEvent#effect-event-in-deps](https://react.dev/reference/react/useEffectEvent#effect-event-in-deps)
-
-### 8.2 Initialize App Once, Not Per Mount
-
-**Impact: LOW-MEDIUM (avoids duplicate init in development)**
-
-Do not put app-wide initialization that must run once per app load inside `useEffect([])` of a component. Components can remount and effects will re-run. Use a module-level guard or top-level init in the entry module instead.
-
-**Incorrect: runs twice in dev, re-runs on remount**
-
-```tsx
-function Comp() {
-  useEffect(() => {
-    loadFromStorage()
-    checkAuthToken()
-  }, [])
-
-  // ...
-}
-```
-
-**Correct: once per app load**
-
-```tsx
-let didInit = false
-
-function Comp() {
-  useEffect(() => {
-    if (didInit) return
-    didInit = true
-    loadFromStorage()
-    checkAuthToken()
-  }, [])
-
-  // ...
-}
-```
-
-Reference: [https://react.dev/learn/you-might-not-need-an-effect#initializing-the-application](https://react.dev/learn/you-might-not-need-an-effect#initializing-the-application)
-
-### 8.3 Store Event Handlers in Refs
-
-**Impact: LOW (stable subscriptions)**
-
-Store callbacks in refs when used in effects that shouldn't re-subscribe on callback changes.
-
-**Incorrect: re-subscribes on every render**
-
-```tsx
-function useWindowEvent(event: string, handler: (e) => void) {
-  useEffect(() => {
-    window.addEventListener(event, handler)
-    return () => window.removeEventListener(event, handler)
-  }, [event, handler])
-}
-```
-
-**Correct: stable subscription**
-
-```tsx
-import { useEffectEvent } from 'react'
-
-function useWindowEvent(event: string, handler: (e) => void) {
-  const onEvent = useEffectEvent(handler)
-
-  useEffect(() => {
-    window.addEventListener(event, onEvent)
-    return () => window.removeEventListener(event, onEvent)
-  }, [event])
-}
-```
-
-**Alternative: use `useEffectEvent` if you're on latest React:**
-
-`useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
-
-### 8.4 useEffectEvent for Stable Callback Refs
-
-**Impact: LOW (prevents effect re-runs)**
-
-Access latest values in callbacks without adding them to dependency arrays. Prevents effect re-runs while avoiding stale closures.
-
-**Incorrect: effect re-runs on every callback change**
-
-```tsx
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearch(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query, onSearch])
-}
-```
-
-**Correct: using React's useEffectEvent**
-
-```tsx
-import { useEffectEvent } from 'react';
-
-function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
-  const [query, setQuery] = useState('')
-  const onSearchEvent = useEffectEvent(onSearch)
-
-  useEffect(() => {
-    const timeout = setTimeout(() => onSearchEvent(query), 300)
-    return () => clearTimeout(timeout)
-  }, [query])
-}
-```
-
----
-
-## References
-
-1. [https://react.dev](https://react.dev)
-2. [https://nextjs.org](https://nextjs.org)
-3. [https://swr.vercel.app](https://swr.vercel.app)
-4. [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
-5. [https://github.com/isaacs/node-lru-cache](https://github.com/isaacs/node-lru-cache)
-6. [https://vercel.com/blog/how-we-optimized-package-imports-in-next-js](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js)
-7. [https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast](https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast)
 ````
 
 ## File: .github/skills/vercel-react-best-practices/README.md
@@ -17667,6 +13812,47 @@ When this skill is used, provide:
 5. residual risks or migration notes.
 ````
 
+## File: .github/skills/playwright-mcp-testing/AGENTS.md
+````markdown
+# Playwright MCP Testing Skill
+
+## Purpose
+
+This skill enables browser-based test execution for Xuanwu App using the Playwright MCP toolchain combined with Next.js DevTools, shadcn, context7, Serena, and markitdown MCPs.
+
+## When to Use This Skill
+
+Load [SKILL.md](SKILL.md) when:
+
+- Running UI functional tests via simulate click / fill / navigate
+- Detecting missing features or anti-intuitive UX gaps
+- Validating form flows (create/edit/submit) with evidence
+- Taking and documenting screenshots for test reports
+- Checking Console errors and API response behaviour
+- Testing login, workspace switching, and account-context flows
+
+## Quick Start
+
+```bash
+# Ensure dev server is running
+npm run dev
+```
+
+Then use the [playwright-mcp-test prompt](../../prompts/playwright-mcp-test.prompt.md) or [playwright-mcp-inspect prompt](../../prompts/playwright-mcp-inspect.prompt.md).
+
+## Tools in This Skill
+
+| Tool | Role |
+|------|------|
+| `mcp_playwright-mc_*` | Primary browser automation |
+| `mcp_io_github_ver_browser_eval` | Fallback when playwright-mcp is closed |
+| `mcp_io_github_ver_nextjs_*` | Next.js runtime diagnostics |
+| `mcp_shadcn_*` | Component lookup |
+| `mcp_context7_*` | API documentation verification |
+| `mcp_oraios_serena_*` | Source code symbol search |
+| `mcp_markitdown_*` | Test evidence to Markdown |
+````
+
 ## File: .github/skills/README.md
 ````markdown
 # Skills Index
@@ -17829,6 +14015,3820 @@ Recommended user intents:
 - residual_risk
 
 Tags: #use skill context7 #use skill xuanwu-skill #use skill occams-razor #use skill repomix-explorer #use skill agent-memory #use skill contextual-commit
+````
+
+## File: .github/skills/vercel-react-best-practices/AGENTS.md
+````markdown
+# React Best Practices
+
+**Version 1.0.0**  
+Vercel Engineering  
+January 2026
+
+> **Note:**  
+> This document is mainly for agents and LLMs to follow when maintaining,  
+> generating, or refactoring React and Next.js codebases. Humans  
+> may also find it useful, but guidance here is optimized for automation  
+> and consistency by AI-assisted workflows.
+
+---
+
+## Abstract
+
+Comprehensive performance optimization guide for React and Next.js applications, designed for AI agents and LLMs. Contains 40+ rules across 8 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.
+
+---
+
+## Table of Contents
+
+1. [Eliminating Waterfalls](#1-eliminating-waterfalls) — **CRITICAL**
+   - 1.1 [Check Cheap Conditions Before Async Flags](#11-check-cheap-conditions-before-async-flags)
+   - 1.2 [Defer Await Until Needed](#12-defer-await-until-needed)
+   - 1.3 [Dependency-Based Parallelization](#13-dependency-based-parallelization)
+   - 1.4 [Prevent Waterfall Chains in API Routes](#14-prevent-waterfall-chains-in-api-routes)
+   - 1.5 [Promise.all() for Independent Operations](#15-promiseall-for-independent-operations)
+   - 1.6 [Strategic Suspense Boundaries](#16-strategic-suspense-boundaries)
+2. [Bundle Size Optimization](#2-bundle-size-optimization) — **CRITICAL**
+   - 2.1 [Avoid Barrel File Imports](#21-avoid-barrel-file-imports)
+   - 2.2 [Conditional Module Loading](#22-conditional-module-loading)
+   - 2.3 [Defer Non-Critical Third-Party Libraries](#23-defer-non-critical-third-party-libraries)
+   - 2.4 [Dynamic Imports for Heavy Components](#24-dynamic-imports-for-heavy-components)
+   - 2.5 [Prefer Statically Analyzable Paths](#25-prefer-statically-analyzable-paths)
+   - 2.6 [Preload Based on User Intent](#26-preload-based-on-user-intent)
+3. [Server-Side Performance](#3-server-side-performance) — **HIGH**
+   - 3.1 [Authenticate Server Actions Like API Routes](#31-authenticate-server-actions-like-api-routes)
+   - 3.2 [Avoid Duplicate Serialization in RSC Props](#32-avoid-duplicate-serialization-in-rsc-props)
+   - 3.3 [Avoid Shared Module State for Request Data](#33-avoid-shared-module-state-for-request-data)
+   - 3.4 [Cross-Request LRU Caching](#34-cross-request-lru-caching)
+   - 3.5 [Hoist Static I/O to Module Level](#35-hoist-static-io-to-module-level)
+   - 3.6 [Minimize Serialization at RSC Boundaries](#36-minimize-serialization-at-rsc-boundaries)
+   - 3.7 [Parallel Data Fetching with Component Composition](#37-parallel-data-fetching-with-component-composition)
+   - 3.8 [Parallel Nested Data Fetching](#38-parallel-nested-data-fetching)
+   - 3.9 [Per-Request Deduplication with React.cache()](#39-per-request-deduplication-with-reactcache)
+   - 3.10 [Use after() for Non-Blocking Operations](#310-use-after-for-non-blocking-operations)
+4. [Client-Side Data Fetching](#4-client-side-data-fetching) — **MEDIUM-HIGH**
+   - 4.1 [Deduplicate Global Event Listeners](#41-deduplicate-global-event-listeners)
+   - 4.2 [Use Passive Event Listeners for Scrolling Performance](#42-use-passive-event-listeners-for-scrolling-performance)
+   - 4.3 [Use SWR for Automatic Deduplication](#43-use-swr-for-automatic-deduplication)
+   - 4.4 [Version and Minimize localStorage Data](#44-version-and-minimize-localstorage-data)
+5. [Re-render Optimization](#5-re-render-optimization) — **MEDIUM**
+   - 5.1 [Calculate Derived State During Rendering](#51-calculate-derived-state-during-rendering)
+   - 5.2 [Defer State Reads to Usage Point](#52-defer-state-reads-to-usage-point)
+   - 5.3 [Do not wrap a simple expression with a primitive result type in useMemo](#53-do-not-wrap-a-simple-expression-with-a-primitive-result-type-in-usememo)
+   - 5.4 [Don't Define Components Inside Components](#54-dont-define-components-inside-components)
+   - 5.5 [Extract Default Non-primitive Parameter Value from Memoized Component to Constant](#55-extract-default-non-primitive-parameter-value-from-memoized-component-to-constant)
+   - 5.6 [Extract to Memoized Components](#56-extract-to-memoized-components)
+   - 5.7 [Narrow Effect Dependencies](#57-narrow-effect-dependencies)
+   - 5.8 [Put Interaction Logic in Event Handlers](#58-put-interaction-logic-in-event-handlers)
+   - 5.9 [Split Combined Hook Computations](#59-split-combined-hook-computations)
+   - 5.10 [Subscribe to Derived State](#510-subscribe-to-derived-state)
+   - 5.11 [Use Functional setState Updates](#511-use-functional-setstate-updates)
+   - 5.12 [Use Lazy State Initialization](#512-use-lazy-state-initialization)
+   - 5.13 [Use Transitions for Non-Urgent Updates](#513-use-transitions-for-non-urgent-updates)
+   - 5.14 [Use useDeferredValue for Expensive Derived Renders](#514-use-usedeferredvalue-for-expensive-derived-renders)
+   - 5.15 [Use useRef for Transient Values](#515-use-useref-for-transient-values)
+6. [Rendering Performance](#6-rendering-performance) — **MEDIUM**
+   - 6.1 [Animate SVG Wrapper Instead of SVG Element](#61-animate-svg-wrapper-instead-of-svg-element)
+   - 6.2 [CSS content-visibility for Long Lists](#62-css-content-visibility-for-long-lists)
+   - 6.3 [Hoist Static JSX Elements](#63-hoist-static-jsx-elements)
+   - 6.4 [Optimize SVG Precision](#64-optimize-svg-precision)
+   - 6.5 [Prevent Hydration Mismatch Without Flickering](#65-prevent-hydration-mismatch-without-flickering)
+   - 6.6 [Suppress Expected Hydration Mismatches](#66-suppress-expected-hydration-mismatches)
+   - 6.7 [Use Activity Component for Show/Hide](#67-use-activity-component-for-showhide)
+   - 6.8 [Use defer or async on Script Tags](#68-use-defer-or-async-on-script-tags)
+   - 6.9 [Use Explicit Conditional Rendering](#69-use-explicit-conditional-rendering)
+   - 6.10 [Use React DOM Resource Hints](#610-use-react-dom-resource-hints)
+   - 6.11 [Use useTransition Over Manual Loading States](#611-use-usetransition-over-manual-loading-states)
+7. [JavaScript Performance](#7-javascript-performance) — **LOW-MEDIUM**
+   - 7.1 [Avoid Layout Thrashing](#71-avoid-layout-thrashing)
+   - 7.2 [Build Index Maps for Repeated Lookups](#72-build-index-maps-for-repeated-lookups)
+   - 7.3 [Cache Property Access in Loops](#73-cache-property-access-in-loops)
+   - 7.4 [Cache Repeated Function Calls](#74-cache-repeated-function-calls)
+   - 7.5 [Cache Storage API Calls](#75-cache-storage-api-calls)
+   - 7.6 [Combine Multiple Array Iterations](#76-combine-multiple-array-iterations)
+   - 7.7 [Defer Non-Critical Work with requestIdleCallback](#77-defer-non-critical-work-with-requestidlecallback)
+   - 7.8 [Early Length Check for Array Comparisons](#78-early-length-check-for-array-comparisons)
+   - 7.9 [Early Return from Functions](#79-early-return-from-functions)
+   - 7.10 [Hoist RegExp Creation](#710-hoist-regexp-creation)
+   - 7.11 [Use flatMap to Map and Filter in One Pass](#711-use-flatmap-to-map-and-filter-in-one-pass)
+   - 7.12 [Use Loop for Min/Max Instead of Sort](#712-use-loop-for-minmax-instead-of-sort)
+   - 7.13 [Use Set/Map for O(1) Lookups](#713-use-setmap-for-o1-lookups)
+   - 7.14 [Use toSorted() Instead of sort() for Immutability](#714-use-tosorted-instead-of-sort-for-immutability)
+8. [Advanced Patterns](#8-advanced-patterns) — **LOW**
+   - 8.1 [Do Not Put Effect Events in Dependency Arrays](#81-do-not-put-effect-events-in-dependency-arrays)
+   - 8.2 [Initialize App Once, Not Per Mount](#82-initialize-app-once-not-per-mount)
+   - 8.3 [Store Event Handlers in Refs](#83-store-event-handlers-in-refs)
+   - 8.4 [useEffectEvent for Stable Callback Refs](#84-useeffectevent-for-stable-callback-refs)
+
+---
+
+## 1. Eliminating Waterfalls
+
+**Impact: CRITICAL**
+
+Waterfalls are the #1 performance killer. Each sequential await adds full network latency. Eliminating them yields the largest gains.
+
+### 1.1 Check Cheap Conditions Before Async Flags
+
+**Impact: HIGH (avoids unnecessary async work when a synchronous guard already fails)**
+
+When a branch uses `await` for a flag or remote value and also requires a **cheap synchronous** condition (local props, request metadata, already-loaded state), evaluate the cheap condition **first**. Otherwise you pay for the async call even when the compound condition can never be true.
+
+This is a specialization of Defer Await Until Needed for `flag && cheapCondition` style checks.
+
+**Incorrect:**
+
+```typescript
+const someFlag = await getFlag()
+
+if (someFlag && someCondition) {
+  // ...
+}
+```
+
+**Correct:**
+
+```typescript
+if (someCondition) {
+  const someFlag = await getFlag()
+  if (someFlag) {
+    // ...
+  }
+}
+```
+
+This matters when `getFlag` hits the network, a feature-flag service, or `React.cache` / DB work: skipping it when `someCondition` is false removes that cost on the cold path.
+
+Keep the original order if `someCondition` is expensive, depends on the flag, or you must run side effects in a fixed order.
+
+### 1.2 Defer Await Until Needed
+
+**Impact: HIGH (avoids blocking unused code paths)**
+
+Move `await` operations into the branches where they're actually used to avoid blocking code paths that don't need them.
+
+**Incorrect: blocks both branches**
+
+```typescript
+async function handleRequest(userId: string, skipProcessing: boolean) {
+  const userData = await fetchUserData(userId)
+  
+  if (skipProcessing) {
+    // Returns immediately but still waited for userData
+    return { skipped: true }
+  }
+  
+  // Only this branch uses userData
+  return processUserData(userData)
+}
+```
+
+**Correct: only blocks when needed**
+
+```typescript
+async function handleRequest(userId: string, skipProcessing: boolean) {
+  if (skipProcessing) {
+    // Returns immediately without waiting
+    return { skipped: true }
+  }
+  
+  // Fetch only when needed
+  const userData = await fetchUserData(userId)
+  return processUserData(userData)
+}
+```
+
+**Another example: early return optimization**
+
+```typescript
+// Incorrect: always fetches permissions
+async function updateResource(resourceId: string, userId: string) {
+  const permissions = await fetchPermissions(userId)
+  const resource = await getResource(resourceId)
+  
+  if (!resource) {
+    return { error: 'Not found' }
+  }
+  
+  if (!permissions.canEdit) {
+    return { error: 'Forbidden' }
+  }
+  
+  return await updateResourceData(resource, permissions)
+}
+
+// Correct: fetches only when needed
+async function updateResource(resourceId: string, userId: string) {
+  const resource = await getResource(resourceId)
+  
+  if (!resource) {
+    return { error: 'Not found' }
+  }
+  
+  const permissions = await fetchPermissions(userId)
+  
+  if (!permissions.canEdit) {
+    return { error: 'Forbidden' }
+  }
+  
+  return await updateResourceData(resource, permissions)
+}
+```
+
+This optimization is especially valuable when the skipped branch is frequently taken, or when the deferred operation is expensive.
+
+For `await getFlag()` combined with a cheap synchronous guard (`flag && someCondition`), see Check Cheap Conditions Before Async Flags.
+
+### 1.3 Dependency-Based Parallelization
+
+**Impact: CRITICAL (2-10× improvement)**
+
+For operations with partial dependencies, use `better-all` to maximize parallelism. It automatically starts each task at the earliest possible moment.
+
+**Incorrect: profile waits for config unnecessarily**
+
+```typescript
+const [user, config] = await Promise.all([
+  fetchUser(),
+  fetchConfig()
+])
+const profile = await fetchProfile(user.id)
+```
+
+**Correct: config and profile run in parallel**
+
+```typescript
+import { all } from 'better-all'
+
+const { user, config, profile } = await all({
+  async user() { return fetchUser() },
+  async config() { return fetchConfig() },
+  async profile() {
+    return fetchProfile((await this.$.user).id)
+  }
+})
+```
+
+**Alternative without extra dependencies:**
+
+```typescript
+const userPromise = fetchUser()
+const profilePromise = userPromise.then(user => fetchProfile(user.id))
+
+const [user, config, profile] = await Promise.all([
+  userPromise,
+  fetchConfig(),
+  profilePromise
+])
+```
+
+We can also create all the promises first, and do `Promise.all()` at the end.
+
+Reference: [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
+
+### 1.4 Prevent Waterfall Chains in API Routes
+
+**Impact: CRITICAL (2-10× improvement)**
+
+In API routes and Server Actions, start independent operations immediately, even if you don't await them yet.
+
+**Incorrect: config waits for auth, data waits for both**
+
+```typescript
+export async function GET(request: Request) {
+  const session = await auth()
+  const config = await fetchConfig()
+  const data = await fetchData(session.user.id)
+  return Response.json({ data, config })
+}
+```
+
+**Correct: auth and config start immediately**
+
+```typescript
+export async function GET(request: Request) {
+  const sessionPromise = auth()
+  const configPromise = fetchConfig()
+  const session = await sessionPromise
+  const [config, data] = await Promise.all([
+    configPromise,
+    fetchData(session.user.id)
+  ])
+  return Response.json({ data, config })
+}
+```
+
+For operations with more complex dependency chains, use `better-all` to automatically maximize parallelism (see Dependency-Based Parallelization).
+
+### 1.5 Promise.all() for Independent Operations
+
+**Impact: CRITICAL (2-10× improvement)**
+
+When async operations have no interdependencies, execute them concurrently using `Promise.all()`.
+
+**Incorrect: sequential execution, 3 round trips**
+
+```typescript
+const user = await fetchUser()
+const posts = await fetchPosts()
+const comments = await fetchComments()
+```
+
+**Correct: parallel execution, 1 round trip**
+
+```typescript
+const [user, posts, comments] = await Promise.all([
+  fetchUser(),
+  fetchPosts(),
+  fetchComments()
+])
+```
+
+### 1.6 Strategic Suspense Boundaries
+
+**Impact: HIGH (faster initial paint)**
+
+Instead of awaiting data in async components before returning JSX, use Suspense boundaries to show the wrapper UI faster while data loads.
+
+**Incorrect: wrapper blocked by data fetching**
+
+```tsx
+async function Page() {
+  const data = await fetchData() // Blocks entire page
+  
+  return (
+    <div>
+      <div>Sidebar</div>
+      <div>Header</div>
+      <div>
+        <DataDisplay data={data} />
+      </div>
+      <div>Footer</div>
+    </div>
+  )
+}
+```
+
+The entire layout waits for data even though only the middle section needs it.
+
+**Correct: wrapper shows immediately, data streams in**
+
+```tsx
+function Page() {
+  return (
+    <div>
+      <div>Sidebar</div>
+      <div>Header</div>
+      <div>
+        <Suspense fallback={<Skeleton />}>
+          <DataDisplay />
+        </Suspense>
+      </div>
+      <div>Footer</div>
+    </div>
+  )
+}
+
+async function DataDisplay() {
+  const data = await fetchData() // Only blocks this component
+  return <div>{data.content}</div>
+}
+```
+
+Sidebar, Header, and Footer render immediately. Only DataDisplay waits for data.
+
+**Alternative: share promise across components**
+
+```tsx
+function Page() {
+  // Start fetch immediately, but don't await
+  const dataPromise = fetchData()
+  
+  return (
+    <div>
+      <div>Sidebar</div>
+      <div>Header</div>
+      <Suspense fallback={<Skeleton />}>
+        <DataDisplay dataPromise={dataPromise} />
+        <DataSummary dataPromise={dataPromise} />
+      </Suspense>
+      <div>Footer</div>
+    </div>
+  )
+}
+
+function DataDisplay({ dataPromise }: { dataPromise: Promise<Data> }) {
+  const data = use(dataPromise) // Unwraps the promise
+  return <div>{data.content}</div>
+}
+
+function DataSummary({ dataPromise }: { dataPromise: Promise<Data> }) {
+  const data = use(dataPromise) // Reuses the same promise
+  return <div>{data.summary}</div>
+}
+```
+
+Both components share the same promise, so only one fetch occurs. Layout renders immediately while both components wait together.
+
+**When NOT to use this pattern:**
+
+- Critical data needed for layout decisions (affects positioning)
+
+- SEO-critical content above the fold
+
+- Small, fast queries where suspense overhead isn't worth it
+
+- When you want to avoid layout shift (loading → content jump)
+
+**Trade-off:** Faster initial paint vs potential layout shift. Choose based on your UX priorities.
+
+---
+
+## 2. Bundle Size Optimization
+
+**Impact: CRITICAL**
+
+Reducing initial bundle size improves Time to Interactive and Largest Contentful Paint.
+
+### 2.1 Avoid Barrel File Imports
+
+**Impact: CRITICAL (200-800ms import cost, slow builds)**
+
+Import directly from source files instead of barrel files to avoid loading thousands of unused modules. **Barrel files** are entry points that re-export multiple modules (e.g., `index.js` that does `export * from './module'`).
+
+Popular icon and component libraries can have **up to 10,000 re-exports** in their entry file. For many React packages, **it takes 200-800ms just to import them**, affecting both development speed and production cold starts.
+
+**Why tree-shaking doesn't help:** When a library is marked as external (not bundled), the bundler can't optimize it. If you bundle it to enable tree-shaking, builds become substantially slower analyzing the entire module graph.
+
+**Incorrect: imports entire library**
+
+```tsx
+import { Check, X, Menu } from 'lucide-react'
+// Loads 1,583 modules, takes ~2.8s extra in dev
+// Runtime cost: 200-800ms on every cold start
+
+import { Button, TextField } from '@mui/material'
+// Loads 2,225 modules, takes ~4.2s extra in dev
+```
+
+**Correct - Next.js 13.5+ (recommended):**
+
+```tsx
+// Keep the standard imports - Next.js transforms them to direct imports
+import { Check, X, Menu } from 'lucide-react'
+// Full TypeScript support, no manual path wrangling
+```
+
+This is the recommended approach because it preserves TypeScript type safety and editor autocompletion while still eliminating the barrel import cost.
+
+**Correct - Direct imports (non-Next.js projects):**
+
+```tsx
+import Button from '@mui/material/Button'
+import TextField from '@mui/material/TextField'
+// Loads only what you use
+```
+
+> **TypeScript warning:** Some libraries (notably `lucide-react`) don't ship `.d.ts` files for their deep import paths. Importing from `lucide-react/dist/esm/icons/check` resolves to an implicit `any` type, causing errors under `strict` or `noImplicitAny`. Prefer `optimizePackageImports` when available, or verify the library exports types for its subpaths before using direct imports.
+
+These optimizations provide 15-70% faster dev boot, 28% faster builds, 40% faster cold starts, and significantly faster HMR.
+
+Libraries commonly affected: `lucide-react`, `@mui/material`, `@mui/icons-material`, `@tabler/icons-react`, `react-icons`, `@headlessui/react`, `@radix-ui/react-*`, `lodash`, `ramda`, `date-fns`, `rxjs`, `react-use`.
+
+Reference: [https://vercel.com/blog/how-we-optimized-package-imports-in-next-js](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js)
+
+### 2.2 Conditional Module Loading
+
+**Impact: HIGH (loads large data only when needed)**
+
+Load large data or modules only when a feature is activated.
+
+**Example: lazy-load animation frames**
+
+```tsx
+function AnimationPlayer({ enabled, setEnabled }: { enabled: boolean; setEnabled: React.Dispatch<React.SetStateAction<boolean>> }) {
+  const [frames, setFrames] = useState<Frame[] | null>(null)
+
+  useEffect(() => {
+    if (enabled && !frames && typeof window !== 'undefined') {
+      import('./animation-frames.js')
+        .then(mod => setFrames(mod.frames))
+        .catch(() => setEnabled(false))
+    }
+  }, [enabled, frames, setEnabled])
+
+  if (!frames) return <Skeleton />
+  return <Canvas frames={frames} />
+}
+```
+
+The `typeof window !== 'undefined'` check prevents bundling this module for SSR, optimizing server bundle size and build speed.
+
+### 2.3 Defer Non-Critical Third-Party Libraries
+
+**Impact: MEDIUM (loads after hydration)**
+
+Analytics, logging, and error tracking don't block user interaction. Load them after hydration.
+
+**Incorrect: blocks initial bundle**
+
+```tsx
+import { Analytics } from '@vercel/analytics/react'
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
+}
+```
+
+**Correct: loads after hydration**
+
+```tsx
+import dynamic from 'next/dynamic'
+
+const Analytics = dynamic(
+  () => import('@vercel/analytics/react').then(m => m.Analytics),
+  { ssr: false }
+)
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
+}
+```
+
+### 2.4 Dynamic Imports for Heavy Components
+
+**Impact: CRITICAL (directly affects TTI and LCP)**
+
+Use `next/dynamic` to lazy-load large components not needed on initial render.
+
+**Incorrect: Monaco bundles with main chunk ~300KB**
+
+```tsx
+import { MonacoEditor } from './monaco-editor'
+
+function CodePanel({ code }: { code: string }) {
+  return <MonacoEditor value={code} />
+}
+```
+
+**Correct: Monaco loads on demand**
+
+```tsx
+import dynamic from 'next/dynamic'
+
+const MonacoEditor = dynamic(
+  () => import('./monaco-editor').then(m => m.MonacoEditor),
+  { ssr: false }
+)
+
+function CodePanel({ code }: { code: string }) {
+  return <MonacoEditor value={code} />
+}
+```
+
+### 2.5 Prefer Statically Analyzable Paths
+
+**Impact: HIGH (avoids accidental broad bundles and file traces)**
+
+Build tools work best when import and file-system paths are obvious at build time. If you hide the real path inside a variable or compose it too dynamically, the tool either has to include a broad set of possible files, warn that it cannot analyze the import, or widen file tracing to stay safe.
+
+Prefer explicit maps or literal paths so the set of reachable files stays narrow and predictable. This is the same rule whether you are choosing modules with `import()` or reading files in server/build code.
+
+When analysis becomes too broad, the cost is real:
+
+- Larger server bundles
+
+- Slower builds
+
+- Worse cold starts
+
+- More memory use
+
+**Incorrect: the bundler cannot tell what may be imported**
+
+```ts
+const PAGE_MODULES = {
+  home: './pages/home',
+  settings: './pages/settings',
+} as const
+
+const Page = await import(PAGE_MODULES[pageName])
+```
+
+**Correct: use an explicit map of allowed modules**
+
+```ts
+const PAGE_MODULES = {
+  home: () => import('./pages/home'),
+  settings: () => import('./pages/settings'),
+} as const
+
+const Page = await PAGE_MODULES[pageName]()
+```
+
+**Incorrect: a 2-value enum still hides the final path from static analysis**
+
+```ts
+const baseDir = path.join(process.cwd(), 'content/' + contentKind)
+```
+
+**Correct: make each final path literal at the callsite**
+
+```ts
+const baseDir =
+  kind === ContentKind.Blog
+    ? path.join(process.cwd(), 'content/blog')
+    : path.join(process.cwd(), 'content/docs')
+```
+
+In Next.js server code, this matters for output file tracing too. `path.join(process.cwd(), someVar)` can widen the traced file set because Next.js statically analyze `import`, `require`, and `fs` usage.
+
+Reference: [https://nextjs.org/docs/app/api-reference/config/next-config-js/output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [https://nextjs.org/learn/seo/dynamic-imports](https://nextjs.org/learn/seo/dynamic-imports), [https://vite.dev/guide/features.html](https://vite.dev/guide/features.html), [https://esbuild.github.io/api/](https://esbuild.github.io/api/), [https://www.npmjs.com/package/@rollup/plugin-dynamic-import-vars](https://www.npmjs.com/package/@rollup/plugin-dynamic-import-vars), [https://webpack.js.org/guides/dependency-management/](https://webpack.js.org/guides/dependency-management/)
+
+### 2.6 Preload Based on User Intent
+
+**Impact: MEDIUM (reduces perceived latency)**
+
+Preload heavy bundles before they're needed to reduce perceived latency.
+
+**Example: preload on hover/focus**
+
+```tsx
+function EditorButton({ onClick }: { onClick: () => void }) {
+  const preload = () => {
+    if (typeof window !== 'undefined') {
+      void import('./monaco-editor')
+    }
+  }
+
+  return (
+    <button
+      onMouseEnter={preload}
+      onFocus={preload}
+      onClick={onClick}
+    >
+      Open Editor
+    </button>
+  )
+}
+```
+
+**Example: preload when feature flag is enabled**
+
+```tsx
+function FlagsProvider({ children, flags }: Props) {
+  useEffect(() => {
+    if (flags.editorEnabled && typeof window !== 'undefined') {
+      void import('./monaco-editor').then(mod => mod.init())
+    }
+  }, [flags.editorEnabled])
+
+  return <FlagsContext.Provider value={flags}>
+    {children}
+  </FlagsContext.Provider>
+}
+```
+
+The `typeof window !== 'undefined'` check prevents bundling preloaded modules for SSR, optimizing server bundle size and build speed.
+
+---
+
+## 3. Server-Side Performance
+
+**Impact: HIGH**
+
+Optimizing server-side rendering and data fetching eliminates server-side waterfalls and reduces response times.
+
+### 3.1 Authenticate Server Actions Like API Routes
+
+**Impact: CRITICAL (prevents unauthorized access to server mutations)**
+
+Server Actions (functions with `"use server"`) are exposed as public endpoints, just like API routes. Always verify authentication and authorization **inside** each Server Action—do not rely solely on middleware, layout guards, or page-level checks, as Server Actions can be invoked directly.
+
+Next.js documentation explicitly states: "Treat Server Actions with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation."
+
+**Incorrect: no authentication check**
+
+```typescript
+'use server'
+
+export async function deleteUser(userId: string) {
+  // Anyone can call this! No auth check
+  await db.user.delete({ where: { id: userId } })
+  return { success: true }
+}
+```
+
+**Correct: authentication inside the action**
+
+```typescript
+'use server'
+
+import { verifySession } from '@/lib/auth'
+import { unauthorized } from '@/lib/errors'
+
+export async function deleteUser(userId: string) {
+  // Always check auth inside the action
+  const session = await verifySession()
+  
+  if (!session) {
+    throw unauthorized('Must be logged in')
+  }
+  
+  // Check authorization too
+  if (session.user.role !== 'admin' && session.user.id !== userId) {
+    throw unauthorized('Cannot delete other users')
+  }
+  
+  await db.user.delete({ where: { id: userId } })
+  return { success: true }
+}
+```
+
+**With input validation:**
+
+```typescript
+'use server'
+
+import { verifySession } from '@/lib/auth'
+import { z } from 'zod'
+
+const updateProfileSchema = z.object({
+  userId: z.string().uuid(),
+  name: z.string().min(1).max(100),
+  email: z.string().email()
+})
+
+export async function updateProfile(data: unknown) {
+  // Validate input first
+  const validated = updateProfileSchema.parse(data)
+  
+  // Then authenticate
+  const session = await verifySession()
+  if (!session) {
+    throw new Error('Unauthorized')
+  }
+  
+  // Then authorize
+  if (session.user.id !== validated.userId) {
+    throw new Error('Can only update own profile')
+  }
+  
+  // Finally perform the mutation
+  await db.user.update({
+    where: { id: validated.userId },
+    data: {
+      name: validated.name,
+      email: validated.email
+    }
+  })
+  
+  return { success: true }
+}
+```
+
+Reference: [https://nextjs.org/docs/app/guides/authentication](https://nextjs.org/docs/app/guides/authentication)
+
+### 3.2 Avoid Duplicate Serialization in RSC Props
+
+**Impact: LOW (reduces network payload by avoiding duplicate serialization)**
+
+RSC→client serialization deduplicates by object reference, not value. Same reference = serialized once; new reference = serialized again. Do transformations (`.toSorted()`, `.filter()`, `.map()`) in client, not server.
+
+**Incorrect: duplicates array**
+
+```tsx
+// RSC: sends 6 strings (2 arrays × 3 items)
+<ClientList usernames={usernames} usernamesOrdered={usernames.toSorted()} />
+```
+
+**Correct: sends 3 strings**
+
+```tsx
+// RSC: send once
+<ClientList usernames={usernames} />
+
+// Client: transform there
+'use client'
+const sorted = useMemo(() => [...usernames].sort(), [usernames])
+```
+
+**Nested deduplication behavior:**
+
+```tsx
+// string[] - duplicates everything
+usernames={['a','b']} sorted={usernames.toSorted()} // sends 4 strings
+
+// object[] - duplicates array structure only
+users={[{id:1},{id:2}]} sorted={users.toSorted()} // sends 2 arrays + 2 unique objects (not 4)
+```
+
+Deduplication works recursively. Impact varies by data type:
+
+- `string[]`, `number[]`, `boolean[]`: **HIGH impact** - array + all primitives fully duplicated
+
+- `object[]`: **LOW impact** - array duplicated, but nested objects deduplicated by reference
+
+**Operations breaking deduplication: create new references**
+
+- Arrays: `.toSorted()`, `.filter()`, `.map()`, `.slice()`, `[...arr]`
+
+- Objects: `{...obj}`, `Object.assign()`, `structuredClone()`, `JSON.parse(JSON.stringify())`
+
+**More examples:**
+
+```tsx
+// ❌ Bad
+<C users={users} active={users.filter(u => u.active)} />
+<C product={product} productName={product.name} />
+
+// ✅ Good
+<C users={users} />
+<C product={product} />
+// Do filtering/destructuring in client
+```
+
+**Exception:** Pass derived data when transformation is expensive or client doesn't need original.
+
+### 3.3 Avoid Shared Module State for Request Data
+
+**Impact: HIGH (prevents concurrency bugs and request data leaks)**
+
+For React Server Components and client components rendered during SSR, avoid using mutable module-level variables to share request-scoped data. Server renders can run concurrently in the same process. If one render writes to shared module state and another render reads it, you can get race conditions, cross-request contamination, and security bugs where one user's data appears in another user's response.
+
+Treat module scope on the server as process-wide shared memory, not request-local state.
+
+**Incorrect: request data leaks across concurrent renders**
+
+```tsx
+let currentUser: User | null = null
+
+export default async function Page() {
+  currentUser = await auth()
+  return <Dashboard />
+}
+
+async function Dashboard() {
+  return <div>{currentUser?.name}</div>
+}
+```
+
+If two requests overlap, request A can set `currentUser`, then request B overwrites it before request A finishes rendering `Dashboard`.
+
+**Correct: keep request data local to the render tree**
+
+```tsx
+export default async function Page() {
+  const user = await auth()
+  return <Dashboard user={user} />
+}
+
+function Dashboard({ user }: { user: User | null }) {
+  return <div>{user?.name}</div>
+}
+```
+
+Safe exceptions:
+
+- Immutable static assets or config loaded once at module scope
+
+- Shared caches intentionally designed for cross-request reuse and keyed correctly
+
+- Process-wide singletons that do not store request- or user-specific mutable data
+
+For static assets and config, see Hoist Static I/O to Module Level.
+
+### 3.4 Cross-Request LRU Caching
+
+**Impact: HIGH (caches across requests)**
+
+`React.cache()` only works within one request. For data shared across sequential requests (user clicks button A then button B), use an LRU cache.
+
+**Implementation:**
+
+```typescript
+import { LRUCache } from 'lru-cache'
+
+const cache = new LRUCache<string, any>({
+  max: 1000,
+  ttl: 5 * 60 * 1000  // 5 minutes
+})
+
+export async function getUser(id: string) {
+  const cached = cache.get(id)
+  if (cached) return cached
+
+  const user = await db.user.findUnique({ where: { id } })
+  cache.set(id, user)
+  return user
+}
+
+// Request 1: DB query, result cached
+// Request 2: cache hit, no DB query
+```
+
+Use when sequential user actions hit multiple endpoints needing the same data within seconds.
+
+**With Vercel's [Fluid Compute](https://vercel.com/docs/fluid-compute):** LRU caching is especially effective because multiple concurrent requests can share the same function instance and cache. This means the cache persists across requests without needing external storage like Redis.
+
+**In traditional serverless:** Each invocation runs in isolation, so consider Redis for cross-process caching.
+
+Reference: [https://github.com/isaacs/node-lru-cache](https://github.com/isaacs/node-lru-cache)
+
+### 3.5 Hoist Static I/O to Module Level
+
+**Impact: HIGH (avoids repeated file/network I/O per request)**
+
+When loading static assets (fonts, logos, images, config files) in route handlers or server functions, hoist the I/O operation to module level. Module-level code runs once when the module is first imported, not on every request. This eliminates redundant file system reads or network fetches that would otherwise run on every invocation.
+
+**Incorrect: reads font file on every request**
+
+```typescript
+// app/api/og/route.tsx
+import { ImageResponse } from 'next/og'
+
+export async function GET(request: Request) {
+  // Runs on EVERY request - expensive!
+  const fontData = await fetch(
+    new URL('./fonts/Inter.ttf', import.meta.url)
+  ).then(res => res.arrayBuffer())
+
+  const logoData = await fetch(
+    new URL('./images/logo.png', import.meta.url)
+  ).then(res => res.arrayBuffer())
+
+  return new ImageResponse(
+    <div style={{ fontFamily: 'Inter' }}>
+      <img src={logoData} />
+      Hello World
+    </div>,
+    { fonts: [{ name: 'Inter', data: fontData }] }
+  )
+}
+```
+
+**Correct: loads once at module initialization**
+
+```typescript
+// app/api/og/route.tsx
+import { ImageResponse } from 'next/og'
+
+// Module-level: runs ONCE when module is first imported
+const fontData = fetch(
+  new URL('./fonts/Inter.ttf', import.meta.url)
+).then(res => res.arrayBuffer())
+
+const logoData = fetch(
+  new URL('./images/logo.png', import.meta.url)
+).then(res => res.arrayBuffer())
+
+export async function GET(request: Request) {
+  // Await the already-started promises
+  const [font, logo] = await Promise.all([fontData, logoData])
+
+  return new ImageResponse(
+    <div style={{ fontFamily: 'Inter' }}>
+      <img src={logo} />
+      Hello World
+    </div>,
+    { fonts: [{ name: 'Inter', data: font }] }
+  )
+}
+```
+
+**Correct: synchronous fs at module level**
+
+```typescript
+// app/api/og/route.tsx
+import { ImageResponse } from 'next/og'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+// Synchronous read at module level - blocks only during module init
+const fontData = readFileSync(
+  join(process.cwd(), 'public/fonts/Inter.ttf')
+)
+
+const logoData = readFileSync(
+  join(process.cwd(), 'public/images/logo.png')
+)
+
+export async function GET(request: Request) {
+  return new ImageResponse(
+    <div style={{ fontFamily: 'Inter' }}>
+      <img src={logoData} />
+      Hello World
+    </div>,
+    { fonts: [{ name: 'Inter', data: fontData }] }
+  )
+}
+```
+
+**Incorrect: reads config on every call**
+
+```typescript
+import fs from 'node:fs/promises'
+
+export async function processRequest(data: Data) {
+  const config = JSON.parse(
+    await fs.readFile('./config.json', 'utf-8')
+  )
+  const template = await fs.readFile('./template.html', 'utf-8')
+
+  return render(template, data, config)
+}
+```
+
+**Correct: hoists config and template to module level**
+
+```typescript
+import fs from 'node:fs/promises'
+
+const configPromise = fs
+  .readFile('./config.json', 'utf-8')
+  .then(JSON.parse)
+const templatePromise = fs.readFile('./template.html', 'utf-8')
+
+export async function processRequest(data: Data) {
+  const [config, template] = await Promise.all([
+    configPromise,
+    templatePromise,
+  ])
+
+  return render(template, data, config)
+}
+```
+
+When to use this pattern:
+
+- Loading fonts for OG image generation
+
+- Loading static logos, icons, or watermarks
+
+- Reading configuration files that don't change at runtime
+
+- Loading email templates or other static templates
+
+- Any static asset that's the same across all requests
+
+When not to use this pattern:
+
+- Assets that vary per request or user
+
+- Files that may change during runtime (use caching with TTL instead)
+
+- Large files that would consume too much memory if kept loaded
+
+- Sensitive data that shouldn't persist in memory
+
+With Vercel's [Fluid Compute](https://vercel.com/docs/fluid-compute), module-level caching is especially effective because multiple concurrent requests share the same function instance. The static assets stay loaded in memory across requests without cold start penalties.
+
+In traditional serverless, each cold start re-executes module-level code, but subsequent warm invocations reuse the loaded assets until the instance is recycled.
+
+### 3.6 Minimize Serialization at RSC Boundaries
+
+**Impact: HIGH (reduces data transfer size)**
+
+The React Server/Client boundary serializes all object properties into strings and embeds them in the HTML response and subsequent RSC requests. This serialized data directly impacts page weight and load time, so **size matters a lot**. Only pass fields that the client actually uses.
+
+**Incorrect: serializes all 50 fields**
+
+```tsx
+async function Page() {
+  const user = await fetchUser()  // 50 fields
+  return <Profile user={user} />
+}
+
+'use client'
+function Profile({ user }: { user: User }) {
+  return <div>{user.name}</div>  // uses 1 field
+}
+```
+
+**Correct: serializes only 1 field**
+
+```tsx
+async function Page() {
+  const user = await fetchUser()
+  return <Profile name={user.name} />
+}
+
+'use client'
+function Profile({ name }: { name: string }) {
+  return <div>{name}</div>
+}
+```
+
+### 3.7 Parallel Data Fetching with Component Composition
+
+**Impact: CRITICAL (eliminates server-side waterfalls)**
+
+React Server Components execute sequentially within a tree. Restructure with composition to parallelize data fetching.
+
+**Incorrect: Sidebar waits for Page's fetch to complete**
+
+```tsx
+export default async function Page() {
+  const header = await fetchHeader()
+  return (
+    <div>
+      <div>{header}</div>
+      <Sidebar />
+    </div>
+  )
+}
+
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
+```
+
+**Correct: both fetch simultaneously**
+
+```tsx
+async function Header() {
+  const data = await fetchHeader()
+  return <div>{data}</div>
+}
+
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
+
+export default function Page() {
+  return (
+    <div>
+      <Header />
+      <Sidebar />
+    </div>
+  )
+}
+```
+
+**Alternative with children prop:**
+
+```tsx
+async function Header() {
+  const data = await fetchHeader()
+  return <div>{data}</div>
+}
+
+async function Sidebar() {
+  const items = await fetchSidebarItems()
+  return <nav>{items.map(renderItem)}</nav>
+}
+
+function Layout({ children }: { children: ReactNode }) {
+  return (
+    <div>
+      <Header />
+      {children}
+    </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <Layout>
+      <Sidebar />
+    </Layout>
+  )
+}
+```
+
+### 3.8 Parallel Nested Data Fetching
+
+**Impact: CRITICAL (eliminates server-side waterfalls)**
+
+When fetching nested data in parallel, chain dependent fetches within each item's promise so a slow item doesn't block the rest.
+
+**Incorrect: a single slow item blocks all nested fetches**
+
+```tsx
+const chats = await Promise.all(
+  chatIds.map(id => getChat(id))
+)
+
+const chatAuthors = await Promise.all(
+  chats.map(chat => getUser(chat.author))
+)
+```
+
+If one `getChat(id)` out of 100 is extremely slow, the authors of the other 99 chats can't start loading even though their data is ready.
+
+**Correct: each item chains its own nested fetch**
+
+```tsx
+const chatAuthors = await Promise.all(
+  chatIds.map(id => getChat(id).then(chat => getUser(chat.author)))
+)
+```
+
+Each item independently chains `getChat` → `getUser`, so a slow chat doesn't block author fetches for the others.
+
+### 3.9 Per-Request Deduplication with React.cache()
+
+**Impact: MEDIUM (deduplicates within request)**
+
+Use `React.cache()` for server-side request deduplication. Authentication and database queries benefit most.
+
+**Usage:**
+
+```typescript
+import { cache } from 'react'
+
+export const getCurrentUser = cache(async () => {
+  const session = await auth()
+  if (!session?.user?.id) return null
+  return await db.user.findUnique({
+    where: { id: session.user.id }
+  })
+})
+```
+
+Within a single request, multiple calls to `getCurrentUser()` execute the query only once.
+
+**Avoid inline objects as arguments:**
+
+`React.cache()` uses shallow equality (`Object.is`) to determine cache hits. Inline objects create new references each call, preventing cache hits.
+
+**Incorrect: always cache miss**
+
+```typescript
+const getUser = cache(async (params: { uid: number }) => {
+  return await db.user.findUnique({ where: { id: params.uid } })
+})
+
+// Each call creates new object, never hits cache
+getUser({ uid: 1 })
+getUser({ uid: 1 })  // Cache miss, runs query again
+```
+
+**Correct: cache hit**
+
+```typescript
+const params = { uid: 1 }
+getUser(params)  // Query runs
+getUser(params)  // Cache hit (same reference)
+```
+
+If you must pass objects, pass the same reference:
+
+**Next.js-Specific Note:**
+
+In Next.js, the `fetch` API is automatically extended with request memoization. Requests with the same URL and options are automatically deduplicated within a single request, so you don't need `React.cache()` for `fetch` calls. However, `React.cache()` is still essential for other async tasks:
+
+- Database queries (Prisma, Drizzle, etc.)
+
+- Heavy computations
+
+- Authentication checks
+
+- File system operations
+
+- Any non-fetch async work
+
+Use `React.cache()` to deduplicate these operations across your component tree.
+
+Reference: [https://react.dev/reference/react/cache](https://react.dev/reference/react/cache)
+
+### 3.10 Use after() for Non-Blocking Operations
+
+**Impact: MEDIUM (faster response times)**
+
+Use Next.js's `after()` to schedule work that should execute after a response is sent. This prevents logging, analytics, and other side effects from blocking the response.
+
+**Incorrect: blocks response**
+
+```tsx
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request: Request) {
+  // Perform mutation
+  await updateDatabase(request)
+  
+  // Logging blocks the response
+  const userAgent = request.headers.get('user-agent') || 'unknown'
+  await logUserAction({ userAgent })
+  
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+```
+
+**Correct: non-blocking**
+
+```tsx
+import { after } from 'next/server'
+import { headers, cookies } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request: Request) {
+  // Perform mutation
+  await updateDatabase(request)
+  
+  // Log after response is sent
+  after(async () => {
+    const userAgent = (await headers()).get('user-agent') || 'unknown'
+    const sessionCookie = (await cookies()).get('session-id')?.value || 'anonymous'
+    
+    logUserAction({ sessionCookie, userAgent })
+  })
+  
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+```
+
+The response is sent immediately while logging happens in the background.
+
+**Common use cases:**
+
+- Analytics tracking
+
+- Audit logging
+
+- Sending notifications
+
+- Cache invalidation
+
+- Cleanup tasks
+
+**Important notes:**
+
+- `after()` runs even if the response fails or redirects
+
+- Works in Server Actions, Route Handlers, and Server Components
+
+Reference: [https://nextjs.org/docs/app/api-reference/functions/after](https://nextjs.org/docs/app/api-reference/functions/after)
+
+---
+
+## 4. Client-Side Data Fetching
+
+**Impact: MEDIUM-HIGH**
+
+Automatic deduplication and efficient data fetching patterns reduce redundant network requests.
+
+### 4.1 Deduplicate Global Event Listeners
+
+**Impact: LOW (single listener for N components)**
+
+Use `useSWRSubscription()` to share global event listeners across component instances.
+
+**Incorrect: N instances = N listeners**
+
+```tsx
+function useKeyboardShortcut(key: string, callback: () => void) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey && e.key === key) {
+        callback()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [key, callback])
+}
+```
+
+When using the `useKeyboardShortcut` hook multiple times, each instance will register a new listener.
+
+**Correct: N instances = 1 listener**
+
+```tsx
+import useSWRSubscription from 'swr/subscription'
+
+// Module-level Map to track callbacks per key
+const keyCallbacks = new Map<string, Set<() => void>>()
+
+function useKeyboardShortcut(key: string, callback: () => void) {
+  // Register this callback in the Map
+  useEffect(() => {
+    if (!keyCallbacks.has(key)) {
+      keyCallbacks.set(key, new Set())
+    }
+    keyCallbacks.get(key)!.add(callback)
+
+    return () => {
+      const set = keyCallbacks.get(key)
+      if (set) {
+        set.delete(callback)
+        if (set.size === 0) {
+          keyCallbacks.delete(key)
+        }
+      }
+    }
+  }, [key, callback])
+
+  useSWRSubscription('global-keydown', () => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey && keyCallbacks.has(e.key)) {
+        keyCallbacks.get(e.key)!.forEach(cb => cb())
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  })
+}
+
+function Profile() {
+  // Multiple shortcuts will share the same listener
+  useKeyboardShortcut('p', () => { /* ... */ }) 
+  useKeyboardShortcut('k', () => { /* ... */ })
+  // ...
+}
+```
+
+### 4.2 Use Passive Event Listeners for Scrolling Performance
+
+**Impact: MEDIUM (eliminates scroll delay caused by event listeners)**
+
+Add `{ passive: true }` to touch and wheel event listeners to enable immediate scrolling. Browsers normally wait for listeners to finish to check if `preventDefault()` is called, causing scroll delay.
+
+**Incorrect:**
+
+```typescript
+useEffect(() => {
+  const handleTouch = (e: TouchEvent) => console.log(e.touches[0].clientX)
+  const handleWheel = (e: WheelEvent) => console.log(e.deltaY)
+  
+  document.addEventListener('touchstart', handleTouch)
+  document.addEventListener('wheel', handleWheel)
+  
+  return () => {
+    document.removeEventListener('touchstart', handleTouch)
+    document.removeEventListener('wheel', handleWheel)
+  }
+}, [])
+```
+
+**Correct:**
+
+```typescript
+useEffect(() => {
+  const handleTouch = (e: TouchEvent) => console.log(e.touches[0].clientX)
+  const handleWheel = (e: WheelEvent) => console.log(e.deltaY)
+  
+  document.addEventListener('touchstart', handleTouch, { passive: true })
+  document.addEventListener('wheel', handleWheel, { passive: true })
+  
+  return () => {
+    document.removeEventListener('touchstart', handleTouch)
+    document.removeEventListener('wheel', handleWheel)
+  }
+}, [])
+```
+
+**Use passive when:** tracking/analytics, logging, any listener that doesn't call `preventDefault()`.
+
+**Don't use passive when:** implementing custom swipe gestures, custom zoom controls, or any listener that needs `preventDefault()`.
+
+### 4.3 Use SWR for Automatic Deduplication
+
+**Impact: MEDIUM-HIGH (automatic deduplication)**
+
+SWR enables request deduplication, caching, and revalidation across component instances.
+
+**Incorrect: no deduplication, each instance fetches**
+
+```tsx
+function UserList() {
+  const [users, setUsers] = useState([])
+  useEffect(() => {
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(setUsers)
+  }, [])
+}
+```
+
+**Correct: multiple instances share one request**
+
+```tsx
+import useSWR from 'swr'
+
+function UserList() {
+  const { data: users } = useSWR('/api/users', fetcher)
+}
+```
+
+**For immutable data:**
+
+```tsx
+import { useImmutableSWR } from '@/lib/swr'
+
+function StaticContent() {
+  const { data } = useImmutableSWR('/api/config', fetcher)
+}
+```
+
+**For mutations:**
+
+```tsx
+import { useSWRMutation } from 'swr/mutation'
+
+function UpdateButton() {
+  const { trigger } = useSWRMutation('/api/user', updateUser)
+  return <button onClick={() => trigger()}>Update</button>
+}
+```
+
+Reference: [https://swr.vercel.app](https://swr.vercel.app)
+
+### 4.4 Version and Minimize localStorage Data
+
+**Impact: MEDIUM (prevents schema conflicts, reduces storage size)**
+
+Add version prefix to keys and store only needed fields. Prevents schema conflicts and accidental storage of sensitive data.
+
+**Incorrect:**
+
+```typescript
+// No version, stores everything, no error handling
+localStorage.setItem('userConfig', JSON.stringify(fullUserObject))
+const data = localStorage.getItem('userConfig')
+```
+
+**Correct:**
+
+```typescript
+const VERSION = 'v2'
+
+function saveConfig(config: { theme: string; language: string }) {
+  try {
+    localStorage.setItem(`userConfig:${VERSION}`, JSON.stringify(config))
+  } catch {
+    // Throws in incognito/private browsing, quota exceeded, or disabled
+  }
+}
+
+function loadConfig() {
+  try {
+    const data = localStorage.getItem(`userConfig:${VERSION}`)
+    return data ? JSON.parse(data) : null
+  } catch {
+    return null
+  }
+}
+
+// Migration from v1 to v2
+function migrate() {
+  try {
+    const v1 = localStorage.getItem('userConfig:v1')
+    if (v1) {
+      const old = JSON.parse(v1)
+      saveConfig({ theme: old.darkMode ? 'dark' : 'light', language: old.lang })
+      localStorage.removeItem('userConfig:v1')
+    }
+  } catch {}
+}
+```
+
+**Store minimal fields from server responses:**
+
+```typescript
+// User object has 20+ fields, only store what UI needs
+function cachePrefs(user: FullUser) {
+  try {
+    localStorage.setItem('prefs:v1', JSON.stringify({
+      theme: user.preferences.theme,
+      notifications: user.preferences.notifications
+    }))
+  } catch {}
+}
+```
+
+**Always wrap in try-catch:** `getItem()` and `setItem()` throw in incognito/private browsing (Safari, Firefox), when quota exceeded, or when disabled.
+
+**Benefits:** Schema evolution via versioning, reduced storage size, prevents storing tokens/PII/internal flags.
+
+---
+
+## 5. Re-render Optimization
+
+**Impact: MEDIUM**
+
+Reducing unnecessary re-renders minimizes wasted computation and improves UI responsiveness.
+
+### 5.1 Calculate Derived State During Rendering
+
+**Impact: MEDIUM (avoids redundant renders and state drift)**
+
+If a value can be computed from current props/state, do not store it in state or update it in an effect. Derive it during render to avoid extra renders and state drift. Do not set state in effects solely in response to prop changes; prefer derived values or keyed resets instead.
+
+**Incorrect: redundant state and effect**
+
+```tsx
+function Form() {
+  const [firstName, setFirstName] = useState('First')
+  const [lastName, setLastName] = useState('Last')
+  const [fullName, setFullName] = useState('')
+
+  useEffect(() => {
+    setFullName(firstName + ' ' + lastName)
+  }, [firstName, lastName])
+
+  return <p>{fullName}</p>
+}
+```
+
+**Correct: derive during render**
+
+```tsx
+function Form() {
+  const [firstName, setFirstName] = useState('First')
+  const [lastName, setLastName] = useState('Last')
+  const fullName = firstName + ' ' + lastName
+
+  return <p>{fullName}</p>
+}
+```
+
+Reference: [https://react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect)
+
+### 5.2 Defer State Reads to Usage Point
+
+**Impact: MEDIUM (avoids unnecessary subscriptions)**
+
+Don't subscribe to dynamic state (searchParams, localStorage) if you only read it inside callbacks.
+
+**Incorrect: subscribes to all searchParams changes**
+
+```tsx
+function ShareButton({ chatId }: { chatId: string }) {
+  const searchParams = useSearchParams()
+
+  const handleShare = () => {
+    const ref = searchParams.get('ref')
+    shareChat(chatId, { ref })
+  }
+
+  return <button onClick={handleShare}>Share</button>
+}
+```
+
+**Correct: reads on demand, no subscription**
+
+```tsx
+function ShareButton({ chatId }: { chatId: string }) {
+  const handleShare = () => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    shareChat(chatId, { ref })
+  }
+
+  return <button onClick={handleShare}>Share</button>
+}
+```
+
+### 5.3 Do not wrap a simple expression with a primitive result type in useMemo
+
+**Impact: LOW-MEDIUM (wasted computation on every render)**
+
+When an expression is simple (few logical or arithmetical operators) and has a primitive result type (boolean, number, string), do not wrap it in `useMemo`.
+
+Calling `useMemo` and comparing hook dependencies may consume more resources than the expression itself.
+
+**Incorrect:**
+
+```tsx
+function Header({ user, notifications }: Props) {
+  const isLoading = useMemo(() => {
+    return user.isLoading || notifications.isLoading
+  }, [user.isLoading, notifications.isLoading])
+
+  if (isLoading) return <Skeleton />
+  // return some markup
+}
+```
+
+**Correct:**
+
+```tsx
+function Header({ user, notifications }: Props) {
+  const isLoading = user.isLoading || notifications.isLoading
+
+  if (isLoading) return <Skeleton />
+  // return some markup
+}
+```
+
+### 5.4 Don't Define Components Inside Components
+
+**Impact: HIGH (prevents remount on every render)**
+
+Defining a component inside another component creates a new component type on every render. React sees a different component each time and fully remounts it, destroying all state and DOM.
+
+A common reason developers do this is to access parent variables without passing props. Always pass props instead.
+
+**Incorrect: remounts on every render**
+
+```tsx
+function UserProfile({ user, theme }) {
+  // Defined inside to access `theme` - BAD
+  const Avatar = () => (
+    <img
+      src={user.avatarUrl}
+      className={theme === 'dark' ? 'avatar-dark' : 'avatar-light'}
+    />
+  )
+
+  // Defined inside to access `user` - BAD
+  const Stats = () => (
+    <div>
+      <span>{user.followers} followers</span>
+      <span>{user.posts} posts</span>
+    </div>
+  )
+
+  return (
+    <div>
+      <Avatar />
+      <Stats />
+    </div>
+  )
+}
+```
+
+Every time `UserProfile` renders, `Avatar` and `Stats` are new component types. React unmounts the old instances and mounts new ones, losing any internal state, running effects again, and recreating DOM nodes.
+
+**Correct: pass props instead**
+
+```tsx
+function Avatar({ src, theme }: { src: string; theme: string }) {
+  return (
+    <img
+      src={src}
+      className={theme === 'dark' ? 'avatar-dark' : 'avatar-light'}
+    />
+  )
+}
+
+function Stats({ followers, posts }: { followers: number; posts: number }) {
+  return (
+    <div>
+      <span>{followers} followers</span>
+      <span>{posts} posts</span>
+    </div>
+  )
+}
+
+function UserProfile({ user, theme }) {
+  return (
+    <div>
+      <Avatar src={user.avatarUrl} theme={theme} />
+      <Stats followers={user.followers} posts={user.posts} />
+    </div>
+  )
+}
+```
+
+**Symptoms of this bug:**
+
+- Input fields lose focus on every keystroke
+
+- Animations restart unexpectedly
+
+- `useEffect` cleanup/setup runs on every parent render
+
+- Scroll position resets inside the component
+
+### 5.5 Extract Default Non-primitive Parameter Value from Memoized Component to Constant
+
+**Impact: MEDIUM (restores memoization by using a constant for default value)**
+
+When memoized component has a default value for some non-primitive optional parameter, such as an array, function, or object, calling the component without that parameter results in broken memoization. This is because new value instances are created on every rerender, and they do not pass strict equality comparison in `memo()`.
+
+To address this issue, extract the default value into a constant.
+
+**Incorrect: `onClick` has different values on every rerender**
+
+```tsx
+const UserAvatar = memo(function UserAvatar({ onClick = () => {} }: { onClick?: () => void }) {
+  // ...
+})
+
+// Used without optional onClick
+<UserAvatar />
+```
+
+**Correct: stable default value**
+
+```tsx
+const NOOP = () => {};
+
+const UserAvatar = memo(function UserAvatar({ onClick = NOOP }: { onClick?: () => void }) {
+  // ...
+})
+
+// Used without optional onClick
+<UserAvatar />
+```
+
+### 5.6 Extract to Memoized Components
+
+**Impact: MEDIUM (enables early returns)**
+
+Extract expensive work into memoized components to enable early returns before computation.
+
+**Incorrect: computes avatar even when loading**
+
+```tsx
+function Profile({ user, loading }: Props) {
+  const avatar = useMemo(() => {
+    const id = computeAvatarId(user)
+    return <Avatar id={id} />
+  }, [user])
+
+  if (loading) return <Skeleton />
+  return <div>{avatar}</div>
+}
+```
+
+**Correct: skips computation when loading**
+
+```tsx
+const UserAvatar = memo(function UserAvatar({ user }: { user: User }) {
+  const id = useMemo(() => computeAvatarId(user), [user])
+  return <Avatar id={id} />
+})
+
+function Profile({ user, loading }: Props) {
+  if (loading) return <Skeleton />
+  return (
+    <div>
+      <UserAvatar user={user} />
+    </div>
+  )
+}
+```
+
+**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, manual memoization with `memo()` and `useMemo()` is not necessary. The compiler automatically optimizes re-renders.
+
+### 5.7 Narrow Effect Dependencies
+
+**Impact: LOW (minimizes effect re-runs)**
+
+Specify primitive dependencies instead of objects to minimize effect re-runs.
+
+**Incorrect: re-runs on any user field change**
+
+```tsx
+useEffect(() => {
+  console.log(user.id)
+}, [user])
+```
+
+**Correct: re-runs only when id changes**
+
+```tsx
+useEffect(() => {
+  console.log(user.id)
+}, [user.id])
+```
+
+**For derived state, compute outside effect:**
+
+```tsx
+// Incorrect: runs on width=767, 766, 765...
+useEffect(() => {
+  if (width < 768) {
+    enableMobileMode()
+  }
+}, [width])
+
+// Correct: runs only on boolean transition
+const isMobile = width < 768
+useEffect(() => {
+  if (isMobile) {
+    enableMobileMode()
+  }
+}, [isMobile])
+```
+
+### 5.8 Put Interaction Logic in Event Handlers
+
+**Impact: MEDIUM (avoids effect re-runs and duplicate side effects)**
+
+If a side effect is triggered by a specific user action (submit, click, drag), run it in that event handler. Do not model the action as state + effect; it makes effects re-run on unrelated changes and can duplicate the action.
+
+**Incorrect: event modeled as state + effect**
+
+```tsx
+function Form() {
+  const [submitted, setSubmitted] = useState(false)
+  const theme = useContext(ThemeContext)
+
+  useEffect(() => {
+    if (submitted) {
+      post('/api/register')
+      showToast('Registered', theme)
+    }
+  }, [submitted, theme])
+
+  return <button onClick={() => setSubmitted(true)}>Submit</button>
+}
+```
+
+**Correct: do it in the handler**
+
+```tsx
+function Form() {
+  const theme = useContext(ThemeContext)
+
+  function handleSubmit() {
+    post('/api/register')
+    showToast('Registered', theme)
+  }
+
+  return <button onClick={handleSubmit}>Submit</button>
+}
+```
+
+Reference: [https://react.dev/learn/removing-effect-dependencies#should-this-code-move-to-an-event-handler](https://react.dev/learn/removing-effect-dependencies#should-this-code-move-to-an-event-handler)
+
+### 5.9 Split Combined Hook Computations
+
+**Impact: MEDIUM (avoids recomputing independent steps)**
+
+When a hook contains multiple independent tasks with different dependencies, split them into separate hooks. A combined hook reruns all tasks when any dependency changes, even if some tasks don't use the changed value.
+
+**Incorrect: changing `sortOrder` recomputes filtering**
+
+```tsx
+const sortedProducts = useMemo(() => {
+  const filtered = products.filter((p) => p.category === category)
+  const sorted = filtered.toSorted((a, b) =>
+    sortOrder === "asc" ? a.price - b.price : b.price - a.price
+  )
+  return sorted
+}, [products, category, sortOrder])
+```
+
+**Correct: filtering only recomputes when products or category change**
+
+```tsx
+const filteredProducts = useMemo(
+  () => products.filter((p) => p.category === category),
+  [products, category]
+)
+
+const sortedProducts = useMemo(
+  () =>
+    filteredProducts.toSorted((a, b) =>
+      sortOrder === "asc" ? a.price - b.price : b.price - a.price
+    ),
+  [filteredProducts, sortOrder]
+)
+```
+
+This pattern also applies to `useEffect` when combining unrelated side effects:
+
+**Incorrect: both effects run when either dependency changes**
+
+```tsx
+useEffect(() => {
+  analytics.trackPageView(pathname)
+  document.title = `${pageTitle} | My App`
+}, [pathname, pageTitle])
+```
+
+**Correct: effects run independently**
+
+```tsx
+useEffect(() => {
+  analytics.trackPageView(pathname)
+}, [pathname])
+
+useEffect(() => {
+  document.title = `${pageTitle} | My App`
+}, [pageTitle])
+```
+
+**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, it automatically optimizes dependency tracking and may handle some of these cases for you.
+
+### 5.10 Subscribe to Derived State
+
+**Impact: MEDIUM (reduces re-render frequency)**
+
+Subscribe to derived boolean state instead of continuous values to reduce re-render frequency.
+
+**Incorrect: re-renders on every pixel change**
+
+```tsx
+function Sidebar() {
+  const width = useWindowWidth()  // updates continuously
+  const isMobile = width < 768
+  return <nav className={isMobile ? 'mobile' : 'desktop'} />
+}
+```
+
+**Correct: re-renders only when boolean changes**
+
+```tsx
+function Sidebar() {
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  return <nav className={isMobile ? 'mobile' : 'desktop'} />
+}
+```
+
+### 5.11 Use Functional setState Updates
+
+**Impact: MEDIUM (prevents stale closures and unnecessary callback recreations)**
+
+When updating state based on the current state value, use the functional update form of setState instead of directly referencing the state variable. This prevents stale closures, eliminates unnecessary dependencies, and creates stable callback references.
+
+**Incorrect: requires state as dependency**
+
+```tsx
+function TodoList() {
+  const [items, setItems] = useState(initialItems)
+  
+  // Callback must depend on items, recreated on every items change
+  const addItems = useCallback((newItems: Item[]) => {
+    setItems([...items, ...newItems])
+  }, [items])  // ❌ items dependency causes recreations
+  
+  // Risk of stale closure if dependency is forgotten
+  const removeItem = useCallback((id: string) => {
+    setItems(items.filter(item => item.id !== id))
+  }, [])  // ❌ Missing items dependency - will use stale items!
+  
+  return <ItemsEditor items={items} onAdd={addItems} onRemove={removeItem} />
+}
+```
+
+The first callback is recreated every time `items` changes, which can cause child components to re-render unnecessarily. The second callback has a stale closure bug—it will always reference the initial `items` value.
+
+**Correct: stable callbacks, no stale closures**
+
+```tsx
+function TodoList() {
+  const [items, setItems] = useState(initialItems)
+  
+  // Stable callback, never recreated
+  const addItems = useCallback((newItems: Item[]) => {
+    setItems(curr => [...curr, ...newItems])
+  }, [])  // ✅ No dependencies needed
+  
+  // Always uses latest state, no stale closure risk
+  const removeItem = useCallback((id: string) => {
+    setItems(curr => curr.filter(item => item.id !== id))
+  }, [])  // ✅ Safe and stable
+  
+  return <ItemsEditor items={items} onAdd={addItems} onRemove={removeItem} />
+}
+```
+
+**Benefits:**
+
+1. **Stable callback references** - Callbacks don't need to be recreated when state changes
+
+2. **No stale closures** - Always operates on the latest state value
+
+3. **Fewer dependencies** - Simplifies dependency arrays and reduces memory leaks
+
+4. **Prevents bugs** - Eliminates the most common source of React closure bugs
+
+**When to use functional updates:**
+
+- Any setState that depends on the current state value
+
+- Inside useCallback/useMemo when state is needed
+
+- Event handlers that reference state
+
+- Async operations that update state
+
+**When direct updates are fine:**
+
+- Setting state to a static value: `setCount(0)`
+
+- Setting state from props/arguments only: `setName(newName)`
+
+- State doesn't depend on previous value
+
+**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, the compiler can automatically optimize some cases, but functional updates are still recommended for correctness and to prevent stale closure bugs.
+
+### 5.12 Use Lazy State Initialization
+
+**Impact: MEDIUM (wasted computation on every render)**
+
+Pass a function to `useState` for expensive initial values. Without the function form, the initializer runs on every render even though the value is only used once.
+
+**Incorrect: runs on every render**
+
+```tsx
+function FilteredList({ items }: { items: Item[] }) {
+  // buildSearchIndex() runs on EVERY render, even after initialization
+  const [searchIndex, setSearchIndex] = useState(buildSearchIndex(items))
+  const [query, setQuery] = useState('')
+  
+  // When query changes, buildSearchIndex runs again unnecessarily
+  return <SearchResults index={searchIndex} query={query} />
+}
+
+function UserProfile() {
+  // JSON.parse runs on every render
+  const [settings, setSettings] = useState(
+    JSON.parse(localStorage.getItem('settings') || '{}')
+  )
+  
+  return <SettingsForm settings={settings} onChange={setSettings} />
+}
+```
+
+**Correct: runs only once**
+
+```tsx
+function FilteredList({ items }: { items: Item[] }) {
+  // buildSearchIndex() runs ONLY on initial render
+  const [searchIndex, setSearchIndex] = useState(() => buildSearchIndex(items))
+  const [query, setQuery] = useState('')
+  
+  return <SearchResults index={searchIndex} query={query} />
+}
+
+function UserProfile() {
+  // JSON.parse runs only on initial render
+  const [settings, setSettings] = useState(() => {
+    const stored = localStorage.getItem('settings')
+    return stored ? JSON.parse(stored) : {}
+  })
+  
+  return <SettingsForm settings={settings} onChange={setSettings} />
+}
+```
+
+Use lazy initialization when computing initial values from localStorage/sessionStorage, building data structures (indexes, maps), reading from the DOM, or performing heavy transformations.
+
+For simple primitives (`useState(0)`), direct references (`useState(props.value)`), or cheap literals (`useState({})`), the function form is unnecessary.
+
+### 5.13 Use Transitions for Non-Urgent Updates
+
+**Impact: MEDIUM (maintains UI responsiveness)**
+
+Mark frequent, non-urgent state updates as transitions to maintain UI responsiveness.
+
+**Incorrect: blocks UI on every scroll**
+
+```tsx
+function ScrollTracker() {
+  const [scrollY, setScrollY] = useState(0)
+  useEffect(() => {
+    const handler = () => setScrollY(window.scrollY)
+    window.addEventListener('scroll', handler, { passive: true })
+    return () => window.removeEventListener('scroll', handler)
+  }, [])
+}
+```
+
+**Correct: non-blocking updates**
+
+```tsx
+import { startTransition } from 'react'
+
+function ScrollTracker() {
+  const [scrollY, setScrollY] = useState(0)
+  useEffect(() => {
+    const handler = () => {
+      startTransition(() => setScrollY(window.scrollY))
+    }
+    window.addEventListener('scroll', handler, { passive: true })
+    return () => window.removeEventListener('scroll', handler)
+  }, [])
+}
+```
+
+### 5.14 Use useDeferredValue for Expensive Derived Renders
+
+**Impact: MEDIUM (keeps input responsive during heavy computation)**
+
+When user input triggers expensive computations or renders, use `useDeferredValue` to keep the input responsive. The deferred value lags behind, allowing React to prioritize the input update and render the expensive result when idle.
+
+**Incorrect: input feels laggy while filtering**
+
+```tsx
+function Search({ items }: { items: Item[] }) {
+  const [query, setQuery] = useState('')
+  const filtered = items.filter(item => fuzzyMatch(item, query))
+
+  return (
+    <>
+      <input value={query} onChange={e => setQuery(e.target.value)} />
+      <ResultsList results={filtered} />
+    </>
+  )
+}
+```
+
+**Correct: input stays snappy, results render when ready**
+
+```tsx
+function Search({ items }: { items: Item[] }) {
+  const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const filtered = useMemo(
+    () => items.filter(item => fuzzyMatch(item, deferredQuery)),
+    [items, deferredQuery]
+  )
+  const isStale = query !== deferredQuery
+
+  return (
+    <>
+      <input value={query} onChange={e => setQuery(e.target.value)} />
+      <div style={{ opacity: isStale ? 0.7 : 1 }}>
+        <ResultsList results={filtered} />
+      </div>
+    </>
+  )
+}
+```
+
+**When to use:**
+
+- Filtering/searching large lists
+
+- Expensive visualizations (charts, graphs) reacting to input
+
+- Any derived state that causes noticeable render delays
+
+**Note:** Wrap the expensive computation in `useMemo` with the deferred value as a dependency, otherwise it still runs on every render.
+
+Reference: [https://react.dev/reference/react/useDeferredValue](https://react.dev/reference/react/useDeferredValue)
+
+### 5.15 Use useRef for Transient Values
+
+**Impact: MEDIUM (avoids unnecessary re-renders on frequent updates)**
+
+When a value changes frequently and you don't want a re-render on every update (e.g., mouse trackers, intervals, transient flags), store it in `useRef` instead of `useState`. Keep component state for UI; use refs for temporary DOM-adjacent values. Updating a ref does not trigger a re-render.
+
+**Incorrect: renders every update**
+
+```tsx
+function Tracker() {
+  const [lastX, setLastX] = useState(0)
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => setLastX(e.clientX)
+    window.addEventListener('mousemove', onMove)
+    return () => window.removeEventListener('mousemove', onMove)
+  }, [])
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: lastX,
+        width: 8,
+        height: 8,
+        background: 'black',
+      }}
+    />
+  )
+}
+```
+
+**Correct: no re-render for tracking**
+
+```tsx
+function Tracker() {
+  const lastXRef = useRef(0)
+  const dotRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      lastXRef.current = e.clientX
+      const node = dotRef.current
+      if (node) {
+        node.style.transform = `translateX(${e.clientX}px)`
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    return () => window.removeEventListener('mousemove', onMove)
+  }, [])
+
+  return (
+    <div
+      ref={dotRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: 8,
+        height: 8,
+        background: 'black',
+        transform: 'translateX(0px)',
+      }}
+    />
+  )
+}
+```
+
+---
+
+## 6. Rendering Performance
+
+**Impact: MEDIUM**
+
+Optimizing the rendering process reduces the work the browser needs to do.
+
+### 6.1 Animate SVG Wrapper Instead of SVG Element
+
+**Impact: LOW (enables hardware acceleration)**
+
+Many browsers don't have hardware acceleration for CSS3 animations on SVG elements. Wrap SVG in a `<div>` and animate the wrapper instead.
+
+**Incorrect: animating SVG directly - no hardware acceleration**
+
+```tsx
+function LoadingSpinner() {
+  return (
+    <svg 
+      className="animate-spin"
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24"
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" />
+    </svg>
+  )
+}
+```
+
+**Correct: animating wrapper div - hardware accelerated**
+
+```tsx
+function LoadingSpinner() {
+  return (
+    <div className="animate-spin">
+      <svg 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24"
+      >
+        <circle cx="12" cy="12" r="10" stroke="currentColor" />
+      </svg>
+    </div>
+  )
+}
+```
+
+This applies to all CSS transforms and transitions (`transform`, `opacity`, `translate`, `scale`, `rotate`). The wrapper div allows browsers to use GPU acceleration for smoother animations.
+
+### 6.2 CSS content-visibility for Long Lists
+
+**Impact: HIGH (faster initial render)**
+
+Apply `content-visibility: auto` to defer off-screen rendering.
+
+**CSS:**
+
+```css
+.message-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 80px;
+}
+```
+
+**Example:**
+
+```tsx
+function MessageList({ messages }: { messages: Message[] }) {
+  return (
+    <div className="overflow-y-auto h-screen">
+      {messages.map(msg => (
+        <div key={msg.id} className="message-item">
+          <Avatar user={msg.author} />
+          <div>{msg.content}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+```
+
+For 1000 messages, browser skips layout/paint for ~990 off-screen items (10× faster initial render).
+
+### 6.3 Hoist Static JSX Elements
+
+**Impact: LOW (avoids re-creation)**
+
+Extract static JSX outside components to avoid re-creation.
+
+**Incorrect: recreates element every render**
+
+```tsx
+function LoadingSkeleton() {
+  return <div className="animate-pulse h-20 bg-gray-200" />
+}
+
+function Container() {
+  return (
+    <div>
+      {loading && <LoadingSkeleton />}
+    </div>
+  )
+}
+```
+
+**Correct: reuses same element**
+
+```tsx
+const loadingSkeleton = (
+  <div className="animate-pulse h-20 bg-gray-200" />
+)
+
+function Container() {
+  return (
+    <div>
+      {loading && loadingSkeleton}
+    </div>
+  )
+}
+```
+
+This is especially helpful for large and static SVG nodes, which can be expensive to recreate on every render.
+
+**Note:** If your project has [React Compiler](https://react.dev/learn/react-compiler) enabled, the compiler automatically hoists static JSX elements and optimizes component re-renders, making manual hoisting unnecessary.
+
+### 6.4 Optimize SVG Precision
+
+**Impact: LOW (reduces file size)**
+
+Reduce SVG coordinate precision to decrease file size. The optimal precision depends on the viewBox size, but in general reducing precision should be considered.
+
+**Incorrect: excessive precision**
+
+```svg
+<path d="M 10.293847 20.847362 L 30.938472 40.192837" />
+```
+
+**Correct: 1 decimal place**
+
+```svg
+<path d="M 10.3 20.8 L 30.9 40.2" />
+```
+
+**Automate with SVGO:**
+
+```bash
+npx svgo --precision=1 --multipass icon.svg
+```
+
+### 6.5 Prevent Hydration Mismatch Without Flickering
+
+**Impact: MEDIUM (avoids visual flicker and hydration errors)**
+
+When rendering content that depends on client-side storage (localStorage, cookies), avoid both SSR breakage and post-hydration flickering by injecting a synchronous script that updates the DOM before React hydrates.
+
+**Incorrect: breaks SSR**
+
+```tsx
+function ThemeWrapper({ children }: { children: ReactNode }) {
+  // localStorage is not available on server - throws error
+  const theme = localStorage.getItem('theme') || 'light'
+  
+  return (
+    <div className={theme}>
+      {children}
+    </div>
+  )
+}
+```
+
+Server-side rendering will fail because `localStorage` is undefined.
+
+**Incorrect: visual flickering**
+
+```tsx
+function ThemeWrapper({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState('light')
+  
+  useEffect(() => {
+    // Runs after hydration - causes visible flash
+    const stored = localStorage.getItem('theme')
+    if (stored) {
+      setTheme(stored)
+    }
+  }, [])
+  
+  return (
+    <div className={theme}>
+      {children}
+    </div>
+  )
+}
+```
+
+Component first renders with default value (`light`), then updates after hydration, causing a visible flash of incorrect content.
+
+**Correct: no flicker, no hydration mismatch**
+
+```tsx
+function ThemeWrapper({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <div id="theme-wrapper">
+        {children}
+      </div>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function() {
+              try {
+                var theme = localStorage.getItem('theme') || 'light';
+                var el = document.getElementById('theme-wrapper');
+                if (el) el.className = theme;
+              } catch (e) {}
+            })();
+          `,
+        }}
+      />
+    </>
+  )
+}
+```
+
+The inline script executes synchronously before showing the element, ensuring the DOM already has the correct value. No flickering, no hydration mismatch.
+
+This pattern is especially useful for theme toggles, user preferences, authentication states, and any client-only data that should render immediately without flashing default values.
+
+### 6.6 Suppress Expected Hydration Mismatches
+
+**Impact: LOW-MEDIUM (avoids noisy hydration warnings for known differences)**
+
+In SSR frameworks (e.g., Next.js), some values are intentionally different on server vs client (random IDs, dates, locale/timezone formatting). For these *expected* mismatches, wrap the dynamic text in an element with `suppressHydrationWarning` to prevent noisy warnings. Do not use this to hide real bugs. Don’t overuse it.
+
+**Incorrect: known mismatch warnings**
+
+```tsx
+function Timestamp() {
+  return <span>{new Date().toLocaleString()}</span>
+}
+```
+
+**Correct: suppress expected mismatch only**
+
+```tsx
+function Timestamp() {
+  return (
+    <span suppressHydrationWarning>
+      {new Date().toLocaleString()}
+    </span>
+  )
+}
+```
+
+### 6.7 Use Activity Component for Show/Hide
+
+**Impact: MEDIUM (preserves state/DOM)**
+
+Use React's `<Activity>` to preserve state/DOM for expensive components that frequently toggle visibility.
+
+**Usage:**
+
+```tsx
+import { Activity } from 'react'
+
+function Dropdown({ isOpen }: Props) {
+  return (
+    <Activity mode={isOpen ? 'visible' : 'hidden'}>
+      <ExpensiveMenu />
+    </Activity>
+  )
+}
+```
+
+Avoids expensive re-renders and state loss.
+
+### 6.8 Use defer or async on Script Tags
+
+**Impact: HIGH (eliminates render-blocking)**
+
+Script tags without `defer` or `async` block HTML parsing while the script downloads and executes. This delays First Contentful Paint and Time to Interactive.
+
+- **`defer`**: Downloads in parallel, executes after HTML parsing completes, maintains execution order
+
+- **`async`**: Downloads in parallel, executes immediately when ready, no guaranteed order
+
+Use `defer` for scripts that depend on DOM or other scripts. Use `async` for independent scripts like analytics.
+
+**Incorrect: blocks rendering**
+
+```tsx
+export default function Document() {
+  return (
+    <html>
+      <head>
+        <script src="https://example.com/analytics.js" />
+        <script src="/scripts/utils.js" />
+      </head>
+      <body>{/* content */}</body>
+    </html>
+  )
+}
+```
+
+**Correct: non-blocking**
+
+```tsx
+import Script from 'next/script'
+
+export default function Page() {
+  return (
+    <>
+      <Script src="https://example.com/analytics.js" strategy="afterInteractive" />
+      <Script src="/scripts/utils.js" strategy="beforeInteractive" />
+    </>
+  )
+}
+```
+
+**Note:** In Next.js, prefer the `next/script` component with `strategy` prop instead of raw script tags:
+
+Reference: [https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#defer](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#defer)
+
+### 6.9 Use Explicit Conditional Rendering
+
+**Impact: LOW (prevents rendering 0 or NaN)**
+
+Use explicit ternary operators (`? :`) instead of `&&` for conditional rendering when the condition can be `0`, `NaN`, or other falsy values that render.
+
+**Incorrect: renders "0" when count is 0**
+
+```tsx
+function Badge({ count }: { count: number }) {
+  return (
+    <div>
+      {count && <span className="badge">{count}</span>}
+    </div>
+  )
+}
+
+// When count = 0, renders: <div>0</div>
+// When count = 5, renders: <div><span class="badge">5</span></div>
+```
+
+**Correct: renders nothing when count is 0**
+
+```tsx
+function Badge({ count }: { count: number }) {
+  return (
+    <div>
+      {count > 0 ? <span className="badge">{count}</span> : null}
+    </div>
+  )
+}
+
+// When count = 0, renders: <div></div>
+// When count = 5, renders: <div><span class="badge">5</span></div>
+```
+
+### 6.10 Use React DOM Resource Hints
+
+**Impact: HIGH (reduces load time for critical resources)**
+
+React DOM provides APIs to hint the browser about resources it will need. These are especially useful in server components to start loading resources before the client even receives the HTML.
+
+- **`prefetchDNS(href)`**: Resolve DNS for a domain you expect to connect to
+
+- **`preconnect(href)`**: Establish connection (DNS + TCP + TLS) to a server
+
+- **`preload(href, options)`**: Fetch a resource (stylesheet, font, script, image) you'll use soon
+
+- **`preloadModule(href)`**: Fetch an ES module you'll use soon
+
+- **`preinit(href, options)`**: Fetch and evaluate a stylesheet or script
+
+- **`preinitModule(href)`**: Fetch and evaluate an ES module
+
+**Example: preconnect to third-party APIs**
+
+```tsx
+import { preconnect, prefetchDNS } from 'react-dom'
+
+export default function App() {
+  prefetchDNS('https://analytics.example.com')
+  preconnect('https://api.example.com')
+
+  return <main>{/* content */}</main>
+}
+```
+
+**Example: preload critical fonts and styles**
+
+```tsx
+import { preload, preinit } from 'react-dom'
+
+export default function RootLayout({ children }) {
+  // Preload font file
+  preload('/fonts/inter.woff2', { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' })
+
+  // Fetch and apply critical stylesheet immediately
+  preinit('/styles/critical.css', { as: 'style' })
+
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+**Example: preload modules for code-split routes**
+
+```tsx
+import { preloadModule, preinitModule } from 'react-dom'
+
+function Navigation() {
+  const preloadDashboard = () => {
+    preloadModule('/dashboard.js', { as: 'script' })
+  }
+
+  return (
+    <nav>
+      <a href="/dashboard" onMouseEnter={preloadDashboard}>
+        Dashboard
+      </a>
+    </nav>
+  )
+}
+```
+
+**When to use each:**
+
+| API | Use case |
+
+|-----|----------|
+
+| `prefetchDNS` | Third-party domains you'll connect to later |
+
+| `preconnect` | APIs or CDNs you'll fetch from immediately |
+
+| `preload` | Critical resources needed for current page |
+
+| `preloadModule` | JS modules for likely next navigation |
+
+| `preinit` | Stylesheets/scripts that must execute early |
+
+| `preinitModule` | ES modules that must execute early |
+
+Reference: [https://react.dev/reference/react-dom#resource-preloading-apis](https://react.dev/reference/react-dom#resource-preloading-apis)
+
+### 6.11 Use useTransition Over Manual Loading States
+
+**Impact: LOW (reduces re-renders and improves code clarity)**
+
+Use `useTransition` instead of manual `useState` for loading states. This provides built-in `isPending` state and automatically manages transitions.
+
+**Incorrect: manual loading state**
+
+```tsx
+function SearchResults() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSearch = async (value: string) => {
+    setIsLoading(true)
+    setQuery(value)
+    const data = await fetchResults(value)
+    setResults(data)
+    setIsLoading(false)
+  }
+
+  return (
+    <>
+      <input onChange={(e) => handleSearch(e.target.value)} />
+      {isLoading && <Spinner />}
+      <ResultsList results={results} />
+    </>
+  )
+}
+```
+
+**Correct: useTransition with built-in pending state**
+
+```tsx
+import { useTransition, useState } from 'react'
+
+function SearchResults() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [isPending, startTransition] = useTransition()
+
+  const handleSearch = (value: string) => {
+    setQuery(value) // Update input immediately
+    
+    startTransition(async () => {
+      // Fetch and update results
+      const data = await fetchResults(value)
+      setResults(data)
+    })
+  }
+
+  return (
+    <>
+      <input onChange={(e) => handleSearch(e.target.value)} />
+      {isPending && <Spinner />}
+      <ResultsList results={results} />
+    </>
+  )
+}
+```
+
+**Benefits:**
+
+- **Automatic pending state**: No need to manually manage `setIsLoading(true/false)`
+
+- **Error resilience**: Pending state correctly resets even if the transition throws
+
+- **Better responsiveness**: Keeps the UI responsive during updates
+
+- **Interrupt handling**: New transitions automatically cancel pending ones
+
+Reference: [https://react.dev/reference/react/useTransition](https://react.dev/reference/react/useTransition)
+
+---
+
+## 7. JavaScript Performance
+
+**Impact: LOW-MEDIUM**
+
+Micro-optimizations for hot paths can add up to meaningful improvements.
+
+### 7.1 Avoid Layout Thrashing
+
+**Impact: MEDIUM (prevents forced synchronous layouts and reduces performance bottlenecks)**
+
+Avoid interleaving style writes with layout reads. When you read a layout property (like `offsetWidth`, `getBoundingClientRect()`, or `getComputedStyle()`) between style changes, the browser is forced to trigger a synchronous reflow.
+
+**This is OK: browser batches style changes**
+
+```typescript
+function updateElementStyles(element: HTMLElement) {
+  // Each line invalidates style, but browser batches the recalculation
+  element.style.width = '100px'
+  element.style.height = '200px'
+  element.style.backgroundColor = 'blue'
+  element.style.border = '1px solid black'
+}
+```
+
+**Incorrect: interleaved reads and writes force reflows**
+
+```typescript
+function layoutThrashing(element: HTMLElement) {
+  element.style.width = '100px'
+  const width = element.offsetWidth  // Forces reflow
+  element.style.height = '200px'
+  const height = element.offsetHeight  // Forces another reflow
+}
+```
+
+**Correct: batch writes, then read once**
+
+```typescript
+function updateElementStyles(element: HTMLElement) {
+  // Batch all writes together
+  element.style.width = '100px'
+  element.style.height = '200px'
+  element.style.backgroundColor = 'blue'
+  element.style.border = '1px solid black'
+  
+  // Read after all writes are done (single reflow)
+  const { width, height } = element.getBoundingClientRect()
+}
+```
+
+**Correct: batch reads, then writes**
+
+```typescript
+function updateElementStyles(element: HTMLElement) {
+  element.classList.add('highlighted-box')
+  
+  const { width, height } = element.getBoundingClientRect()
+}
+```
+
+**Better: use CSS classes**
+
+**React example:**
+
+```tsx
+// Incorrect: interleaving style changes with layout queries
+function Box({ isHighlighted }: { isHighlighted: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    if (ref.current && isHighlighted) {
+      ref.current.style.width = '100px'
+      const width = ref.current.offsetWidth // Forces layout
+      ref.current.style.height = '200px'
+    }
+  }, [isHighlighted])
+  
+  return <div ref={ref}>Content</div>
+}
+
+// Correct: toggle class
+function Box({ isHighlighted }: { isHighlighted: boolean }) {
+  return (
+    <div className={isHighlighted ? 'highlighted-box' : ''}>
+      Content
+    </div>
+  )
+}
+```
+
+Prefer CSS classes over inline styles when possible. CSS files are cached by the browser, and classes provide better separation of concerns and are easier to maintain.
+
+See [this gist](https://gist.github.com/paulirish/5d52fb081b3570c81e3a) and [CSS Triggers](https://csstriggers.com/) for more information on layout-forcing operations.
+
+### 7.2 Build Index Maps for Repeated Lookups
+
+**Impact: LOW-MEDIUM (1M ops to 2K ops)**
+
+Multiple `.find()` calls by the same key should use a Map.
+
+**Incorrect (O(n) per lookup):**
+
+```typescript
+function processOrders(orders: Order[], users: User[]) {
+  return orders.map(order => ({
+    ...order,
+    user: users.find(u => u.id === order.userId)
+  }))
+}
+```
+
+**Correct (O(1) per lookup):**
+
+```typescript
+function processOrders(orders: Order[], users: User[]) {
+  const userById = new Map(users.map(u => [u.id, u]))
+
+  return orders.map(order => ({
+    ...order,
+    user: userById.get(order.userId)
+  }))
+}
+```
+
+Build map once (O(n)), then all lookups are O(1).
+
+For 1000 orders × 1000 users: 1M ops → 2K ops.
+
+### 7.3 Cache Property Access in Loops
+
+**Impact: LOW-MEDIUM (reduces lookups)**
+
+Cache object property lookups in hot paths.
+
+**Incorrect: 3 lookups × N iterations**
+
+```typescript
+for (let i = 0; i < arr.length; i++) {
+  process(obj.config.settings.value)
+}
+```
+
+**Correct: 1 lookup total**
+
+```typescript
+const value = obj.config.settings.value
+const len = arr.length
+for (let i = 0; i < len; i++) {
+  process(value)
+}
+```
+
+### 7.4 Cache Repeated Function Calls
+
+**Impact: MEDIUM (avoid redundant computation)**
+
+Use a module-level Map to cache function results when the same function is called repeatedly with the same inputs during render.
+
+**Incorrect: redundant computation**
+
+```typescript
+function ProjectList({ projects }: { projects: Project[] }) {
+  return (
+    <div>
+      {projects.map(project => {
+        // slugify() called 100+ times for same project names
+        const slug = slugify(project.name)
+        
+        return <ProjectCard key={project.id} slug={slug} />
+      })}
+    </div>
+  )
+}
+```
+
+**Correct: cached results**
+
+```typescript
+// Module-level cache
+const slugifyCache = new Map<string, string>()
+
+function cachedSlugify(text: string): string {
+  if (slugifyCache.has(text)) {
+    return slugifyCache.get(text)!
+  }
+  const result = slugify(text)
+  slugifyCache.set(text, result)
+  return result
+}
+
+function ProjectList({ projects }: { projects: Project[] }) {
+  return (
+    <div>
+      {projects.map(project => {
+        // Computed only once per unique project name
+        const slug = cachedSlugify(project.name)
+        
+        return <ProjectCard key={project.id} slug={slug} />
+      })}
+    </div>
+  )
+}
+```
+
+**Simpler pattern for single-value functions:**
+
+```typescript
+let isLoggedInCache: boolean | null = null
+
+function isLoggedIn(): boolean {
+  if (isLoggedInCache !== null) {
+    return isLoggedInCache
+  }
+  
+  isLoggedInCache = document.cookie.includes('auth=')
+  return isLoggedInCache
+}
+
+// Clear cache when auth changes
+function onAuthChange() {
+  isLoggedInCache = null
+}
+```
+
+Use a Map (not a hook) so it works everywhere: utilities, event handlers, not just React components.
+
+Reference: [https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast](https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast)
+
+### 7.5 Cache Storage API Calls
+
+**Impact: LOW-MEDIUM (reduces expensive I/O)**
+
+`localStorage`, `sessionStorage`, and `document.cookie` are synchronous and expensive. Cache reads in memory.
+
+**Incorrect: reads storage on every call**
+
+```typescript
+function getTheme() {
+  return localStorage.getItem('theme') ?? 'light'
+}
+// Called 10 times = 10 storage reads
+```
+
+**Correct: Map cache**
+
+```typescript
+const storageCache = new Map<string, string | null>()
+
+function getLocalStorage(key: string) {
+  if (!storageCache.has(key)) {
+    storageCache.set(key, localStorage.getItem(key))
+  }
+  return storageCache.get(key)
+}
+
+function setLocalStorage(key: string, value: string) {
+  localStorage.setItem(key, value)
+  storageCache.set(key, value)  // keep cache in sync
+}
+```
+
+Use a Map (not a hook) so it works everywhere: utilities, event handlers, not just React components.
+
+**Cookie caching:**
+
+```typescript
+let cookieCache: Record<string, string> | null = null
+
+function getCookie(name: string) {
+  if (!cookieCache) {
+    cookieCache = Object.fromEntries(
+      document.cookie.split('; ').map(c => c.split('='))
+    )
+  }
+  return cookieCache[name]
+}
+```
+
+**Important: invalidate on external changes**
+
+```typescript
+window.addEventListener('storage', (e) => {
+  if (e.key) storageCache.delete(e.key)
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    storageCache.clear()
+  }
+})
+```
+
+If storage can change externally (another tab, server-set cookies), invalidate cache:
+
+### 7.6 Combine Multiple Array Iterations
+
+**Impact: LOW-MEDIUM (reduces iterations)**
+
+Multiple `.filter()` or `.map()` calls iterate the array multiple times. Combine into one loop.
+
+**Incorrect: 3 iterations**
+
+```typescript
+const admins = users.filter(u => u.isAdmin)
+const testers = users.filter(u => u.isTester)
+const inactive = users.filter(u => !u.isActive)
+```
+
+**Correct: 1 iteration**
+
+```typescript
+const admins: User[] = []
+const testers: User[] = []
+const inactive: User[] = []
+
+for (const user of users) {
+  if (user.isAdmin) admins.push(user)
+  if (user.isTester) testers.push(user)
+  if (!user.isActive) inactive.push(user)
+}
+```
+
+### 7.7 Defer Non-Critical Work with requestIdleCallback
+
+**Impact: MEDIUM (keeps UI responsive during background tasks)**
+
+Use `requestIdleCallback()` to schedule non-critical work during browser idle periods. This keeps the main thread free for user interactions and animations, reducing jank and improving perceived performance.
+
+**Incorrect: blocks main thread during user interaction**
+
+```typescript
+function handleSearch(query: string) {
+  const results = searchItems(query)
+  setResults(results)
+
+  // These block the main thread immediately
+  analytics.track('search', { query })
+  saveToRecentSearches(query)
+  prefetchTopResults(results.slice(0, 3))
+}
+```
+
+**Correct: defers non-critical work to idle time**
+
+```typescript
+function handleSearch(query: string) {
+  const results = searchItems(query)
+  setResults(results)
+
+  // Defer non-critical work to idle periods
+  requestIdleCallback(() => {
+    analytics.track('search', { query })
+  })
+
+  requestIdleCallback(() => {
+    saveToRecentSearches(query)
+  })
+
+  requestIdleCallback(() => {
+    prefetchTopResults(results.slice(0, 3))
+  })
+}
+```
+
+**With timeout for required work:**
+
+```typescript
+// Ensure analytics fires within 2 seconds even if browser stays busy
+requestIdleCallback(
+  () => analytics.track('page_view', { path: location.pathname }),
+  { timeout: 2000 }
+)
+```
+
+**Chunking large tasks:**
+
+```typescript
+function processLargeDataset(items: Item[]) {
+  let index = 0
+
+  function processChunk(deadline: IdleDeadline) {
+    // Process items while we have idle time (aim for <50ms chunks)
+    while (index < items.length && deadline.timeRemaining() > 0) {
+      processItem(items[index])
+      index++
+    }
+
+    // Schedule next chunk if more items remain
+    if (index < items.length) {
+      requestIdleCallback(processChunk)
+    }
+  }
+
+  requestIdleCallback(processChunk)
+}
+```
+
+**With fallback for unsupported browsers:**
+
+```typescript
+const scheduleIdleWork = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1))
+
+scheduleIdleWork(() => {
+  // Non-critical work
+})
+```
+
+**When to use:**
+
+- Analytics and telemetry
+
+- Saving state to localStorage/IndexedDB
+
+- Prefetching resources for likely next actions
+
+- Processing non-urgent data transformations
+
+- Lazy initialization of non-critical features
+
+**When NOT to use:**
+
+- User-initiated actions that need immediate feedback
+
+- Rendering updates the user is waiting for
+
+- Time-sensitive operations
+
+### 7.8 Early Length Check for Array Comparisons
+
+**Impact: MEDIUM-HIGH (avoids expensive operations when lengths differ)**
+
+When comparing arrays with expensive operations (sorting, deep equality, serialization), check lengths first. If lengths differ, the arrays cannot be equal.
+
+In real-world applications, this optimization is especially valuable when the comparison runs in hot paths (event handlers, render loops).
+
+**Incorrect: always runs expensive comparison**
+
+```typescript
+function hasChanges(current: string[], original: string[]) {
+  // Always sorts and joins, even when lengths differ
+  return current.sort().join() !== original.sort().join()
+}
+```
+
+Two O(n log n) sorts run even when `current.length` is 5 and `original.length` is 100. There is also overhead of joining the arrays and comparing the strings.
+
+**Correct (O(1) length check first):**
+
+```typescript
+function hasChanges(current: string[], original: string[]) {
+  // Early return if lengths differ
+  if (current.length !== original.length) {
+    return true
+  }
+  // Only sort when lengths match
+  const currentSorted = current.toSorted()
+  const originalSorted = original.toSorted()
+  for (let i = 0; i < currentSorted.length; i++) {
+    if (currentSorted[i] !== originalSorted[i]) {
+      return true
+    }
+  }
+  return false
+}
+```
+
+This new approach is more efficient because:
+
+- It avoids the overhead of sorting and joining the arrays when lengths differ
+
+- It avoids consuming memory for the joined strings (especially important for large arrays)
+
+- It avoids mutating the original arrays
+
+- It returns early when a difference is found
+
+### 7.9 Early Return from Functions
+
+**Impact: LOW-MEDIUM (avoids unnecessary computation)**
+
+Return early when result is determined to skip unnecessary processing.
+
+**Incorrect: processes all items even after finding answer**
+
+```typescript
+function validateUsers(users: User[]) {
+  let hasError = false
+  let errorMessage = ''
+  
+  for (const user of users) {
+    if (!user.email) {
+      hasError = true
+      errorMessage = 'Email required'
+    }
+    if (!user.name) {
+      hasError = true
+      errorMessage = 'Name required'
+    }
+    // Continues checking all users even after error found
+  }
+  
+  return hasError ? { valid: false, error: errorMessage } : { valid: true }
+}
+```
+
+**Correct: returns immediately on first error**
+
+```typescript
+function validateUsers(users: User[]) {
+  for (const user of users) {
+    if (!user.email) {
+      return { valid: false, error: 'Email required' }
+    }
+    if (!user.name) {
+      return { valid: false, error: 'Name required' }
+    }
+  }
+
+  return { valid: true }
+}
+```
+
+### 7.10 Hoist RegExp Creation
+
+**Impact: LOW-MEDIUM (avoids recreation)**
+
+Don't create RegExp inside render. Hoist to module scope or memoize with `useMemo()`.
+
+**Incorrect: new RegExp every render**
+
+```tsx
+function Highlighter({ text, query }: Props) {
+  const regex = new RegExp(`(${query})`, 'gi')
+  const parts = text.split(regex)
+  return <>{parts.map((part, i) => ...)}</>
+}
+```
+
+**Correct: memoize or hoist**
+
+```tsx
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function Highlighter({ text, query }: Props) {
+  const regex = useMemo(
+    () => new RegExp(`(${escapeRegex(query)})`, 'gi'),
+    [query]
+  )
+  const parts = text.split(regex)
+  return <>{parts.map((part, i) => ...)}</>
+}
+```
+
+**Warning: global regex has mutable state**
+
+```typescript
+const regex = /foo/g
+regex.test('foo')  // true, lastIndex = 3
+regex.test('foo')  // false, lastIndex = 0
+```
+
+Global regex (`/g`) has mutable `lastIndex` state:
+
+### 7.11 Use flatMap to Map and Filter in One Pass
+
+**Impact: LOW-MEDIUM (eliminates intermediate array)**
+
+Chaining `.map().filter(Boolean)` creates an intermediate array and iterates twice. Use `.flatMap()` to transform and filter in a single pass.
+
+**Incorrect: 2 iterations, intermediate array**
+
+```typescript
+const userNames = users
+  .map(user => user.isActive ? user.name : null)
+  .filter(Boolean)
+```
+
+**Correct: 1 iteration, no intermediate array**
+
+```typescript
+const userNames = users.flatMap(user =>
+  user.isActive ? [user.name] : []
+)
+```
+
+**More examples:**
+
+```typescript
+// Extract valid emails from responses
+// Before
+const emails = responses
+  .map(r => r.success ? r.data.email : null)
+  .filter(Boolean)
+
+// After
+const emails = responses.flatMap(r =>
+  r.success ? [r.data.email] : []
+)
+
+// Parse and filter valid numbers
+// Before
+const numbers = strings
+  .map(s => parseInt(s, 10))
+  .filter(n => !isNaN(n))
+
+// After
+const numbers = strings.flatMap(s => {
+  const n = parseInt(s, 10)
+  return isNaN(n) ? [] : [n]
+})
+```
+
+**When to use:**
+
+- Transforming items while filtering some out
+
+- Conditional mapping where some inputs produce no output
+
+- Parsing/validating where invalid inputs should be skipped
+
+### 7.12 Use Loop for Min/Max Instead of Sort
+
+**Impact: LOW (O(n) instead of O(n log n))**
+
+Finding the smallest or largest element only requires a single pass through the array. Sorting is wasteful and slower.
+
+**Incorrect (O(n log n) - sort to find latest):**
+
+```typescript
+interface Project {
+  id: string
+  name: string
+  updatedAt: number
+}
+
+function getLatestProject(projects: Project[]) {
+  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
+  return sorted[0]
+}
+```
+
+Sorts the entire array just to find the maximum value.
+
+**Incorrect (O(n log n) - sort for oldest and newest):**
+
+```typescript
+function getOldestAndNewest(projects: Project[]) {
+  const sorted = [...projects].sort((a, b) => a.updatedAt - b.updatedAt)
+  return { oldest: sorted[0], newest: sorted[sorted.length - 1] }
+}
+```
+
+Still sorts unnecessarily when only min/max are needed.
+
+**Correct (O(n) - single loop):**
+
+```typescript
+function getLatestProject(projects: Project[]) {
+  if (projects.length === 0) return null
+  
+  let latest = projects[0]
+  
+  for (let i = 1; i < projects.length; i++) {
+    if (projects[i].updatedAt > latest.updatedAt) {
+      latest = projects[i]
+    }
+  }
+  
+  return latest
+}
+
+function getOldestAndNewest(projects: Project[]) {
+  if (projects.length === 0) return { oldest: null, newest: null }
+  
+  let oldest = projects[0]
+  let newest = projects[0]
+  
+  for (let i = 1; i < projects.length; i++) {
+    if (projects[i].updatedAt < oldest.updatedAt) oldest = projects[i]
+    if (projects[i].updatedAt > newest.updatedAt) newest = projects[i]
+  }
+  
+  return { oldest, newest }
+}
+```
+
+Single pass through the array, no copying, no sorting.
+
+**Alternative: Math.min/Math.max for small arrays**
+
+```typescript
+const numbers = [5, 2, 8, 1, 9]
+const min = Math.min(...numbers)
+const max = Math.max(...numbers)
+```
+
+This works for small arrays, but can be slower or just throw an error for very large arrays due to spread operator limitations. Maximal array length is approximately 124000 in Chrome 143 and 638000 in Safari 18; exact numbers may vary - see [the fiddle](https://jsfiddle.net/qw1jabsx/4/). Use the loop approach for reliability.
+
+### 7.13 Use Set/Map for O(1) Lookups
+
+**Impact: LOW-MEDIUM (O(n) to O(1))**
+
+Convert arrays to Set/Map for repeated membership checks.
+
+**Incorrect (O(n) per check):**
+
+```typescript
+const allowedIds = ['a', 'b', 'c', ...]
+items.filter(item => allowedIds.includes(item.id))
+```
+
+**Correct (O(1) per check):**
+
+```typescript
+const allowedIds = new Set(['a', 'b', 'c', ...])
+items.filter(item => allowedIds.has(item.id))
+```
+
+### 7.14 Use toSorted() Instead of sort() for Immutability
+
+**Impact: MEDIUM-HIGH (prevents mutation bugs in React state)**
+
+`.sort()` mutates the array in place, which can cause bugs with React state and props. Use `.toSorted()` to create a new sorted array without mutation.
+
+**Incorrect: mutates original array**
+
+```typescript
+function UserList({ users }: { users: User[] }) {
+  // Mutates the users prop array!
+  const sorted = useMemo(
+    () => users.sort((a, b) => a.name.localeCompare(b.name)),
+    [users]
+  )
+  return <div>{sorted.map(renderUser)}</div>
+}
+```
+
+**Correct: creates new array**
+
+```typescript
+function UserList({ users }: { users: User[] }) {
+  // Creates new sorted array, original unchanged
+  const sorted = useMemo(
+    () => users.toSorted((a, b) => a.name.localeCompare(b.name)),
+    [users]
+  )
+  return <div>{sorted.map(renderUser)}</div>
+}
+```
+
+**Why this matters in React:**
+
+1. Props/state mutations break React's immutability model - React expects props and state to be treated as read-only
+
+2. Causes stale closure bugs - Mutating arrays inside closures (callbacks, effects) can lead to unexpected behavior
+
+**Browser support: fallback for older browsers**
+
+```typescript
+// Fallback for older browsers
+const sorted = [...items].sort((a, b) => a.value - b.value)
+```
+
+`.toSorted()` is available in all modern browsers (Chrome 110+, Safari 16+, Firefox 115+, Node.js 20+). For older environments, use spread operator:
+
+**Other immutable array methods:**
+
+- `.toSorted()` - immutable sort
+
+- `.toReversed()` - immutable reverse
+
+- `.toSpliced()` - immutable splice
+
+- `.with()` - immutable element replacement
+
+---
+
+## 8. Advanced Patterns
+
+**Impact: LOW**
+
+Advanced patterns for specific cases that require careful implementation.
+
+### 8.1 Do Not Put Effect Events in Dependency Arrays
+
+**Impact: LOW (avoids unnecessary effect re-runs and lint errors)**
+
+Effect Event functions do not have a stable identity. Their identity intentionally changes on every render. Do not include the function returned by `useEffectEvent` in a `useEffect` dependency array. Keep the actual reactive values as dependencies and call the Effect Event from inside the effect body or subscriptions created by that effect.
+
+**Incorrect: Effect Event added as a dependency**
+
+```tsx
+import { useEffect, useEffectEvent } from 'react'
+
+function ChatRoom({ roomId, onConnected }: {
+  roomId: string
+  onConnected: () => void
+}) {
+  const handleConnected = useEffectEvent(onConnected)
+
+  useEffect(() => {
+    const connection = createConnection(roomId)
+    connection.on('connected', handleConnected)
+    connection.connect()
+
+    return () => connection.disconnect()
+  }, [roomId, handleConnected])
+}
+```
+
+Including the Effect Event in dependencies makes the effect re-run every render and triggers the React Hooks lint rule.
+
+**Correct: depend on reactive values, not the Effect Event**
+
+```tsx
+import { useEffect, useEffectEvent } from 'react'
+
+function ChatRoom({ roomId, onConnected }: {
+  roomId: string
+  onConnected: () => void
+}) {
+  const handleConnected = useEffectEvent(onConnected)
+
+  useEffect(() => {
+    const connection = createConnection(roomId)
+    connection.on('connected', handleConnected)
+    connection.connect()
+
+    return () => connection.disconnect()
+  }, [roomId])
+}
+```
+
+Reference: [https://react.dev/reference/react/useEffectEvent#effect-event-in-deps](https://react.dev/reference/react/useEffectEvent#effect-event-in-deps)
+
+### 8.2 Initialize App Once, Not Per Mount
+
+**Impact: LOW-MEDIUM (avoids duplicate init in development)**
+
+Do not put app-wide initialization that must run once per app load inside `useEffect([])` of a component. Components can remount and effects will re-run. Use a module-level guard or top-level init in the entry module instead.
+
+**Incorrect: runs twice in dev, re-runs on remount**
+
+```tsx
+function Comp() {
+  useEffect(() => {
+    loadFromStorage()
+    checkAuthToken()
+  }, [])
+
+  // ...
+}
+```
+
+**Correct: once per app load**
+
+```tsx
+let didInit = false
+
+function Comp() {
+  useEffect(() => {
+    if (didInit) return
+    didInit = true
+    loadFromStorage()
+    checkAuthToken()
+  }, [])
+
+  // ...
+}
+```
+
+Reference: [https://react.dev/learn/you-might-not-need-an-effect#initializing-the-application](https://react.dev/learn/you-might-not-need-an-effect#initializing-the-application)
+
+### 8.3 Store Event Handlers in Refs
+
+**Impact: LOW (stable subscriptions)**
+
+Store callbacks in refs when used in effects that shouldn't re-subscribe on callback changes.
+
+**Incorrect: re-subscribes on every render**
+
+```tsx
+function useWindowEvent(event: string, handler: (e) => void) {
+  useEffect(() => {
+    window.addEventListener(event, handler)
+    return () => window.removeEventListener(event, handler)
+  }, [event, handler])
+}
+```
+
+**Correct: stable subscription**
+
+```tsx
+import { useEffectEvent } from 'react'
+
+function useWindowEvent(event: string, handler: (e) => void) {
+  const onEvent = useEffectEvent(handler)
+
+  useEffect(() => {
+    window.addEventListener(event, onEvent)
+    return () => window.removeEventListener(event, onEvent)
+  }, [event])
+}
+```
+
+**Alternative: use `useEffectEvent` if you're on latest React:**
+
+`useEffectEvent` provides a cleaner API for the same pattern: it creates a stable function reference that always calls the latest version of the handler.
+
+### 8.4 useEffectEvent for Stable Callback Refs
+
+**Impact: LOW (prevents effect re-runs)**
+
+Access latest values in callbacks without adding them to dependency arrays. Prevents effect re-runs while avoiding stale closures.
+
+**Incorrect: effect re-runs on every callback change**
+
+```tsx
+function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const timeout = setTimeout(() => onSearch(query), 300)
+    return () => clearTimeout(timeout)
+  }, [query, onSearch])
+}
+```
+
+**Correct: using React's useEffectEvent**
+
+```tsx
+import { useEffectEvent } from 'react';
+
+function SearchInput({ onSearch }: { onSearch: (q: string) => void }) {
+  const [query, setQuery] = useState('')
+  const onSearchEvent = useEffectEvent(onSearch)
+
+  useEffect(() => {
+    const timeout = setTimeout(() => onSearchEvent(query), 300)
+    return () => clearTimeout(timeout)
+  }, [query])
+}
+```
+
+---
+
+## References
+
+1. [https://react.dev](https://react.dev)
+2. [https://nextjs.org](https://nextjs.org)
+3. [https://swr.vercel.app](https://swr.vercel.app)
+4. [https://github.com/shuding/better-all](https://github.com/shuding/better-all)
+5. [https://github.com/isaacs/node-lru-cache](https://github.com/isaacs/node-lru-cache)
+6. [https://vercel.com/blog/how-we-optimized-package-imports-in-next-js](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js)
+7. [https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast](https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast)
 ````
 
 ## File: docs/examples/end-to-end/deliveries/AGENTS.md
@@ -18431,251 +18431,6 @@ Phase 3 — Notion 純 TypeScript 實作
 - [`py_fn/src/infrastructure/persistence/firestore/document_repository.py`](../../../../py_fn/src/infrastructure/persistence/firestore/document_repository.py) — Firestore document schema
 ````
 
-## File: docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md
-````markdown
-# Workspace Nav — Notion & NotebookLM Tab Implementation Guide
-
-## Purpose
-
-本文件說明如何以現有 Xuanwu 架構（Hexagonal DDD + Next.js App Router）實作
-`notion` 與 `notebooklm` 兩個主域在 workspace 導覽層的**完整分頁畫面**。
-
-前一步驟（`workspace-nav-model.ts` 已新增 8 個 tab 項目）只完成了**導覽資料層**的定義。
-本文件延續那個基線，說明資料層、行為層、UI / Navigation 層各自該做什麼，以及如何在不違反邊界規則的前提下串接起來。
-
----
-
-## 1. 三層模型對照表
-
-### 1.1 Notion — 知識與資料結構
-
-| 層次 | 內容 |
-|---|---|
-| **資料層 (Data / Resource Layer)** | `Page` — 階層式內容容器，含 `parentPageId`、`blockIds[]`、`iconUrl`、`coverUrl`；`Block` — 最小內容單元（text / image / code / table 等）；`Database` — 具型別屬性的結構化集合（text / number / select / date / relation）；`View` — 資料庫的呈現設定（table / board / calendar / gallery / timeline）；`Template` — 可重用頁面或資料庫鷹架（scope: workspace / org / global；category: page / database / workflow）；`Comment` — 頁面或 Block 上的討論串 |
-| **行為層 (Behavior / Capability Layer)** | Page: `CreatePage`、`RenamePage`、`ArchivePage`、`QueryPages`；Block: `AppendBlock`、`UpdateBlock`；Database: `CreateDatabase`、`AddProperty`、`QueryDatabase`；View: `CreateView`（type / filter / sort）；Template: `ApplyTemplate`（erase 再植入）；Collaboration: `AddComment`、`ResolveComment` |
-| **UI / Navigation 層** | `notion.knowledge` → 知識中心（page tree 入口）；`notion.pages` → 頁面瀏覽器（樹狀 + 搜尋）；`notion.database` → 結構化資料視圖（table / board 切換）；`notion.templates` → 範本庫 |
-
-### 1.2 NotebookLM — AI 理解與推理
-
-| 層次 | 內容 |
-|---|---|
-| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`documentIds[]`、`model`、status）；`Document` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: user / assistant / system；`content`）|
-| **行為層 (Behavior / Capability Layer)** | Notebook: `CreateNotebook`、`AddDocumentToNotebook`、`RemoveDocument`、`GenerateNotebookResponse`、`ArchiveNotebook`；Document: `CreateDocument`（upload trigger）、`ArchiveDocument`、`DeleteDocument`；Conversation: `StartConversation`、`AddMessage`（user message → RAG grounding → assistant reply）|
-| **UI / Navigation 層** | `notebooklm.notebook` → RAG 查詢（notebook 列表 + 執行 grounding query）；`notebooklm.ai-chat` → AI 對話（Conversation thread UI）；`notebooklm.sources` → 來源文件（Document 上傳 / 狀態追蹤）；`notebooklm.research` → 研究摘要（Conversation synthesis / summary 視圖）|
-
----
-
-## 2. 目前已完成的基線
-
-```
-src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts
-```
-
-已定義的 tab 項目（`WORKSPACE_TAB_ITEMS`）：
-
-```typescript
-// notion group
-{ id: "notion.knowledge",  value: "Knowledge",  label: "知識",   domainGroup: "notion" }
-{ id: "notion.pages",      value: "Pages",      label: "頁面",   domainGroup: "notion" }
-{ id: "notion.database",   value: "Database",   label: "資料庫", domainGroup: "notion" }
-{ id: "notion.templates",  value: "Templates",  label: "範本",   domainGroup: "notion" }
-
-// notebooklm group
-{ id: "notebooklm.notebook", value: "Notebook", label: "RAG 查詢",  domainGroup: "notebooklm" }
-{ id: "notebooklm.ai-chat",  value: "AiChat",   label: "AI 對話",   domainGroup: "notebooklm" }
-{ id: "notebooklm.sources",  value: "Sources",  label: "來源文件",  domainGroup: "notebooklm" }
-{ id: "notebooklm.research", value: "Research", label: "研究摘要",  domainGroup: "notebooklm" }
-```
-
-`WorkspaceTabValue` union 已含 `Pages | Database | Templates | Sources | Research`。
-`DEFAULT_NAV_PREFS.pinnedWorkspace` 已依 domain 分組排列，所有新 ID 都在預設清單中。
-Legacy aliases（`NotionPages`、`NotionDatabase`、`NotionTemplates`、`NotebookSources`、`NotebookResearch`）已加入 `WORKSPACE_TAB_ALIASES`。
-
----
-
-## 3. 下一步實作路徑
-
-### 3.1 `workspace-route-screens.tsx` — 新增 tab 分支
-
-`WorkspaceDetailRouteScreen` 的 `<section>` 目前只處理 `Overview`，其餘 tab 顯示佔位文字。
-每個新 tab 需補上對應的 **route section component**。
-
-**原則**：
-- Section component 只做 UI composition，不含業務邏輯。
-- 呼叫 module use case 必須透過 server action 或 tRPC 路由，**不直接 import use case class**。
-- 跨模組資料只能透過 `@/modules/notion` 或 `@/modules/notebooklm` 的 `index.ts` 公開介面取得。
-
-**範例結構（notion.pages）**：
-
-```tsx
-// 在 WorkspaceDetailRouteScreen 的 <section> 中加入：
-{activeTab === "Pages" && (
-  <NotionPagesSection workspaceId={workspaceId} accountId={accountId} />
-)}
-```
-
-```tsx
-// 新建 src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
-"use client";
-// 職責：只做列表 UI + 呼叫 server action。
-// 禁止：import Page 聚合、import PageRepository。
-```
-
-#### 各 tab 對應的 section components
-
-| Tab value | 建議 component 名稱 | 所屬模組 adapter 路徑 |
-|---|---|---|
-| `Pages` | `NotionPagesSection` | `src/modules/notion/adapters/inbound/react/` |
-| `Database` | `NotionDatabaseSection` | `src/modules/notion/adapters/inbound/react/` |
-| `Templates` | `NotionTemplatesSection` | `src/modules/notion/adapters/inbound/react/` |
-| `Knowledge` | `NotionKnowledgeSection` | `src/modules/notion/adapters/inbound/react/` |
-| `Notebook` | `NotebooklmNotebookSection` | `src/modules/notebooklm/adapters/inbound/react/` |
-| `AiChat` | `NotebooklmAiChatSection` | `src/modules/notebooklm/adapters/inbound/react/` |
-| `Sources` | `NotebooklmSourcesSection` | `src/modules/notebooklm/adapters/inbound/react/` |
-| `Research` | `NotebooklmResearchSection` | `src/modules/notebooklm/adapters/inbound/react/` |
-
-### 3.2 `workspace-shell-interop.tsx` — Quick Access 補齊
-
-目前 `WORKSPACE_QUICK_ACCESS_TEMPLATES` 只有 `knowledge`、`notebook`、`ai-chat` 的快捷鍵。
-需要補上 `pages`、`database`、`templates`、`sources`、`research`：
-
-```typescript
-// 範例（加入 pages）
-{
-  id: "pages",
-  href: "{workspaceBaseHref}?tab=Pages",
-  label: "頁面",
-  icon: <FileText className="size-3.5" />,
-  isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Pages",
-},
-```
-
-對應 lucide-react icon 建議：
-
-| Tab | Icon |
-|---|---|
-| `Pages` | `FileText` (已 import) |
-| `Database` | `Table2` |
-| `Templates` | `LayoutTemplate` |
-| `Sources` | `FileStack` |
-| `Research` | `BookOpen` |
-
-### 3.3 Server Actions（notion）
-
-在 `src/modules/notion/adapters/inbound/server-actions/` 建立各 tab 所需的 server action 檔案。
-必須遵守「先 Zod parse → 呼叫 use case → 回傳 CommandResult」的三段式：
-
-```typescript
-// src/modules/notion/adapters/inbound/server-actions/page-actions.ts
-"use server";
-import { z } from "zod";
-import { createClientNotionUseCases } from "../../outbound/firebase-composition";
-
-const QueryPagesInputSchema = z.object({
-  workspaceId: z.string().uuid(),
-  accountId: z.string(),
-  parentPageId: z.string().nullable().optional(),
-});
-
-export async function queryPagesAction(rawInput: unknown) {
-  const input = QueryPagesInputSchema.parse(rawInput);
-  const { queryPages } = createClientNotionUseCases();
-  return queryPages.execute(input);
-}
-```
-
-現有 use case：
-- `QueryPagesUseCase` → 給 `notion.pages` / `notion.knowledge`
-- `CreatePageUseCase` → 新增頁面
-- `RenamePageUseCase` → 重命名
-- `ArchivePageUseCase` → 封存
-
-### 3.4 Server Actions（notebooklm）
-
-```typescript
-// src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts
-"use server";
-import { z } from "zod";
-import { createClientNotebooklmUseCases } from "../../outbound/firebase-composition";
-
-const ListNotebooksInputSchema = z.object({
-  workspaceId: z.string().uuid(),
-  accountId: z.string(),
-});
-
-export async function listNotebooksAction(rawInput: unknown) {
-  const input = ListNotebooksInputSchema.parse(rawInput);
-  const { listNotebooks } = createClientNotebooklmUseCases();
-  return listNotebooks.execute(input);
-}
-```
-
-現有 use case：
-- `CreateNotebookUseCase` → 給 `notebooklm.notebook`
-- `AddDocumentToNotebookUseCase` → 給 `notebooklm.sources`
-- `GenerateNotebookResponseUseCase` → 給 `notebooklm.notebook` / `notebooklm.research`
-
----
-
-## 4. 開發順序建議
-
-遵循架構核心規則中的「Use Case → Domain → (Application ↔ Ports iterate) → Infrastructure → Interface」：
-
-```
-1. 確認 use case 已存在（或新增）  → src/modules/<context>/subdomains/*/application/
-2. 建立 server action                → src/modules/<context>/adapters/inbound/server-actions/
-3. 建立 section component            → src/modules/<context>/adapters/inbound/react/
-4. 在 workspace-route-screens.tsx 加入 tab branch
-5. 在 workspace-shell-interop.tsx 補 quick access item
-6. lint + build 驗證
-```
-
----
-
-## 5. 邊界規則摘要
-
-| 規則 | 正確做法 | 禁止做法 |
-|---|---|---|
-| 跨模組呼叫 | `import { ... } from "@/modules/notion"` | `import { Page } from "@/modules/notion/subdomains/page/domain/entities/Page"` |
-| Server Action 輸入 | 先 `ZodSchema.parse(rawInput)` | 直接把 `rawInput` 傳進 use case |
-| UI component | 只做 composition + 呼叫 action | 在 `.tsx` 內含 business invariant |
-| notion AI 能力 | 透過 `ai` 模組路由 | 在 notion 內直接呼叫 Genkit |
-| notebooklm 文件所有權 | 透過 `platform.FileAPI` 處理 ownership | 直接呼叫 raw `StorageAPI` |
-| 任務物化 | 透過 `TaskMaterializationWorkflowPort` | notebooklm 直接寫入 workspace repository |
-
----
-
-## 6. 與 workspace-nav-model.ts 的對應關係
-
-```
-WorkspaceTabValue          →  domainGroup    →  backing subdomain
-──────────────────────────────────────────────────────────────────
-Knowledge                  →  notion         →  notion/page (page tree overview)
-Pages                      →  notion         →  notion/page
-Database                   →  notion         →  notion/database + notion/view
-Templates                  →  notion         →  notion/template
-Notebook                   →  notebooklm     →  notebooklm/notebook
-AiChat                     →  notebooklm     →  notebooklm/conversation
-Sources                    →  notebooklm     →  notebooklm/document
-Research                   →  notebooklm     →  notebooklm/conversation (synthesis mode)
-```
-
-`resolveTabDomainGroup(tab)` 可在 shell sidebar 中用於條件顯示對應主域的 section nav，
-`resolveWorkspaceTabValue(rawValue)` 可在 `WorkspaceDetailRouteScreen` 的 URL 解析時使用。
-
----
-
-## 7. 相關文件
-
-- [`workspace-nav-model.ts`](../../src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts) — tab 資料模型
-- [`workspace-route-screens.tsx`](../../src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx) — route section composition
-- [`workspace-shell-interop.tsx`](../../src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx) — shell quick access + nav preferences
-- [`docs/structure/contexts/notion/subdomains.md`](../contexts/notion/subdomains.md) — notion 子域策略
-- [`docs/structure/contexts/notebooklm/subdomains.md`](../contexts/notebooklm/subdomains.md) — notebooklm 子域策略
-- [`docs/examples/modules/feature/notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — notebooklm/source 文件處理 use case
-- [`docs/structure/system/hard-rules-consolidated.md`](../hard-rules-consolidated.md) — 全域邊界規則
-````
-
 ## File: docs/structure/contexts/ai/bounded-contexts.md
 ````markdown
 # AI Bounded Contexts
@@ -19018,9 +18773,23 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../domain/subdomains.md](../../domain/subdomains.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
 
 ## File: docs/structure/contexts/analytics/bounded-contexts.md
@@ -19144,9 +18913,23 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../domain/subdomains.md](../../domain/subdomains.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
 
 ## File: docs/structure/contexts/billing/bounded-contexts.md
@@ -19296,9 +19079,23 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../domain/subdomains.md](../../domain/subdomains.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
 
 ## File: docs/structure/contexts/iam/ubiquitous-language.md
@@ -22678,321 +22475,249 @@ Remember: Your goal is to make repository exploration intelligent and efficient.
 - [py-fn-ts-capability-bridge.md](./py-fn-ts-capability-bridge.md) — **gap 分析**：py_fn 已有的真實能力（parse_document, rag_query callables, Firestore document schema）與 TypeScript `src/modules/notebooklm` 側現有 stubs 的對照，以及三種橋接模式（Firestore 訂閱 / HTTPS Callable / GCS 上傳觸發）與各 tab 的優先實作路徑。
 ````
 
-## File: docs/structure/contexts/ai/AGENTS.md
+## File: docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md
 ````markdown
-# AI Context Agent Guide
+# Workspace Nav — Notion & NotebookLM Tab Implementation Guide
 
-## Mission
+## Purpose
 
-保護 ai 主域作為共享 AI capability 邊界。任何變更都應維持 ai 擁有 generation、orchestration、distillation、retrieval、safety 與 provider policy 語言，而不是吸收內容正典或推理輸出語義。
+本文件說明如何以現有 Xuanwu 架構（Hexagonal DDD + Next.js App Router）實作
+`notion` 與 `notebooklm` 兩個主域在 workspace 導覽層的**完整分頁畫面**。
 
-## Canonical Ownership
-
-- generation
-- orchestration
-- distillation
-- retrieval
-- memory
-- context
-- safety
-- tool-calling
-- reasoning
-- conversation
-- evaluation
-- tracing
-
-## Route Here When
-
-- 問題核心是 LLM 呼叫、模型選擇、provider routing。
-- 問題需要 prompt 組裝、flow 執行或 tool calling 協調。
-- 問題需要將長輸出濃縮（distillation）或進行向量搜尋（retrieval）。
-- 問題需要安全護欄、配額或 AI 執行觀測。
-
-## Route Elsewhere When
-
-- 身份與存取治理屬於 iam。
-- 訂閱、配額商業政策屬於 billing。
-- 正典知識內容屬於 notion。
-- 對話推理輸出、grounding、notebook synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
-- ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
-- ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
-- 下游消費只能透過 `src/modules/ai/index.ts` 公開邊界，不能直接存取 subdomain internals。
-- Genkit 與 LLM SDK 只能存在於 infrastructure 層。
-
-## Hard Prohibitions
-
-- 不得讓 domain 或 application 直接依賴 Genkit、Firebase SDK 或框架語言。
-- 不得讓其他模組直接 import ai 的 infrastructure 或 subdomain domain 層。
-- 不得在 ai 內定義 KnowledgeArtifact、Notebook、Membership 等他域正典型別。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個 ai subdomain，再決定 port 定義與 adapter 位置。
-- 新能力若已有對應子域，先在該子域擴展，不要新建平行子域。
-- 奧卡姆剃刀：若一個 port + use case 就能承接需求，不要再新增 service 或 manager。
-- distillation 若只是摘要變體，先確認 generation 子域的 summarize 是否已足夠，再決定是否升級為 distillation use case。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Use Cases"]
-	A --> D["AI Domain / Ports"]
-	P["Ports"] -. used by .-> A
-	X["Infrastructure / Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	IAM["iam upstream"] -->|actor / access| Boundary["ai API boundary"]
-	Billing["billing upstream"] -->|entitlement| Boundary
-	Boundary --> App["Application orchestration"]
-	App --> Generation["generation"]
-	App --> Distillation["distillation"]
-	App --> Retrieval["retrieval"]
-	App --> Safety["safety"]
-	Generation --> Output["AI capability signal"]
-	Distillation --> Output
-	Retrieval --> Output
-	Output --> Notion["notion consumer"]
-	Output --> NotebookLM["notebooklm consumer"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0003-context-map.md
-````
-
-## File: docs/structure/contexts/ai/ddd-strategic-design.md
-````markdown
-# DDD 戰略設計規則 — AI Context
-
-本文件整理 Domain-Driven Design 的核心戰略概念，並直接對應 `ai` bounded context 的設計決策。
+前一步驟（`workspace-nav-model.ts` 已新增 8 個 tab 項目）只完成了**導覽資料層**的定義。
+本文件延續那個基線，說明資料層、行為層、UI / Navigation 層各自該做什麼，以及如何在不違反邊界規則的前提下串接起來。
 
 ---
 
-## 一、核心戰略概念（Strategic Design Rules）
+## 1. 三層模型對照表
 
-1. 通用語言（Ubiquitous Language）必須在團隊內部與程式碼中保持一致，任何領域概念的命名都應直接反映業務語意。
+### 1.1 Notion — 知識與資料結構
 
-2. 界限上下文（Bounded Context）必須明確定義語言與模型的邊界，不同上下文之間不得共享模型語意。
-
-3. 每個界限上下文內的模型必須保持一致性（Consistency），跨上下文則允許語意轉換（Translation）。
-
-4. 子域（Subdomain）應依業務價值分類為核心域（Core）、支撐域（Supporting）、通用域（Generic），並依此分配設計與資源優先級。
-
-5. 核心域（Core Domain）必須集中最強設計能力與抽象，避免被基礎設施或通用邏輯污染。
-
-6. 支撐域（Supporting Subdomain）應服務核心域需求，但不承載關鍵競爭優勢。
-
-7. 通用域（Generic Subdomain）應優先採用現成方案（如第三方服務），避免自行重複建造。
-
-8. 上下文映射（Context Mapping）必須明確描述各界限上下文之間的關係與整合方式。
-
-9. 不同上下文之間的整合必須選擇適當模式（如 Anti-Corruption Layer、Conformist、Open Host Service 等）。
-
-10. 反腐層（Anti-Corruption Layer）必須用於隔離外部模型，防止污染內部核心模型。
-
-11. 開放主機服務（Open Host Service）應提供穩定、公開的契約，供其他上下文整合使用。
-
-12. 發佈語言（Published Language）應定義跨上下文共享的標準資料格式與語意。
-
-13. 共享核心（Shared Kernel）僅應在高度信任的團隊之間使用，並需嚴格控制變更。
-
-14. 客戶-供應者（Customer-Supplier）關係應明確定義需求與交付責任，以維持演進穩定。
-
-15. 順從者（Conformist）模式應在無法影響上游模型時採用，接受其語意限制。
-
-16. 分離方式（Separate Ways）應在整合成本過高時採用，允許上下文完全獨立演化。
-
-17. 大泥球（Big Ball of Mud）應被避免，若存在則需逐步以界限上下文重構。
-
-18. 戰略設計必須優先於戰術設計，先定義邊界與關係，再設計內部模型與程式結構。
-
----
-
-## 二、戰略地圖（概念關係）
-
-```
-Subdomain（業務問題空間）
-        ↓ 對應
-Bounded Context（解決方案邊界）
-        ↓
-Context Mapping（上下文關係）
-        ↓
-Integration Patterns（整合模式）
-```
-
----
-
-## 三、關鍵對照
-
-| 概念 | 本質 |
-|------|------|
-| Subdomain | 業務問題分類（商業視角） |
-| Bounded Context | 技術模型邊界（系統視角） |
-| Ubiquitous Language | 語意一致性 |
-| Context Mapping | 上下文關係圖 |
-
----
-
-## 四、AI Context 的子域分類映射
-
-```
-Core Domain（核心競爭優勢）
-  → prompt-pipeline     — AI 提示詞編排與多家族分派
-  → inference           — 模型推理執行（content-generation、content-distillation）
-
-Supporting Domain（服務核心域）
-  → memory-context      — 跨對話記憶與可重用上下文整理
-  → evaluation-policy   — AI 品質與回歸評估政策
-  → safety-guardrail    — 安全護欄與內容保護
-
-Generic Domain（可外包／第三方替換）
-  → models              — LLM Provider 適配（可替換 provider）
-  → embeddings          — Embedding 向量（py_fn 執行，schema 在此）
-  → tokens              — 計費權重與配額（依 provider 計費模型）
-```
-
-> **選型原則**：Core Domain 自建最強抽象；Supporting Domain 謹慎設計；Generic Domain 優先接入 provider adapters，不重複造輪。
-
----
-
-## 五、整合模式說明（`ai` context 適用）
-
-| 整合模式 | 適用場景 |
-|----------|---------|
-| Anti-Corruption Layer | `ai` 接入外部 LLM provider（OpenAI、Gemini）時保護內部語意 |
-| Open Host Service | `ai` 模組的 `index.ts` 提供穩定公開契約供 `notion`、`notebooklm` 消費 |
-| Published Language | `AICapabilitySignal`、`ModelPolicy`、`SafetyGuardrail` 等跨域 token |
-| Conformist | `notion`、`notebooklm` 直接接受 `ai` 的能力語意，不轉換 |
-| Customer-Supplier | `platform.ai` → `notion`、`notebooklm`（upstream 定義，downstream 消費）|
-
----
-
-## 六、最重要的總結（戰略層一句話）
-
-> 先切邊界（Bounded Context），再談模型；先定關係（Context Map），再寫程式。
-
----
-
-## 文件網
-
-- [subdomains.md](./subdomains.md) — `ai` context 子域清單
-- [bounded-contexts.md](./bounded-contexts.md) — 邊界責任定義
-- [context-map.md](./context-map.md) — 與其他 context 的關係圖
-- [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
-- [../../bounded-contexts.md](../domain/bounded-contexts.md) — 全域主域所有權地圖
-- ../../decisions/0002-bounded-contexts.md — ADR：界限上下文決策
-````
-
-## File: docs/structure/contexts/ai/subdomains.md
-````markdown
-# AI Subdomains
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
+| 層次 | 內容 |
 |---|---|
-| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
-| orchestration | 執行圖與多步驟 AI workflow 協調 |
-| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
-| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
-| memory | 對話歷史與跨輪次狀態保存 |
-| context | prompt 上下文組裝與 token 預算管理 |
-| safety | 安全護欄、有害內容過濾與合規保護 |
-| tool-calling | 外部工具調用協調與結果回注 |
-| reasoning | 推理步驟管理（chain-of-thought、反思） |
-| conversation | AI 互動輪次追蹤與歷史管理 |
-| evaluation | 輸出品質評估與回歸基準 |
-| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+| **資料層 (Data / Resource Layer)** | `Page` — 階層式內容容器，含 `parentPageId`、`blockIds[]`、`iconUrl`、`coverUrl`；`Block` — 最小內容單元（text / image / code / table 等）；`Database` — 具型別屬性的結構化集合（text / number / select / date / relation）；`View` — 資料庫的呈現設定（table / board / calendar / gallery / timeline）；`Template` — 可重用頁面或資料庫鷹架（scope: workspace / org / global；category: page / database / workflow）；`Comment` — 頁面或 Block 上的討論串 |
+| **行為層 (Behavior / Capability Layer)** | Page: `CreatePage`、`RenamePage`、`ArchivePage`、`QueryPages`；Block: `AppendBlock`、`UpdateBlock`；Database: `CreateDatabase`、`AddProperty`、`QueryDatabase`；View: `CreateView`（type / filter / sort）；Template: `ApplyTemplate`（erase 再植入）；Collaboration: `AddComment`、`ResolveComment` |
+| **UI / Navigation 層** | `notion.knowledge` → 知識中心（page tree 入口）；`notion.pages` → 頁面瀏覽器（樹狀 + 搜尋）；`notion.database` → 結構化資料視圖（table / board 切換）；`notion.templates` → 範本庫 |
 
-## Subdomain Groupings
+### 1.2 NotebookLM — AI 理解與推理
 
-| Group | Subdomains |
+| 層次 | 內容 |
 |---|---|
-| Core Execution | generation、orchestration、distillation |
-| Knowledge Access | retrieval、memory、context |
-| Quality & Safety | safety、evaluation、tracing |
-| Extended Capability | tool-calling、reasoning、conversation |
+| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`documentIds[]`、`model`、status）；`Document` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: user / assistant / system；`content`）|
+| **行為層 (Behavior / Capability Layer)** | Notebook: `CreateNotebook`、`AddDocumentToNotebook`、`RemoveDocument`、`GenerateNotebookResponse`、`ArchiveNotebook`；Document: `CreateDocument`（upload trigger）、`ArchiveDocument`、`DeleteDocument`；Conversation: `StartConversation`、`AddMessage`（user message → RAG grounding → assistant reply）|
+| **UI / Navigation 層** | `notebooklm.notebook` → RAG 查詢（notebook 列表 + 執行 grounding query）；`notebooklm.ai-chat` → AI 對話（Conversation thread UI）；`notebooklm.sources` → 來源文件（Document 上傳 / 狀態追蹤）；`notebooklm.research` → 研究摘要（Conversation synthesis / summary 視圖）|
 
-## Active Baseline
+---
 
-- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
-- 其餘子域為骨架狀態，依需求逐步實作。
+## 2. 目前已完成的基線
 
-## Distillation 說明
-
-distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
-
-- generation：輸入 prompt → 輸出文字。
-- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
-
-下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
-
-### Distilled Rules
-
-- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
-- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
-- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
-- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
-- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
-
-## Anti-Patterns
-
-- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
-- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
-- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
-- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
-
-## Copilot Generation Rules
-
-- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
-- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
-- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case (application)"]
-	UseCase --> Port["Port (domain)"]
-	Infra["Infrastructure adapter"] -. implements .-> Port
+```
+src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts
 ```
 
-## Correct Subdomain Interaction
+已定義的 tab 項目（`WORKSPACE_TAB_ITEMS`）：
 
-```mermaid
-flowchart LR
-	Orchestration["orchestration"] --> Generation["generation"]
-	Orchestration --> Distillation["distillation"]
-	Orchestration --> Retrieval["retrieval"]
-	Context["context"] --> Orchestration
-	Memory["memory"] --> Context
-	Safety["safety"] --> Orchestration
+```typescript
+// notion group
+{ id: "notion.knowledge",  value: "Knowledge",  label: "知識",   domainGroup: "notion" }
+{ id: "notion.pages",      value: "Pages",      label: "頁面",   domainGroup: "notion" }
+{ id: "notion.database",   value: "Database",   label: "資料庫", domainGroup: "notion" }
+{ id: "notion.templates",  value: "Templates",  label: "範本",   domainGroup: "notion" }
+
+// notebooklm group
+{ id: "notebooklm.notebook", value: "Notebook", label: "RAG 查詢",  domainGroup: "notebooklm" }
+{ id: "notebooklm.ai-chat",  value: "AiChat",   label: "AI 對話",   domainGroup: "notebooklm" }
+{ id: "notebooklm.sources",  value: "Sources",  label: "來源文件",  domainGroup: "notebooklm" }
+{ id: "notebooklm.research", value: "Research", label: "研究摘要",  domainGroup: "notebooklm" }
 ```
 
-## Document Network
+`WorkspaceTabValue` union 已含 `Pages | Database | Templates | Sources | Research`。
+`DEFAULT_NAV_PREFS.pinnedWorkspace` 已依 domain 分組排列，所有新 ID 都在預設清單中。
+Legacy aliases（`NotionPages`、`NotionDatabase`、`NotionTemplates`、`NotebookSources`、`NotebookResearch`）已加入 `WORKSPACE_TAB_ALIASES`。
 
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../domain/subdomains.md)
+---
+
+## 3. 下一步實作路徑
+
+### 3.1 `workspace-route-screens.tsx` — 新增 tab 分支
+
+`WorkspaceDetailRouteScreen` 的 `<section>` 目前只處理 `Overview`，其餘 tab 顯示佔位文字。
+每個新 tab 需補上對應的 **route section component**。
+
+**原則**：
+- Section component 只做 UI composition，不含業務邏輯。
+- 呼叫 module use case 必須透過 server action 或 tRPC 路由，**不直接 import use case class**。
+- 跨模組資料只能透過 `@/modules/notion` 或 `@/modules/notebooklm` 的 `index.ts` 公開介面取得。
+
+**範例結構（notion.pages）**：
+
+```tsx
+// 在 WorkspaceDetailRouteScreen 的 <section> 中加入：
+{activeTab === "Pages" && (
+  <NotionPagesSection workspaceId={workspaceId} accountId={accountId} />
+)}
+```
+
+```tsx
+// 新建 src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
+"use client";
+// 職責：只做列表 UI + 呼叫 server action。
+// 禁止：import Page 聚合、import PageRepository。
+```
+
+#### 各 tab 對應的 section components
+
+| Tab value | 建議 component 名稱 | 所屬模組 adapter 路徑 |
+|---|---|---|
+| `Pages` | `NotionPagesSection` | `src/modules/notion/adapters/inbound/react/` |
+| `Database` | `NotionDatabaseSection` | `src/modules/notion/adapters/inbound/react/` |
+| `Templates` | `NotionTemplatesSection` | `src/modules/notion/adapters/inbound/react/` |
+| `Knowledge` | `NotionKnowledgeSection` | `src/modules/notion/adapters/inbound/react/` |
+| `Notebook` | `NotebooklmNotebookSection` | `src/modules/notebooklm/adapters/inbound/react/` |
+| `AiChat` | `NotebooklmAiChatSection` | `src/modules/notebooklm/adapters/inbound/react/` |
+| `Sources` | `NotebooklmSourcesSection` | `src/modules/notebooklm/adapters/inbound/react/` |
+| `Research` | `NotebooklmResearchSection` | `src/modules/notebooklm/adapters/inbound/react/` |
+
+### 3.2 `workspace-shell-interop.tsx` — Quick Access 補齊
+
+目前 `WORKSPACE_QUICK_ACCESS_TEMPLATES` 只有 `knowledge`、`notebook`、`ai-chat` 的快捷鍵。
+需要補上 `pages`、`database`、`templates`、`sources`、`research`：
+
+```typescript
+// 範例（加入 pages）
+{
+  id: "pages",
+  href: "{workspaceBaseHref}?tab=Pages",
+  label: "頁面",
+  icon: <FileText className="size-3.5" />,
+  isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Pages",
+},
+```
+
+對應 lucide-react icon 建議：
+
+| Tab | Icon |
+|---|---|
+| `Pages` | `FileText` (已 import) |
+| `Database` | `Table2` |
+| `Templates` | `LayoutTemplate` |
+| `Sources` | `FileStack` |
+| `Research` | `BookOpen` |
+
+### 3.3 Server Actions（notion）
+
+在 `src/modules/notion/adapters/inbound/server-actions/` 建立各 tab 所需的 server action 檔案。
+必須遵守「先 Zod parse → 呼叫 use case → 回傳 CommandResult」的三段式：
+
+```typescript
+// src/modules/notion/adapters/inbound/server-actions/page-actions.ts
+"use server";
+import { z } from "zod";
+import { createClientNotionUseCases } from "../../outbound/firebase-composition";
+
+const QueryPagesInputSchema = z.object({
+  workspaceId: z.string().uuid(),
+  accountId: z.string(),
+  parentPageId: z.string().nullable().optional(),
+});
+
+export async function queryPagesAction(rawInput: unknown) {
+  const input = QueryPagesInputSchema.parse(rawInput);
+  const { queryPages } = createClientNotionUseCases();
+  return queryPages.execute(input);
+}
+```
+
+現有 use case：
+- `QueryPagesUseCase` → 給 `notion.pages` / `notion.knowledge`
+- `CreatePageUseCase` → 新增頁面
+- `RenamePageUseCase` → 重命名
+- `ArchivePageUseCase` → 封存
+
+### 3.4 Server Actions（notebooklm）
+
+```typescript
+// src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts
+"use server";
+import { z } from "zod";
+import { createClientNotebooklmUseCases } from "../../outbound/firebase-composition";
+
+const ListNotebooksInputSchema = z.object({
+  workspaceId: z.string().uuid(),
+  accountId: z.string(),
+});
+
+export async function listNotebooksAction(rawInput: unknown) {
+  const input = ListNotebooksInputSchema.parse(rawInput);
+  const { listNotebooks } = createClientNotebooklmUseCases();
+  return listNotebooks.execute(input);
+}
+```
+
+現有 use case：
+- `CreateNotebookUseCase` → 給 `notebooklm.notebook`
+- `AddDocumentToNotebookUseCase` → 給 `notebooklm.sources`
+- `GenerateNotebookResponseUseCase` → 給 `notebooklm.notebook` / `notebooklm.research`
+
+---
+
+## 4. 開發順序建議
+
+遵循架構核心規則中的「Use Case → Domain → (Application ↔ Ports iterate) → Infrastructure → Interface」：
+
+```
+1. 確認 use case 已存在（或新增）  → src/modules/<context>/subdomains/*/application/
+2. 建立 server action                → src/modules/<context>/adapters/inbound/server-actions/
+3. 建立 section component            → src/modules/<context>/adapters/inbound/react/
+4. 在 workspace-route-screens.tsx 加入 tab branch
+5. 在 workspace-shell-interop.tsx 補 quick access item
+6. lint + build 驗證
+```
+
+---
+
+## 5. 邊界規則摘要
+
+| 規則 | 正確做法 | 禁止做法 |
+|---|---|---|
+| 跨模組呼叫 | `import { ... } from "@/modules/notion"` | `import { Page } from "@/modules/notion/subdomains/page/domain/entities/Page"` |
+| Server Action 輸入 | 先 `ZodSchema.parse(rawInput)` | 直接把 `rawInput` 傳進 use case |
+| UI component | 只做 composition + 呼叫 action | 在 `.tsx` 內含 business invariant |
+| notion AI 能力 | 透過 `ai` 模組路由 | 在 notion 內直接呼叫 Genkit |
+| notebooklm 文件所有權 | 透過 `platform.FileAPI` 處理 ownership | 直接呼叫 raw `StorageAPI` |
+| 任務物化 | 透過 `TaskMaterializationWorkflowPort` | notebooklm 直接寫入 workspace repository |
+
+---
+
+## 6. 與 workspace-nav-model.ts 的對應關係
+
+```
+WorkspaceTabValue          →  domainGroup    →  backing subdomain
+──────────────────────────────────────────────────────────────────
+Knowledge                  →  notion         →  notion/page (page tree overview)
+Pages                      →  notion         →  notion/page
+Database                   →  notion         →  notion/database + notion/view
+Templates                  →  notion         →  notion/template
+Notebook                   →  notebooklm     →  notebooklm/notebook
+AiChat                     →  notebooklm     →  notebooklm/conversation
+Sources                    →  notebooklm     →  notebooklm/document
+Research                   →  notebooklm     →  notebooklm/conversation (synthesis mode)
+```
+
+`resolveTabDomainGroup(tab)` 可在 shell sidebar 中用於條件顯示對應主域的 section nav，
+`resolveWorkspaceTabValue(rawValue)` 可在 `WorkspaceDetailRouteScreen` 的 URL 解析時使用。
+
+---
+
+## 7. 相關文件
+
+- [`workspace-nav-model.ts`](../../../../src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts) — tab 資料模型
+- [`workspace-route-screens.tsx`](../../../../src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx) — route section composition
+- [`workspace-shell-interop.tsx`](../../../../src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx) — shell quick access + nav preferences
+- [`docs/structure/contexts/notion/subdomains.md`](../../../structure/contexts/notion/subdomains.md) — notion 子域策略
+- [`docs/structure/contexts/notebooklm/subdomains.md`](../../../structure/contexts/notebooklm/subdomains.md) — notebooklm 子域策略
+- [`docs/examples/modules/feature/notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — notebooklm/source 文件處理 use case
+- [`docs/structure/system/hard-rules-consolidated.md`](../../../structure/system/hard-rules-consolidated.md) — 全域邊界規則
 ````
 
 ## File: docs/structure/contexts/analytics/subdomains.md
@@ -23085,506 +22810,6 @@ iam 是 governance bounded context。它是身份、tenant 與 access decision �
 | authentication | sign-in、registration、credential recovery、provider bootstrap |
 | authorization | higher-level policy orchestration and decision semantics |
 | federation | external identity provider linking, SSO, and trust delegation |
-````
-
-## File: docs/structure/contexts/notebooklm/AGENTS.md
-````markdown
-# NotebookLM Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
-
-## Canonical Ownership
-
-- source
-- notebook
-- conversation
-- synthesis (owns retrieval, grounding, generation, evaluation as internal facets)
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source ingestion、synthesis（retrieval、grounding、generation、evaluation）。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源轉成可對話與可綜合的推理材料。
-
-## Route Elsewhere When
-
-- 正典知識頁面、內容分類、正式發布屬於 notion。
-- 身份、授權與 tenant 治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
-- 工作區生命週期、共享與存在感屬於 workspace。
-
-## Guardrails
-
-- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
-- synthesis 將 retrieval、grounding、generation、evaluation 作為內部 facets；只有當語言分歧或演化速率不同時才拆分為獨立子域。
-- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- application 只能透過 ports 協調 synthesis 所需的外部能力。
-- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
-
-## Hard Prohibitions
-
-- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
-- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
-- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
-- 不得建立獨立的 `ai` 子域與 ai context 語義重疊。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
-- 共享模型能力若已由 ai context 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
-- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
-- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
-- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["NotebookLM Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Notion["notion upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Conversation / Source / Synthesis pipeline"]
-	Domain --> Output["Grounded output / evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
-````
-
-## File: docs/structure/contexts/notebooklm/subdomains.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤、引用與 ingestion 編排 |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback |
-| conversation-versioning | 對話版本與快照策略 |
-
-## Future Split Triggers
-
-`synthesis` 子域將 retrieval、grounding、generation、evaluation 作為內部 facets。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|---|---|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-## Anti-Patterns
-
-- 不把 retrieval 與 grounding 併回 source 或 ai context 接入層，否則推理鏈條失去清楚邊界。
-- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為可演化的關注點。
-- 不把 notebook、conversation 混成單一 UI 容器語意，否則無法維持聚合邊界。
-- 不把 ai context 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
-- 不過早拆分子域：只有當語言分歧或演化速率不同時才拆分。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
-- 模型 provider、配額與安全護欄優先歸 ai context；notebooklm 在 synthesis 保留 pipeline 本地語義。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
-- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Source["Source ingestion"] --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Generation["Generation"]
-	Generation --> Evaluation["Evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
-````
-
-## File: docs/structure/contexts/notion/AGENTS.md
-````markdown
-# Notion Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
-
-## Canonical Ownership
-
-**戰略語言（DDD strategic vocabulary）：**
-- knowledge（頁面知識語義，實作層整合至 page）
-- authoring（文章建立與驗證）
-- collaboration（協作評論與共編）
-- database（結構化知識庫，原 knowledge-database）
-- taxonomy（分類法與語義組織，整合至 page / database metadata）
-- relations（關聯與 backlink，以 view 承接呈現）
-- knowledge-engagement（知識使用行為量測）
-- attachments（附件與媒體關聯儲存）
-- automation（知識事件觸發自動化）
-- external-knowledge-sync（外部系統雙向整合）
-- notes（個人輕量筆記）
-- templates（頁面模板管理）
-- publishing（正式發布與對外交付）
-- knowledge-versioning（全域版本快照策略）
-
-**實作層子域（`src/modules/notion/` 目錄名稱）：**
-- `page` — 頁面文件創作、版本、knowledge 語義整合
-- `block` — 頁面內容區塊
-- `database` — 結構化知識庫（含 taxonomy/relations 的 metadata 維度）
-- `view` — database 多視圖、篩選、排序（含 relations 呈現）
-- `collaboration` — 協作評論、共編
-- `template` — 模板管理
-
-## Route Here When
-
-- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
-- 問題需要把輸入吸收成正式知識內容的正典狀態。
-- 問題需要定義內容版本、內容協作與內容交付。
-
-## Route Elsewhere When
-
-- 身份、租戶與授權治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
-- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- notion 的正典內容不等於 notebooklm 的衍生輸出。
-- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
-- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
-- notion 可以消費 ai context，但不擁有 AI provider / policy 的正典邊界。
-- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
-- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
-
-## Hard Prohibitions
-
-- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
-- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
-- 不得讓 notion 直接接管 iam 的 actor、tenant、access 或 billing 的 entitlement 治理責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
-- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 ai context，而不是在 notion 內重建 generic `ai` 子域。
-- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
-- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
-- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Notion Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
-	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
-	Output --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
-````
-
-## File: docs/structure/contexts/platform/AGENTS.md
-````markdown
-# Platform Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 platform 主域作為營運支撐邊界。platform 提供 notification、background-job、search、audit-log、observability 等橫切能力，不再持有 account、organization 的正典語言（已遷入 iam）。任何變更應維持對 operational services 的所有權，不吸收 iam、billing、ai、workspace、notion、notebooklm 的正典語言。
-
-## Canonical Ownership
-
-> **已遷出（不在 platform）：**  
-> - `account` / `account-profile` → `iam/subdomains/account/`  
-> - `organization` / `team` → `iam/subdomains/organization/`
-
-- platform-config
-- feature-flag
-- onboarding
-- compliance
-- consent
-- integration
-- secret-management
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- support
-
-## Route Here When
-
-- 問題核心是 notification、search、audit-log、observability 或支援能力。
-- 問題核心是平台級 workflow、background job、integration 或 secret-management。
-- 問題需要提供其他主域共同消費的 operational services。
-
-## Route Elsewhere When
-
-- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
-- 知識內容建立、分類、關聯與發布屬於 notion。
-- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- Actor、Identity、Tenant、AccessDecision 屬於 iam，platform 不重定義它們。
-- Subscription、Entitlement、BillingEvent 屬於 billing，platform 只消費 capability signal。
-- shared AI capability 屬於 ai context，不等於 notebooklm 的推理輸出所有權。
-- secret-management 應與 integration 分離，避免憑證語義擴散。
-- consent 與 compliance 有關，但不是同一個 bounded context。
-- platform 提供營運服務，不接管其他主域的正典內容生命週期。
-- account 與 organization 正典語言屬於 iam，請勿在 platform 重建。
-
-## Dependency Direction
-
-- platform 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- access-control、entitlement、secret-management 等外部依賴只能透過 ports 進入核心。
-- infrastructure 只實作治理能力與外部整合，不反向定義 Actor、Tenant、Entitlement 語言。
-
-## Hard Prohibitions
-
-- 不得讓 platform 直接接管 workspace、notion、notebooklm 的正典業務流程。
-- 不得讓 domain 或 application 直接依賴第三方身份、通知、計費或 secret SDK。
-- 不得在其他主域重建 Actor、Tenant、Entitlement、Secret 的正典模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 platform 作為 operational supplier，而不是治理、內容或推理 owner。
-- notion 與 notebooklm 若需要 AI 能力，先走 ai context 的 published language / API boundary。
-- 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
-- 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
-- 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Platform Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
-	Boundary --> App["Application orchestration"]
-	App --> Domain["Identity / Access / Entitlement / AI / Secret"]
-	Domain --> PL["Published governance language"]
-	PL --> Workspace["workspace"]
-	PL --> Notion["notion"]
-	PL --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
-````
-
-## File: docs/structure/contexts/workspace/AGENTS.md
-````markdown
-# Workspace Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、日誌、排程與工作流，而不是吸收平台治理或知識內容正典。
-
-## Canonical Ownership
-
-- audit
-- feed
-- scheduling
-- approve
-- issue
-- orchestration
-- quality
-- settlement
-- task
-- task-formation
-- lifecycle
-- membership
-- sharing
-- presence
-
-## Route Here When
-
-- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
-- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
-- 問題需要提供其他主域運作所需的 workspace scope。
-
-## Route Elsewhere When
-
-- 身份、授權與 tenant 治理屬於 iam；商業權益屬於 billing；通知與營運服務屬於 platform。
-- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
-- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- workspace 的 Member 或 Membership 不等於 iam 的 Actor 或 Identity。
-- feed 是投影，不是工作區正典狀態來源。
-- audit 是不可否認追蹤，不等於使用者導向動態流。
-- sharing 定義暴露範圍，但不取代 billing entitlement 與 iam access-control。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
-- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
-
-## Hard Prohibitions
-
-- 不得把 iam 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
-- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
-- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
-- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
-- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
-- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Workspace Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
-	Domain --> Scope["workspace scope / membership scope / share scope"]
-	Scope --> Notion["notion downstream"]
-	Scope --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
 ````
 
 ## File: docs/tooling/nextjs/state-machine-model.md
@@ -24154,6 +23379,55 @@ import { generateId, isValidUUID, type UUID } from '@infra/uuid'
 
 ```ts
 import { ... } from '@infra/zod'
+```
+````
+
+## File: packages/integration-ai/AGENTS.md
+````markdown
+# integration-ai — Agent Rules
+
+此套件是 **AI 服務整合的唯一封裝層**：Genkit、Google AI、OpenAI。
+AI 能力的 provider 設定與 flow 呼叫必須集中在此，業務層不得直接 import AI SDK。
+
+---
+
+## Route Here
+
+| 類型 | 說明 |
+|---|---|
+| Genkit flow 呼叫 | `runGenkitFlow(flowName, input)` — flow 呼叫入口 |
+| AI provider 初始化 | Google AI / OpenAI client 設定 |
+| AI 服務 API 型別 | `GenerateRequest`、`GenerateResponse` 等共用型別 |
+| Safety / policy 設定原語 | 供 `src/modules/ai/` 消費的 policy config |
+
+## Route Elsewhere
+
+| 類型 | 正確位置 |
+|---|---|
+| AI 業務邏輯（prompt 組裝、RAG 流程） | `src/modules/ai/` |
+| Notebook 推理流程 | `src/modules/notebooklm/` |
+| Genkit flow **定義**（非呼叫） | `src/modules/ai/` 或 py_fn/ |
+
+---
+
+## 嚴禁
+
+```ts
+// ❌ 在 modules/notebooklm 直接 import AI SDK
+import { generate } from '@genkit-ai/core'
+
+// ✅ 透過此套件或 modules/ai 邊界
+import { runGenkitFlow } from '@integration-ai'
+```
+
+- 不得在此套件加入業務 prompt 範本或 RAG 邏輯
+- 不得 import `src/modules/*`
+- 環境設定只能來自 env vars（`GOOGLE_AI_API_KEY` 等）
+
+## Alias
+
+```ts
+import { ... } from '@integration-ai'
 ```
 ````
 
@@ -25456,229 +24730,196 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 - 任何流程調整，優先更新 `instructions/README.md` 與 `prompts/README.md` 索引。
 ````
 
-## File: docs/structure/contexts/_template.md
+## File: docs/structure/contexts/ai/AGENTS.md
 ````markdown
-# Context Template
+# AI Context Agent Guide
 
-本樣板在本次任務限制下，依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 原則設計，用於建立新的 context 文件集合。
+## Mission
 
-## Files To Create
+保護 ai 主域作為共享 AI capability 邊界。任何變更都應維持 ai 擁有 generation、orchestration、distillation、retrieval、safety 與 provider policy 語言，而不是吸收內容正典或推理輸出語義。
 
-- README.md
-- subdomains.md
-- bounded-contexts.md
-- context-map.md
-- ubiquitous-language.md
-- AGENTS.md
+## Canonical Ownership
 
-## README.md Template
+- generation
+- orchestration
+- distillation
+- retrieval
+- memory
+- context
+- safety
+- tool-calling
+- reasoning
+- conversation
+- evaluation
+- tracing
 
-- Purpose
-- Why This Context Exists
-- Context Summary
-- Baseline Subdomains
-- Recommended Gap Subdomains
-- Key Relationships
-- Reading Order
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Anti-Pattern Rules
-- Correct Interaction Flow
-- Document Network
-- Constraints
+## Route Here When
 
-## subdomains.md Template
+- 問題核心是 LLM 呼叫、模型選擇、provider routing。
+- 問題需要 prompt 組裝、flow 執行或 tool calling 協調。
+- 問題需要將長輸出濃縮（distillation）或進行向量搜尋（retrieval）。
+- 問題需要安全護欄、配額或 AI 執行觀測。
 
-- Baseline Subdomains
-- Recommended Gap Subdomains
-- Recommended Order
-- Copilot Generation Rules
-- Dependency Direction Flow
-- Correct Interaction Flow
-- Document Network
+## Route Elsewhere When
 
-## bounded-contexts.md Template
+- 身份與存取治理屬於 iam。
+- 訂閱、配額商業政策屬於 billing。
+- 正典知識內容屬於 notion。
+- 對話推理輸出、grounding、notebook synthesis 屬於 notebooklm。
 
-- Domain Role
-- Baseline Bounded Contexts
-- Recommended Gap Bounded Contexts
-- Domain Invariants
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Anti-Patterns
-- Correct Interaction Flow
-- Document Network
+## Guardrails
 
-## context-map.md Template
+- ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
+- ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
+- ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
+- 下游消費只能透過 `src/modules/ai/index.ts` 公開邊界，不能直接存取 subdomain internals。
+- Genkit 與 LLM SDK 只能存在於 infrastructure 層。
 
-- Context Role
-- Relationships
-- Mapping Rules
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Anti-Patterns
-- Correct Interaction Flow
-- Document Network
+## Hard Prohibitions
 
-## ubiquitous-language.md Template
-
-- Canonical Terms
-- Language Rules
-- Avoid
-- Naming Anti-Patterns
-- Copilot Generation Rules
-- Dependency Direction Flow
-- Correct Interaction Flow
-- Document Network
-
-## AGENTS.md Template
-
-- Mission
-- Canonical Ownership
-- Route Here When
-- Route Elsewhere When
-- Guardrails
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Hard Prohibitions
-- Correct Interaction Flow
-- Document Network
-
-## Consistency Rules
-
-- context-map 只能使用與戰略文件一致的關係方向。
-- subdomains 與 bounded-contexts 必須使用同一套 baseline / gap 子域集合。
-- README 只做入口摘要，不重寫 ADR 級決策。
-- 若新 context 需要 symmetric relationship，必須先明確說明為什麼不採用 upstream-downstream。
-- 若 context 文件涉及模組骨架或分層，必須與 `docs/structure/domain/bounded-context-subdomain-template.md` 一致：`<bounded-context>` 根層可承接 context-wide 的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，不應被簡化成只有 `docs/` 與 `subdomains/`；subdomain 預設採 core-first，adapter/UI 預設由根層依子域分組承接。
-- 若文件提到 `core/`，必須明確說明它只是可選包裝；`infrastructure/` 與 `interfaces/` 仍屬外層，不得被包進泛用 `core/`。
-
-## Mandatory Anti-Pattern Rules
-
-- 不得把 domain 寫成依賴 framework、transport、storage 或第三方 SDK 的層。
-- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混用在同一關係敘事。
-- 不得把其他主域的正典模型直接拿來當成本地主域模型。
+- 不得讓 domain 或 application 直接依賴 Genkit、Firebase SDK 或框架語言。
+- 不得讓其他模組直接 import ai 的 infrastructure 或 subdomain domain 層。
+- 不得在 ai 內定義 KnowledgeArtifact、Notebook、Membership 等他域正典型別。
 
 ## Copilot Generation Rules
 
-- 先決定 owning context、語言、邊界與依賴方向，再生成程式碼。
-- 若需求屬於 shared policy、published language 或跨 subdomain orchestration，允許在 `<bounded-context>` 根層使用 hexagonal layers；否則優先落回擁有責任的 subdomain。
-- 奧卡姆剃刀：若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
-- 任何新文件都應沿用同一套規則、流程圖與文件網絡章節。
+- 生成程式碼時，先確認需求屬於哪個 ai subdomain，再決定 port 定義與 adapter 位置。
+- 新能力若已有對應子域，先在該子域擴展，不要新建平行子域。
+- 奧卡姆剃刀：若一個 port + use case 就能承接需求，不要再新增 service 或 manager。
+- distillation 若只是摘要變體，先確認 generation 子域的 summarize 是否已足夠，再決定是否升級為 distillation use case。
 
-## Occam Guardrail
-
-- 若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
-
-## Diagram Templates
+## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
+	I["Interfaces / Driving Adapters"] --> A["Application / Use Cases"]
+	A --> D["AI Domain / Ports"]
+	P["Ports"] -. used by .-> A
+	X["Infrastructure / Adapters"] -. implements .-> P
+	X --> D
 ```
 
+## Correct Interaction Flow
+
 ```mermaid
 flowchart LR
-	Upstream["Upstream"] -->|Published Language| Boundary["API boundary"]
-	Boundary --> Translation["Local DTO / ACL"]
-	Translation --> Application["Application"]
-	Application --> Domain["Domain"]
+	IAM["iam upstream"] -->|actor / access| Boundary["ai API boundary"]
+	Billing["billing upstream"] -->|entitlement| Boundary
+	Boundary --> App["Application orchestration"]
+	App --> Generation["generation"]
+	App --> Distillation["distillation"]
+	App --> Retrieval["retrieval"]
+	App --> Safety["safety"]
+	Generation --> Output["AI capability signal"]
+	Distillation --> Output
+	Retrieval --> Output
+	Output --> Notion["notion consumer"]
+	Output --> NotebookLM["notebooklm consumer"]
 ```
 
 ## Document Network
 
-- [../README.md](../../README.md)
-- [../architecture-overview.md](../system/architecture-overview.md)
-- [../bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
-- [../bounded-contexts.md](../domain/bounded-contexts.md)
-- [../context-map.md](../system/context-map.md)
-- [../integration-guidelines.md](../system/integration-guidelines.md)
-- [../subdomains.md](../domain/subdomains.md)
-- [../ubiquitous-language.md](../domain/ubiquitous-language.md)
-- ../decisions/README.md
-````
-
-## File: docs/structure/contexts/ai/README.md
-````markdown
-# AI Context
-
-## Purpose
-
-ai 是共享 AI capability 主域。它負責 generation、orchestration、distillation、retrieval、memory、safety 與 provider routing，供 notion、notebooklm 等主域穩定消費。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 共享 AI capability orchestration |
-| Upstream Dependency | iam access policy、billing entitlement |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | 提供 AI 能力，不接管內容正典或推理輸出語義 |
-
-## Baseline Subdomains
-
-- generation — 文字生成，Genkit 接縫
-- orchestration — 執行圖與工作流協調
-- distillation — 將長輸出濃縮為精煉知識片段
-- retrieval — 向量搜尋與上下文抓取
-- memory — 對話歷史與狀態保存
-- context — prompt 上下文組裝
-- safety — 安全護欄與內容保護
-- tool-calling — 外部工具調用協調
-- reasoning — 推理步驟管理
-- conversation — AI 互動輪次管理
-- evaluation — 輸出品質評估
-- tracing — AI 執行觀測與追蹤
-
-## Key Relationships
-
-- 與 iam：消費 actor reference 與 access decision。
-- 與 billing：消費 entitlement signal 決定 AI 配額。
-- 與 notion：向 notion 提供 generate、summarize、distill 能力。
-- 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
-
-## Strategic Rules
-
-- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
-- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
-- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
-- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENTS.md](./AGENTS.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
-- 下游消費者只透過 `src/modules/ai/index.ts` 的公開匯出存取，不可直接依賴 ai 內部實作路徑。
-
-## Anti-Pattern Rules
-
-- 不把 notion 的 KnowledgeArtifact 或 notebooklm 的 Conversation 語義拉進 ai domain。
-- 不在 ai 內重建 identity 或 billing 邏輯。
-- 不讓下游模組直接呼叫 ai 的 infrastructure 或 subdomain internals。
-
-## Document Network
-
-- [AGENTS.md](./AGENTS.md)
+- [README.md](./README.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+````
+
+## File: docs/structure/contexts/ai/subdomains.md
+````markdown
+# AI Subdomains
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+
+## Subdomain Groupings
+
+| Group | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
+
+## Active Baseline
+
+- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
+- 其餘子域為骨架狀態，依需求逐步實作。
+
+## Distillation 說明
+
+distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
+
+- generation：輸入 prompt → 輸出文字。
+- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
+
+下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
+
+### Distilled Rules
+
+- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
+- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
+- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
+- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
+- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
+
+## Anti-Patterns
+
+- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
+- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
+- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
+- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
+
+## Copilot Generation Rules
+
+- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
+- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
+- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case (application)"]
+	UseCase --> Port["Port (domain)"]
+	Infra["Infrastructure adapter"] -. implements .-> Port
+```
+
+## Correct Subdomain Interaction
+
+```mermaid
+flowchart LR
+	Orchestration["orchestration"] --> Generation["generation"]
+	Orchestration --> Distillation["distillation"]
+	Orchestration --> Retrieval["retrieval"]
+	Context["context"] --> Orchestration
+	Memory["memory"] --> Context
+	Safety["safety"] --> Orchestration
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../domain/subdomains.md)
 ````
 
 ## File: docs/structure/contexts/analytics/README.md
@@ -25707,9 +24948,23 @@ analytics 是報表、指標與儀表板主域。它主要消費其他主域的�
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../system/context-map.md](../../system/context-map.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
 
 ## File: docs/structure/contexts/billing/README.md
@@ -25738,9 +24993,23 @@ billing 是商業與權益治理主域。它負責 billing event、subscription�
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../system/context-map.md](../../system/context-map.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
 
 ## File: docs/structure/contexts/iam/README.md
@@ -25769,691 +25038,121 @@ iam 是身份、驗證、授權、federation、session、租戶與存取治理�
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../system/context-map.md](../../system/context-map.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
 
-## File: docs/structure/contexts/notebooklm/bounded-contexts.md
+## File: docs/structure/contexts/notebooklm/AGENTS.md
 ````markdown
-# NotebookLM
+# NotebookLM Agent
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Domain Role
+## Mission
 
-notebooklm 是對話與推理主域。依 bounded context 原則，它應封裝來源匯入、檢索、grounding、對話、摘要、評估與版本化，使推理流程保持高凝聚且與正典知識內容邊界分離。
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
 
-## Baseline Bounded Contexts
+## Canonical Ownership
 
-| Cluster | Subdomains |
-|---|---|
-| Interaction Core | notebook, conversation, note |
-| Reasoning Output | source, synthesis, conversation-versioning |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| ingestion | 承接來源匯入、正規化與前處理 | source 會同時承載來源處理與來源語義 |
-| retrieval | 承接查詢、召回、排序與檢索策略 | synthesis 缺少清楚上游邊界 |
-| grounding | 承接 citation、evidence 對齊與答案可追溯性 | 引用語言無法形成正典邊界 |
-| evaluation | 承接品質評估、回歸比較與效果量測 | 品質語言只能散落在 analytics 或測試層 |
-
-## Domain Invariants
-
-- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 ai context 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
-- grounding 應能把輸出對齊到來源證據。
-- retrieval 是 synthesis 的上游能力，不應與 source reference 混成同一層。
-- evaluation 應描述品質，而不是單純使用量。
-- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
-
-## Dependency Direction
-
-- notebooklm 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
-- ingestion、retrieval、grounding 的外部整合必須由 adapter 實作，透過 port 注入到核心。
-- domain 不得向外依賴來源處理框架、模型供應商或傳輸協定。
-
-## Anti-Patterns
-
-- 把 retrieval、grounding、ingestion 重新塞回 ai context 接入層或 source，造成責任折疊。
-- 讓 synthesis 直接持有正典內容所有權，混淆 notion 與 notebooklm 邊界。
-- 讓 application service 直接呼叫外部 SDK，而不經過 port/adapter。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 retrieval、grounding、ingestion、evaluation 的獨立語義，再決定是否需要額外抽象。
-- 奧卡姆剃刀：不要為了形式上的對稱而新增子域；只有在責任、語義或演化速率不同時才拆分。
-- 若外部能力只服務單一明確邊界，優先用最小必要 port，而不是複製整套工具 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["NotebookLM bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	SourceInput["Source / governance / scope input"] --> Boundary["NotebookLM boundary"]
-	Boundary --> App["Use case orchestration"]
-	App --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Synthesis["Synthesis"]
-	Synthesis --> Evaluation["Evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0002-bounded-contexts.md
-````
-
-## File: docs/structure/contexts/notebooklm/context-map.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-notebooklm 消費 workspace scope、iam 治理、billing capability、ai signal 與 notion 內容來源，並輸出可追溯的對話、洞察與 synthesis。依 Context Mapper 思維，它是多個上游語言的下游整合者，但仍需維持自己的對話與推理邊界。
-
-## Relationships
-
-| Related Domain | Relationship Type | NotebookLM Position | Published Language |
-|---|---|---|---|
-| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
-| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
-| ai | Upstream/Downstream | downstream | ai capability signal、model policy、safety result |
-| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
-| notion | Upstream/Downstream | downstream | knowledge artifact reference、attachment reference、taxonomy hint |
-
-## Mapping Rules
-
-- notebooklm 依賴 iam、billing、ai 的結果，但不重建 actor、policy 或 secret 模型。
-- notebooklm 可消費 ai context 作為共享模型能力，但不擁有 provider / policy 所有權。
-- notebooklm 在 workspace scope 內運作，但不定義 workspace 生命周期或 sharing 規則。
-- notion 是 notebooklm 的重要 source supplier，notebooklm 不能反向直接改寫 notion 正典內容。
-- synthesis、grounding、evaluation 是 notebooklm 對外輸出的核心能力語言。
-
-## Dependency Direction
-
-- notebooklm 只作為 platform、workspace、notion 的 downstream consumer，不反向宣稱治理或正典內容所有權。
-- ACL 或 Conformist 只能由 notebooklm 這個 downstream 端選擇，不能回推到上游。
-- 跨主域資料進入 notebooklm 時，先落在 published language 或 local DTO，再進入本地主域語言。
-
-## Anti-Patterns
-
-- 把 notebooklm 寫成 notion 或 workspace 的上游治理來源。
-- 在同一主域關係上同時聲稱 ACL 與 Conformist。
-- 直接共享 notebook、source 或 conversation 的內部模型給其他主域使用。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 notebooklm 對 platform、workspace、notion 的 downstream 位置，再安排轉譯層。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要額外發明第二層 mapper 或雙重 ACL。
-- 上游只提供 published language；本地主域保護由 downstream 完成。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream contexts"] -->|Published Language| Boundary["notebooklm boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	IAM["iam"] -->|actor / tenant / access| Boundary["notebooklm API boundary"]
-	Billing["billing"] -->|entitlement| Boundary
-	AI["ai"] -->|capability / policy / safety| Boundary
-	Workspace["workspace"] -->|workspace scope| Boundary
-	Notion["notion"] -->|knowledge references| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["NotebookLM domain"]
-	Domain --> Result["Grounded synthesis / conversation output"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../system/context-map.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- [../../strategic-patterns.md](../system/strategic-patterns.md)
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
-````
-
-## File: docs/structure/contexts/notebooklm/README.md
-````markdown
-# NotebookLM Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 conversation-versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
-
-## Why This Context Exists
-
-- 把推理流程與正典知識內容分離。
-- 把來源匯入、檢索、grounding 與 synthesis 統整成同一主域。
-- 提供可回流到其他主域、但本質上仍屬衍生輸出的能力邊界。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 對話、來源處理、檢索與推理輸出 |
-| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope、notion 內容來源 |
-| Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
-| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容或共享 AI capability |
-
-## Baseline Subdomains
-
-- conversation
-- note
-- notebook
 - source
-- synthesis
-- conversation-versioning
+- notebook
+- conversation
+- synthesis (owns retrieval, grounding, generation, evaluation as internal facets)
 
-## Recommended Gap Subdomains
+## Route Here When
 
-- ingestion
-- retrieval
-- grounding
-- evaluation
+- 問題核心是 notebook、conversation、source ingestion、synthesis（retrieval、grounding、generation、evaluation）。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源轉成可對話與可綜合的推理材料。
 
-## Key Relationships
+## Route Elsewhere When
 
-- 與 iam：notebooklm 消費 actor、tenant 與 access decision。
-- 與 billing：notebooklm 消費 entitlement 與 subscription capability signal。
-- 與 ai：notebooklm 消費 ai capability、model policy 與 safety result。
-- 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
-- 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
+- 正典知識頁面、內容分類、正式發布屬於 notion。
+- 身份、授權與 tenant 治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
+- 工作區生命週期、共享與存在感屬於 workspace。
 
-## Reading Order
+## Guardrails
 
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENTS.md](./AGENTS.md)
+- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
+- synthesis 將 retrieval、grounding、generation、evaluation 作為內部 facets；只有當語言分歧或演化速率不同時才拆分為獨立子域。
+- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
+- 跨主域互動只經過 published language、API 邊界或事件。
 
 ## Dependency Direction
 
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- 跨主域只消費 published language、API boundary、events，不直接依賴他域內部模型。
+- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- application 只能透過 ports 協調 synthesis 所需的外部能力。
+- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
 
-## Anti-Pattern Rules
+## Hard Prohibitions
 
-- 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
-- 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
-- 不把 ingestion 與 source reference 混成同一個不可拆分責任。
-- 不把 ai context 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
+- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
+- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
+- 不得建立獨立的 `ai` 子域與 ai context 語義重疊。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 notebooklm 的衍生推理定位，再安排 retrieval、grounding、synthesis 的交互。
-- 模型接入、配額、供應商策略若屬共享能力，先消費 ai context；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義所有權。
-- 奧卡姆剃刀：只在必要時引入 port、ACL、DTO；不要因為未來也許會有需求就預先堆疊抽象。
-- 優先產生一條清楚的 upstream input -> translation -> application -> domain -> output 流程，而不是多條重疊流程。
+- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
+- 共享模型能力若已由 ai context 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
+- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
+- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
+- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["NotebookLM Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Platform["platform"] --> Boundary["notebooklm boundary"]
-	Workspace["workspace"] --> Boundary
-	Notion["notion"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["NotebookLM domain"]
-	Domain --> Output["Grounded answer / note / evaluation"]
+	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Notion["notion upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Conversation / Source / Synthesis pipeline"]
+	Domain --> Output["Grounded output / evaluation"]
 ```
 
 ## Document Network
 
-- [AGENTS.md](./AGENTS.md)
+- [README.md](./README.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../../README.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 ````
 
-## File: docs/structure/contexts/notebooklm/ubiquitous-language.md
+## File: docs/structure/contexts/notebooklm/subdomains.md
 ````markdown
 # NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
-| Conversation | Notebook 內的對話執行邊界 |
-| Message | 一則輸入或輸出對話項 |
-| Source | 被引用與推理的來源材料 |
-| Ingestion | 來源匯入、正規化與前處理流程 |
-| Retrieval | 從來源中召回候選片段的查詢能力 |
-| Grounding | 把輸出對齊到來源證據的能力 |
-| Citation | 輸出指回來源證據的引用關係 |
-| Synthesis | 綜合多來源後生成的衍生輸出 |
-| Note | 與 Notebook 關聯的輕量摘記 |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 |
-| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 |
-
-## Language Rules
-
-- 使用 Conversation，不使用 Chat 作為正典語彙。
-- 使用 Ingestion 與 Source 區分來源處理與來源語義。
-- 使用 Retrieval 與 Grounding 區分召回能力與證據對齊能力。
-- 使用 Synthesis 表示衍生綜合輸出，不把它直接稱為正典知識內容。
-- 使用 Evaluation 表示品質語言，不用 Analytics 混稱模型效果。
-
-## Avoid
-
-| Avoid | Use Instead |
-|---|---|
-| Chat | Conversation |
-| File Import | Ingestion |
-| Search Step | Retrieval |
-| Verified Answer | Grounded Synthesis |
-
-## Naming Anti-Patterns
-
-- 不用 Chat 混稱 Conversation 與 Notebook。
-- 不用 Search 混稱 Retrieval 與 Grounding。
-- 不用 Knowledge 或 Wiki 混稱 Synthesis 輸出，避免污染 notion 的正典語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，名稱先對齊 Notebook、Conversation、Retrieval、Grounding、Synthesis、Evaluation，再決定型別與模組位置。
-- 奧卡姆剃刀：若一個名詞已能準確表達語義，就不要再疊加第二個近義抽象名稱。
-- 命名要先保護邊界，再追求實作便利。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic language"] --> Context["NotebookLM language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Source["Source"] --> Ingestion["Ingestion"]
-	Ingestion --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Synthesis["Synthesis"]
-	Synthesis --> Evaluation["Evaluation"]
-```
-
-## Domain Layer Flow (enforced per subdomain)
-
-```mermaid
-flowchart LR
-  Domain["domain/ (aggregates, entities, ports/)"]
-  Application["application/ (use-cases, dtos)"]
-  Ports["domain/ports/ (IXxxPort interfaces)"]
-  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
-  Interfaces["interfaces/ (actions, queries, components)"]
-
-  Domain --> Application
-  Application --> Ports
-  Ports --> Infrastructure
-  Infrastructure --> Interfaces
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../domain/ubiquitous-language.md)
-- ../../decisions/0004-ubiquitous-language.md
-````
-
-## File: docs/structure/contexts/notion/bounded-contexts.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Content Core | knowledge, authoring, knowledge-database |
-| Collaboration and Change | collaboration, knowledge-versioning, templates |
-| Intelligence and Extension | knowledge-engagement, attachments, automation, external-knowledge-sync, notes |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 knowledge-database 會混入分類責任 |
-| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
-| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
-
-## Domain Invariants
-
-- 知識內容的正典狀態屬於 notion。
-- taxonomy 應獨立於具體 UI 視圖存在。
-- relations 應描述內容對內容的語義關係，而不是臨時連結。
-- ai context 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
-- publishing 只交付已被 notion 吸收的內容狀態。
-- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
-
-## Dependency Direction
-
-- notion 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
-- content lifecycle 由 knowledge、authoring、knowledge-database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
-- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
-
-## Anti-Patterns
-
-- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
-- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
-- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
-- 把 ai context 的共享能力提升成 notion 自己的 generic `ai` 子域所有權。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
-- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
-- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Notion bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
-	Boundary --> App["Use case orchestration"]
-	App --> Knowledge["Knowledge / Authoring / Database"]
-	Knowledge --> Taxonomy["Taxonomy / Relations"]
-	Taxonomy --> Publishing["Publishing / Knowledge Versioning"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0002-bounded-contexts.md
-````
-
-## File: docs/structure/contexts/notion/context-map.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-notion 對其他主域提供知識內容語言。依 Context Mapper 的 context map 思維，它消費 workspace scope、iam 治理、billing capability 與 ai signal，並向 notebooklm 提供可被引用的知識內容來源。
-
-## Relationships
-
-| Related Domain | Relationship Type | Notion Position | Published Language |
-|---|---|---|---|
-| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
-| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
-| ai | Upstream/Downstream | downstream | ai capability signal、model policy、safety result |
-| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
-| notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
-
-## Mapping Rules
-
-- notion 消費 iam、billing、ai 的結果，但不重建 actor、tenant、policy 模型。
-- notion 可消費 ai context 來支援內容 use case，但不擁有 AI provider / policy 所有權。
-- notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
-- notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
-- publishing 是 notion 對外輸出正式內容狀態的邊界。
-
-## Dependency Direction
-
-- notion 對 platform、workspace 屬 downstream；對 notebooklm 屬 upstream 的內容 supplier。
-- ACL 或 Conformist 只能由 notion 作為 downstream 時選擇，不能要求上游替 notion 保護語言。
-- notion 對 notebooklm 輸出的是 published language，不是內部 aggregate 或 workflow 細節。
-
-## Anti-Patterns
-
-- 把 notion 與 notebooklm 寫成對稱 Shared Kernel，同時又要求 ACL。
-- 讓 notebooklm 直接回寫 notion 正典內容而不經 notion 邊界。
-- 把 workspace scope 語言錯寫成 notion 自己擁有的容器生命週期語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 對 platform、workspace 的 downstream 位置與對 notebooklm 的 upstream 位置。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個平行翻譯管線。
-- notion 向外提供的是內容語言，不是內部 aggregate、repository 或 UI projection。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["platform / workspace upstream"] -->|Published Language| Boundary["notion boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-	Domain --> PL["Published content language"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	IAM["iam"] -->|actor / tenant / access| Boundary["notion API boundary"]
-	Billing["billing"] -->|entitlement| Boundary
-	AI["ai"] -->|capability / policy / safety| Boundary
-	Workspace["workspace"] -->|workspace scope| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["Notion domain"]
-	Domain --> Publication["Publication / KnowledgeArtifact reference"]
-	Publication --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../system/context-map.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- [../../strategic-patterns.md](../system/strategic-patterns.md)
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
-````
-
-## File: docs/structure/contexts/notion/README.md
-````markdown
-# Notion Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
-
-## Why This Context Exists
-
-- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
-- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
-- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 正典知識內容生命週期 |
-| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope |
-| Downstream Consumer | notebooklm |
-| Core Principle | notion 擁有正式內容，不擁有治理、商業或推理過程 |
-
-## Baseline Subdomains
-
-- knowledge
-- authoring
-- collaboration
-- database
-- knowledge-engagement
-- attachments
-- automation
-- external-knowledge-sync
-- notes
-- templates
-- knowledge-versioning
-
-## Recommended Gap Subdomains
-
-- taxonomy
-- relations
-- publishing
-
-## Key Relationships
-
-- 與 iam：notion 消費 actor、tenant 與 access decision。
-- 與 billing：notion 消費 entitlement 與 subscription capability signal。
-- 與 ai：notion 消費 ai capability、model policy 與 safety result。
-- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
-- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENTS.md](./AGENTS.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
-
-## Anti-Pattern Rules
-
-- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
-- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
-- 不把 platform 的治理語言混成內容生命週期本身。
-- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
-- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 ai context，而不是在 notion 再建一個 generic `ai` 子域。
-- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
-- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["notion boundary"]
-	Workspace["workspace"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Notion domain"]
-	Domain --> Output["KnowledgeArtifact / Publication"]
-	Output --> NotebookLM["notebooklm consumer"]
-```
-
-## Document Network
-
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../../README.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/structure/contexts/notion/subdomains.md
-````markdown
-# Notion
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
@@ -26461,41 +25160,38 @@ flowchart LR
 
 | Subdomain | Responsibility |
 |---|---|
-| knowledge | 頁面建立、組織、版本化與交付（實作層以 `page` + `block` 對應）|
-| authoring | 知識庫文章建立、驗證與分類（實作層整合至 `page` 子域）|
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-| taxonomy | 分類法與語義組織邊界 |
-| relations | 內容之間關聯與 backlink 邊界 |
-| publishing | 正式發布與對外交付邊界 |
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤、引用與 ingestion 編排 |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback |
+| conversation-versioning | 對話版本與快照策略 |
 
-> **實作層命名備注：** `src/modules/notion/` 以 `page`、`block`、`database`、`view`、`collaboration`、`template` 作為子域目錄名稱。
-> `view` 子域承接 `database` 的多視圖能力；`block` 是 `page` 的內容區塊子結構。
-> `knowledge-database` 已正式重命名為 `database`；戰略文件中的舊名視為 deprecated。
+## Future Split Triggers
 
-## Recommended Gap Subdomains
+`synthesis` 子域將 retrieval、grounding、generation、evaluation 作為內部 facets。只有當以下觸發條件成立時，才拆分為獨立子域：
 
-無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
+| Facet | Split Trigger |
+|---|---|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
 
 ## Anti-Patterns
 
-- 不把 taxonomy 混成 authoring 裡的附屬設定。
-- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
-- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
-- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+- 不把 retrieval 與 grounding 併回 source 或 ai context 接入層，否則推理鏈條失去清楚邊界。
+- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為可演化的關注點。
+- 不把 notebook、conversation 混成單一 UI 容器語意，否則無法維持聚合邊界。
+- 不把 ai context 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+- 不過早拆分子域：只有當語言分歧或演化速率不同時才拆分。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-engagement、external-knowledge-sync、knowledge-versioning 哪一個內容責任。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
-- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
+- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
+- 模型 provider、配額與安全護欄優先歸 ai context；notebooklm 在 synthesis 保留 pipeline 本地語義。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
+- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
 
 ## Dependency Direction Flow
 
@@ -26510,11 +25206,10 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Authoring["Authoring"] --> Knowledge["Knowledge"]
-	Knowledge --> Taxonomy["Taxonomy"]
-	Knowledge --> Relations["Relations"]
-	Taxonomy --> Publishing["Publishing"]
-	Relations --> Publishing
+	Source["Source ingestion"] --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Generation["Generation"]
+	Generation --> Evaluation["Evaluation"]
 ```
 
 ## Document Network
@@ -26523,228 +25218,146 @@ flowchart LR
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
 ````
 
-## File: docs/structure/contexts/notion/ubiquitous-language.md
+## File: docs/structure/contexts/notion/AGENTS.md
 ````markdown
-# Notion
+# Notion Agent
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Canonical Terms
+## Mission
 
-| Term | Meaning |
-|---|---|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
-| KnowledgePage | 正典頁面型知識單位 |
-| Article | 經過撰寫與驗證流程的知識內容 |
-| Database | 結構化知識集合 |
-| DatabaseView | 對 Database 的投影與檢視配置 |
-| Taxonomy | 標籤、分類法、主題樹等語義組織結構 |
-| Relation | 內容對內容之間的正式關聯 |
-| CollaborationThread | 內容附著的協作討論邊界 |
-| Attachment | 綁定於知識內容的檔案或媒體 |
-| Template | 可重複套用的內容結構起點 |
-| Publication | 對外可見且可交付的內容狀態 |
-| VersionSnapshot | 某一時點的不可變內容快照 |
+保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
 
-## Language Rules
+## Canonical Ownership
 
-- 使用 KnowledgeArtifact、KnowledgePage、Article、Database 區分內容型別。
-- 使用 Taxonomy 表示分類法，不用 Tagging 功能泛稱整個語義結構。
-- 使用 Relation 表示正式內容關聯，不用 Link 混稱語義關係。
-- 使用 Publication 表示正式對外內容狀態，不用 Publish Action 取代整個交付語言。
-- 來自 notebooklm 的內容若未被 notion 吸收，不應直接稱為 KnowledgeArtifact。
+**戰略語言（DDD strategic vocabulary）：**
+- knowledge（頁面知識語義，實作層整合至 page）
+- authoring（文章建立與驗證）
+- collaboration（協作評論與共編）
+- database（結構化知識庫，原 knowledge-database）
+- taxonomy（分類法與語義組織，整合至 page / database metadata）
+- relations（關聯與 backlink，以 view 承接呈現）
+- knowledge-engagement（知識使用行為量測）
+- attachments（附件與媒體關聯儲存）
+- automation（知識事件觸發自動化）
+- external-knowledge-sync（外部系統雙向整合）
+- notes（個人輕量筆記）
+- templates（頁面模板管理）
+- publishing（正式發布與對外交付）
+- knowledge-versioning（全域版本快照策略）
 
-## Avoid
+**實作層子域（`src/modules/notion/` 目錄名稱）：**
+- `page` — 頁面文件創作、版本、knowledge 語義整合
+- `block` — 頁面內容區塊
+- `database` — 結構化知識庫（含 taxonomy/relations 的 metadata 維度）
+- `view` — database 多視圖、篩選、排序（含 relations 呈現）
+- `collaboration` — 協作評論、共編
+- `template` — 模板管理
 
-| Avoid | Use Instead |
-|---|---|
-| Wiki | KnowledgePage 或 Article |
-| Table | Database 或 DatabaseView |
-| Tag System | Taxonomy |
-| Content Link | Relation |
+## Route Here When
 
-## Naming Anti-Patterns
+- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
+- 問題需要把輸入吸收成正式知識內容的正典狀態。
+- 問題需要定義內容版本、內容協作與內容交付。
 
-- 不用 Wiki 混指 KnowledgeArtifact、KnowledgePage、Article。
-- 不用 Tagging 混指 Taxonomy。
-- 不用 Link 混指 Relation。
-- 不用 Publish Action 混指 Publication 狀態與整個交付邊界。
+## Route Elsewhere When
 
-## Copilot Generation Rules
+- 身份、租戶與授權治理屬於 iam；權益屬於 billing；憑證與營運服務屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 ai context。
+- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
 
-- 生成程式碼時，名稱先對齊 KnowledgeArtifact、Taxonomy、Relation、Publication，再決定類別與檔名。
-- 奧卡姆剃刀：若一個正確名詞已能表達邊界，就不要再堆疊第二個近義抽象名稱。
-- 命名先保護內容語義，再考慮實作便利。
+## Guardrails
 
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic language"] --> Context["Notion language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Knowledge["KnowledgeArtifact"] --> Taxonomy["Taxonomy"]
-	Knowledge --> Relation["Relation"]
-	Relation --> Publication["Publication"]
-	Taxonomy --> Publication
-```
-
-## Domain Layer Flow (enforced per subdomain)
-
-```mermaid
-flowchart LR
-  Domain["domain/ (aggregates, entities, ports/)"]
-  Application["application/ (use-cases, dtos)"]
-  Ports["domain/ports/ (IXxxPort interfaces)"]
-  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
-  Interfaces["interfaces/ (actions, queries, components)"]
-
-  Domain --> Application
-  Application --> Ports
-  Ports --> Infrastructure
-  Infrastructure --> Interfaces
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../domain/ubiquitous-language.md)
-- ../../decisions/0004-ubiquitous-language.md
-````
-
-## File: docs/structure/contexts/platform/context-map.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-platform 是 account、organization 與 shared operational services 的供應者。它不再同時擁有 identity、billing、AI、analytics 的正典語言，而是與 iam、billing、ai 並列協作。
-
-## Relationships
-
-| Related Domain | Relationship Type | Platform Position | Published Language |
-|---|---|---|---|
-| iam | Upstream/Downstream | downstream consumer | actor reference、tenant scope、access decision |
-| billing | Upstream/Downstream | downstream consumer | entitlement signal、subscription capability signal |
-| ai | Upstream/Downstream | downstream consumer | ai capability signal、model policy |
-| workspace | Upstream/Downstream | operational supplier | account scope、organization surface、operational service signal |
-| notion | Upstream/Downstream | operational supplier as needed | notification、search、audit、observability signal |
-| notebooklm | Upstream/Downstream | operational supplier as needed | notification、search、audit、observability signal |
-
-## Mapping Rules
-
-- platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
-- workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
-- platform 擁有 shared AI capability，但 notion 與 notebooklm 仍各自擁有內容與推理語義。
-- audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
-- tenant、entitlement、secret-management、consent 已建立邊界骨架，仍需持續收斂治理契約與 published language。
+- notion 的正典內容不等於 notebooklm 的衍生輸出。
+- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
+- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
+- notion 可以消費 ai context，但不擁有 AI provider / policy 的正典邊界。
+- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
+- 跨主域互動只經過 published language、API 邊界或事件。
 
 ## Dependency Direction
 
-- platform 是 workspace、notion、notebooklm 的治理 upstream，而不是它們的內容或流程 owner。
-- platform 對下游輸出 published language，不輸出內部 aggregate、repository 或 secret 結構。
-- 下游若需保護本地語言，ACL 由下游自行實作，不由 platform 代替選擇。
+- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
+- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
 
-## Anti-Patterns
+## Hard Prohibitions
 
-- 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
-- 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
-- 把審計或分析事件消費錯寫成平台擁有下游正典責任。
+- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
+- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
+- 不得讓 notion 直接接管 iam 的 actor、tenant、access 或 billing 的 entitlement 治理責任。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先維持 platform 作為 workspace、notion、notebooklm 的治理 upstream。
-- 奧卡姆剃刀：若 published language 已足夠，就不要對每個下游再額外建立一套專屬治理模型。
-- platform 的輸出應穩定、可被消費，但不應暴露其內部 aggregate 或 repository。
+- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
+- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 ai context，而不是在 notion 內重建 generic `ai` 子域。
+- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
+- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
+- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Domain["Platform domain"] --> PL["Published Language / OHS"]
-	PL --> Boundary["Downstream API clients"]
-	Boundary --> Local["Downstream local DTO / ACL"]
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Notion Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	IAM["iam"] --> Workspace["workspace"]
-	IAM --> Notion["notion"]
-	IAM --> NotebookLM["notebooklm"]
-	Billing["billing"] --> Workspace
-	Billing --> Notion
-	Billing --> NotebookLM
-	AI["ai"] --> Notion
-	AI --> NotebookLM
-	Platform["platform"] -->|account / organization / operational services| Workspace
+	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
+	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
+	Output --> NotebookLM["notebooklm downstream"]
 ```
 
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
 - [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
-- [../../context-map.md](../system/context-map.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- [../../strategic-patterns.md](../system/strategic-patterns.md)
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 ````
 
-## File: docs/structure/contexts/platform/README.md
+## File: docs/structure/contexts/platform/AGENTS.md
 ````markdown
-# Platform Context
+# Platform Agent
 
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Purpose
+## Mission
 
-platform 是帳號、組織與 shared operational services 主域。它的責任是提供 account、organization、notification、search、audit、observability 與 operational workflow 等跨切面能力，供其他主域穩定消費。
+保護 platform 主域作為營運支撐邊界。platform 提供 notification、background-job、search、audit-log、observability 等橫切能力，不再持有 account、organization 的正典語言（已遷入 iam）。任何變更應維持對 operational services 的所有權，不吸收 iam、billing、ai、workspace、notion、notebooklm 的正典語言。
 
-## Why This Context Exists
+## Canonical Ownership
 
-- 把治理與營運支撐責任集中，避免滲入其他主域。
-- 讓其他主域只消費治理結果，而不是重建治理模型。
-- 以清楚的 published language 承接身份、權益、政策與營運能力。
+> **已遷出（不在 platform）：**  
+> - `account` / `account-profile` → `iam/subdomains/account/`  
+> - `organization` / `team` → `iam/subdomains/organization/`
 
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | account、organization 與營運支撐 |
-| Upstream Dependency | iam、billing、ai 的 shared signals 與治理結果 |
-| Downstream Consumers | workspace 與其他需要 operational services 的主域 |
-| Core Principle | platform 提供 account 與營運 surface，不接管治理、商業、內容或推理正典 |
-
-## Baseline Subdomains
-
-- account
-- account-profile
-- organization
-- team
 - platform-config
 - feature-flag
 - onboarding
 - compliance
+- consent
 - integration
+- secret-management
 - workflow
 - notification
 - background-job
@@ -26754,350 +25367,171 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 - observability
 - support
 
-## Recommended Gap Subdomains
+## Route Here When
 
-- consent
-- secret-management
-- operational-catalog
+- 問題核心是 notification、search、audit-log、observability 或支援能力。
+- 問題核心是平台級 workflow、background job、integration 或 secret-management。
+- 問題需要提供其他主域共同消費的 operational services。
 
-## Strategic Reinforcement Focus
+## Route Elsewhere When
 
-- consent（資料使用授權語義收斂）
-- secret-management（敏感憑證治理收斂）
-- operational-catalog（平台營運資產語義收斂）
+- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
+- 知識內容建立、分類、關聯與發布屬於 notion。
+- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
 
+## Guardrails
 
-## Key Relationships
-
-- 對 iam、billing、ai：platform 消費它們的治理、商業與 capability signal。
-- 對 workspace：提供 account scope、organization surface 與 shared operational services。
-- 對 notion 與 notebooklm：按需提供 notification、search、audit、observability 等 operational service。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENTS.md](./AGENTS.md)
+- Actor、Identity、Tenant、AccessDecision 屬於 iam，platform 不重定義它們。
+- Subscription、Entitlement、BillingEvent 屬於 billing，platform 只消費 capability signal。
+- shared AI capability 屬於 ai context，不等於 notebooklm 的推理輸出所有權。
+- secret-management 應與 integration 分離，避免憑證語義擴散。
+- consent 與 compliance 有關，但不是同一個 bounded context。
+- platform 提供營運服務，不接管其他主域的正典內容生命週期。
+- account 與 organization 正典語言屬於 iam，請勿在 platform 重建。
 
 ## Dependency Direction
 
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
+- platform 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- access-control、entitlement、secret-management 等外部依賴只能透過 ports 進入核心。
+- infrastructure 只實作治理能力與外部整合，不反向定義 Actor、Tenant、Entitlement 語言。
 
-## Account Surface Contract
+## Hard Prohibitions
 
-- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
-- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
-- `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
-- business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
-- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
-- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
-
-## Anti-Pattern Rules
-
-- 不把 platform 寫成內容主域或對話主域。
-- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
-- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+- 不得讓 platform 直接接管 workspace、notion、notebooklm 的正典業務流程。
+- 不得讓 domain 或 application 直接依賴第三方身份、通知、計費或 secret SDK。
+- 不得在其他主域重建 Actor、Tenant、Entitlement、Secret 的正典模型。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 platform 的 operational 定位，再安排 account、organization、notification、search、audit、secret-management 的交互。
-- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
-- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
+- 生成程式碼時，先保留 platform 作為 operational supplier，而不是治理、內容或推理 owner。
+- notion 與 notebooklm 若需要 AI 能力，先走 ai context 的 published language / API boundary。
+- 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
+- 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Platform Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Request["Actor / admin request"] --> Boundary["platform boundary"]
-	Boundary --> App["Application use case"]
-	App --> Domain["Platform domain"]
-	Domain --> Published["Published governance language"]
-	Published --> Consumers["workspace / notion / notebooklm"]
+	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
+	Boundary --> App["Application orchestration"]
+	App --> Domain["Identity / Access / Entitlement / AI / Secret"]
+	Domain --> PL["Published governance language"]
+	PL --> Workspace["workspace"]
+	PL --> Notion["notion"]
+	PL --> NotebookLM["notebooklm"]
 ```
 
 ## Document Network
 
-- [AGENTS.md](./AGENTS.md)
+- [README.md](./README.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../../README.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 ````
 
-## File: docs/structure/contexts/workspace/bounded-contexts.md
+## File: docs/structure/contexts/workspace/AGENTS.md
 ````markdown
-# Workspace
+# Workspace Agent
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Domain Role
+## Mission
 
-workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、日誌、排程與工作流，而不是吸收平台治理或知識內容正典。
 
-## Baseline Bounded Contexts
+## Canonical Ownership
 
-| Subdomain | Owns | Excludes |
-|---|---|---|
-| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
-| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
-| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
-| approve | 任務驗收與問題單覆核審批判定 | 平台身份授權決策 |
-| issue | 問題單建立、追蹤、狀態轉換 | 知識內容正典生命週期 |
-| orchestration | 知識頁面→任務物化批次流程編排 | domain 事實的直接寫入 |
-| quality | 任務 QA 審查與質檢流程 | 業務驗收規則本身 |
-| settlement | 請款發票生命週期與財務對帳 | billing 計費狀態 |
-| task | 任務建立、指派、狀態機 | 知識內容與 notebook 推理 |
-| task-formation | AI 輔助任務候選抽取與批次匯入 | AI 模型能力（屬 ai context） |
+- audit
+- feed
+- scheduling
+- approve
+- issue
+- orchestration
+- quality
+- settlement
+- task
+- task-formation
+- lifecycle
+- membership
+- sharing
+- presence
 
-## Recommended Gap Bounded Contexts
+## Route Here When
 
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 orchestration 或 app 組裝層 |
-| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
-| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
-| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
+- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
+- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
+- 問題需要提供其他主域運作所需的 workspace scope。
 
-## Domain Invariants
+## Route Elsewhere When
 
-- workspaceId 是工作區範疇錨點。
-- 工作區成員關係屬於 membership，而不是平台身份本身。
-- activity feed 只投影事實，不創造事實。
-- audit trail 一旦寫入即不可隨意覆蓋。
-- task/issue/settlement/approve/quality/orchestration 是獨立子域，不得合併為單一 workspace-workflow 概念。
+- 身份、授權與 tenant 治理屬於 iam；商業權益屬於 billing；通知與營運服務屬於 platform。
+- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
+- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- workspace 的 Member 或 Membership 不等於 iam 的 Actor 或 Identity。
+- feed 是投影，不是工作區正典狀態來源。
+- audit 是不可否認追蹤，不等於使用者導向動態流。
+- sharing 定義暴露範圍，但不取代 billing entitlement 與 iam access-control。
+- 跨主域互動只經過 published language、API 邊界或事件。
 
 ## Dependency Direction
 
-- workspace 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
-- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
-- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
+- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
+- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
 
-## Anti-Patterns
+## Hard Prohibitions
 
-- 把 Membership 混成 Actor 身份本身。
-- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
-- 用 `workspace-workflow` 代指已分解的 task、issue、settlement、approve、quality、orchestration 等子域。
-- 混用 `platform.workflow` 與 workspace 內的任務流程語言。
+- 不得把 iam 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
+- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
+- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先判斷需求落在 task、issue、approve、quality、settlement、orchestration、audit、feed、scheduling 哪個責任。
-- workspace 工作區流程語言已分解為多個獨立子域，不再使用 `workspace-workflow` 混指所有流程。
-- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
-- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
+- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
+- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
+- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Workspace bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Workspace Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	TaskFormation["TaskFormation"] --> Task["Task"]
-	Task --> Approve["Approve / Quality"]
-	Task --> Issue["Issue"]
-	Task --> Settlement["Settlement"]
-	Scheduling["Scheduling"] --> Task
-	Orchestration["Orchestration"] --> Task
-	Task --> AuditFeed["Audit / Feed"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0002-bounded-contexts.md
-````
-
-## File: docs/structure/contexts/workspace/context-map.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context map 思維，workspace 應只暴露 scope、membership scope 與協作容器語言，而不暴露內部實作。
-
-## Relationships
-
-| Related Domain | Relationship Type | Workspace Position | Published Language |
-|---|---|---|---|
-| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
-| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
-| platform | Upstream/Downstream | downstream | account scope、organization surface、operational service signal |
-| notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
-| notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
-
-## Mapping Rules
-
-- workspace 消費 iam、billing、platform 的 signals 與治理結果，但不重建 identity、policy 或 entitlement 模型。
-- notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
-- sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
-- 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。
-
-## Dependency Direction
-
-- workspace 對 iam、billing、platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
-- workspace 對外輸出 workspaceId、membership scope、share scope，而不是內部 aggregate 或投影實作。
-- downstream 若需保護自己的語言，ACL 由 downstream 自行實作，不由 workspace 代做。
-
-## Anti-Patterns
-
-- 把 workspace 與 notion/notebooklm 寫成對稱共用核心，同時又要求 ACL。
-- 把 sharing scope 直接當成平台 access decision 本身。
-- 讓其他主域直接操作 workspace 內部 membership 或 lifecycle 模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 workspace 對 platform 的 downstream 位置，以及對 notion / notebooklm 的 upstream scope supplier 位置。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個翻譯鏈。
-- workspace 對外提供的是 scope，不是內部 aggregate、投影或 storage 模型。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["platform upstream"] -->|Published Language| Boundary["workspace boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-	Domain --> PL["Published workspace scope"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	IAM["iam"] -->|actor / tenant / access| Boundary["workspace API boundary"]
-	Billing["billing"] -->|entitlement| Boundary
-	Platform["platform"] -->|account / organization surface| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["Workspace domain"]
-	Domain --> Scope["workspaceId / membership scope / share scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../system/context-map.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
-- [../../strategic-patterns.md](../system/strategic-patterns.md)
-- ../../decisions/0003-context-map.md
-- ../../decisions/0005-anti-corruption-layer.md
-````
-
-## File: docs/structure/contexts/workspace/subdomains.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| audit | 工作區操作日誌與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| approve | 任務驗收與問題單覆核審批流程 |
-| issue | 問題單生命週期與追蹤管理 |
-| orchestration | 知識頁面→任務物化批次作業編排 |
-| quality | 任務 QA 審查與質檢流程 |
-| settlement | 請款發票生命週期與財務對帳 |
-| task | 任務建立、指派與狀態轉換 |
-| task-formation | AI 輔助任務候選抽取與批次匯入 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
-| membership | 把工作區參與關係從平台身份治理中切開 |
-| sharing | 把對外共享與可見性規則收斂到單一上下文 |
-| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
-
-## Recommended Order
-
-1. lifecycle
-2. membership
-3. sharing
-4. presence
-
-## Anti-Patterns
-
-- 不把 lifecycle 混進 orchestration，使容器生命週期被流程編排吞沒。
-- 不把 membership 混成 organization 或 identity。
-- 不把 sharing 混成一般 permission 欄位集合。
-- 不把 presence 藏進 UI 狀態而失去獨立語言。
-- 不用 `workspace-workflow` 混指已分解的 task、issue、settlement、approve、quality、orchestration 等獨立子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個 workspace 責任（task/issue/settlement/approve/quality/orchestration/audit/feed/scheduling），再決定 use case 與 boundary。
-- 工作區流程責任已分解為多個專門子域，避免與 `platform.workflow` 混名。
-- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
-- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	TaskFormation["TaskFormation"] --> Task["Task"]
-	Task --> Approve["Approve / Quality"]
-	Task --> Issue["Issue"]
-	Task --> Settlement["Settlement"]
-	Scheduling["Scheduling"] --> Task
-	Orchestration["Orchestration"] --> Task
-	Task --> AuditFeed["Audit / Feed"]
+	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
+	Domain --> Scope["workspace scope / membership scope / share scope"]
+	Scope --> Notion["notion downstream"]
+	Scope --> NotebookLM["notebooklm downstream"]
 ```
 
 ## Document Network
@@ -27105,133 +25539,10 @@ flowchart LR
 - [README.md](./README.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
-````
-
-## File: docs/structure/contexts/workspace/ubiquitous-language.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| Workspace | 協作容器與主要範疇邊界 |
-| WorkspaceId | 工作區唯一識別子與範疇錨點 |
-| WorkspaceLifecycle | 工作區建立、封存、還原、移轉等生命週期狀態 |
-| Membership | 工作區內的參與關係 |
-| WorkspaceRole | 工作區範疇下的角色語意 |
-| ShareScope | 共享暴露範圍 |
-| ShareLink | 對外共享的可解析入口 |
-| PresenceSession | 即時在線與共同編輯存在感訊號 |
-| ActivityFeed | 面向使用者的活動流投影 |
-| AuditTrail | 不可否認的工作區操作追蹤 |
-| Schedule | 工作區內的時間安排與提醒意圖 |
-| WorkflowExecution | 某個工作區流程的一次執行實例 |
-| WorkspaceTab | 同一條 workspace detail route 上的 query-state 分頁語意 |
-| OverviewPanel | `Overview` tab 內的 panel 細分語意 |
-
-## Shell Route Terms
-
-| Term | Meaning |
-|---|---|
-| AccountScope | workspace route 所依附的 account scope；由 shell 上的 `accountId` 表示 |
-| AccountTypeStringContract | workspace aggregate / use case / validator 所消費的 code-level enum `"user" | "organization"`；`"user"` 對應 personal account context |
-| CreatorUserId | 建立 workspace 或發起 workspace-scoped command 的具體 user identifier |
-| CurrentUserId | 目前正在操作 workspace UI / workflow 的具體 user identifier |
-| CanonicalWorkspaceRoute | `/{accountId}/{workspaceId}` |
-| LegacyWorkspaceRedirectSurface | `/{accountId}/workspace/{workspaceId}` |
-
-## Language Rules
-
-- 使用 Workspace，不使用 Project 或 Space 作為同義詞。
-- 使用 Membership，不用 User 表示工作區參與關係。
-- 使用 ActivityFeed 與 AuditTrail 區分投影與證據。
-- 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
-- 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
-- 使用 `workspaceId` 表示 workspace scope，不用 `accountId` 混稱。
-- 使用 `AccountType = "user" | "organization"` 作為 workspace 跨邊界字串契約；顯示語言可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成 canonical accountType literal。
-- 使用 `creatorUserId` / `currentUserId` 表示具體使用者操作，不把它寫成 `accountId` 或 `workspaceId`。
-- organization-scoped event metadata 需要時，可由 `accountType = "organization"` 下的 `accountId` 映射出 `organizationId`；但 workspace route surface 本身仍以 `accountId` + `workspaceId` 為主。
-- 使用 `/{accountId}/{workspaceId}` 表示 canonical workspace detail route。
-- `/{accountId}/workspace/{workspaceId}` 只視為 legacy redirect surface，不作為新的文件、設計稿或 UI href。
-
-## Avoid
-
-| Avoid | Use Instead |
-|---|---|
-| User | Membership 或 Actor reference |
-| Timeline | ActivityFeed 或 Schedule |
-| Share Permission | ShareScope |
-| Workspace Log | ActivityFeed 或 AuditTrail |
-| `AccountType = "personal"` | `AccountType = "user"`，顯示語言再另寫個人帳號 |
-| `organizationId`（as workspace route param） | `accountId` |
-| `accountId`（as concrete acting user id） | `creatorUserId` / `currentUserId` |
-| Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
-
-## Naming Anti-Patterns
-
-- 不用 User 混指 Membership 與 Actor reference。
-- 不用 Timeline 混指 ActivityFeed 與 Schedule。
-- 不用 Permission 混指 ShareScope。
-- 不用 Log 混指 ActivityFeed 與 AuditTrail。
-- 不把 personal account 顯示語言誤當成 workspace 的 code-level `AccountType` literal。
-- 不把 `accountId`、`workspaceId`、`creatorUserId`、`organizationId` 混成同一個 identifier 概念。
-- 不把 account-scoped shell route 語意誤當成 workspace 自己的 top-level route ownership。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，名稱先對齊 Workspace、Membership、ShareScope、ActivityFeed、AuditTrail，再決定類型與檔名。
-- 奧卡姆剃刀：若一個工作區名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
-- 命名先保護 scope 語言，再考慮 UI 或 API 顯示便利。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic language"] --> Context["Workspace language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Workspace["Workspace"] --> Membership["Membership"]
-	Membership --> ShareScope["ShareScope"]
-	ShareScope --> ActivityFeed["ActivityFeed"]
-	ActivityFeed --> AuditTrail["AuditTrail"]
-```
-
-## Domain Layer Flow (enforced per subdomain)
-
-```mermaid
-flowchart LR
-  Domain["domain/ (aggregates, entities, ports/)"]
-  Application["application/ (use-cases, dtos)"]
-  Ports["domain/ports/ (IXxxPort interfaces)"]
-  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
-  Interfaces["interfaces/ (actions, queries, components)"]
-
-  Domain --> Application
-  Application --> Ports
-  Ports --> Infrastructure
-  Infrastructure --> Interfaces
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
 - [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../domain/ubiquitous-language.md)
-- ../../decisions/0004-ubiquitous-language.md
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 ````
 
 ## File: docs/structure/domain/event-driven-design.md
@@ -27790,55 +26101,6 @@ match /workspace_workspaces/{workspaceId} {
 | 需要 credentials / 網路 / 第三方帳號 | `packages/integration-*` |
 | 業務邏輯 | `src/modules/<context>/domain/` 或 `application/` |
 | UI 元件 | `packages/ui-*` |
-````
-
-## File: packages/integration-ai/AGENTS.md
-````markdown
-# integration-ai — Agent Rules
-
-此套件是 **AI 服務整合的唯一封裝層**：Genkit、Google AI、OpenAI。
-AI 能力的 provider 設定與 flow 呼叫必須集中在此，業務層不得直接 import AI SDK。
-
----
-
-## Route Here
-
-| 類型 | 說明 |
-|---|---|
-| Genkit flow 呼叫 | `runGenkitFlow(flowName, input)` — flow 呼叫入口 |
-| AI provider 初始化 | Google AI / OpenAI client 設定 |
-| AI 服務 API 型別 | `GenerateRequest`、`GenerateResponse` 等共用型別 |
-| Safety / policy 設定原語 | 供 `src/modules/ai/` 消費的 policy config |
-
-## Route Elsewhere
-
-| 類型 | 正確位置 |
-|---|---|
-| AI 業務邏輯（prompt 組裝、RAG 流程） | `src/modules/ai/` |
-| Notebook 推理流程 | `src/modules/notebooklm/` |
-| Genkit flow **定義**（非呼叫） | `src/modules/ai/` 或 py_fn/ |
-
----
-
-## 嚴禁
-
-```ts
-// ❌ 在 modules/notebooklm 直接 import AI SDK
-import { generate } from '@genkit-ai/core'
-
-// ✅ 透過此套件或 modules/ai 邊界
-import { runGenkitFlow } from '@integration-ai'
-```
-
-- 不得在此套件加入業務 prompt 範本或 RAG 邏輯
-- 不得 import `src/modules/*`
-- 環境設定只能來自 env vars（`GOOGLE_AI_API_KEY` 等）
-
-## Alias
-
-```ts
-import { ... } from '@integration-ai'
-```
 ````
 
 ## File: src/modules/ai/README.md
@@ -28648,244 +26910,320 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 #use skill occams-razor
 ````
 
-## File: docs/structure/contexts/platform/bounded-contexts.md
+## File: docs/structure/contexts/_template.md
 ````markdown
-# Platform
+# Context Template
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+本樣板在本次任務限制下，依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 原則設計，用於建立新的 context 文件集合。
 
-## Domain Role
+## Files To Create
 
-platform 是 account、organization 與 operational-service 主域。依 bounded context 原則，它應把帳號與營運支撐責任封裝成清楚的上下文，而不是再作為 identity、billing、AI、analytics 的 umbrella owner。
+- README.md
+- subdomains.md
+- bounded-contexts.md
+- context-map.md
+- ubiquitous-language.md
+- AGENTS.md
 
-## Migrated Bounded Contexts（已遷出）
+## README.md Template
 
-| Cluster | 遷入位置 |
-|---|---|
-| Account and Organization (account, account-profile, organization, team) | `iam/subdomains/account/` + `iam/subdomains/organization/` |
+- Purpose
+- Why This Context Exists
+- Context Summary
+- Baseline Subdomains
+- Recommended Gap Subdomains
+- Key Relationships
+- Reading Order
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Anti-Pattern Rules
+- Correct Interaction Flow
+- Document Network
+- Constraints
 
-## Baseline Bounded Contexts
+## subdomains.md Template
 
-| Cluster | Subdomains |
-|---|---|
-| Platform Governance and Configuration | platform-config, feature-flag, onboarding, compliance |
-| Delivery and Operations | integration, workflow, notification, background-job, secret-management |
-| Intelligence and Audit | content, search, audit-log, observability, support |
+- Baseline Subdomains
+- Recommended Gap Subdomains
+- Recommended Order
+- Copilot Generation Rules
+- Dependency Direction Flow
+- Correct Interaction Flow
+- Document Network
 
-## Strategic Reinforcement Focus
+## bounded-contexts.md Template
 
-| Subdomain | Why It Stays A Focus | Risk If Under-Specified |
-|---|---|---|
-| tenant | 收斂多租戶隔離與 tenant-scoped 規則 | organization 會被迫承載過多租戶治理語義 |
-| entitlement | 收斂有效權益與功能可用性解算 | subscription、feature-flag、policy 難以一致決策 |
-| secret-management | 收斂憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
-| consent | 收斂同意、偏好、資料使用授權語義 | compliance 會被迫承接過細的授權決策 |
+- Domain Role
+- Baseline Bounded Contexts
+- Recommended Gap Bounded Contexts
+- Domain Invariants
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Anti-Patterns
+- Correct Interaction Flow
+- Document Network
 
-## Domain Invariants
+## context-map.md Template
 
-- actor identity 由 iam 正典擁有，platform 只消費 actor reference。
-- access decision 必須基於 iam 語言輸出，而不是由下游主域自創。
-- entitlement 必須是解算結果，不是任意 UI 標記。
-- shared AI capability 由 ai context 正典擁有；下游主域只能消費其 published language。
-- billing event 與 subscription state 必須分離。
-- secret 不應作為一般 integration payload 傳播。
+- Context Role
+- Relationships
+- Mapping Rules
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Anti-Patterns
+- Correct Interaction Flow
+- Document Network
 
-## Dependency Direction
+## ubiquitous-language.md Template
 
-- platform 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
-- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
-- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
+- Canonical Terms
+- Language Rules
+- Avoid
+- Naming Anti-Patterns
+- Copilot Generation Rules
+- Dependency Direction Flow
+- Correct Interaction Flow
+- Document Network
 
-## Anti-Patterns
+## AGENTS.md Template
 
-- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
-- 把 secret-management 混回 integration，使敏感治理責任失焦。
-- 讓 platform 直接持有其他主域的正典內容或推理模型。
-- 把 ai context 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
+- Mission
+- Canonical Ownership
+- Route Here When
+- Route Elsewhere When
+- Guardrails
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Hard Prohibitions
+- Correct Interaction Flow
+- Document Network
+
+## Consistency Rules
+
+- context-map 只能使用與戰略文件一致的關係方向。
+- subdomains 與 bounded-contexts 必須使用同一套 baseline / gap 子域集合。
+- README 只做入口摘要，不重寫 ADR 級決策。
+- 若新 context 需要 symmetric relationship，必須先明確說明為什麼不採用 upstream-downstream。
+- 若 context 文件涉及模組骨架或分層，必須與 `docs/structure/domain/bounded-context-subdomain-template.md` 一致：`<bounded-context>` 根層可承接 context-wide 的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，不應被簡化成只有 `docs/` 與 `subdomains/`；subdomain 預設採 core-first，adapter/UI 預設由根層依子域分組承接。
+- 若文件提到 `core/`，必須明確說明它只是可選包裝；`infrastructure/` 與 `interfaces/` 仍屬外層，不得被包進泛用 `core/`。
+
+## Mandatory Anti-Pattern Rules
+
+- 不得把 domain 寫成依賴 framework、transport、storage 或第三方 SDK 的層。
+- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混用在同一關係敘事。
+- 不得把其他主域的正典模型直接拿來當成本地主域模型。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
-- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
-- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
+- 先決定 owning context、語言、邊界與依賴方向，再生成程式碼。
+- 若需求屬於 shared policy、published language 或跨 subdomain orchestration，允許在 `<bounded-context>` 根層使用 hexagonal layers；否則優先落回擁有責任的 subdomain。
+- 奧卡姆剃刀：若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
+- 任何新文件都應沿用同一套規則、流程圖與文件網絡章節。
 
-## Dependency Direction Flow
+## Occam Guardrail
+
+- 若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
+
+## Diagram Templates
 
 ```mermaid
 flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Platform bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
 ```
 
-## Correct Interaction Flow
-
 ```mermaid
 flowchart LR
-	Identity["Identity / Organization"] --> Access["Access / Policy"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Delivery["AI / Notification / Job / Integration"]
-	Delivery --> Audit["Audit / Observability / Analytics"]
+	Upstream["Upstream"] -->|Published Language| Boundary["API boundary"]
+	Boundary --> Translation["Local DTO / ACL"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
 ```
 
 ## Document Network
 
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- ../../decisions/0001-hexagonal-architecture.md
-- ../../decisions/0002-bounded-contexts.md
+- [../README.md](../../README.md)
+- [../architecture-overview.md](../system/architecture-overview.md)
+- [../bounded-context-subdomain-template.md](../domain/bounded-context-subdomain-template.md)
+- [../bounded-contexts.md](../domain/bounded-contexts.md)
+- [../context-map.md](../system/context-map.md)
+- [../integration-guidelines.md](../system/integration-guidelines.md)
+- [../subdomains.md](../domain/subdomains.md)
+- [../ubiquitous-language.md](../domain/ubiquitous-language.md)
 ````
 
-## File: docs/structure/contexts/platform/subdomains.md
+## File: docs/structure/contexts/ai/ddd-strategic-design.md
 ````markdown
-# Platform
+# DDD 戰略設計規則 — AI Context
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+本文件整理 Domain-Driven Design 的核心戰略概念，並直接對應 `ai` bounded context 的設計決策。
 
-## Migrated Subdomains（已遷出 platform）
+---
 
-| Subdomain | 遷入位置 |
-|---|---|
-| account | `iam/subdomains/account/` |
-| account-profile | `iam/subdomains/account/` |
-| organization | `iam/subdomains/organization/` |
-| team | `iam/subdomains/organization/` |
+## 一、核心戰略概念（Strategic Design Rules）
 
-## Baseline Subdomains
+1. 通用語言（Ubiquitous Language）必須在團隊內部與程式碼中保持一致，任何領域概念的命名都應直接反映業務語意。
 
-| Subdomain | Responsibility |
-|---|---|
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、日誌與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久日誌軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
+2. 界限上下文（Bounded Context）必須明確定義語言與模型的邊界，不同上下文之間不得共享模型語意。
 
-## Strategic Reinforcement Focus
+3. 每個界限上下文內的模型必須保持一致性（Consistency），跨上下文則允許語意轉換（Translation）。
 
-| Focus | Why It Remains Important |
-|---|---|
-| tenant | 持續收斂租戶隔離語義與 organization 分工邊界 |
-| entitlement | 持續收斂 subscription、feature-flag、policy 的統一解算語言 |
-| secret-management | 持續收斂與 integration 的責任切割，避免敏感治理擴散 |
-| consent | 持續收斂 consent 與 compliance 的責任邊界 |
+4. 子域（Subdomain）應依業務價值分類為核心域（Core）、支撐域（Supporting）、通用域（Generic），並依此分配設計與資源優先級。
 
-## Recommended Order
+5. 核心域（Core Domain）必須集中最強設計能力與抽象，避免被基礎設施或通用邏輯污染。
 
-1. tenant
-2. entitlement
-3. secret-management
-4. consent
+6. 支撐域（Supporting Subdomain）應服務核心域需求，但不承載關鍵競爭優勢。
 
-## Anti-Patterns
+7. 通用域（Generic Subdomain）應優先採用現成方案（如第三方服務），避免自行重複建造。
 
-- 不把 tenant 與 organization 視為同義詞。
-- 不把 entitlement 混成 feature-flag 的別名。
-- 不把 secret-management 混成 integration 的一個欄位集合。
-- 不把 consent 混成一般 UI preference。
-- 不把 platform 的 ai 混成 notebooklm synthesis 或 notion 內容輔助的本地所有權。
+8. 上下文映射（Context Mapping）必須明確描述各界限上下文之間的關係與整合方式。
 
-## Copilot Generation Rules
+9. 不同上下文之間的整合必須選擇適當模式（如 Anti-Corruption Layer、Conformist、Open Host Service 等）。
 
-- 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
-- shared AI provider、模型政策、成本與安全護欄一律先歸 ai context 評估。
-- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
-- 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
+10. 反腐層（Anti-Corruption Layer）必須用於隔離外部模型，防止污染內部核心模型。
 
-## Dependency Direction Flow
+11. 開放主機服務（Open Host Service）應提供穩定、公開的契約，供其他上下文整合使用。
 
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
+12. 發佈語言（Published Language）應定義跨上下文共享的標準資料格式與語意。
+
+13. 共享核心（Shared Kernel）僅應在高度信任的團隊之間使用，並需嚴格控制變更。
+
+14. 客戶-供應者（Customer-Supplier）關係應明確定義需求與交付責任，以維持演進穩定。
+
+15. 順從者（Conformist）模式應在無法影響上游模型時採用，接受其語意限制。
+
+16. 分離方式（Separate Ways）應在整合成本過高時採用，允許上下文完全獨立演化。
+
+17. 大泥球（Big Ball of Mud）應被避免，若存在則需逐步以界限上下文重構。
+
+18. 戰略設計必須優先於戰術設計，先定義邊界與關係，再設計內部模型與程式結構。
+
+---
+
+## 二、戰略地圖（概念關係）
+
+```
+Subdomain（業務問題空間）
+        ↓ 對應
+Bounded Context（解決方案邊界）
+        ↓
+Context Mapping（上下文關係）
+        ↓
+Integration Patterns（整合模式）
 ```
 
-## Correct Interaction Flow
+---
 
-```mermaid
-flowchart LR
-	Identity["Identity"] --> Organization["Organization / Tenant"]
-	Organization --> Access["Access / Policy"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Secret["AI / Secret / Integration / Delivery"]
+## 三、關鍵對照
+
+| 概念 | 本質 |
+|------|------|
+| Subdomain | 業務問題分類（商業視角） |
+| Bounded Context | 技術模型邊界（系統視角） |
+| Ubiquitous Language | 語意一致性 |
+| Context Mapping | 上下文關係圖 |
+
+---
+
+## 四、AI Context 的子域分類映射
+
+```
+Core Domain（核心競爭優勢）
+  → prompt-pipeline     — AI 提示詞編排與多家族分派
+  → inference           — 模型推理執行（content-generation、content-distillation）
+
+Supporting Domain（服務核心域）
+  → memory-context      — 跨對話記憶與可重用上下文整理
+  → evaluation-policy   — AI 品質與回歸評估政策
+  → safety-guardrail    — 安全護欄與內容保護
+
+Generic Domain（可外包／第三方替換）
+  → models              — LLM Provider 適配（可替換 provider）
+  → embeddings          — Embedding 向量（py_fn 執行，schema 在此）
+  → tokens              — 計費權重與配額（依 provider 計費模型）
 ```
 
-## Document Network
+> **選型原則**：Core Domain 自建最強抽象；Supporting Domain 謹慎設計；Generic Domain 優先接入 provider adapters，不重複造輪。
 
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../domain/subdomains.md)
-- [../../bounded-contexts.md](../domain/bounded-contexts.md)
+---
+
+## 五、整合模式說明（`ai` context 適用）
+
+| 整合模式 | 適用場景 |
+|----------|---------|
+| Anti-Corruption Layer | `ai` 接入外部 LLM provider（OpenAI、Gemini）時保護內部語意 |
+| Open Host Service | `ai` 模組的 `index.ts` 提供穩定公開契約供 `notion`、`notebooklm` 消費 |
+| Published Language | `AICapabilitySignal`、`ModelPolicy`、`SafetyGuardrail` 等跨域 token |
+| Conformist | `notion`、`notebooklm` 直接接受 `ai` 的能力語意，不轉換 |
+| Customer-Supplier | `platform.ai` → `notion`、`notebooklm`（upstream 定義，downstream 消費）|
+
+---
+
+## 六、最重要的總結（戰略層一句話）
+
+> 先切邊界（Bounded Context），再談模型；先定關係（Context Map），再寫程式。
+
+---
+
+## 文件網
+
+- [subdomains.md](./subdomains.md) — `ai` context 子域清單
+- [bounded-contexts.md](./bounded-contexts.md) — 邊界責任定義
+- [context-map.md](./context-map.md) — 與其他 context 的關係圖
+- [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
+- [bounded-contexts.md](../domain/bounded-contexts.md) — 全域主域所有權地圖
 ````
 
-## File: docs/structure/contexts/workspace/README.md
+## File: docs/structure/contexts/ai/README.md
 ````markdown
-# Workspace Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+# AI Context
 
 ## Purpose
 
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、日誌、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
-
-## Why This Context Exists
-
-- 把工作區容器語意與平台治理語意分離。
-- 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、日誌、排程與流程協調收斂為同一主域內的高凝聚能力。
+ai 是共享 AI capability 主域。它負責 generation、orchestration、distillation、retrieval、memory、safety 與 provider routing，供 notion、notebooklm 等主域穩定消費。
 
 ## Context Summary
 
 | Aspect | Summary |
 |---|---|
-| Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
+| Primary Role | 共享 AI capability orchestration |
+| Upstream Dependency | iam access policy、billing entitlement |
 | Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
+| Core Principle | 提供 AI 能力，不接管內容正典或推理輸出語義 |
 
 ## Baseline Subdomains
 
-- audit
-- feed
-- scheduling
-- approve
-- issue
-- orchestration
-- quality
-- settlement
-- task
-- task-formation
-
-## Recommended Gap Subdomains
-
-- lifecycle
-- membership
-- sharing
-- presence
+- generation — 文字生成，Genkit 接縫
+- orchestration — 執行圖與工作流協調
+- distillation — 將長輸出濃縮為精煉知識片段
+- retrieval — 向量搜尋與上下文抓取
+- memory — 對話歷史與狀態保存
+- context — prompt 上下文組裝
+- safety — 安全護欄與內容保護
+- tool-calling — 外部工具調用協調
+- reasoning — 推理步驟管理
+- conversation — AI 互動輪次管理
+- evaluation — 輸出品質評估
+- tracing — AI 執行觀測與追蹤
 
 ## Key Relationships
 
-- 與 iam：workspace 消費 actor、tenant 與 access decision。
-- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
-- 與 platform：workspace 消費 account scope 與 organization surface。
-- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
-- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+- 與 iam：消費 actor reference 與 access decision。
+- 與 billing：消費 entitlement signal 決定 AI 配額。
+- 與 notion：向 notion 提供 generate、summarize、distill 能力。
+- 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
+
+## Strategic Rules
+
+- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
+- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
+- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
+- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
 
 ## Reading Order
 
@@ -28898,30 +27236,267 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 ## Dependency Direction
 
 - 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
-
-## Route Surface Contract
-
-- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
-- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
-- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
-- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
-- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
-- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
-- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
-- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
+- Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
+- 下游消費者只透過 `src/modules/ai/index.ts` 的公開匯出存取，不可直接依賴 ai 內部實作路徑。
 
 ## Anti-Pattern Rules
 
-- 不把 workspace scope 寫成平台治理結果本身。
-- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
-- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+- 不把 notion 的 KnowledgeArtifact 或 notebooklm 的 Conversation 語義拉進 ai domain。
+- 不在 ai 內重建 identity 或 billing 邏輯。
+- 不讓下游模組直接呼叫 ai 的 infrastructure 或 subdomain internals。
+
+## Document Network
+
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+````
+
+## File: docs/structure/contexts/notebooklm/bounded-contexts.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+notebooklm 是對話與推理主域。依 bounded context 原則，它應封裝來源匯入、檢索、grounding、對話、摘要、評估與版本化，使推理流程保持高凝聚且與正典知識內容邊界分離。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Interaction Core | notebook, conversation, note |
+| Reasoning Output | source, synthesis, conversation-versioning |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| ingestion | 承接來源匯入、正規化與前處理 | source 會同時承載來源處理與來源語義 |
+| retrieval | 承接查詢、召回、排序與檢索策略 | synthesis 缺少清楚上游邊界 |
+| grounding | 承接 citation、evidence 對齊與答案可追溯性 | 引用語言無法形成正典邊界 |
+| evaluation | 承接品質評估、回歸比較與效果量測 | 品質語言只能散落在 analytics 或測試層 |
+
+## Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 ai context 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 synthesis 的上游能力，不應與 source reference 混成同一層。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
+
+## Dependency Direction
+
+- notebooklm 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
+- ingestion、retrieval、grounding 的外部整合必須由 adapter 實作，透過 port 注入到核心。
+- domain 不得向外依賴來源處理框架、模型供應商或傳輸協定。
+
+## Anti-Patterns
+
+- 把 retrieval、grounding、ingestion 重新塞回 ai context 接入層或 source，造成責任折疊。
+- 讓 synthesis 直接持有正典內容所有權，混淆 notion 與 notebooklm 邊界。
+- 讓 application service 直接呼叫外部 SDK，而不經過 port/adapter。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
-- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
-- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+- 生成程式碼時，先保留 retrieval、grounding、ingestion、evaluation 的獨立語義，再決定是否需要額外抽象。
+- 奧卡姆剃刀：不要為了形式上的對稱而新增子域；只有在責任、語義或演化速率不同時才拆分。
+- 若外部能力只服務單一明確邊界，優先用最小必要 port，而不是複製整套工具 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["NotebookLM bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	SourceInput["Source / governance / scope input"] --> Boundary["NotebookLM boundary"]
+	Boundary --> App["Use case orchestration"]
+	App --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
+````
+
+## File: docs/structure/contexts/notebooklm/context-map.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+notebooklm 消費 workspace scope、iam 治理、billing capability、ai signal 與 notion 內容來源，並輸出可追溯的對話、洞察與 synthesis。依 Context Mapper 思維，它是多個上游語言的下游整合者，但仍需維持自己的對話與推理邊界。
+
+## Relationships
+
+| Related Domain | Relationship Type | NotebookLM Position | Published Language |
+|---|---|---|---|
+| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
+| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
+| ai | Upstream/Downstream | downstream | ai capability signal、model policy、safety result |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notion | Upstream/Downstream | downstream | knowledge artifact reference、attachment reference、taxonomy hint |
+
+## Mapping Rules
+
+- notebooklm 依賴 iam、billing、ai 的結果，但不重建 actor、policy 或 secret 模型。
+- notebooklm 可消費 ai context 作為共享模型能力，但不擁有 provider / policy 所有權。
+- notebooklm 在 workspace scope 內運作，但不定義 workspace 生命周期或 sharing 規則。
+- notion 是 notebooklm 的重要 source supplier，notebooklm 不能反向直接改寫 notion 正典內容。
+- synthesis、grounding、evaluation 是 notebooklm 對外輸出的核心能力語言。
+
+## Dependency Direction
+
+- notebooklm 只作為 platform、workspace、notion 的 downstream consumer，不反向宣稱治理或正典內容所有權。
+- ACL 或 Conformist 只能由 notebooklm 這個 downstream 端選擇，不能回推到上游。
+- 跨主域資料進入 notebooklm 時，先落在 published language 或 local DTO，再進入本地主域語言。
+
+## Anti-Patterns
+
+- 把 notebooklm 寫成 notion 或 workspace 的上游治理來源。
+- 在同一主域關係上同時聲稱 ACL 與 Conformist。
+- 直接共享 notebook、source 或 conversation 的內部模型給其他主域使用。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 notebooklm 對 platform、workspace、notion 的 downstream 位置，再安排轉譯層。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要額外發明第二層 mapper 或雙重 ACL。
+- 上游只提供 published language；本地主域保護由 downstream 完成。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream contexts"] -->|Published Language| Boundary["notebooklm boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam"] -->|actor / tenant / access| Boundary["notebooklm API boundary"]
+	Billing["billing"] -->|entitlement| Boundary
+	AI["ai"] -->|capability / policy / safety| Boundary
+	Workspace["workspace"] -->|workspace scope| Boundary
+	Notion["notion"] -->|knowledge references| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["NotebookLM domain"]
+	Domain --> Result["Grounded synthesis / conversation output"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)
+````
+
+## File: docs/structure/contexts/notebooklm/README.md
+````markdown
+# NotebookLM Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 conversation-versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
+
+## Why This Context Exists
+
+- 把推理流程與正典知識內容分離。
+- 把來源匯入、檢索、grounding 與 synthesis 統整成同一主域。
+- 提供可回流到其他主域、但本質上仍屬衍生輸出的能力邊界。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 對話、來源處理、檢索與推理輸出 |
+| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope、notion 內容來源 |
+| Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
+| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容或共享 AI capability |
+
+## Baseline Subdomains
+
+- conversation
+- note
+- notebook
+- source
+- synthesis
+- conversation-versioning
+
+## Recommended Gap Subdomains
+
+- ingestion
+- retrieval
+- grounding
+- evaluation
+
+## Key Relationships
+
+- 與 iam：notebooklm 消費 actor、tenant 與 access decision。
+- 與 billing：notebooklm 消費 entitlement 與 subscription capability signal。
+- 與 ai：notebooklm 消費 ai capability、model policy 與 safety result。
+- 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
+- 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENTS.md](./AGENTS.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- 跨主域只消費 published language、API boundary、events，不直接依賴他域內部模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
+- 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
+- 不把 ingestion 與 source reference 混成同一個不可拆分責任。
+- 不把 ai context 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notebooklm 的衍生推理定位，再安排 retrieval、grounding、synthesis 的交互。
+- 模型接入、配額、供應商策略若屬共享能力，先消費 ai context；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義所有權。
+- 奧卡姆剃刀：只在必要時引入 port、ACL、DTO；不要因為未來也許會有需求就預先堆疊抽象。
+- 優先產生一條清楚的 upstream input -> translation -> application -> domain -> output 流程，而不是多條重疊流程。
 
 ## Dependency Direction Flow
 
@@ -28937,13 +27512,13 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Platform["platform"] --> Boundary["workspace boundary"]
+	Platform["platform"] --> Boundary["notebooklm boundary"]
+	Workspace["workspace"] --> Boundary
+	Notion["notion"] --> Boundary
 	Boundary --> Translation["DTO / ACL"]
 	Translation --> App["Application use case"]
-	App --> Domain["Workspace domain"]
-	Domain --> Scope["workspace scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
+	App --> Domain["NotebookLM domain"]
+	Domain --> Output["Grounded answer / note / evaluation"]
 ```
 
 ## Document Network
@@ -28953,15 +27528,1175 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../../README.md)
-- [../../architecture-overview.md](../system/architecture-overview.md)
-- [../../integration-guidelines.md](../system/integration-guidelines.md)
+- [README.md](../../../README.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 
 ## Constraints
 
 - 本文件是 architecture-first 版本。
 - 本文件依 Context7 的 bounded context 與 context map 原則編寫。
 - 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/structure/contexts/notebooklm/ubiquitous-language.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界 |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程 |
+| Retrieval | 從來源中召回候選片段的查詢能力 |
+| Grounding | 把輸出對齊到來源證據的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出 |
+| Note | 與 Notebook 關聯的輕量摘記 |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 |
+| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 |
+
+## Language Rules
+
+- 使用 Conversation，不使用 Chat 作為正典語彙。
+- 使用 Ingestion 與 Source 區分來源處理與來源語義。
+- 使用 Retrieval 與 Grounding 區分召回能力與證據對齊能力。
+- 使用 Synthesis 表示衍生綜合輸出，不把它直接稱為正典知識內容。
+- 使用 Evaluation 表示品質語言，不用 Analytics 混稱模型效果。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+
+## Naming Anti-Patterns
+
+- 不用 Chat 混稱 Conversation 與 Notebook。
+- 不用 Search 混稱 Retrieval 與 Grounding。
+- 不用 Knowledge 或 Wiki 混稱 Synthesis 輸出，避免污染 notion 的正典語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 Notebook、Conversation、Retrieval、Grounding、Synthesis、Evaluation，再決定型別與模組位置。
+- 奧卡姆剃刀：若一個名詞已能準確表達語義，就不要再疊加第二個近義抽象名稱。
+- 命名要先保護邊界，再追求實作便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["NotebookLM language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Source["Source"] --> Ingestion["Ingestion"]
+	Ingestion --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Domain Layer Flow (enforced per subdomain)
+
+```mermaid
+flowchart LR
+  Domain["domain/ (aggregates, entities, ports/)"]
+  Application["application/ (use-cases, dtos)"]
+  Ports["domain/ports/ (IXxxPort interfaces)"]
+  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
+  Interfaces["interfaces/ (actions, queries, components)"]
+
+  Domain --> Application
+  Application --> Ports
+  Ports --> Infrastructure
+  Infrastructure --> Interfaces
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [ubiquitous-language.md](../domain/ubiquitous-language.md)
+````
+
+## File: docs/structure/contexts/notion/bounded-contexts.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Content Core | knowledge, authoring, knowledge-database |
+| Collaboration and Change | collaboration, knowledge-versioning, templates |
+| Intelligence and Extension | knowledge-engagement, attachments, automation, external-knowledge-sync, notes |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 knowledge-database 會混入分類責任 |
+| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
+| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
+
+## Domain Invariants
+
+- 知識內容的正典狀態屬於 notion。
+- taxonomy 應獨立於具體 UI 視圖存在。
+- relations 應描述內容對內容的語義關係，而不是臨時連結。
+- ai context 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- publishing 只交付已被 notion 吸收的內容狀態。
+- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
+
+## Dependency Direction
+
+- notion 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
+- content lifecycle 由 knowledge、authoring、knowledge-database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
+- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
+
+## Anti-Patterns
+
+- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
+- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
+- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
+- 把 ai context 的共享能力提升成 notion 自己的 generic `ai` 子域所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
+- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
+- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Notion bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
+	Boundary --> App["Use case orchestration"]
+	App --> Knowledge["Knowledge / Authoring / Database"]
+	Knowledge --> Taxonomy["Taxonomy / Relations"]
+	Taxonomy --> Publishing["Publishing / Knowledge Versioning"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
+````
+
+## File: docs/structure/contexts/notion/context-map.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+notion 對其他主域提供知識內容語言。依 Context Mapper 的 context map 思維，它消費 workspace scope、iam 治理、billing capability 與 ai signal，並向 notebooklm 提供可被引用的知識內容來源。
+
+## Relationships
+
+| Related Domain | Relationship Type | Notion Position | Published Language |
+|---|---|---|---|
+| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
+| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
+| ai | Upstream/Downstream | downstream | ai capability signal、model policy、safety result |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
+
+## Mapping Rules
+
+- notion 消費 iam、billing、ai 的結果，但不重建 actor、tenant、policy 模型。
+- notion 可消費 ai context 來支援內容 use case，但不擁有 AI provider / policy 所有權。
+- notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
+- notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
+- publishing 是 notion 對外輸出正式內容狀態的邊界。
+
+## Dependency Direction
+
+- notion 對 platform、workspace 屬 downstream；對 notebooklm 屬 upstream 的內容 supplier。
+- ACL 或 Conformist 只能由 notion 作為 downstream 時選擇，不能要求上游替 notion 保護語言。
+- notion 對 notebooklm 輸出的是 published language，不是內部 aggregate 或 workflow 細節。
+
+## Anti-Patterns
+
+- 把 notion 與 notebooklm 寫成對稱 Shared Kernel，同時又要求 ACL。
+- 讓 notebooklm 直接回寫 notion 正典內容而不經 notion 邊界。
+- 把 workspace scope 語言錯寫成 notion 自己擁有的容器生命週期語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 對 platform、workspace 的 downstream 位置與對 notebooklm 的 upstream 位置。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個平行翻譯管線。
+- notion 向外提供的是內容語言，不是內部 aggregate、repository 或 UI projection。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["platform / workspace upstream"] -->|Published Language| Boundary["notion boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+	Domain --> PL["Published content language"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam"] -->|actor / tenant / access| Boundary["notion API boundary"]
+	Billing["billing"] -->|entitlement| Boundary
+	AI["ai"] -->|capability / policy / safety| Boundary
+	Workspace["workspace"] -->|workspace scope| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["Notion domain"]
+	Domain --> Publication["Publication / KnowledgeArtifact reference"]
+	Publication --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)
+````
+
+## File: docs/structure/contexts/notion/README.md
+````markdown
+# Notion Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
+
+## Why This Context Exists
+
+- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
+- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
+- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 正典知識內容生命週期 |
+| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope |
+| Downstream Consumer | notebooklm |
+| Core Principle | notion 擁有正式內容，不擁有治理、商業或推理過程 |
+
+## Baseline Subdomains
+
+- knowledge
+- authoring
+- collaboration
+- database
+- knowledge-engagement
+- attachments
+- automation
+- external-knowledge-sync
+- notes
+- templates
+- knowledge-versioning
+
+## Recommended Gap Subdomains
+
+- taxonomy
+- relations
+- publishing
+
+## Key Relationships
+
+- 與 iam：notion 消費 actor、tenant 與 access decision。
+- 與 billing：notion 消費 entitlement 與 subscription capability signal。
+- 與 ai：notion 消費 ai capability、model policy 與 safety result。
+- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
+- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENTS.md](./AGENTS.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
+- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
+- 不把 platform 的治理語言混成內容生命週期本身。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
+- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 ai context，而不是在 notion 再建一個 generic `ai` 子域。
+- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
+- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notion boundary"]
+	Workspace["workspace"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Notion domain"]
+	Domain --> Output["KnowledgeArtifact / Publication"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [README.md](../../../README.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/structure/contexts/notion/subdomains.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付（實作層以 `page` + `block` 對應）|
+| authoring | 知識庫文章建立、驗證與分類（實作層整合至 `page` 子域）|
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+| taxonomy | 分類法與語義組織邊界 |
+| relations | 內容之間關聯與 backlink 邊界 |
+| publishing | 正式發布與對外交付邊界 |
+
+> **實作層命名備注：** `src/modules/notion/` 以 `page`、`block`、`database`、`view`、`collaboration`、`template` 作為子域目錄名稱。
+> `view` 子域承接 `database` 的多視圖能力；`block` 是 `page` 的內容區塊子結構。
+> `knowledge-database` 已正式重命名為 `database`；戰略文件中的舊名視為 deprecated。
+
+## Recommended Gap Subdomains
+
+無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
+
+## Anti-Patterns
+
+- 不把 taxonomy 混成 authoring 裡的附屬設定。
+- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
+- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-engagement、external-knowledge-sync、knowledge-versioning 哪一個內容責任。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
+- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Authoring["Authoring"] --> Knowledge["Knowledge"]
+	Knowledge --> Taxonomy["Taxonomy"]
+	Knowledge --> Relations["Relations"]
+	Taxonomy --> Publishing["Publishing"]
+	Relations --> Publishing
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../domain/subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+````
+
+## File: docs/structure/contexts/notion/ubiquitous-language.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
+| KnowledgePage | 正典頁面型知識單位 |
+| Article | 經過撰寫與驗證流程的知識內容 |
+| Database | 結構化知識集合 |
+| DatabaseView | 對 Database 的投影與檢視配置 |
+| Taxonomy | 標籤、分類法、主題樹等語義組織結構 |
+| Relation | 內容對內容之間的正式關聯 |
+| CollaborationThread | 內容附著的協作討論邊界 |
+| Attachment | 綁定於知識內容的檔案或媒體 |
+| Template | 可重複套用的內容結構起點 |
+| Publication | 對外可見且可交付的內容狀態 |
+| VersionSnapshot | 某一時點的不可變內容快照 |
+
+## Language Rules
+
+- 使用 KnowledgeArtifact、KnowledgePage、Article、Database 區分內容型別。
+- 使用 Taxonomy 表示分類法，不用 Tagging 功能泛稱整個語義結構。
+- 使用 Relation 表示正式內容關聯，不用 Link 混稱語義關係。
+- 使用 Publication 表示正式對外內容狀態，不用 Publish Action 取代整個交付語言。
+- 來自 notebooklm 的內容若未被 notion 吸收，不應直接稱為 KnowledgeArtifact。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| Wiki | KnowledgePage 或 Article |
+| Table | Database 或 DatabaseView |
+| Tag System | Taxonomy |
+| Content Link | Relation |
+
+## Naming Anti-Patterns
+
+- 不用 Wiki 混指 KnowledgeArtifact、KnowledgePage、Article。
+- 不用 Tagging 混指 Taxonomy。
+- 不用 Link 混指 Relation。
+- 不用 Publish Action 混指 Publication 狀態與整個交付邊界。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 KnowledgeArtifact、Taxonomy、Relation、Publication，再決定類別與檔名。
+- 奧卡姆剃刀：若一個正確名詞已能表達邊界，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護內容語義，再考慮實作便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Notion language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Knowledge["KnowledgeArtifact"] --> Taxonomy["Taxonomy"]
+	Knowledge --> Relation["Relation"]
+	Relation --> Publication["Publication"]
+	Taxonomy --> Publication
+```
+
+## Domain Layer Flow (enforced per subdomain)
+
+```mermaid
+flowchart LR
+  Domain["domain/ (aggregates, entities, ports/)"]
+  Application["application/ (use-cases, dtos)"]
+  Ports["domain/ports/ (IXxxPort interfaces)"]
+  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
+  Interfaces["interfaces/ (actions, queries, components)"]
+
+  Domain --> Application
+  Application --> Ports
+  Ports --> Infrastructure
+  Infrastructure --> Interfaces
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [ubiquitous-language.md](../domain/ubiquitous-language.md)
+````
+
+## File: docs/structure/contexts/platform/context-map.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+platform 是 account、organization 與 shared operational services 的供應者。它不再同時擁有 identity、billing、AI、analytics 的正典語言，而是與 iam、billing、ai 並列協作。
+
+## Relationships
+
+| Related Domain | Relationship Type | Platform Position | Published Language |
+|---|---|---|---|
+| iam | Upstream/Downstream | downstream consumer | actor reference、tenant scope、access decision |
+| billing | Upstream/Downstream | downstream consumer | entitlement signal、subscription capability signal |
+| ai | Upstream/Downstream | downstream consumer | ai capability signal、model policy |
+| workspace | Upstream/Downstream | operational supplier | account scope、organization surface、operational service signal |
+| notion | Upstream/Downstream | operational supplier as needed | notification、search、audit、observability signal |
+| notebooklm | Upstream/Downstream | operational supplier as needed | notification、search、audit、observability signal |
+
+## Mapping Rules
+
+- platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
+- workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
+- platform 擁有 shared AI capability，但 notion 與 notebooklm 仍各自擁有內容與推理語義。
+- audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
+- tenant、entitlement、secret-management、consent 已建立邊界骨架，仍需持續收斂治理契約與 published language。
+
+## Dependency Direction
+
+- platform 是 workspace、notion、notebooklm 的治理 upstream，而不是它們的內容或流程 owner。
+- platform 對下游輸出 published language，不輸出內部 aggregate、repository 或 secret 結構。
+- 下游若需保護本地語言，ACL 由下游自行實作，不由 platform 代替選擇。
+
+## Anti-Patterns
+
+- 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
+- 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
+- 把審計或分析事件消費錯寫成平台擁有下游正典責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 platform 作為 workspace、notion、notebooklm 的治理 upstream。
+- 奧卡姆剃刀：若 published language 已足夠，就不要對每個下游再額外建立一套專屬治理模型。
+- platform 的輸出應穩定、可被消費，但不應暴露其內部 aggregate 或 repository。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Domain["Platform domain"] --> PL["Published Language / OHS"]
+	PL --> Boundary["Downstream API clients"]
+	Boundary --> Local["Downstream local DTO / ACL"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam"] --> Workspace["workspace"]
+	IAM --> Notion["notion"]
+	IAM --> NotebookLM["notebooklm"]
+	Billing["billing"] --> Workspace
+	Billing --> Notion
+	Billing --> NotebookLM
+	AI["ai"] --> Notion
+	AI --> NotebookLM
+	Platform["platform"] -->|account / organization / operational services| Workspace
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)
+````
+
+## File: docs/structure/contexts/platform/README.md
+````markdown
+# Platform Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+platform 是帳號、組織與 shared operational services 主域。它的責任是提供 account、organization、notification、search、audit、observability 與 operational workflow 等跨切面能力，供其他主域穩定消費。
+
+## Why This Context Exists
+
+- 把治理與營運支撐責任集中，避免滲入其他主域。
+- 讓其他主域只消費治理結果，而不是重建治理模型。
+- 以清楚的 published language 承接身份、權益、政策與營運能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | account、organization 與營運支撐 |
+| Upstream Dependency | iam、billing、ai 的 shared signals 與治理結果 |
+| Downstream Consumers | workspace 與其他需要 operational services 的主域 |
+| Core Principle | platform 提供 account 與營運 surface，不接管治理、商業、內容或推理正典 |
+
+## Baseline Subdomains
+
+- account
+- account-profile
+- organization
+- team
+- platform-config
+- feature-flag
+- onboarding
+- compliance
+- integration
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- support
+
+## Recommended Gap Subdomains
+
+- consent
+- secret-management
+- operational-catalog
+
+## Strategic Reinforcement Focus
+
+- consent（資料使用授權語義收斂）
+- secret-management（敏感憑證治理收斂）
+- operational-catalog（平台營運資產語義收斂）
+
+
+## Key Relationships
+
+- 對 iam、billing、ai：platform 消費它們的治理、商業與 capability signal。
+- 對 workspace：提供 account scope、organization surface 與 shared operational services。
+- 對 notion 與 notebooklm：按需提供 notification、search、audit、observability 等 operational service。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENTS.md](./AGENTS.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
+
+## Account Surface Contract
+
+- platform 提供 account scope 的治理語意；shell 的 `accountId` 由這個主域的 account / organization 能力支撐，而不是由 workspace 自行定義。
+- account shell surface 採單一 account catch-all：`/{accountId}/[[...slug]]`；這是 account-scoped composition contract，不是 platform domain model 的直接外露。
+- `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
+- business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
+- organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
+- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
+
+## Anti-Pattern Rules
+
+- 不把 platform 寫成內容主域或對話主域。
+- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
+- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 的 operational 定位，再安排 account、organization、notification、search、audit、secret-management 的交互。
+- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
+- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin request"] --> Boundary["platform boundary"]
+	Boundary --> App["Application use case"]
+	App --> Domain["Platform domain"]
+	Domain --> Published["Published governance language"]
+	Published --> Consumers["workspace / notion / notebooklm"]
+```
+
+## Document Network
+
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [README.md](../../../README.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/structure/contexts/workspace/bounded-contexts.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
+
+## Baseline Bounded Contexts
+
+| Subdomain | Owns | Excludes |
+|---|---|---|
+| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
+| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
+| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
+| approve | 任務驗收與問題單覆核審批判定 | 平台身份授權決策 |
+| issue | 問題單建立、追蹤、狀態轉換 | 知識內容正典生命週期 |
+| orchestration | 知識頁面→任務物化批次流程編排 | domain 事實的直接寫入 |
+| quality | 任務 QA 審查與質檢流程 | 業務驗收規則本身 |
+| settlement | 請款發票生命週期與財務對帳 | billing 計費狀態 |
+| task | 任務建立、指派、狀態機 | 知識內容與 notebook 推理 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 | AI 模型能力（屬 ai context） |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 orchestration 或 app 組裝層 |
+| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
+| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
+| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
+
+## Domain Invariants
+
+- workspaceId 是工作區範疇錨點。
+- 工作區成員關係屬於 membership，而不是平台身份本身。
+- activity feed 只投影事實，不創造事實。
+- audit trail 一旦寫入即不可隨意覆蓋。
+- task/issue/settlement/approve/quality/orchestration 是獨立子域，不得合併為單一 workspace-workflow 概念。
+
+## Dependency Direction
+
+- workspace 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
+- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
+- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
+
+## Anti-Patterns
+
+- 把 Membership 混成 Actor 身份本身。
+- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
+- 用 `workspace-workflow` 代指已分解的 task、issue、settlement、approve、quality、orchestration 等子域。
+- 混用 `platform.workflow` 與 workspace 內的任務流程語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 task、issue、approve、quality、settlement、orchestration、audit、feed、scheduling 哪個責任。
+- workspace 工作區流程語言已分解為多個獨立子域，不再使用 `workspace-workflow` 混指所有流程。
+- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
+- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Workspace bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	TaskFormation["TaskFormation"] --> Task["Task"]
+	Task --> Approve["Approve / Quality"]
+	Task --> Issue["Issue"]
+	Task --> Settlement["Settlement"]
+	Scheduling["Scheduling"] --> Task
+	Orchestration["Orchestration"] --> Task
+	Task --> AuditFeed["Audit / Feed"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
+````
+
+## File: docs/structure/contexts/workspace/context-map.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context map 思維，workspace 應只暴露 scope、membership scope 與協作容器語言，而不暴露內部實作。
+
+## Relationships
+
+| Related Domain | Relationship Type | Workspace Position | Published Language |
+|---|---|---|---|
+| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
+| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
+| platform | Upstream/Downstream | downstream | account scope、organization surface、operational service signal |
+| notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+
+## Mapping Rules
+
+- workspace 消費 iam、billing、platform 的 signals 與治理結果，但不重建 identity、policy 或 entitlement 模型。
+- notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
+- sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
+- 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。
+
+## Dependency Direction
+
+- workspace 對 iam、billing、platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
+- workspace 對外輸出 workspaceId、membership scope、share scope，而不是內部 aggregate 或投影實作。
+- downstream 若需保護自己的語言，ACL 由 downstream 自行實作，不由 workspace 代做。
+
+## Anti-Patterns
+
+- 把 workspace 與 notion/notebooklm 寫成對稱共用核心，同時又要求 ACL。
+- 把 sharing scope 直接當成平台 access decision 本身。
+- 讓其他主域直接操作 workspace 內部 membership 或 lifecycle 模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 workspace 對 platform 的 downstream 位置，以及對 notion / notebooklm 的 upstream scope supplier 位置。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個翻譯鏈。
+- workspace 對外提供的是 scope，不是內部 aggregate、投影或 storage 模型。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["platform upstream"] -->|Published Language| Boundary["workspace boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+	Domain --> PL["Published workspace scope"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam"] -->|actor / tenant / access| Boundary["workspace API boundary"]
+	Billing["billing"] -->|entitlement| Boundary
+	Platform["platform"] -->|account / organization surface| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["Workspace domain"]
+	Domain --> Scope["workspaceId / membership scope / share scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)
+````
+
+## File: docs/structure/contexts/workspace/subdomains.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| audit | 工作區操作日誌與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| approve | 任務驗收與問題單覆核審批流程 |
+| issue | 問題單生命週期與追蹤管理 |
+| orchestration | 知識頁面→任務物化批次作業編排 |
+| quality | 任務 QA 審查與質檢流程 |
+| settlement | 請款發票生命週期與財務對帳 |
+| task | 任務建立、指派與狀態轉換 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
+| membership | 把工作區參與關係從平台身份治理中切開 |
+| sharing | 把對外共享與可見性規則收斂到單一上下文 |
+| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
+
+## Recommended Order
+
+1. lifecycle
+2. membership
+3. sharing
+4. presence
+
+## Anti-Patterns
+
+- 不把 lifecycle 混進 orchestration，使容器生命週期被流程編排吞沒。
+- 不把 membership 混成 organization 或 identity。
+- 不把 sharing 混成一般 permission 欄位集合。
+- 不把 presence 藏進 UI 狀態而失去獨立語言。
+- 不用 `workspace-workflow` 混指已分解的 task、issue、settlement、approve、quality、orchestration 等獨立子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 workspace 責任（task/issue/settlement/approve/quality/orchestration/audit/feed/scheduling），再決定 use case 與 boundary。
+- 工作區流程責任已分解為多個專門子域，避免與 `platform.workflow` 混名。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
+- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	TaskFormation["TaskFormation"] --> Task["Task"]
+	Task --> Approve["Approve / Quality"]
+	Task --> Issue["Issue"]
+	Task --> Settlement["Settlement"]
+	Scheduling["Scheduling"] --> Task
+	Orchestration["Orchestration"] --> Task
+	Task --> AuditFeed["Audit / Feed"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../domain/subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+````
+
+## File: docs/structure/contexts/workspace/ubiquitous-language.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Workspace | 協作容器與主要範疇邊界 |
+| WorkspaceId | 工作區唯一識別子與範疇錨點 |
+| WorkspaceLifecycle | 工作區建立、封存、還原、移轉等生命週期狀態 |
+| Membership | 工作區內的參與關係 |
+| WorkspaceRole | 工作區範疇下的角色語意 |
+| ShareScope | 共享暴露範圍 |
+| ShareLink | 對外共享的可解析入口 |
+| PresenceSession | 即時在線與共同編輯存在感訊號 |
+| ActivityFeed | 面向使用者的活動流投影 |
+| AuditTrail | 不可否認的工作區操作追蹤 |
+| Schedule | 工作區內的時間安排與提醒意圖 |
+| WorkflowExecution | 某個工作區流程的一次執行實例 |
+| WorkspaceTab | 同一條 workspace detail route 上的 query-state 分頁語意 |
+| OverviewPanel | `Overview` tab 內的 panel 細分語意 |
+
+## Shell Route Terms
+
+| Term | Meaning |
+|---|---|
+| AccountScope | workspace route 所依附的 account scope；由 shell 上的 `accountId` 表示 |
+| AccountTypeStringContract | workspace aggregate / use case / validator 所消費的 code-level enum `"user" | "organization"`；`"user"` 對應 personal account context |
+| CreatorUserId | 建立 workspace 或發起 workspace-scoped command 的具體 user identifier |
+| CurrentUserId | 目前正在操作 workspace UI / workflow 的具體 user identifier |
+| CanonicalWorkspaceRoute | `/{accountId}/{workspaceId}` |
+| LegacyWorkspaceRedirectSurface | `/{accountId}/workspace/{workspaceId}` |
+
+## Language Rules
+
+- 使用 Workspace，不使用 Project 或 Space 作為同義詞。
+- 使用 Membership，不用 User 表示工作區參與關係。
+- 使用 ActivityFeed 與 AuditTrail 區分投影與證據。
+- 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
+- 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
+- 使用 `workspaceId` 表示 workspace scope，不用 `accountId` 混稱。
+- 使用 `AccountType = "user" | "organization"` 作為 workspace 跨邊界字串契約；顯示語言可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成 canonical accountType literal。
+- 使用 `creatorUserId` / `currentUserId` 表示具體使用者操作，不把它寫成 `accountId` 或 `workspaceId`。
+- organization-scoped event metadata 需要時，可由 `accountType = "organization"` 下的 `accountId` 映射出 `organizationId`；但 workspace route surface 本身仍以 `accountId` + `workspaceId` 為主。
+- 使用 `/{accountId}/{workspaceId}` 表示 canonical workspace detail route。
+- `/{accountId}/workspace/{workspaceId}` 只視為 legacy redirect surface，不作為新的文件、設計稿或 UI href。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| User | Membership 或 Actor reference |
+| Timeline | ActivityFeed 或 Schedule |
+| Share Permission | ShareScope |
+| Workspace Log | ActivityFeed 或 AuditTrail |
+| `AccountType = "personal"` | `AccountType = "user"`，顯示語言再另寫個人帳號 |
+| `organizationId`（as workspace route param） | `accountId` |
+| `accountId`（as concrete acting user id） | `creatorUserId` / `currentUserId` |
+| Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
+
+## Naming Anti-Patterns
+
+- 不用 User 混指 Membership 與 Actor reference。
+- 不用 Timeline 混指 ActivityFeed 與 Schedule。
+- 不用 Permission 混指 ShareScope。
+- 不用 Log 混指 ActivityFeed 與 AuditTrail。
+- 不把 personal account 顯示語言誤當成 workspace 的 code-level `AccountType` literal。
+- 不把 `accountId`、`workspaceId`、`creatorUserId`、`organizationId` 混成同一個 identifier 概念。
+- 不把 account-scoped shell route 語意誤當成 workspace 自己的 top-level route ownership。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 Workspace、Membership、ShareScope、ActivityFeed、AuditTrail，再決定類型與檔名。
+- 奧卡姆剃刀：若一個工作區名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護 scope 語言，再考慮 UI 或 API 顯示便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Workspace language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Workspace["Workspace"] --> Membership["Membership"]
+	Membership --> ShareScope["ShareScope"]
+	ShareScope --> ActivityFeed["ActivityFeed"]
+	ActivityFeed --> AuditTrail["AuditTrail"]
+```
+
+## Domain Layer Flow (enforced per subdomain)
+
+```mermaid
+flowchart LR
+  Domain["domain/ (aggregates, entities, ports/)"]
+  Application["application/ (use-cases, dtos)"]
+  Ports["domain/ports/ (IXxxPort interfaces)"]
+  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
+  Interfaces["interfaces/ (actions, queries, components)"]
+
+  Domain --> Application
+  Application --> Ports
+  Ports --> Infrastructure
+  Infrastructure --> Interfaces
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [ubiquitous-language.md](../domain/ubiquitous-language.md)
 ````
 
 ## File: docs/structure/domain/bounded-context-subdomain-template.md
@@ -30148,6 +29883,125 @@ ${input.query}
 - [`docs/structure/contexts/notebooklm/README.md`](../../structure/contexts/notebooklm/README.md)
 ````
 
+## File: packages/README.md
+````markdown
+# Packages Layer
+
+此目錄是所有**共享平台能力**的唯一存放層。`src/modules/` 與 `src/app/` 不得直接依賴第三方 library，必須透過此層的套件存取外部能力。
+
+---
+
+## 層次位置
+
+```
+src/app / src/modules  →  packages  →  third-party libraries
+```
+
+規則：
+- `src/modules/` 不得直接 import 第三方 library
+- `src/modules/` 只能 import `packages/` 提供的套件
+- `packages/` 是唯一允許直接依賴外部 library 的層
+
+---
+
+## 現有套件清單
+
+套件分三層：**基礎設施原語**（`infra/*`）、**外部服務整合**（`integration-*`）、**UI 元件**（`ui-*`）。
+
+---
+
+### 🧱 infra/* — 基礎設施原語層 (`@infra/*`)
+
+純功能原語，**無外部服務依賴**，離線可用，不需要憑證。
+
+| 套件 | alias | 職責 |
+|---|---|---|
+| `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務的 atom / slice） |
+| `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
+| `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
+| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
+| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） |
+| `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一允許的 id 生成入口） |
+| `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
+
+---
+
+### 🔌 integration-* — 外部服務整合層 (`@integration-*`)
+
+連接**外部服務**，需要憑證、網路呼叫、第三方帳號。封裝 SDK，標準化 API 介面，normalize 錯誤與型別。
+
+| 套件 | alias | 封裝目標 |
+|---|---|---|
+| `integration-ai` | `@integration-ai` | AI 服務整合（Genkit 封裝、Google AI、OpenAI） |
+| `integration-firebase` | `@integration-firebase` | Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） |
+| `integration-queue` | `@integration-queue` | 訊息佇列整合（QStash、Cloud Tasks） |
+
+---
+
+### 🎨 ui-* — UI 元件層 (`@ui-*`)
+
+共享 UI 元件與設計系統；無業務邏輯。
+
+| 套件 | alias | 說明 |
+|---|---|---|
+| `ui-components` | `@ui-components` | 業務無關的自訂 UI 元件（wrap、design-system 擴充） |
+| `ui-editor` | `@ui-editor` | 富文本編輯器（TipTap 封裝） |
+| `ui-markdown` | `@ui-markdown` | Markdown 渲染元件 |
+| `ui-shadcn` | `@ui-shadcn` | 官方 shadcn/ui 組件（CLI 管理，禁止手動修改） |
+| `ui-visualization` | `@ui-visualization` | 數據視覺化元件（圖表、圖形） |
+
+> **自訂 UI 組件唯一存放位置**：`packages/ui-components/`  
+> 任何對官方組件的 wrap、設計系統擴充、業務語意層一律放入 `ui-components/`，不放在 `src/modules/` 或 `src/app/`。
+
+---
+
+## 硬性規則
+
+### 1. modules 不得直接使用第三方 library
+
+```ts
+// ❌ 錯誤：在 modules 直接 import uuid
+import { v4 as uuidv4 } from 'uuid'
+
+// ✅ 正確：透過 packages 套件
+import { generateId } from '@infra/uuid'
+```
+
+### 2. 每個套件必須有穩定公開介面
+
+- `index.ts` 是唯一公開入口
+- 隱藏實作細節，不洩漏 SDK 型別
+- 不洩漏第三方 API 至消費端
+
+### 3. 不得加入業務邏輯
+
+套件不得：
+- 包含 domain rule 或 use case 邏輯
+- 直接 import `src/modules/*`
+- 對特定功能或模組有感知
+
+### 4. packages/index.ts 必須維持具名匯出
+
+`packages/index.ts` 是 packages 層總入口，必須具名匯出以下三類套件：
+- `infra*`（基礎設施原語）
+- `integration*`（外部服務整合）
+- `ui*`（共享 UI 套件）
+
+新增/刪除套件時需同步更新 `packages/index.ts`。
+
+---
+
+## 判斷原則
+
+| 問題 | 結果 |
+|---|---|
+| 可跨多個 modules 重用，且無業務語意？無外部服務依賴，離線可用？ | → 放 `packages/infra/*/` |
+| 是第三方 SDK 封裝或外部系統整合？需要憑證 / 網路 / 第三方帳號？ | → 放 `packages/integration-*/` |
+| 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
+| 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
+| 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
+````
+
 ## File: src/modules/iam/README.md
 ````markdown
 # IAM Module
@@ -30782,149 +30636,318 @@ applyTo: "**"
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 ````
 
-## File: docs/structure/contexts/platform/ubiquitous-language.md
+## File: docs/structure/contexts/platform/bounded-contexts.md
 ````markdown
 # Platform
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Consumed from iam（consumed, not owned）
+## Domain Role
 
-| Term | Source |
+platform 是 account、organization 與 operational-service 主域。依 bounded context 原則，它應把帳號與營運支撐責任封裝成清楚的上下文，而不是再作為 identity、billing、AI、analytics 的 umbrella owner。
+
+## Migrated Bounded Contexts（已遷出）
+
+| Cluster | 遷入位置 |
 |---|---|
-| Account | iam — 帳號聚合根，platform 消費其 published language |
-| Organization | iam — 組織聚合根，platform 消費其 published language |
+| Account and Organization (account, account-profile, organization, team) | `iam/subdomains/account/` + `iam/subdomains/organization/` |
 
-## Canonical Terms
+## Baseline Bounded Contexts
 
-| Term | Meaning |
+| Cluster | Subdomains |
 |---|---|
-| PlatformConfig | 平台設定輪廓與配置管理 |
-| FeatureFlag | 功能暴露與 rollout 的治理開關 |
-| Consent | 同意、偏好與資料使用授權紀錄 |
-| Secret | 受控憑證、token 或 integration credential |
-| NotificationRoute | 訊息投遞路由與偏好結果 |
-| AuditLog | 平台級永久日誌證據 |
-| AccountScope | shell 上由 `accountId` 表示的帳號範疇，對應 `AccountType = "user" | "organization"` 所決定的 account context |
-| PersonalAccount | 對應 `AccountType = "user"` 的 account scope |
-| OrganizationAccount | 對應 `AccountType = "organization"` 的 account scope |
+| Platform Governance and Configuration | platform-config, feature-flag, onboarding, compliance |
+| Delivery and Operations | integration, workflow, notification, background-job, secret-management |
+| Intelligence and Audit | content, search, audit-log, observability, support |
 
-## Shell Surface Terms
+## Strategic Reinforcement Focus
 
-| Term | Meaning |
-|---|---|
-| Account Catch-All Surface | `/{accountId}/[[...slug]]`，account-scoped shell composition contract |
-| Flattened Governance Route | `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions` 等 account-scoped governance URL |
-| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
+| Subdomain | Why It Stays A Focus | Risk If Under-Specified |
+|---|---|---|
+| tenant | 收斂多租戶隔離與 tenant-scoped 規則 | organization 會被迫承載過多租戶治理語義 |
+| entitlement | 收斂有效權益與功能可用性解算 | subscription、feature-flag、policy 難以一致決策 |
+| secret-management | 收斂憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
+| consent | 收斂同意、偏好、資料使用授權語義 | compliance 會被迫承接過細的授權決策 |
 
-## Identifier Terms
+## Domain Invariants
 
-| Identifier | Meaning |
-|---|---|
-| accountId | shell composition 的 account scope id；platform 以它選擇 personal account 或 organization account context |
-| organizationId | organization aggregate、team、taxonomy、relations、ingestion 等 organization-scoped contract 所使用的 id |
-| userId | 具體登入使用者或操作使用者的 id；用於 profile、createdByUserId、verifiedByUserId 等欄位 |
-| actorId | 日誌、事件或 command metadata 中的行為主體 id；可能等於 userId，也可能是 system actor |
-| tenantId | tenant isolation id；用於 tenant-scoped policy、storage、rules 與 observability isolation |
+- actor identity 由 iam 正典擁有，platform 只消費 actor reference。
+- access decision 必須基於 iam 語言輸出，而不是由下游主域自創。
+- entitlement 必須是解算結果，不是任意 UI 標記。
+- shared AI capability 由 ai context 正典擁有；下游主域只能消費其 published language。
+- billing event 與 subscription state 必須分離。
+- secret 不應作為一般 integration payload 傳播。
 
-## Language Rules
+## Dependency Direction
 
-- platform 以 NotificationRoute、AuditLog、AccountScope 等營運與 shell composition 語言為主。Account 與 Organization 聚合根己遷入 iam；platform 只消費其 published language。
-- Actor、Identity、Tenant、AccessDecision 屬於 iam 的 canonical language；platform 只消費其結果。
-- Entitlement、BillingEvent、Subscription 屬於 billing 的 canonical language；platform 不再主張其所有權。
-- 使用 Consent 表示授權與同意，不用 Preference 混稱法律或治理語意。
-- 使用 Secret 表示受控憑證，不放入一般 Integration payload 語言。
-- 使用 OrganizationTeam 表示 Organization 邊界內的分組（縮寫為 Team 可接受）。
-- Organization member 的移除操作使用 `removeMember`（通用）。`dismissPartnerMember` 僅限 external partner 場景，對應 DismissPartnerMember 使用案例。
-- shell route 上的 `accountId` 表示 AccountScope，不等於 workspaceId。
-- shell route 使用 `accountId`，不使用 `organizationId` 當 route param；organization-scoped model 需要時，再由 use case / mapper 顯式轉譯。
-- `userId` 只表示具體使用者；`actorId` 表示行為主體，日誌與事件 metadata 可用 `actorId = "system"` 等非使用者值。
-- `tenantId` 用於租戶隔離與 storage/rules path，不應與 `accountId` 或 `organizationId` 混成同一層 contract。
-- `AccountType` 的 code-level literal 只使用 `"user" | "organization"`；顯示文字可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成跨邊界字串值。
-- account-scoped governance URL 採 flattened route，不再把 `/{accountId}/organization/*` 當成 canonical surface。
+- platform 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
+- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
+- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
 
-## Avoid
+## Anti-Patterns
 
-| Avoid | Use Instead |
-|---|---|
-| User | Actor |
-| `AccountType = "personal"` | `AccountType = "user"` |
-| `organizationId`（as shell route param） | `accountId` |
-| `userId`（as audit / system actor id） | `actorId` |
-| Team（as top-level Tenant） | Organization 或 Tenant |
-| Team（as internal grouping） | OrganizationTeam（可縮寫 Team） |
-| Plan Access | Entitlement |
-| API Key Store | SecretManagement |
-| `/{accountId}/organization/members` | `/{accountId}/members` |
-| `/{accountId}/organization/teams` | `/{accountId}/teams` |
-| `/{accountId}/organization/permissions` | `/{accountId}/permissions` |
-
-## Naming Anti-Patterns
-
-- 不用 User 混稱 Actor。
-- 不用 Team 混稱 Organization 或 Tenant（分組含義的 Team = OrganizationTeam 可接受）。
-- 不用 Plan 混稱 Entitlement。
-- 不用 Preference 混稱 Consent。
-- 不把 legacy organization route surface 當成 canonical account governance surface。
-
-## AccountType String Values
-
-`AccountType = "user" | "organization"` 是目前代碼、驗證與跨邊界 DTO 共用的字串契約：
-- `"user"` → 代表個人 Actor 帳號（personal account），概念對應 Actor
-- `"organization"` → 代表組織帳號，概念對應 Organization
-
-命名上仍使用 Actor / Organization，不用 User 作為通用語言名詞。
+- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
+- 把 secret-management 混回 integration，使敏感治理責任失焦。
+- 讓 platform 直接持有其他主域的正典內容或推理模型。
+- 把 ai context 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，名稱先對齊 Actor、Tenant、Entitlement、Consent、Secret，再決定類型與檔名。
-- 奧卡姆剃刀：若一個治理名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
-- 命名先保護治理語言，再考慮 UI 或 API 顯示便利。
-- OrganizationTeam 相關程式碼放在 `src/modules/platform/subdomains/organization/`，以 Team 縮寫命名可接受（已整併入 organization 子域）。
+- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
+- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
+- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Strategic["Strategic language"] --> Context["Platform language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
+	I["Interfaces"] --> A["Application"]
+	A --> D["Platform bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Actor["Actor"] --> Organization["Organization / Tenant"]
-	Organization --> Access["AccessDecision"]
+	Identity["Identity / Organization"] --> Access["Access / Policy"]
 	Access --> Entitlement["Entitlement"]
-	Entitlement --> Notification["NotificationRoute / delivery"]
-```
-
-## Domain Layer Flow (enforced per subdomain)
-
-```mermaid
-flowchart LR
-  Domain["domain/ (aggregates, entities, ports/)"]
-  Application["application/ (use-cases, dtos)"]
-  Ports["domain/ports/ (IXxxPort interfaces)"]
-  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
-  Interfaces["interfaces/ (actions, queries, components)"]
-
-  Domain --> Application
-  Application --> Ports
-  Ports --> Infrastructure
-  Infrastructure --> Interfaces
+	Entitlement --> Delivery["AI / Notification / Job / Integration"]
+	Delivery --> Audit["Audit / Observability / Analytics"]
 ```
 
 ## Document Network
 
 - [README.md](./README.md)
 - [AGENTS.md](./AGENTS.md)
+- [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
+````
+
+## File: docs/structure/contexts/platform/subdomains.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Migrated Subdomains（已遷出 platform）
+
+| Subdomain | 遷入位置 |
+|---|---|
+| account | `iam/subdomains/account/` |
+| account-profile | `iam/subdomains/account/` |
+| organization | `iam/subdomains/organization/` |
+| team | `iam/subdomains/organization/` |
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、日誌與法規執行 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久日誌軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| support | 客服工單、支援知識與處理流程 |
+
+## Strategic Reinforcement Focus
+
+| Focus | Why It Remains Important |
+|---|---|
+| tenant | 持續收斂租戶隔離語義與 organization 分工邊界 |
+| entitlement | 持續收斂 subscription、feature-flag、policy 的統一解算語言 |
+| secret-management | 持續收斂與 integration 的責任切割，避免敏感治理擴散 |
+| consent | 持續收斂 consent 與 compliance 的責任邊界 |
+
+## Recommended Order
+
+1. tenant
+2. entitlement
+3. secret-management
+4. consent
+
+## Anti-Patterns
+
+- 不把 tenant 與 organization 視為同義詞。
+- 不把 entitlement 混成 feature-flag 的別名。
+- 不把 secret-management 混成 integration 的一個欄位集合。
+- 不把 consent 混成一般 UI preference。
+- 不把 platform 的 ai 混成 notebooklm synthesis 或 notion 內容輔助的本地所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
+- shared AI provider、模型政策、成本與安全護欄一律先歸 ai context 評估。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
+- 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity"] --> Organization["Organization / Tenant"]
+	Organization --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Secret["AI / Secret / Integration / Delivery"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
 - [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../domain/ubiquitous-language.md)
-- ../../decisions/0004-ubiquitous-language.md
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../domain/subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+````
+
+## File: docs/structure/contexts/workspace/README.md
+````markdown
+# Workspace Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、日誌、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+
+## Why This Context Exists
+
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、日誌、排程與流程協調收斂為同一主域內的高凝聚能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
+
+## Baseline Subdomains
+
+- audit
+- feed
+- scheduling
+- approve
+- issue
+- orchestration
+- quality
+- settlement
+- task
+- task-formation
+
+## Recommended Gap Subdomains
+
+- lifecycle
+- membership
+- sharing
+- presence
+
+## Key Relationships
+
+- 與 iam：workspace 消費 actor、tenant 與 access decision。
+- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
+- 與 platform：workspace 消費 account scope 與 organization surface。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENTS.md](./AGENTS.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+
+## Route Surface Contract
+
+- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
+- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
+- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
+- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
+- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
+- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
+- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
+- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
+- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
+- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["workspace boundary"]
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Workspace domain"]
+	Domain --> Scope["workspace scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [README.md](../../../README.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/structure/domain/ubiquitous-language.md
@@ -31624,125 +31647,6 @@ Each module enforces its own subset of these rules. Key mapping:
 - [src/modules/notebooklm/AGENTS.md](../../../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints
 ````
 
-## File: packages/README.md
-````markdown
-# Packages Layer
-
-此目錄是所有**共享平台能力**的唯一存放層。`src/modules/` 與 `src/app/` 不得直接依賴第三方 library，必須透過此層的套件存取外部能力。
-
----
-
-## 層次位置
-
-```
-src/app / src/modules  →  packages  →  third-party libraries
-```
-
-規則：
-- `src/modules/` 不得直接 import 第三方 library
-- `src/modules/` 只能 import `packages/` 提供的套件
-- `packages/` 是唯一允許直接依賴外部 library 的層
-
----
-
-## 現有套件清單
-
-套件分三層：**基礎設施原語**（`infra/*`）、**外部服務整合**（`integration-*`）、**UI 元件**（`ui-*`）。
-
----
-
-### 🧱 infra/* — 基礎設施原語層 (`@infra/*`)
-
-純功能原語，**無外部服務依賴**，離線可用，不需要憑證。
-
-| 套件 | alias | 職責 |
-|---|---|---|
-| `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務的 atom / slice） |
-| `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
-| `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
-| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
-| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） |
-| `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一允許的 id 生成入口） |
-| `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
-
----
-
-### 🔌 integration-* — 外部服務整合層 (`@integration-*`)
-
-連接**外部服務**，需要憑證、網路呼叫、第三方帳號。封裝 SDK，標準化 API 介面，normalize 錯誤與型別。
-
-| 套件 | alias | 封裝目標 |
-|---|---|---|
-| `integration-ai` | `@integration-ai` | AI 服務整合（Genkit 封裝、Google AI、OpenAI） |
-| `integration-firebase` | `@integration-firebase` | Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） |
-| `integration-queue` | `@integration-queue` | 訊息佇列整合（QStash、Cloud Tasks） |
-
----
-
-### 🎨 ui-* — UI 元件層 (`@ui-*`)
-
-共享 UI 元件與設計系統；無業務邏輯。
-
-| 套件 | alias | 說明 |
-|---|---|---|
-| `ui-components` | `@ui-components` | 業務無關的自訂 UI 元件（wrap、design-system 擴充） |
-| `ui-editor` | `@ui-editor` | 富文本編輯器（TipTap 封裝） |
-| `ui-markdown` | `@ui-markdown` | Markdown 渲染元件 |
-| `ui-shadcn` | `@ui-shadcn` | 官方 shadcn/ui 組件（CLI 管理，禁止手動修改） |
-| `ui-visualization` | `@ui-visualization` | 數據視覺化元件（圖表、圖形） |
-
-> **自訂 UI 組件唯一存放位置**：`packages/ui-components/`  
-> 任何對官方組件的 wrap、設計系統擴充、業務語意層一律放入 `ui-components/`，不放在 `src/modules/` 或 `src/app/`。
-
----
-
-## 硬性規則
-
-### 1. modules 不得直接使用第三方 library
-
-```ts
-// ❌ 錯誤：在 modules 直接 import uuid
-import { v4 as uuidv4 } from 'uuid'
-
-// ✅ 正確：透過 packages 套件
-import { generateId } from '@infra/uuid'
-```
-
-### 2. 每個套件必須有穩定公開介面
-
-- `index.ts` 是唯一公開入口
-- 隱藏實作細節，不洩漏 SDK 型別
-- 不洩漏第三方 API 至消費端
-
-### 3. 不得加入業務邏輯
-
-套件不得：
-- 包含 domain rule 或 use case 邏輯
-- 直接 import `src/modules/*`
-- 對特定功能或模組有感知
-
-### 4. packages/index.ts 必須維持具名匯出
-
-`packages/index.ts` 是 packages 層總入口，必須具名匯出以下三類套件：
-- `infra*`（基礎設施原語）
-- `integration*`（外部服務整合）
-- `ui*`（共享 UI 套件）
-
-新增/刪除套件時需同步更新 `packages/index.ts`。
-
----
-
-## 判斷原則
-
-| 問題 | 結果 |
-|---|---|
-| 可跨多個 modules 重用，且無業務語意？無外部服務依賴，離線可用？ | → 放 `packages/infra/*/` |
-| 是第三方 SDK 封裝或外部系統整合？需要憑證 / 網路 / 第三方帳號？ | → 放 `packages/integration-*/` |
-| 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
-| 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
-| 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
-````
-
 ## File: .github/instructions/domain-layer-rules.instructions.md
 ````markdown
 ---
@@ -31820,6 +31724,150 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill hexagonal-ddd
+````
+
+## File: docs/structure/contexts/platform/ubiquitous-language.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Consumed from iam（consumed, not owned）
+
+| Term | Source |
+|---|---|
+| Account | iam — 帳號聚合根，platform 消費其 published language |
+| Organization | iam — 組織聚合根，platform 消費其 published language |
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| PlatformConfig | 平台設定輪廓與配置管理 |
+| FeatureFlag | 功能暴露與 rollout 的治理開關 |
+| Consent | 同意、偏好與資料使用授權紀錄 |
+| Secret | 受控憑證、token 或 integration credential |
+| NotificationRoute | 訊息投遞路由與偏好結果 |
+| AuditLog | 平台級永久日誌證據 |
+| AccountScope | shell 上由 `accountId` 表示的帳號範疇，對應 `AccountType = "user" | "organization"` 所決定的 account context |
+| PersonalAccount | 對應 `AccountType = "user"` 的 account scope |
+| OrganizationAccount | 對應 `AccountType = "organization"` 的 account scope |
+
+## Shell Surface Terms
+
+| Term | Meaning |
+|---|---|
+| Account Catch-All Surface | `/{accountId}/[[...slug]]`，account-scoped shell composition contract |
+| Flattened Governance Route | `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions` 等 account-scoped governance URL |
+| Legacy Organization Redirect Surface | `/{accountId}/organization/*` |
+
+## Identifier Terms
+
+| Identifier | Meaning |
+|---|---|
+| accountId | shell composition 的 account scope id；platform 以它選擇 personal account 或 organization account context |
+| organizationId | organization aggregate、team、taxonomy、relations、ingestion 等 organization-scoped contract 所使用的 id |
+| userId | 具體登入使用者或操作使用者的 id；用於 profile、createdByUserId、verifiedByUserId 等欄位 |
+| actorId | 日誌、事件或 command metadata 中的行為主體 id；可能等於 userId，也可能是 system actor |
+| tenantId | tenant isolation id；用於 tenant-scoped policy、storage、rules 與 observability isolation |
+
+## Language Rules
+
+- platform 以 NotificationRoute、AuditLog、AccountScope 等營運與 shell composition 語言為主。Account 與 Organization 聚合根己遷入 iam；platform 只消費其 published language。
+- Actor、Identity、Tenant、AccessDecision 屬於 iam 的 canonical language；platform 只消費其結果。
+- Entitlement、BillingEvent、Subscription 屬於 billing 的 canonical language；platform 不再主張其所有權。
+- 使用 Consent 表示授權與同意，不用 Preference 混稱法律或治理語意。
+- 使用 Secret 表示受控憑證，不放入一般 Integration payload 語言。
+- 使用 OrganizationTeam 表示 Organization 邊界內的分組（縮寫為 Team 可接受）。
+- Organization member 的移除操作使用 `removeMember`（通用）。`dismissPartnerMember` 僅限 external partner 場景，對應 DismissPartnerMember 使用案例。
+- shell route 上的 `accountId` 表示 AccountScope，不等於 workspaceId。
+- shell route 使用 `accountId`，不使用 `organizationId` 當 route param；organization-scoped model 需要時，再由 use case / mapper 顯式轉譯。
+- `userId` 只表示具體使用者；`actorId` 表示行為主體，日誌與事件 metadata 可用 `actorId = "system"` 等非使用者值。
+- `tenantId` 用於租戶隔離與 storage/rules path，不應與 `accountId` 或 `organizationId` 混成同一層 contract。
+- `AccountType` 的 code-level literal 只使用 `"user" | "organization"`；顯示文字可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成跨邊界字串值。
+- account-scoped governance URL 採 flattened route，不再把 `/{accountId}/organization/*` 當成 canonical surface。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| User | Actor |
+| `AccountType = "personal"` | `AccountType = "user"` |
+| `organizationId`（as shell route param） | `accountId` |
+| `userId`（as audit / system actor id） | `actorId` |
+| Team（as top-level Tenant） | Organization 或 Tenant |
+| Team（as internal grouping） | OrganizationTeam（可縮寫 Team） |
+| Plan Access | Entitlement |
+| API Key Store | SecretManagement |
+| `/{accountId}/organization/members` | `/{accountId}/members` |
+| `/{accountId}/organization/teams` | `/{accountId}/teams` |
+| `/{accountId}/organization/permissions` | `/{accountId}/permissions` |
+
+## Naming Anti-Patterns
+
+- 不用 User 混稱 Actor。
+- 不用 Team 混稱 Organization 或 Tenant（分組含義的 Team = OrganizationTeam 可接受）。
+- 不用 Plan 混稱 Entitlement。
+- 不用 Preference 混稱 Consent。
+- 不把 legacy organization route surface 當成 canonical account governance surface。
+
+## AccountType String Values
+
+`AccountType = "user" | "organization"` 是目前代碼、驗證與跨邊界 DTO 共用的字串契約：
+- `"user"` → 代表個人 Actor 帳號（personal account），概念對應 Actor
+- `"organization"` → 代表組織帳號，概念對應 Organization
+
+命名上仍使用 Actor / Organization，不用 User 作為通用語言名詞。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 Actor、Tenant、Entitlement、Consent、Secret，再決定類型與檔名。
+- 奧卡姆剃刀：若一個治理名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護治理語言，再考慮 UI 或 API 顯示便利。
+- OrganizationTeam 相關程式碼放在 `src/modules/platform/subdomains/organization/`，以 Team 縮寫命名可接受（已整併入 organization 子域）。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Platform language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Actor["Actor"] --> Organization["Organization / Tenant"]
+	Organization --> Access["AccessDecision"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Notification["NotificationRoute / delivery"]
+```
+
+## Domain Layer Flow (enforced per subdomain)
+
+```mermaid
+flowchart LR
+  Domain["domain/ (aggregates, entities, ports/)"]
+  Application["application/ (use-cases, dtos)"]
+  Ports["domain/ports/ (IXxxPort interfaces)"]
+  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
+  Interfaces["interfaces/ (actions, queries, components)"]
+
+  Domain --> Application
+  Application --> Ports
+  Ports --> Infrastructure
+  Infrastructure --> Interfaces
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [ubiquitous-language.md](../domain/ubiquitous-language.md)
 ````
 
 ## File: docs/structure/domain/bounded-contexts.md
@@ -32366,7 +32414,7 @@ name: Xuanwu Copilot Workspace Instructions
 #use skill context7
 #use skill xuanwu-skill
 #use skill hexagonal-ddd
-#use skill xuanwu-app-markdown-skill
+#use skill xuanwu-markdown-skill
 #use skill occams-razor
 #use skill alistair-cockburn
 
@@ -32436,7 +32484,7 @@ These three skills **must be loaded at the start of every conversation** before 
 
 - Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
 - Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill.md) for implementation lookup only; they are not strategic authority.
+- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
 - `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
 
 ## Terminology
