@@ -6,11 +6,11 @@
 
 | Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
 |---|---|---|
-| iam | identity, access-control, tenant, security-policy | session, consent, secret-governance |
+| iam | identity, access-control, tenant, security-policy, **account, organization** | session, consent, secret-governance |
 | billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
 | ai | generation, orchestration, distillation, retrieval, memory, context, safety, tool-calling, reasoning, conversation, evaluation, tracing | provider-routing, model-policy |
 | analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
-| platform | account, account-profile, organization, team, platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
+| platform | platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
 | workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
 | notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
 | notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
@@ -27,6 +27,8 @@
 | access-control | 主體現在能做什麼的授權判定 |
 | tenant | 多租戶隔離與 tenant-scoped 規則治理 |
 | security-policy | 安全規則定義、版本化與發佈 |
+| account | 帳號聚合根與帳號生命週期（從 platform 遷入） |
+| organization | 組織、成員與角色邊界（從 platform 遷入） |
 
 #### Recommended Gap Subdomains
 
@@ -131,10 +133,6 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
@@ -148,6 +146,8 @@
 | audit-log | 永久稽核軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
+
+> **遷出子域：** `account` / `account-profile` → `iam/subdomains/account/`；`organization` / `team` → `iam/subdomains/organization/`
 
 #### Recommended Gap Subdomains
 
@@ -213,11 +213,11 @@
 
 ## Ownership Summary
 
-- iam 關心身份、租戶與存取治理。
+- iam 關心身份、租戶、存取治理、account 與 organization 聚合根。
 - billing 關心商業生命週期與有效權益。
 - ai 關心共享 AI capability 與模型政策。
 - analytics 關心下游分析、指標與 read model 投影。
-- platform 關心 account、organization 與 shared operational services。
+- platform 關心 operational service（通知、搜尋、稽核、可觀測性等），不再擁有 account 與 organization。
 - workspace 關心協作範疇。
 - notion 關心正典知識內容。
 - notebooklm 關心推理與衍生輸出。

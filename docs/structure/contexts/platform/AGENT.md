@@ -4,14 +4,14 @@
 
 ## Mission
 
-保護 platform 主域作為 account、organization 與營運支撐邊界。任何變更都應維持 platform 對 operational surface 的所有權，不吸收 iam、billing、ai、workspace、notion、notebooklm 的正典語言。
+保護 platform 主域作為營運支撐邊界。platform 提供 notification、background-job、search、audit-log、observability 等橫切能力，不再持有 account、organization 的正典語言（已遷入 iam）。任何變更應維持對 operational services 的所有權，不吸收 iam、billing、ai、workspace、notion、notebooklm 的正典語言。
 
 ## Canonical Ownership
 
-- account
-- account-profile
-- organization
-- team
+> **已遷出（不在 platform）：**  
+> - `account` / `account-profile` → `iam/subdomains/account/`  
+> - `organization` / `team` → `iam/subdomains/organization/`
+
 - platform-config
 - feature-flag
 - onboarding
@@ -30,9 +30,9 @@
 
 ## Route Here When
 
-- 問題核心是 account、organization、notification、search、audit、observability 或支援能力。
+- 問題核心是 notification、search、audit-log、observability 或支援能力。
 - 問題核心是平台級 workflow、background job、integration 或 secret-management。
-- 問題需要提供其他主域共同消費的 operational services 或 account-scoped surface。
+- 問題需要提供其他主域共同消費的 operational services。
 
 ## Route Elsewhere When
 
@@ -47,7 +47,8 @@
 - shared AI capability 屬於 ai context，不等於 notebooklm 的推理輸出所有權。
 - secret-management 應與 integration 分離，避免憑證語義擴散。
 - consent 與 compliance 有關，但不是同一個 bounded context。
-- platform 提供營運與 account surface，不接管其他主域的正典內容生命週期。
+- platform 提供營運服務，不接管其他主域的正典內容生命週期。
+- account 與 organization 正典語言屬於 iam，請勿在 platform 重建。
 
 ## Dependency Direction
 

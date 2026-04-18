@@ -10,11 +10,11 @@
 
 | Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
 |---|---|---|---|
-| iam | 身份與存取治理 | identity、access-control、tenant、security-policy | session、consent、secret-governance |
+| iam | 身份與存取治理 | identity、access-control、tenant、security-policy、**account、organization** | session、consent、secret-governance |
 | billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
 | ai | 共享 AI capability | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing | provider-routing、model-policy |
 | analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
-| platform | 平台營運支撐 | account、organization、notification、search、audit-log、observability | consent、secret-management、operational-catalog |
+| platform | 平台營運支撐 | notification、search、audit-log、observability、platform-config、feature-flag、onboarding | consent、secret-management、operational-catalog |
 | workspace | 協作容器與 scope | audit、feed、scheduling、approve、issue、orchestration、quality、settlement、task、task-formation | lifecycle、membership、sharing、presence |
 | notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
 | notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
@@ -31,6 +31,8 @@
 | access-control | 主體現在能做什麼的授權判定 |
 | tenant | 多租戶隔離與 tenant-scoped 規則治理 |
 | security-policy | 安全規則定義、版本化與發佈 |
+| account | 帳號聚合根與帳號生命週期（從 platform 遷入） |
+| organization | 組織、成員與角色邊界（從 platform 遷入） |
 
 #### Recommended Gap Subdomains
 
@@ -135,10 +137,6 @@
 
 | Subdomain | 功能註解 |
 |---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | Organization 內部成員分組治理 |
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |
@@ -152,6 +150,8 @@
 | audit-log | 永久稽核軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
+
+> **遷出子域：** `account` / `account-profile` → `iam/subdomains/account/`；`organization` / `team` → `iam/subdomains/organization/`
 
 #### Recommended Gap Subdomains
 
@@ -211,11 +211,11 @@
 
 ## Ownership Rules
 
-- iam 擁有身份、租戶與 access decision，不擁有商業、內容或推理正典。
+- iam 擁有身份、租戶、access decision、account 與 organization，不擁有商業、內容或推理正典。
 - billing 擁有 subscription 與 entitlement，不擁有身份治理或內容正典。
 - ai 擁有 shared AI capability，不擁有內容或 notebook 推理正典。
 - analytics 擁有下游報表與 projection，不擁有上游寫入模型。
-- platform 擁有 account、organization 與 operational service，不再作為所有治理能力的總擁有者。
+- platform 擁有 operational service（notification、search、audit-log 等），不再擁有 account 與 organization 正典。
 - workspace 擁有工作區範疇，不擁有平台治理或正典內容。
 - notion 擁有正典知識內容，不擁有治理或推理流程。
 - notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。

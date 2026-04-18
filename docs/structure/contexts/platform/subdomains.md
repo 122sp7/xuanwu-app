@@ -2,14 +2,19 @@
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
+## Migrated Subdomains（已遷出 platform）
+
+| Subdomain | 遷入位置 |
+|---|---|
+| account | `iam/subdomains/account/` |
+| account-profile | `iam/subdomains/account/` |
+| organization | `iam/subdomains/organization/` |
+| team | `iam/subdomains/organization/` |
+
 ## Baseline Subdomains
 
 | Subdomain | Responsibility |
 |---|---|
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| team | OrganizationTeam 分組與成員關係治理 |
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
 | onboarding | 新主體初始設定與引導流程 |

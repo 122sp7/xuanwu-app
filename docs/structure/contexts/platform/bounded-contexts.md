@@ -6,11 +6,16 @@
 
 platform 是 account、organization 與 operational-service 主域。依 bounded context 原則，它應把帳號與營運支撐責任封裝成清楚的上下文，而不是再作為 identity、billing、AI、analytics 的 umbrella owner。
 
+## Migrated Bounded Contexts（已遷出）
+
+| Cluster | 遷入位置 |
+|---|---|
+| Account and Organization (account, account-profile, organization, team) | `iam/subdomains/account/` + `iam/subdomains/organization/` |
+
 ## Baseline Bounded Contexts
 
 | Cluster | Subdomains |
 |---|---|
-| Account and Organization | account, account-profile, organization, team |
 | Platform Governance and Configuration | platform-config, feature-flag, onboarding, compliance |
 | Delivery and Operations | integration, workflow, notification, background-job, secret-management |
 | Intelligence and Audit | content, search, audit-log, observability, support |
@@ -26,10 +31,10 @@ platform 是 account、organization 與 operational-service 主域。依 bounded
 
 ## Domain Invariants
 
-- actor identity 由 platform 正典擁有。
-- access decision 必須基於 platform 語言輸出，而不是由下游主域自創。
+- actor identity 由 iam 正典擁有，platform 只消費 actor reference。
+- access decision 必須基於 iam 語言輸出，而不是由下游主域自創。
 - entitlement 必須是解算結果，不是任意 UI 標記。
-- shared AI capability 由 platform 正典擁有；下游主域只能消費其 published language。
+- shared AI capability 由 ai context 正典擁有；下游主域只能消費其 published language。
 - billing event 與 subscription state 必須分離。
 - secret 不應作為一般 integration payload 傳播。
 

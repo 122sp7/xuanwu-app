@@ -9,6 +9,7 @@
 | iam | workspace | actor reference、tenant scope、access decision |
 | iam | notion | actor reference、tenant scope、access decision |
 | iam | notebooklm | actor reference、tenant scope、access decision |
+| iam | analytics | access event、identity signal |
 
 ## Notes
 

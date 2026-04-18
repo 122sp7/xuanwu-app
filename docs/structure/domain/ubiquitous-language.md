@@ -23,11 +23,11 @@
 
 | Domain | Key Terms |
 |---|---|
-| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy |
+| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy, Account, AccountProfile, Organization |
 | billing | Subscription, Entitlement, BillingEvent, Referral |
 | ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
 | analytics | Metric, Report, Dashboard, Projection |
-| platform | Account, AccountProfile, Organization, NotificationRoute, AuditLog |
+| platform | NotificationRoute, AuditLog |
 | workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
 | notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
 | notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
@@ -81,7 +81,7 @@
 | Token | Canonical Mapping | Notes |
 |---|---|---|
 | actor reference | iam.Actor | 不以 User 泛稱，避免與 Membership 混名 |
-| organization scope | platform.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
+| organization scope | iam.Organization scope | 用於 account 與 organization surface，不等於 Workspace scope |
 | tenant scope | iam.Tenant scope | 用於治理邊界，不等於 Workspace scope |
 | access decision | iam.AccessDecision result | 僅傳遞判定結果，不暴露內部 policy 模型 |
 | entitlement signal | billing.Entitlement / Subscription capability signal | 不混同 feature-flag payload |
