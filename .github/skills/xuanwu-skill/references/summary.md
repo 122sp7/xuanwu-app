@@ -42,15 +42,15 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1380 files | 41,365 lines
+1393 files | 41,289 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 841 | 11,804 |
-| Markdown | 288 | 22,785 |
-| TypeScript (TSX) | 108 | 2,989 |
+| TypeScript | 840 | 11,801 |
+| Markdown | 288 | 22,700 |
+| TypeScript (TSX) | 108 | 2,987 |
+| No Extension | 66 | 71 |
 | Python | 63 | 1,459 |
-| No Extension | 52 | 57 |
 | JSON | 19 | 2,025 |
 | Text | 3 | 107 |
 | JavaScript (ESM) | 2 | 10 |
@@ -59,11 +59,11 @@ This skill contains the following reference files:
 | Other | 1 | 64 |
 
 **Largest files:**
-- `docs/structure/system/hard-rules-consolidated.md` (459 lines)
 - `firestore.indexes.json` (437 lines)
 - `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (387 lines)
-- `docs/structure/domain/bounded-contexts.md` (280 lines)
+- `docs/structure/system/hard-rules-consolidated.md` (384 lines)
 - `docs/structure/domain/subdomains.md` (279 lines)
+- `docs/structure/domain/bounded-contexts.md` (278 lines)
 - `src/modules/template/README.md` (266 lines)
 - `py_fn/README.md` (265 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)

@@ -266,20 +266,20 @@ docs/
       _template.md (144 lines)
     domain/
       bounded-context-subdomain-template.md (203 lines)
-      bounded-contexts.md (280 lines)
+      bounded-contexts.md (278 lines)
       ddd-strategic-design.md (218 lines)
       event-driven-design.md (189 lines)
       subdomains.md (279 lines)
       ubiquitous-language.md (166 lines)
     system/
-      architecture-overview.md (137 lines)
+      architecture-overview.md (135 lines)
       context-map.md (121 lines)
-      hard-rules-consolidated.md (459 lines)
-      integration-guidelines.md (112 lines)
+      hard-rules-consolidated.md (384 lines)
+      integration-guidelines.md (110 lines)
       module-graph.system-wide.md (135 lines)
       project-delivery-milestones.md (109 lines)
       source-to-task-flow.md (94 lines)
-      strategic-patterns.md (81 lines)
+      strategic-patterns.md (79 lines)
       ui-ux-closed-loop.md (134 lines)
     .gitkeep (0 lines)
   tooling/
@@ -302,8 +302,25 @@ docs/
     commands-reference.md (54 lines)
     knowledge-base-reference.md (41 lines)
   AGENT.md (39 lines)
-  README.md (158 lines)
+  README.md (156 lines)
 packages/
+  infra/
+    client-state/
+      .gitkeep (0 lines)
+    date/
+      .gitkeep (0 lines)
+    genkit/
+      .gitkeep (0 lines)
+    http/
+      .gitkeep (0 lines)
+    serialization/
+      .gitkeep (0 lines)
+    uuid/
+      .gitkeep (0 lines)
+    zod/
+      .gitkeep (0 lines)
+  integration-data/
+    .gitkeep (0 lines)
   integration-firebase/
     auth/
       .gitkeep (0 lines)
@@ -321,6 +338,16 @@ packages/
     index.ts (4 lines)
     README.md (48 lines)
     storage.ts (19 lines)
+  integration-state/
+    .gitkeep (0 lines)
+  integration-trpc/
+    .gitkeep (0 lines)
+  ui-components/
+    .gitkeep (0 lines)
+  ui-editor/
+    .gitkeep (0 lines)
+  ui-markdown/
+    .gitkeep (0 lines)
   ui-shadcn/
     hooks/
       use-mobile.ts (3 lines)
@@ -394,6 +421,8 @@ packages/
     AGENTS.md (69 lines)
     index.ts (15 lines)
     README.md (86 lines)
+  ui-visualization/
+    .gitkeep (0 lines)
   AGENT.md (59 lines)
   README.md (82 lines)
 py_fn/
@@ -1828,7 +1857,7 @@ src/
             WorkspaceContext.tsx (47 lines)
             WorkspaceDailySection.tsx (91 lines)
             WorkspaceFilesSection.tsx (65 lines)
-            WorkspaceIssuesSection.tsx (31 lines)
+            WorkspaceIssuesSection.tsx (29 lines)
             WorkspaceMembersSection.tsx (18 lines)
             WorkspaceOverviewSection.tsx (71 lines)
             WorkspaceQualitySection.tsx (18 lines)
@@ -2326,5 +2355,4 @@ repomix.config.json (127 lines)
 storage.rules (9 lines)
 tailwind.config.ts (2 lines)
 tsconfig.json (45 lines)
-vitest.config.ts (3 lines)
 ```
