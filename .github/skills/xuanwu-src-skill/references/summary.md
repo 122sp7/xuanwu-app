@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-897 files | 15,593 lines
+908 files | 16,219 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 818 | 11,203 |
-| TypeScript (TSX) | 52 | 2,208 |
-| Markdown | 26 | 2,135 |
+| TypeScript | 828 | 11,756 |
+| TypeScript (TSX) | 52 | 2,217 |
+| Markdown | 27 | 2,199 |
 | CSS | 1 | 47 |
 
 **Largest files:**
@@ -60,5 +60,5 @@ This skill contains the following reference files:
 - `src/modules/workspace/subdomains/task-formation/AGENTS.md` (166 lines)
 - `src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts` (159 lines)
 - `src/modules/iam/adapters/outbound/firebase-composition.ts` (140 lines)
+- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (129 lines)
 - `src/modules/iam/subdomains/organization/domain/entities/Organization.ts` (111 lines)
-- `src/modules/ai/README.md` (111 lines)

@@ -1,17 +1,17 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/notebooklm/AGENTS.md (92 lines)
-docs/structure/contexts/notebooklm/bounded-contexts.md (83 lines)
-docs/structure/contexts/notebooklm/context-map.md (79 lines)
+docs/structure/contexts/notebooklm/AGENTS.md (89 lines)
+docs/structure/contexts/notebooklm/bounded-contexts.md (81 lines)
+docs/structure/contexts/notebooklm/context-map.md (77 lines)
 docs/structure/contexts/notebooklm/README.md (113 lines)
 docs/structure/contexts/notebooklm/subdomains.md (68 lines)
-docs/structure/contexts/notebooklm/ubiquitous-language.md (94 lines)
+docs/structure/contexts/notebooklm/ubiquitous-language.md (93 lines)
 src/modules/notebooklm/adapters/inbound/react/index.ts (4 lines)
 src/modules/notebooklm/adapters/inbound/react/NotebooklmAiChatSection.tsx (25 lines)
 src/modules/notebooklm/adapters/inbound/react/NotebooklmNotebookSection.tsx (18 lines)
 src/modules/notebooklm/adapters/inbound/react/NotebooklmResearchSection.tsx (27 lines)
-src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx (52 lines)
+src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx (55 lines)
 src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts (30 lines)
 src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts (27 lines)
 src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts (59 lines)

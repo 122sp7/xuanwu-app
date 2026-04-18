@@ -1,11 +1,11 @@
 # Directory Structure
 
 ```
-docs/structure/contexts/ai/AGENTS.md (95 lines)
+docs/structure/contexts/ai/AGENTS.md (93 lines)
 docs/structure/contexts/ai/bounded-contexts.md (61 lines)
 docs/structure/contexts/ai/context-map.md (50 lines)
 docs/structure/contexts/ai/cross-runtime-contracts.md (99 lines)
-docs/structure/contexts/ai/ddd-strategic-design.md (119 lines)
+docs/structure/contexts/ai/ddd-strategic-design.md (118 lines)
 docs/structure/contexts/ai/README.md (73 lines)
 docs/structure/contexts/ai/subdomains.md (91 lines)
 docs/structure/contexts/ai/ubiquitous-language.md (49 lines)

@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-72 files | 1,406 lines
+72 files | 1,398 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 60 | 639 |
-| Markdown | 8 | 680 |
+| Markdown | 8 | 672 |
 | TypeScript (TSX) | 4 | 87 |
 
 **Largest files:**
 - `docs/structure/contexts/notion/README.md` (117 lines)
-- `docs/structure/contexts/notion/AGENTS.md` (112 lines)
-- `docs/structure/contexts/notion/ubiquitous-language.md` (94 lines)
-- `docs/structure/contexts/notion/bounded-contexts.md` (83 lines)
-- `docs/structure/contexts/notion/context-map.md` (80 lines)
+- `docs/structure/contexts/notion/AGENTS.md` (109 lines)
+- `docs/structure/contexts/notion/ubiquitous-language.md` (93 lines)
+- `docs/structure/contexts/notion/bounded-contexts.md` (81 lines)
+- `docs/structure/contexts/notion/context-map.md` (78 lines)
 - `docs/structure/contexts/notion/subdomains.md` (72 lines)
 - `src/modules/notion/subdomains/block/domain/entities/Block.ts` (68 lines)
 - `src/modules/notion/AGENTS.md` (62 lines)

@@ -42,15 +42,15 @@ This skill contains the following reference files:
 
 ## Statistics
 
-56 files | 887 lines
+56 files | 915 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 48 | 631 |
-| Markdown | 8 | 256 |
+| Markdown | 8 | 284 |
 
 **Largest files:**
-- `docs/structure/contexts/billing/AGENTS.md` (68 lines)
+- `docs/structure/contexts/billing/AGENTS.md` (82 lines)
 - `src/modules/billing/README.md` (57 lines)
 - `src/modules/billing/subdomains/subscription/domain/entities/Subscription.ts` (56 lines)
 - `src/modules/billing/subdomains/entitlement/domain/entities/EntitlementGrant.ts` (50 lines)
@@ -58,5 +58,5 @@ This skill contains the following reference files:
 - `src/modules/billing/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts` (46 lines)
 - `src/modules/billing/AGENTS.md` (46 lines)
 - `src/modules/billing/subdomains/usage-metering/domain/entities/UsageRecord.ts` (41 lines)
+- `docs/structure/contexts/billing/README.md` (41 lines)
 - `src/modules/billing/subdomains/subscription/application/use-cases/SubscriptionUseCases.ts` (30 lines)
-- `src/modules/billing/subdomains/entitlement/adapters/outbound/firestore/FirestoreEntitlementGrantRepository.ts` (29 lines)

@@ -999,105 +999,6 @@ listAvailable(): Promise<AiTool[]>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: docs/structure/contexts/ai/AGENTS.md
-````markdown
-# AI Context Agent Guide
-
-## Mission
-
-保護 ai 主域作為共享 AI capability 邊界。任何變更都應維持 ai 擁有 generation、orchestration、distillation、retrieval、safety 與 provider policy 語言，而不是吸收內容正典或推理輸出語義。
-
-## Canonical Ownership
-
-- generation
-- orchestration
-- distillation
-- retrieval
-- memory
-- context
-- safety
-- tool-calling
-- reasoning
-- conversation
-- evaluation
-- tracing
-
-## Route Here When
-
-- 問題核心是 LLM 呼叫、模型選擇、provider routing。
-- 問題需要 prompt 組裝、flow 執行或 tool calling 協調。
-- 問題需要將長輸出濃縮（distillation）或進行向量搜尋（retrieval）。
-- 問題需要安全護欄、配額或 AI 執行觀測。
-
-## Route Elsewhere When
-
-- 身份與存取治理屬於 iam。
-- 訂閱、配額商業政策屬於 billing。
-- 正典知識內容屬於 notion。
-- 對話推理輸出、grounding、notebook synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
-- ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
-- ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
-- 下游消費只能透過 `src/modules/ai/index.ts` 公開邊界，不能直接存取 subdomain internals。
-- Genkit 與 LLM SDK 只能存在於 infrastructure 層。
-
-## Hard Prohibitions
-
-- 不得讓 domain 或 application 直接依賴 Genkit、Firebase SDK 或框架語言。
-- 不得讓其他模組直接 import ai 的 infrastructure 或 subdomain domain 層。
-- 不得在 ai 內定義 KnowledgeArtifact、Notebook、Membership 等他域正典型別。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個 ai subdomain，再決定 port 定義與 adapter 位置。
-- 新能力若已有對應子域，先在該子域擴展，不要新建平行子域。
-- 奧卡姆剃刀：若一個 port + use case 就能承接需求，不要再新增 service 或 manager。
-- distillation 若只是摘要變體，先確認 generation 子域的 summarize 是否已足夠，再決定是否升級為 distillation use case。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Use Cases"]
-	A --> D["AI Domain / Ports"]
-	P["Ports"] -. used by .-> A
-	X["Infrastructure / Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	IAM["iam upstream"] -->|actor / access| Boundary["ai API boundary"]
-	Billing["billing upstream"] -->|entitlement| Boundary
-	Boundary --> App["Application orchestration"]
-	App --> Generation["generation"]
-	App --> Distillation["distillation"]
-	App --> Retrieval["retrieval"]
-	App --> Safety["safety"]
-	Generation --> Output["AI capability signal"]
-	Distillation --> Output
-	Retrieval --> Output
-	Output --> Notion["notion consumer"]
-	Output --> NotebookLM["notebooklm consumer"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-````
-
 ## File: docs/structure/contexts/ai/bounded-contexts.md
 ````markdown
 # AI Bounded Contexts
@@ -1320,6 +1221,520 @@ These are separate from QStash and are defined by Firestore document structure:
 Firestore document schema for these is owned by `src/modules/platform/subdomains/file-storage/` (TypeScript) and mirrored in `py_fn/src/infrastructure/persistence/firestore/`.
 ````
 
+## File: docs/structure/contexts/ai/ubiquitous-language.md
+````markdown
+# AI Ubiquitous Language
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| AICapabilitySignal | ai 向下游輸出的能力結果，不是具體 aggregate |
+| GenerationResult | 單次文字生成的輸出，包含 text、model、finishReason |
+| DistillationResult | 從多段內容或長輸出濃縮出的精煉知識片段 |
+| RetrievalResult | 向量搜尋後回傳的相關內容片段與分數 |
+| PromptContext | 組裝後準備送入 LLM 的完整上下文物件 |
+| SafetyResult | 安全護欄對輸入或輸出的檢查結果（pass / block） |
+| ModelPolicy | 模型選擇、版本鎖定與使用限制規則 |
+| OrchestrationFlow | 多步驟 AI 執行圖，由 orchestration 子域控制 |
+| ToolCall | 外部工具的調用請求與結果 |
+| MemoryEntry | 對話歷史或跨輪次狀態的單筆記錄 |
+| EvaluationScore | 針對 AI 輸出的品質量測結果 |
+| TraceSpan | AI 執行流程中的單一可觀測片段 |
+
+## Language Rules
+
+- 使用 DistillationResult 表示蒸餾輸出，不用 Summary 混稱精煉過程與摘要功能。
+- 使用 GenerationResult 表示生成輸出，不用 Response 泛稱所有 LLM 回傳。
+- 使用 PromptContext 表示組裝後的上下文，不用 Prompt 直接傳遞原始字串。
+- 使用 SafetyResult 表示護欄結果，不用 Filter 混指檢查流程。
+- 使用 AICapabilitySignal 作為跨主域 published language，不暴露內部 aggregate。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| Summary（跨域泛稱） | DistillationResult（ai 精煉輸出）或 GenerationResult（生成摘要） |
+| Response | GenerationResult |
+| Filter | SafetyResult |
+| Prompt（跨域傳遞） | PromptContext |
+| Chat | conversation（ai 輪次管理）或 Conversation（notebooklm 正典） |
+
+## Naming Anti-Patterns
+
+- 不用 Summary 混指 distillation 的精煉結果與 generation 的摘要功能。
+- 不用 Chat 混指 ai 的 conversation 管理與 notebooklm 的 Conversation aggregate。
+- 不用 Prompt 作為跨域傳遞型別，必須先組裝成 PromptContext。
+- 不用 Filter 表示 safety 的護欄判定，SafetyResult 已含通過或攔截語義。
+
+## Copilot Generation Rules
+
+- 命名先對齊上表 Canonical Terms，再決定類別與檔名。
+- distillation 子域的輸出型別命名用 DistillationResult，不要退化為 SummarizedText。
+- 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
+````
+
+## File: src/modules/ai/AGENTS.md
+````markdown
+# AI Module — Agent Guide
+
+## Purpose
+
+`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
+
+> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
+| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
+| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
+| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
+| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
+| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
+| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
+| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
+| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
+| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
+
+> **子域不重複原則：**  
+> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
+> - `document`（來源文件管理）→ `notebooklm` 所有  
+> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
+- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
+- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
+- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
+- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
+
+## task-formation 歸屬決策
+
+`task-formation` 子域屬於 **`workspace`**，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 觸發者（使用者指定生成任務）是 workspace 層業務流程
+- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
+
+## Route Here When
+
+- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
+- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
+- 需要 `src/modules/ai/` 層的骨架結構作為起點。
+
+## Route Elsewhere When
+
+- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENTS.md`
+- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
+- 知識文件 / Page 管理 → `src/modules/notion/`
+- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
+- 跨模組 API boundary → `src/modules/ai/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/ai/AGENTS.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
+| 跨模組 API boundary | `src/modules/ai/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
+- ❌ 在 barrel 使用 `export *`
+- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
+- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
+````typescript
+/**
+ * chunk-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching chunking jobs
+ * to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The raw document content to be chunked */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Source type (e.g. "notion-page", "uploaded-file") */
+⋮----
+/** Optional hint for chunking strategy */
+⋮----
+/** Max token count per chunk; py_fn uses default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
+````
+
+## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
+````typescript
+/**
+ * embedding-job-payload.ts
+ *
+ * Outbound DTO: QStash message payload for dispatching embedding generation
+ * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * NOT a provider API contract.
+ *
+ * Discussion 08 — cross-runtime contract:
+ * - TypeScript side (this file): Zod schema defining the payload shape
+ * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
+ *
+ * Both sides must stay semantically aligned. Changes here require
+ * corresponding updates to the py_fn Pydantic model.
+ *
+ * @see docs/structure/contexts/ai/cross-runtime-contracts.md
+ */
+⋮----
+import { z } from "zod";
+⋮----
+/** Unique identifier for this job (used for idempotency) */
+⋮----
+/** The document/artifact that sourced these chunks */
+⋮----
+/** Workspace scope for multi-tenant isolation */
+⋮----
+/** Chunk IDs to generate embeddings for (at least one required) */
+⋮----
+/** Optional model hint; py_fn selects default if omitted */
+⋮----
+/** ISO 8601 timestamp when the job was requested */
+⋮----
+export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
+````
+
+## File: docs/structure/contexts/ai/AGENTS.md
+````markdown
+# AI Context Agent Guide
+
+## Mission
+
+保護 ai 主域作為共享 AI capability 邊界。任何變更都應維持 ai 擁有 generation、orchestration、distillation、retrieval、safety 與 provider policy 語言，而不是吸收內容正典或推理輸出語義。
+
+## Canonical Ownership
+
+- generation
+- orchestration
+- distillation
+- retrieval
+- memory
+- context
+- safety
+- tool-calling
+- reasoning
+- conversation
+- evaluation
+- tracing
+
+## Route Here When
+
+- 問題核心是 LLM 呼叫、模型選擇、provider routing。
+- 問題需要 prompt 組裝、flow 執行或 tool calling 協調。
+- 問題需要將長輸出濃縮（distillation）或進行向量搜尋（retrieval）。
+- 問題需要安全護欄、配額或 AI 執行觀測。
+
+## Route Elsewhere When
+
+- 身份與存取治理屬於 iam。
+- 訂閱、配額商業政策屬於 billing。
+- 正典知識內容屬於 notion。
+- 對話推理輸出、grounding、notebook synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- ai 的 distillation 是通用蒸餾能力，不是 notebooklm 的推理輸出語言。
+- ai 的 retrieval 是通用向量搜尋能力，不是 notion 的知識查詢正典。
+- ai 的 conversation 管理 AI 輪次，不等同 notebooklm 的 Conversation aggregate。
+- 下游消費只能透過 `src/modules/ai/index.ts` 公開邊界，不能直接存取 subdomain internals。
+- Genkit 與 LLM SDK 只能存在於 infrastructure 層。
+
+## Hard Prohibitions
+
+- 不得讓 domain 或 application 直接依賴 Genkit、Firebase SDK 或框架語言。
+- 不得讓其他模組直接 import ai 的 infrastructure 或 subdomain domain 層。
+- 不得在 ai 內定義 KnowledgeArtifact、Notebook、Membership 等他域正典型別。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 ai subdomain，再決定 port 定義與 adapter 位置。
+- 新能力若已有對應子域，先在該子域擴展，不要新建平行子域。
+- 奧卡姆剃刀：若一個 port + use case 就能承接需求，不要再新增 service 或 manager。
+- distillation 若只是摘要變體，先確認 generation 子域的 summarize 是否已足夠，再決定是否升級為 distillation use case。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Use Cases"]
+	A --> D["AI Domain / Ports"]
+	P["Ports"] -. used by .-> A
+	X["Infrastructure / Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam upstream"] -->|actor / access| Boundary["ai API boundary"]
+	Billing["billing upstream"] -->|entitlement| Boundary
+	Boundary --> App["Application orchestration"]
+	App --> Generation["generation"]
+	App --> Distillation["distillation"]
+	App --> Retrieval["retrieval"]
+	App --> Safety["safety"]
+	Generation --> Output["AI capability signal"]
+	Distillation --> Output
+	Retrieval --> Output
+	Output --> Notion["notion consumer"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+````
+
+## File: docs/structure/contexts/ai/subdomains.md
+````markdown
+# AI Subdomains
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+
+## Subdomain Groupings
+
+| Group | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
+
+## Active Baseline
+
+- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
+- 其餘子域為骨架狀態，依需求逐步實作。
+
+## Distillation 說明
+
+distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
+
+- generation：輸入 prompt → 輸出文字。
+- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
+
+下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
+
+### Distilled Rules
+
+- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
+- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
+- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
+- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
+- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
+
+## Anti-Patterns
+
+- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
+- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
+- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
+- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
+
+## Copilot Generation Rules
+
+- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
+- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
+- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case (application)"]
+	UseCase --> Port["Port (domain)"]
+	Infra["Infrastructure adapter"] -. implements .-> Port
+```
+
+## Correct Subdomain Interaction
+
+```mermaid
+flowchart LR
+	Orchestration["orchestration"] --> Generation["generation"]
+	Orchestration --> Distillation["distillation"]
+	Orchestration --> Retrieval["retrieval"]
+	Context["context"] --> Orchestration
+	Memory["memory"] --> Context
+	Safety["safety"] --> Orchestration
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../domain/subdomains.md)
+````
+
+## File: src/modules/ai/README.md
+````markdown
+# AI Module
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
+> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
+| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
+| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
+| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
+| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
+| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
+| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
+| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
+| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
+| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
+
+---
+
+## task-formation 歸屬決策
+
+| 子域 | 歸屬 | 理由 |
+|---|---|---|
+| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
+
+---
+
+## 預期目錄結構
+
+```
+src/modules/ai/
+  index.ts                      ← 模組對外唯一入口（具名匯出）
+  README.md
+  AGENTS.md
+  orchestration/
+    AiFacade.ts                 ← 對外統一 Facade
+    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
+  shared/
+    domain/index.ts
+    application/index.ts
+    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
+    errors/index.ts
+    types/index.ts
+  subdomains/
+    embedding/
+      domain/
+      application/
+      adapters/outbound/
+    pipeline/
+      domain/
+      application/
+      adapters/outbound/
+    evaluation/
+    generation/
+    chunk/
+    retrieval/
+    context/
+    citation/
+    memory/
+    tool-calling/
+```
+
+---
+
+## 依賴方向
+
+```
+subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
+                                                                    ↑
+                               subdomains/*/adapters/outbound  ───┘
+                                                    ↑
+                                             shared/domain
+```
+
+跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
+
+---
+
+## 子域邊界示意（ai vs notebooklm）
+
+```
+notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
+notebooklm/document      ←使用→  ai/embedding（向量化文件）
+notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
+notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
+notebooklm/document      ─切塊→  ai/chunk（分塊計算）
+```
+
+ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
+| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
+| 在 ai 定義使用者對話 UX | 屬 notebooklm |
+| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
+
+---
+
+## 文件網絡
+
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
 ## File: docs/structure/contexts/ai/ddd-strategic-design.md
 ````markdown
 # DDD 戰略設計規則 — AI Context
@@ -1439,8 +1854,7 @@ Generic Domain（可外包／第三方替換）
 - [bounded-contexts.md](./bounded-contexts.md) — 邊界責任定義
 - [context-map.md](./context-map.md) — 與其他 context 的關係圖
 - [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
-- [../../bounded-contexts.md](../../bounded-contexts.md) — 全域主域所有權地圖
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md) — ADR：界限上下文決策
+- [bounded-contexts.md](../domain/bounded-contexts.md) — 全域主域所有權地圖
 ````
 
 ## File: docs/structure/contexts/ai/README.md
@@ -1516,423 +1930,6 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-````
-
-## File: docs/structure/contexts/ai/subdomains.md
-````markdown
-# AI Subdomains
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
-| orchestration | 執行圖與多步驟 AI workflow 協調 |
-| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
-| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
-| memory | 對話歷史與跨輪次狀態保存 |
-| context | prompt 上下文組裝與 token 預算管理 |
-| safety | 安全護欄、有害內容過濾與合規保護 |
-| tool-calling | 外部工具調用協調與結果回注 |
-| reasoning | 推理步驟管理（chain-of-thought、反思） |
-| conversation | AI 互動輪次追蹤與歷史管理 |
-| evaluation | 輸出品質評估與回歸基準 |
-| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
-
-## Subdomain Groupings
-
-| Group | Subdomains |
-|---|---|
-| Core Execution | generation、orchestration、distillation |
-| Knowledge Access | retrieval、memory、context |
-| Quality & Safety | safety、evaluation、tracing |
-| Extended Capability | tool-calling、reasoning、conversation |
-
-## Active Baseline
-
-- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
-- 其餘子域為骨架狀態，依需求逐步實作。
-
-## Distillation 說明
-
-distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
-
-- generation：輸入 prompt → 輸出文字。
-- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
-
-下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
-
-### Distilled Rules
-
-- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
-- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
-- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
-- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
-- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
-
-## Anti-Patterns
-
-- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
-- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
-- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
-- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
-
-## Copilot Generation Rules
-
-- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
-- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
-- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case (application)"]
-	UseCase --> Port["Port (domain)"]
-	Infra["Infrastructure adapter"] -. implements .-> Port
-```
-
-## Correct Subdomain Interaction
-
-```mermaid
-flowchart LR
-	Orchestration["orchestration"] --> Generation["generation"]
-	Orchestration --> Distillation["distillation"]
-	Orchestration --> Retrieval["retrieval"]
-	Context["context"] --> Orchestration
-	Memory["memory"] --> Context
-	Safety["safety"] --> Orchestration
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-````
-
-## File: docs/structure/contexts/ai/ubiquitous-language.md
-````markdown
-# AI Ubiquitous Language
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| AICapabilitySignal | ai 向下游輸出的能力結果，不是具體 aggregate |
-| GenerationResult | 單次文字生成的輸出，包含 text、model、finishReason |
-| DistillationResult | 從多段內容或長輸出濃縮出的精煉知識片段 |
-| RetrievalResult | 向量搜尋後回傳的相關內容片段與分數 |
-| PromptContext | 組裝後準備送入 LLM 的完整上下文物件 |
-| SafetyResult | 安全護欄對輸入或輸出的檢查結果（pass / block） |
-| ModelPolicy | 模型選擇、版本鎖定與使用限制規則 |
-| OrchestrationFlow | 多步驟 AI 執行圖，由 orchestration 子域控制 |
-| ToolCall | 外部工具的調用請求與結果 |
-| MemoryEntry | 對話歷史或跨輪次狀態的單筆記錄 |
-| EvaluationScore | 針對 AI 輸出的品質量測結果 |
-| TraceSpan | AI 執行流程中的單一可觀測片段 |
-
-## Language Rules
-
-- 使用 DistillationResult 表示蒸餾輸出，不用 Summary 混稱精煉過程與摘要功能。
-- 使用 GenerationResult 表示生成輸出，不用 Response 泛稱所有 LLM 回傳。
-- 使用 PromptContext 表示組裝後的上下文，不用 Prompt 直接傳遞原始字串。
-- 使用 SafetyResult 表示護欄結果，不用 Filter 混指檢查流程。
-- 使用 AICapabilitySignal 作為跨主域 published language，不暴露內部 aggregate。
-
-## Avoid
-
-| Avoid | Use Instead |
-|---|---|
-| Summary（跨域泛稱） | DistillationResult（ai 精煉輸出）或 GenerationResult（生成摘要） |
-| Response | GenerationResult |
-| Filter | SafetyResult |
-| Prompt（跨域傳遞） | PromptContext |
-| Chat | conversation（ai 輪次管理）或 Conversation（notebooklm 正典） |
-
-## Naming Anti-Patterns
-
-- 不用 Summary 混指 distillation 的精煉結果與 generation 的摘要功能。
-- 不用 Chat 混指 ai 的 conversation 管理與 notebooklm 的 Conversation aggregate。
-- 不用 Prompt 作為跨域傳遞型別，必須先組裝成 PromptContext。
-- 不用 Filter 表示 safety 的護欄判定，SafetyResult 已含通過或攔截語義。
-
-## Copilot Generation Rules
-
-- 命名先對齊上表 Canonical Terms，再決定類別與檔名。
-- distillation 子域的輸出型別命名用 DistillationResult，不要退化為 SummarizedText。
-- 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
-````
-
-## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
-````typescript
-/**
- * chunk-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching chunking jobs
- * to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The raw document content to be chunked */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Source type (e.g. "notion-page", "uploaded-file") */
-⋮----
-/** Optional hint for chunking strategy */
-⋮----
-/** Max token count per chunk; py_fn uses default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type ChunkJobPayload = z.infer<typeof ChunkJobPayloadSchema>;
-````
-
-## File: src/modules/ai/subdomains/embedding/adapters/outbound/dto/embedding-job-payload.ts
-````typescript
-/**
- * embedding-job-payload.ts
- *
- * Outbound DTO: QStash message payload for dispatching embedding generation
- * jobs to py_fn workers. This is an outbound contract (dispatcher → worker),
- * NOT a provider API contract.
- *
- * Discussion 08 — cross-runtime contract:
- * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/embedding_job.py): Pydantic mirror
- *
- * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
- *
- * @see docs/structure/contexts/ai/cross-runtime-contracts.md
- */
-⋮----
-import { z } from "zod";
-⋮----
-/** Unique identifier for this job (used for idempotency) */
-⋮----
-/** The document/artifact that sourced these chunks */
-⋮----
-/** Workspace scope for multi-tenant isolation */
-⋮----
-/** Chunk IDs to generate embeddings for (at least one required) */
-⋮----
-/** Optional model hint; py_fn selects default if omitted */
-⋮----
-/** ISO 8601 timestamp when the job was requested */
-⋮----
-export type EmbeddingJobPayload = z.infer<typeof EmbeddingJobPayloadSchema>;
-````
-
-## File: src/modules/ai/README.md
-````markdown
-# AI Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
-> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
-| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
-| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
-| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
-| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
-| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
-
----
-
-## task-formation 歸屬決策
-
-| 子域 | 歸屬 | 理由 |
-|---|---|---|
-| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/ai/
-  index.ts                      ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENTS.md
-  orchestration/
-    AiFacade.ts                 ← 對外統一 Facade
-    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
-  shared/
-    domain/index.ts
-    application/index.ts
-    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
-    errors/index.ts
-    types/index.ts
-  subdomains/
-    embedding/
-      domain/
-      application/
-      adapters/outbound/
-    pipeline/
-      domain/
-      application/
-      adapters/outbound/
-    evaluation/
-    generation/
-    chunk/
-    retrieval/
-    context/
-    citation/
-    memory/
-    tool-calling/
-```
-
----
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
----
-
-## 子域邊界示意（ai vs notebooklm）
-
-```
-notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
-notebooklm/document      ←使用→  ai/embedding（向量化文件）
-notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
-notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
-notebooklm/document      ─切塊→  ai/chunk（分塊計算）
-```
-
-ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 在 ai 定義使用者對話 UX | 屬 notebooklm |
-| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/ai/AGENTS.md
-````markdown
-# AI Module — Agent Guide
-
-## Purpose
-
-`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
-
-> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
-| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
-| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
-| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
-| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
-| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
-| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
-| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
-| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
-| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
-> - `document`（來源文件管理）→ `notebooklm` 所有  
-> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
-- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
-- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
-
-## task-formation 歸屬決策
-
-`task-formation` 子域屬於 **`workspace`**，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 觸發者（使用者指定生成任務）是 workspace 層業務流程
-- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
-
-## Route Here When
-
-- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
-- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
-- 需要 `src/modules/ai/` 層的骨架結構作為起點。
-
-## Route Elsewhere When
-
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENTS.md`
-- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
-- 知識文件 / Page 管理 → `src/modules/notion/`
-- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
-- 跨模組 API boundary → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
-| 跨模組 API boundary | `src/modules/ai/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
-- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 ````

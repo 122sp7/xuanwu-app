@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-71 files | 729 lines
+71 files | 757 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 63 | 457 |
-| Markdown | 8 | 272 |
+| Markdown | 8 | 300 |
 
 **Largest files:**
-- `docs/structure/contexts/analytics/AGENTS.md` (68 lines)
+- `docs/structure/contexts/analytics/AGENTS.md` (82 lines)
 - `src/modules/analytics/README.md` (64 lines)
 - `src/modules/analytics/AGENTS.md` (51 lines)
 - `src/modules/analytics/subdomains/metrics/domain/entities/Metric.ts` (43 lines)
+- `docs/structure/contexts/analytics/README.md` (41 lines)
 - `src/modules/analytics/subdomains/event-contracts/domain/entities/AnalyticsEvent.ts` (33 lines)
-- `docs/structure/contexts/analytics/README.md` (27 lines)
 - `src/modules/analytics/subdomains/experimentation/domain/entities/Experiment.ts` (26 lines)
 - `src/modules/analytics/subdomains/realtime-insights/domain/entities/RealtimeMetric.ts` (26 lines)
 - `src/modules/analytics/subdomains/event-contracts/domain/repositories/AnalyticsEventRepository.ts` (25 lines)

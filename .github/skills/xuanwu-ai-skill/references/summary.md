@@ -42,18 +42,18 @@ This skill contains the following reference files:
 
 ## Statistics
 
-92 files | 1,569 lines
+92 files | 1,566 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 82 | 745 |
-| Markdown | 10 | 824 |
+| Markdown | 10 | 821 |
 
 **Largest files:**
-- `docs/structure/contexts/ai/ddd-strategic-design.md` (119 lines)
+- `docs/structure/contexts/ai/ddd-strategic-design.md` (118 lines)
 - `src/modules/ai/README.md` (111 lines)
 - `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
-- `docs/structure/contexts/ai/AGENTS.md` (95 lines)
+- `docs/structure/contexts/ai/AGENTS.md` (93 lines)
 - `docs/structure/contexts/ai/subdomains.md` (91 lines)
 - `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
 - `src/modules/ai/AGENTS.md` (76 lines)

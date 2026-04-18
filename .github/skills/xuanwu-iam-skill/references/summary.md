@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-142 files | 2,857 lines
+142 files | 3,005 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 131 | 2,434 |
-| Markdown | 8 | 319 |
+| TypeScript | 131 | 2,554 |
+| Markdown | 8 | 347 |
 | TypeScript (TSX) | 3 | 104 |
 
 **Largest files:**
@@ -55,9 +55,9 @@ This skill contains the following reference files:
 - `src/modules/iam/adapters/outbound/firebase-composition.ts` (140 lines)
 - `src/modules/iam/subdomains/organization/domain/entities/Organization.ts` (111 lines)
 - `src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts` (91 lines)
+- `docs/structure/contexts/iam/AGENTS.md` (88 lines)
 - `src/modules/iam/subdomains/account/domain/entities/Account.ts` (87 lines)
 - `src/modules/iam/README.md` (83 lines)
 - `src/modules/iam/subdomains/account/domain/events/AccountDomainEvent.ts` (78 lines)
-- `docs/structure/contexts/iam/AGENTS.md` (74 lines)
 - `src/modules/iam/subdomains/organization/domain/aggregates/Organization.ts` (72 lines)
 - `src/modules/iam/subdomains/account/domain/repositories/AccountQueryRepository.ts` (71 lines)

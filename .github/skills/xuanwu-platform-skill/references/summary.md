@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-100 files | 2,806 lines
+100 files | 2,800 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 74 | 1,060 |
-| TypeScript (TSX) | 18 | 964 |
-| Markdown | 8 | 782 |
+| TypeScript | 74 | 1,054 |
+| TypeScript (TSX) | 18 | 972 |
+| Markdown | 8 | 774 |
 
 **Largest files:**
 - `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (190 lines)
-- `docs/structure/contexts/platform/ubiquitous-language.md` (141 lines)
+- `docs/structure/contexts/platform/ubiquitous-language.md` (140 lines)
 - `docs/structure/contexts/platform/README.md` (133 lines)
-- `docs/structure/contexts/platform/AGENTS.md` (108 lines)
 - `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
+- `docs/structure/contexts/platform/AGENTS.md` (105 lines)
 - `src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (94 lines)
-- `docs/structure/contexts/platform/bounded-contexts.md` (89 lines)
 - `docs/structure/contexts/platform/subdomains.md` (89 lines)
+- `docs/structure/contexts/platform/bounded-contexts.md` (87 lines)
 - `src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx` (86 lines)
 - `src/modules/platform/README.md` (84 lines)

@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-244 files | 5,111 lines
+254 files | 5,542 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 215 | 3,066 |
-| TypeScript (TSX) | 19 | 901 |
-| Markdown | 10 | 1,144 |
+| TypeScript | 224 | 3,435 |
+| TypeScript (TSX) | 19 | 907 |
+| Markdown | 11 | 1,200 |
 
 **Largest files:**
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (175 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
 - `src/modules/workspace/subdomains/task-formation/AGENTS.md` (166 lines)
+- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (129 lines)
 - `docs/structure/contexts/workspace/README.md` (126 lines)
-- `docs/structure/contexts/workspace/ubiquitous-language.md` (120 lines)
-- `docs/structure/contexts/workspace/AGENTS.md` (100 lines)
-- `docs/structure/contexts/workspace/bounded-contexts.md` (93 lines)
-- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (91 lines)
-- `src/modules/workspace/README.md` (85 lines)
+- `docs/structure/contexts/workspace/ubiquitous-language.md` (119 lines)
+- `docs/structure/contexts/workspace/AGENTS.md` (97 lines)
+- `docs/structure/contexts/workspace/bounded-contexts.md` (91 lines)
+- `src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx` (85 lines)

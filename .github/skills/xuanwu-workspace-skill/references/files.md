@@ -10,6 +10,176 @@
  */
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts
+````typescript
+/**
+ * useWorkspaceScope — workspace inbound adapter (React).
+ *
+ * Canonical hook for reading the active workspace scope in the src/ layer.
+ * Aliases useWorkspaceContext() from the workspace module.
+ *
+ * Returns: { state: WorkspaceContextState, dispatch: Dispatch<WorkspaceContextAction> }
+ */
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceContext.tsx
+````typescript
+/**
+ * WorkspaceContext — workspace inbound adapter (React).
+ *
+ * Defines workspace scope state, context, and the WorkspaceContextProvider.
+ * Consumed by WorkspaceScopeProvider and useWorkspaceScope in this adapter layer.
+ */
+⋮----
+import {
+  createContext,
+  useContext,
+  useReducer,
+  type Dispatch,
+  type ReactNode,
+} from "react";
+⋮----
+import type { WorkspaceSnapshot } from "../../../subdomains/lifecycle/domain/entities/Workspace";
+⋮----
+export type WorkspaceEntity = WorkspaceSnapshot;
+⋮----
+export interface WorkspaceContextState {
+  readonly workspaces: Record<string, WorkspaceEntity>;
+  readonly activeWorkspaceId: string | null;
+  readonly workspacesHydrated: boolean;
+}
+⋮----
+export type WorkspaceContextAction =
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "SET_WORKSPACES"; payload: Record<string, WorkspaceEntity> }
+  | { type: "RESET" };
+⋮----
+export interface WorkspaceContextValue {
+  readonly state: WorkspaceContextState;
+  readonly dispatch: Dispatch<WorkspaceContextAction>;
+}
+⋮----
+function reducer(
+  state: WorkspaceContextState,
+  action: WorkspaceContextAction,
+): WorkspaceContextState
+⋮----
+export function WorkspaceContextProvider({
+  children,
+}: {
+  children: ReactNode;
+})
+⋮----
+export function useWorkspaceContext(): WorkspaceContextValue
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
+````typescript
+/**
+ * WorkspaceScopeProvider — workspace inbound adapter (React).
+ *
+ * Canonical workspace scope provider for the src/ layer.
+ *
+ * Responsibilities:
+ *  1. Mount a WorkspaceContextProvider (holds workspace state + dispatch).
+ *  2. Subscribe to real-time Firestore workspace updates for the currently
+ *     active account (via the outbound Firebase composition root).
+ *  3. Dispatch SET_WORKSPACES when data arrives; RESET when the account is
+ *     cleared (e.g. on sign-out).
+ *
+ * Design notes:
+ *  - The subscription is managed by an inner WorkspaceSubscription component so
+ *    the effect only re-runs when activeAccountId changes, not on every render.
+ *  - WorkspaceScopeProvider reads the active account from AccountScopeProvider
+ *    (useApp). The dependency direction workspace → platform is correct:
+ *    platform is upstream of workspace.
+ *  - The composition root (PlatformBootstrap) mounts WorkspaceScopeProvider
+ *    inside AccountScopeProvider, so useApp() is always available here.
+ */
+⋮----
+import { type ReactNode } from "react";
+import { useEffect } from "react";
+⋮----
+import { WorkspaceContextProvider, useWorkspaceContext } from "./WorkspaceContext";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import { subscribeToWorkspacesForAccount } from "../../outbound/firebase-composition";
+⋮----
+// ── WorkspaceSubscription ─────────────────────────────────────────────────────
+// Isolated inner component so the subscription effect's dependency array is
+// minimal — only activeAccountId triggers a new subscription, not the full
+// app state object.
+⋮----
+function WorkspaceSubscription(
+⋮----
+// ── WorkspaceScopeProvider ────────────────────────────────────────────────────
+⋮----
+export function WorkspaceScopeProvider(
+````
+
+## File: src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts
+````typescript
+/**
+ * FirebaseWorkspaceQueryRepository — workspace module outbound adapter (read side).
+ *
+ * Provides real-time Firestore subscription for workspace data belonging to a
+ * given account.  Lives at workspace/adapters/outbound/ so @integration-firebase
+ * is permitted per ESLint boundary rules
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Firestore collection contract:
+ *   workspaces/{workspaceId} → WorkspaceSnapshot shape
+ *
+ * Design:
+ *  - Uses onSnapshot for live updates (no polling).
+ *  - Maps raw Firestore data defensively; all unknown values fall back to safe defaults.
+ *  - Timestamps may arrive as Firestore Timestamp objects or ISO strings — both handled.
+ */
+⋮----
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  type Timestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type {
+  WorkspaceSnapshot,
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+} from "../../subdomains/lifecycle/domain/entities/Workspace";
+⋮----
+export type Unsubscribe = () => void;
+⋮----
+// ── Timestamp helper ──────────────────────────────────────────────────────────
+⋮----
+function toISO(v: unknown): string
+⋮----
+// ── Firestore data → WorkspaceSnapshot mapper ─────────────────────────────────
+⋮----
+function toWorkspaceSnapshot(
+  id: string,
+  data: Record<string, unknown>,
+): WorkspaceSnapshot
+⋮----
+// ── Repository ────────────────────────────────────────────────────────────────
+⋮----
+export class FirebaseWorkspaceQueryRepository {
+⋮----
+/**
+   * Opens a real-time Firestore listener for all workspaces belonging to
+   * `accountId`.  Calls `onUpdate` immediately with the current snapshot and
+   * again on every subsequent change.
+   *
+   * Returns an unsubscribe function — call it when the subscriber unmounts.
+   */
+subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
+````
+
 ## File: src/modules/workspace/index.ts
 ````typescript
 /**
@@ -432,16 +602,6 @@ export function createApiKeyId(raw: string): ApiKeyId
 // Approval subdomain delegates persistence to task/issue subdomains
 ````
 
-## File: src/modules/workspace/subdomains/approval/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/approval/domain/index.ts
-````typescript
-
-````
-
 ## File: src/modules/workspace/subdomains/audit/adapters/inbound/index.ts
 ````typescript
 
@@ -638,134 +798,14 @@ export function createAuditSeverity(raw: string): AuditSeverity
 export function severityLevel(severity: AuditSeverity): number
 ````
 
-## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
-````typescript
-
-````
-
 ## File: src/modules/workspace/subdomains/feed/adapters/index.ts
 ````typescript
 
 ````
 
-## File: src/modules/workspace/subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository.ts
-````typescript
-import type { FeedPostRepository } from "../../../domain/repositories/FeedPostRepository";
-import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
-⋮----
-export interface FirestoreLike {
-  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
-  increment(collection: string, id: string, field: string, delta: number): Promise<void>;
-}
-⋮----
-get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-query(collection: string, filters: Array<
-increment(collection: string, id: string, field: string, delta: number): Promise<void>;
-⋮----
-export class FirestoreFeedRepository implements FeedPostRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>
-⋮----
-async listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>
-⋮----
-async listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>
-⋮----
-async save(post: FeedPostSnapshot): Promise<void>
-⋮----
-async incrementCounter(
-    accountId: string,
-    postId: string,
-    field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount",
-    delta: number,
-): Promise<void>
-````
-
 ## File: src/modules/workspace/subdomains/feed/adapters/outbound/index.ts
 ````typescript
 
-````
-
-## File: src/modules/workspace/subdomains/feed/application/dto/FeedDTO.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type CreateFeedPostDTO = z.infer<typeof CreateFeedPostSchema>;
-````
-
-## File: src/modules/workspace/subdomains/feed/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/feed/application/use-cases/FeedUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { FeedPostRepository } from "../../domain/repositories/FeedPostRepository";
-import { FeedPost } from "../../domain/entities/FeedPost";
-import type { CreateFeedPostInput } from "../../domain/entities/FeedPost";
-⋮----
-export class CreateFeedPostUseCase {
-⋮----
-constructor(private readonly feedRepo: FeedPostRepository)
-⋮----
-async execute(input: CreateFeedPostInput): Promise<CommandResult>
-````
-
-## File: src/modules/workspace/subdomains/feed/domain/entities/FeedPost.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { FeedDomainEventType } from "../events/FeedDomainEvent";
-⋮----
-export type FeedPostType = "post" | "reply" | "repost";
-⋮----
-export interface FeedPostSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly authorAccountId: string;
-  readonly type: FeedPostType;
-  readonly content: string;
-  readonly replyToPostId: string | null;
-  readonly repostOfPostId: string | null;
-  readonly likeCount: number;
-  readonly replyCount: number;
-  readonly repostCount: number;
-  readonly viewCount: number;
-  readonly bookmarkCount: number;
-  readonly shareCount: number;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateFeedPostInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly authorAccountId: string;
-  readonly content: string;
-  readonly replyToPostId?: string;
-  readonly repostOfPostId?: string;
-}
-⋮----
-export class FeedPost {
-⋮----
-private constructor(private _props: FeedPostSnapshot)
-⋮----
-static create(id: string, input: CreateFeedPostInput): FeedPost
-⋮----
-static reconstitute(snapshot: FeedPostSnapshot): FeedPost
-⋮----
-get id(): string
-get workspaceId(): string
-⋮----
-getSnapshot(): Readonly<FeedPostSnapshot>
-⋮----
-pullDomainEvents(): FeedDomainEventType[]
 ````
 
 ## File: src/modules/workspace/subdomains/feed/domain/events/FeedDomainEvent.ts
@@ -788,25 +828,6 @@ export type FeedDomainEventType = FeedPostCreatedEvent;
 ## File: src/modules/workspace/subdomains/feed/domain/index.ts
 ````typescript
 
-````
-
-## File: src/modules/workspace/subdomains/feed/domain/repositories/FeedPostRepository.ts
-````typescript
-import type { FeedPostSnapshot } from "../entities/FeedPost";
-⋮----
-export interface FeedPostRepository {
-  findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>;
-  listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>;
-  listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>;
-  save(post: FeedPostSnapshot): Promise<void>;
-  incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount", delta: number): Promise<void>;
-}
-⋮----
-findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>;
-listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>;
-listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>;
-save(post: FeedPostSnapshot): Promise<void>;
-incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount", delta: number): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/invitation/adapters/inbound/index.ts
@@ -1659,34 +1680,6 @@ markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<Task
 // Quality subdomain delegates persistence to task subdomain
 ````
 
-## File: src/modules/workspace/subdomains/quality/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/quality/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/quality/domain/repositories/QualityTaskRepository.ts
-````typescript
-export type QualityTaskStatus = "draft" | "in_progress" | "qa" | "acceptance" | "accepted" | "archived" | "cancelled";
-⋮----
-export interface QualityTaskLike {
-  readonly id: string;
-  readonly status: QualityTaskStatus;
-}
-⋮----
-export interface QualityTaskRepository {
-  findById(taskId: string): Promise<QualityTaskLike | null>;
-  updateStatus(taskId: string, to: QualityTaskStatus, nowISO: string): Promise<QualityTaskLike | null>;
-}
-⋮----
-findById(taskId: string): Promise<QualityTaskLike | null>;
-updateStatus(taskId: string, to: QualityTaskStatus, nowISO: string): Promise<QualityTaskLike | null>;
-````
-
 ## File: src/modules/workspace/subdomains/resource/adapters/inbound/index.ts
 ````typescript
 
@@ -2387,26 +2380,6 @@ export interface ExtractedTaskCandidate {
 export type TaskFormationJobStatus = "queued" | "running" | "partially_succeeded" | "succeeded" | "failed" | "cancelled";
 ````
 
-## File: src/modules/workspace/subdomains/task/adapters/inbound/http/TaskController.ts
-````typescript
-import type { TaskRepository } from "../../../domain/repositories/TaskRepository";
-import { CreateTaskUseCase, UpdateTaskUseCase, TransitionTaskStatusUseCase } from "../../../application/use-cases/TaskUseCases";
-⋮----
-export class TaskController {
-⋮----
-constructor(taskRepo: TaskRepository)
-````
-
-## File: src/modules/workspace/subdomains/task/adapters/inbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/task/adapters/index.ts
-````typescript
-// task — adapters aggregate
-````
-
 ## File: src/modules/workspace/subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository.ts
 ````typescript
 import type { TaskRepository } from "../../../domain/repositories/TaskRepository";
@@ -2647,322 +2620,6 @@ export type TaskId = z.infer<typeof TaskIdSchema>;
 export function createTaskId(raw: string): TaskId
 ````
 
-## File: docs/structure/contexts/workspace/bounded-contexts.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
-
-## Baseline Bounded Contexts
-
-| Subdomain | Owns | Excludes |
-|---|---|---|
-| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
-| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
-| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
-| approve | 任務驗收與問題單覆核審批判定 | 平台身份授權決策 |
-| issue | 問題單建立、追蹤、狀態轉換 | 知識內容正典生命週期 |
-| orchestration | 知識頁面→任務物化批次流程編排 | domain 事實的直接寫入 |
-| quality | 任務 QA 審查與質檢流程 | 業務驗收規則本身 |
-| settlement | 請款發票生命週期與財務對帳 | billing 計費狀態 |
-| task | 任務建立、指派、狀態機 | 知識內容與 notebook 推理 |
-| task-formation | AI 輔助任務候選抽取與批次匯入 | AI 模型能力（屬 ai context） |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 orchestration 或 app 組裝層 |
-| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
-| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
-| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
-
-## Domain Invariants
-
-- workspaceId 是工作區範疇錨點。
-- 工作區成員關係屬於 membership，而不是平台身份本身。
-- activity feed 只投影事實，不創造事實。
-- audit trail 一旦寫入即不可隨意覆蓋。
-- task/issue/settlement/approve/quality/orchestration 是獨立子域，不得合併為單一 workspace-workflow 概念。
-
-## Dependency Direction
-
-- workspace 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
-- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
-- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
-
-## Anti-Patterns
-
-- 把 Membership 混成 Actor 身份本身。
-- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
-- 用 `workspace-workflow` 代指已分解的 task、issue、settlement、approve、quality、orchestration 等子域。
-- 混用 `platform.workflow` 與 workspace 內的任務流程語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求落在 task、issue、approve、quality、settlement、orchestration、audit、feed、scheduling 哪個責任。
-- workspace 工作區流程語言已分解為多個獨立子域，不再使用 `workspace-workflow` 混指所有流程。
-- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
-- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Workspace bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	TaskFormation["TaskFormation"] --> Task["Task"]
-	Task --> Approve["Approve / Quality"]
-	Task --> Issue["Issue"]
-	Task --> Settlement["Settlement"]
-	Scheduling["Scheduling"] --> Task
-	Orchestration["Orchestration"] --> Task
-	Task --> AuditFeed["Audit / Feed"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/structure/contexts/workspace/context-map.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context map 思維，workspace 應只暴露 scope、membership scope 與協作容器語言，而不暴露內部實作。
-
-## Relationships
-
-| Related Domain | Relationship Type | Workspace Position | Published Language |
-|---|---|---|---|
-| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
-| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
-| platform | Upstream/Downstream | downstream | account scope、organization surface、operational service signal |
-| notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
-| notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
-
-## Mapping Rules
-
-- workspace 消費 iam、billing、platform 的 signals 與治理結果，但不重建 identity、policy 或 entitlement 模型。
-- notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
-- sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
-- 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。
-
-## Dependency Direction
-
-- workspace 對 iam、billing、platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
-- workspace 對外輸出 workspaceId、membership scope、share scope，而不是內部 aggregate 或投影實作。
-- downstream 若需保護自己的語言，ACL 由 downstream 自行實作，不由 workspace 代做。
-
-## Anti-Patterns
-
-- 把 workspace 與 notion/notebooklm 寫成對稱共用核心，同時又要求 ACL。
-- 把 sharing scope 直接當成平台 access decision 本身。
-- 讓其他主域直接操作 workspace 內部 membership 或 lifecycle 模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 workspace 對 platform 的 downstream 位置，以及對 notion / notebooklm 的 upstream scope supplier 位置。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個翻譯鏈。
-- workspace 對外提供的是 scope，不是內部 aggregate、投影或 storage 模型。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["platform upstream"] -->|Published Language| Boundary["workspace boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-	Domain --> PL["Published workspace scope"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	IAM["iam"] -->|actor / tenant / access| Boundary["workspace API boundary"]
-	Billing["billing"] -->|entitlement| Boundary
-	Platform["platform"] -->|account / organization surface| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["Workspace domain"]
-	Domain --> Scope["workspaceId / membership scope / share scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/structure/contexts/workspace/ubiquitous-language.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Canonical Terms
-
-| Term | Meaning |
-|---|---|
-| Workspace | 協作容器與主要範疇邊界 |
-| WorkspaceId | 工作區唯一識別子與範疇錨點 |
-| WorkspaceLifecycle | 工作區建立、封存、還原、移轉等生命週期狀態 |
-| Membership | 工作區內的參與關係 |
-| WorkspaceRole | 工作區範疇下的角色語意 |
-| ShareScope | 共享暴露範圍 |
-| ShareLink | 對外共享的可解析入口 |
-| PresenceSession | 即時在線與共同編輯存在感訊號 |
-| ActivityFeed | 面向使用者的活動流投影 |
-| AuditTrail | 不可否認的工作區操作追蹤 |
-| Schedule | 工作區內的時間安排與提醒意圖 |
-| WorkflowExecution | 某個工作區流程的一次執行實例 |
-| WorkspaceTab | 同一條 workspace detail route 上的 query-state 分頁語意 |
-| OverviewPanel | `Overview` tab 內的 panel 細分語意 |
-
-## Shell Route Terms
-
-| Term | Meaning |
-|---|---|
-| AccountScope | workspace route 所依附的 account scope；由 shell 上的 `accountId` 表示 |
-| AccountTypeStringContract | workspace aggregate / use case / validator 所消費的 code-level enum `"user" | "organization"`；`"user"` 對應 personal account context |
-| CreatorUserId | 建立 workspace 或發起 workspace-scoped command 的具體 user identifier |
-| CurrentUserId | 目前正在操作 workspace UI / workflow 的具體 user identifier |
-| CanonicalWorkspaceRoute | `/{accountId}/{workspaceId}` |
-| LegacyWorkspaceRedirectSurface | `/{accountId}/workspace/{workspaceId}` |
-
-## Language Rules
-
-- 使用 Workspace，不使用 Project 或 Space 作為同義詞。
-- 使用 Membership，不用 User 表示工作區參與關係。
-- 使用 ActivityFeed 與 AuditTrail 區分投影與證據。
-- 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
-- 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
-- 使用 `workspaceId` 表示 workspace scope，不用 `accountId` 混稱。
-- 使用 `AccountType = "user" | "organization"` 作為 workspace 跨邊界字串契約；顯示語言可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成 canonical accountType literal。
-- 使用 `creatorUserId` / `currentUserId` 表示具體使用者操作，不把它寫成 `accountId` 或 `workspaceId`。
-- organization-scoped event metadata 需要時，可由 `accountType = "organization"` 下的 `accountId` 映射出 `organizationId`；但 workspace route surface 本身仍以 `accountId` + `workspaceId` 為主。
-- 使用 `/{accountId}/{workspaceId}` 表示 canonical workspace detail route。
-- `/{accountId}/workspace/{workspaceId}` 只視為 legacy redirect surface，不作為新的文件、設計稿或 UI href。
-
-## Avoid
-
-| Avoid | Use Instead |
-|---|---|
-| User | Membership 或 Actor reference |
-| Timeline | ActivityFeed 或 Schedule |
-| Share Permission | ShareScope |
-| Workspace Log | ActivityFeed 或 AuditTrail |
-| `AccountType = "personal"` | `AccountType = "user"`，顯示語言再另寫個人帳號 |
-| `organizationId`（as workspace route param） | `accountId` |
-| `accountId`（as concrete acting user id） | `creatorUserId` / `currentUserId` |
-| Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
-
-## Naming Anti-Patterns
-
-- 不用 User 混指 Membership 與 Actor reference。
-- 不用 Timeline 混指 ActivityFeed 與 Schedule。
-- 不用 Permission 混指 ShareScope。
-- 不用 Log 混指 ActivityFeed 與 AuditTrail。
-- 不把 personal account 顯示語言誤當成 workspace 的 code-level `AccountType` literal。
-- 不把 `accountId`、`workspaceId`、`creatorUserId`、`organizationId` 混成同一個 identifier 概念。
-- 不把 account-scoped shell route 語意誤當成 workspace 自己的 top-level route ownership。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，名稱先對齊 Workspace、Membership、ShareScope、ActivityFeed、AuditTrail，再決定類型與檔名。
-- 奧卡姆剃刀：若一個工作區名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
-- 命名先保護 scope 語言，再考慮 UI 或 API 顯示便利。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic language"] --> Context["Workspace language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Workspace["Workspace"] --> Membership["Membership"]
-	Membership --> ShareScope["ShareScope"]
-	ShareScope --> ActivityFeed["ActivityFeed"]
-	ActivityFeed --> AuditTrail["AuditTrail"]
-```
-
-## Domain Layer Flow (enforced per subdomain)
-
-```mermaid
-flowchart LR
-  Domain["domain/ (aggregates, entities, ports/)"]
-  Application["application/ (use-cases, dtos)"]
-  Ports["domain/ports/ (IXxxPort interfaces)"]
-  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
-  Interfaces["interfaces/ (actions, queries, components)"]
-
-  Domain --> Application
-  Application --> Ports
-  Ports --> Infrastructure
-  Infrastructure --> Interfaces
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../../ubiquitous-language.md)
-- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
-````
-
-## File: src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts
-````typescript
-/**
- * useWorkspaceScope — workspace inbound adapter (React).
- *
- * Canonical hook for reading the active workspace scope in the src/ layer.
- * Aliases useWorkspaceContext() from the workspace module.
- *
- * Returns: { state: WorkspaceContextState, dispatch: Dispatch<WorkspaceContextAction> }
- */
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceApprovalSection.tsx
 ````typescript
 /**
@@ -3010,89 +2667,6 @@ export function WorkspaceAuditSection({
 {/* Filter chips */}
 ⋮----
 {/* Log list — empty state */}
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceContext.tsx
-````typescript
-/**
- * WorkspaceContext — workspace inbound adapter (React).
- *
- * Defines workspace scope state, context, and the WorkspaceContextProvider.
- * Consumed by WorkspaceScopeProvider and useWorkspaceScope in this adapter layer.
- */
-⋮----
-import {
-  createContext,
-  useContext,
-  useReducer,
-  type Dispatch,
-  type ReactNode,
-} from "react";
-⋮----
-import type { WorkspaceSnapshot } from "../../../subdomains/lifecycle/domain/entities/Workspace";
-⋮----
-export type WorkspaceEntity = WorkspaceSnapshot;
-⋮----
-export interface WorkspaceContextState {
-  readonly workspaces: Record<string, WorkspaceEntity>;
-  readonly activeWorkspaceId: string | null;
-  readonly workspacesHydrated: boolean;
-}
-⋮----
-export type WorkspaceContextAction =
-  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
-  | { type: "SET_WORKSPACES"; payload: Record<string, WorkspaceEntity> }
-  | { type: "RESET" };
-⋮----
-export interface WorkspaceContextValue {
-  readonly state: WorkspaceContextState;
-  readonly dispatch: Dispatch<WorkspaceContextAction>;
-}
-⋮----
-function reducer(
-  state: WorkspaceContextState,
-  action: WorkspaceContextAction,
-): WorkspaceContextState
-⋮----
-export function WorkspaceContextProvider({
-  children,
-}: {
-  children: ReactNode;
-})
-⋮----
-export function useWorkspaceContext(): WorkspaceContextValue
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx
-````typescript
-/**
- * WorkspaceIssuesSection — workspace.issues tab — issue tracker.
- */
-⋮----
-import { AlertCircle, Plus, AlertTriangle, Info } from "lucide-react";
-import { useState } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-interface WorkspaceIssuesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-type IssueFilter = "全部" | "開啟" | "處理中" | "已關閉";
-⋮----
-export function WorkspaceIssuesSection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceIssuesSectionProps): React.ReactElement
-⋮----
-{/* Header */}
-⋮----
-{/* Status filter */}
-⋮----
-{/* Priority legend */}
-⋮----
-{/* Issues list — empty state */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
@@ -3194,211 +2768,552 @@ export function WorkspaceSettingsSection({
 {/* Danger zone */}
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx
+## File: src/modules/workspace/adapters/inbound/server-actions/approval-actions.ts
 ````typescript
-/**
- * WorkspaceTasksSection — workspace.tasks tab — task list with status filters.
- */
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientApprovalUseCases } from "../../outbound/firebase-composition";
+import type { ApprovalDecisionSnapshot } from "../../../subdomains/approval/domain/entities/ApprovalDecision";
 ⋮----
-import { CheckSquare, Plus } from "lucide-react";
-import { useState } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
+export async function createApprovalDecisionAction(rawInput: unknown): Promise<CommandResult>
 ⋮----
-interface WorkspaceTasksSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
+export async function approveTaskAction(decisionId: string, rawInput?: unknown): Promise<CommandResult>
 ⋮----
-type TaskFilter = "全部" | "待執行" | "進行中" | "已完成" | "已取消";
+export async function rejectApprovalAction(decisionId: string, rawInput?: unknown): Promise<CommandResult>
 ⋮----
-export function WorkspaceTasksSection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceTasksSectionProps): React.ReactElement
-⋮----
-{/* Header */}
-⋮----
-{/* Status filter */}
-⋮----
-{/* Priority legend */}
-⋮----
-{/* Task list — empty state */}
+export async function listApprovalDecisionsAction(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>
 ````
 
-## File: src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts
+## File: src/modules/workspace/adapters/inbound/server-actions/quality-actions.ts
 ````typescript
-/**
- * FirebaseWorkspaceQueryRepository — workspace module outbound adapter (read side).
- *
- * Provides real-time Firestore subscription for workspace data belonging to a
- * given account.  Lives at workspace/adapters/outbound/ so @integration-firebase
- * is permitted per ESLint boundary rules
- * (src/modules/<context>/adapters/outbound/**).
- *
- * Firestore collection contract:
- *   workspaces/{workspaceId} → WorkspaceSnapshot shape
- *
- * Design:
- *  - Uses onSnapshot for live updates (no polling).
- *  - Maps raw Firestore data defensively; all unknown values fall back to safe defaults.
- *  - Timestamps may arrive as Firestore Timestamp objects or ISO strings — both handled.
- */
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientQualityUseCases } from "../../outbound/firebase-composition";
+import type { QualityReviewSnapshot } from "../../../subdomains/quality/domain/entities/QualityReview";
 ⋮----
-import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  onSnapshot,
-  type Timestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type {
-  WorkspaceSnapshot,
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-} from "../../subdomains/lifecycle/domain/entities/Workspace";
+export async function startQualityReviewAction(rawInput: unknown): Promise<CommandResult>
 ⋮----
-export type Unsubscribe = () => void;
+export async function passQualityReviewAction(reviewId: string, rawInput?: unknown): Promise<CommandResult>
 ⋮----
-// ── Timestamp helper ──────────────────────────────────────────────────────────
+export async function failQualityReviewAction(reviewId: string, rawInput?: unknown): Promise<CommandResult>
 ⋮----
-function toISO(v: unknown): string
-⋮----
-// ── Firestore data → WorkspaceSnapshot mapper ─────────────────────────────────
-⋮----
-function toWorkspaceSnapshot(
-  id: string,
-  data: Record<string, unknown>,
-): WorkspaceSnapshot
-⋮----
-// ── Repository ────────────────────────────────────────────────────────────────
-⋮----
-export class FirebaseWorkspaceQueryRepository {
-⋮----
-/**
-   * Opens a real-time Firestore listener for all workspaces belonging to
-   * `accountId`.  Calls `onUpdate` immediately with the current snapshot and
-   * again on every subsequent change.
-   *
-   * Returns an unsubscribe function — call it when the subscriber unmounts.
-   */
-subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
-): Unsubscribe
+export async function listQualityReviewsAction(workspaceId: string): Promise<QualityReviewSnapshot[]>
 ````
 
-## File: src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts
+## File: src/modules/workspace/adapters/inbound/server-actions/task-actions.ts
 ````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { ApprovalTaskRepository, ApprovalIssueRepository, ApprovalTaskStatus, ApprovalIssueStatus } from "../../domain/repositories/ApprovalRepository";
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientTaskUseCases } from "../../outbound/firebase-composition";
+import type { TaskSnapshot } from "../../../subdomains/task/domain/entities/Task";
 ⋮----
-function canTransitionTask(from: ApprovalTaskStatus, to: ApprovalTaskStatus): boolean
+export async function createTaskAction(rawInput: unknown): Promise<CommandResult>
 ⋮----
-function canTransitionIssue(from: ApprovalIssueStatus, to: ApprovalIssueStatus): boolean
+export async function updateTaskAction(taskId: string, rawInput: unknown): Promise<CommandResult>
 ⋮----
-export class ApproveTaskAcceptanceUseCase {
+export async function transitionTaskStatusAction(taskId: string, rawInput: unknown): Promise<CommandResult>
 ⋮----
-constructor(
-async execute(taskId: string): Promise<CommandResult>
+export async function deleteTaskAction(taskId: string): Promise<CommandResult>
 ⋮----
-export class SubmitIssueRetestUseCase {
-⋮----
-constructor(private readonly issueRepo: ApprovalIssueRepository)
-async execute(issueId: string): Promise<CommandResult>
-⋮----
-export class PassIssueRetestUseCase {
-⋮----
-export class FailIssueRetestUseCase {
+export async function listTasksByWorkspaceAction(workspaceId: string): Promise<TaskSnapshot[]>
 ````
 
-## File: src/modules/workspace/subdomains/approval/domain/repositories/ApprovalRepository.ts
-````typescript
-export type ApprovalTaskStatus = "draft" | "in_progress" | "qa" | "acceptance" | "accepted" | "archived" | "cancelled";
-export type ApprovalIssueStatus = "open" | "fixing" | "retest" | "resolved" | "wont_fix" | "closed";
-⋮----
-export interface ApprovalTaskLike {
-  readonly id: string;
-  readonly status: ApprovalTaskStatus;
-}
-⋮----
-export interface ApprovalIssueLike {
-  readonly id: string;
-  readonly taskId: string;
-  readonly status: ApprovalIssueStatus;
-}
-⋮----
-export interface ApprovalTaskRepository {
-  findById(taskId: string): Promise<ApprovalTaskLike | null>;
-  updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
-}
-⋮----
-findById(taskId: string): Promise<ApprovalTaskLike | null>;
-updateStatus(taskId: string, to: ApprovalTaskStatus, nowISO: string): Promise<ApprovalTaskLike | null>;
-⋮----
-export interface ApprovalIssueRepository {
-  findById(issueId: string): Promise<ApprovalIssueLike | null>;
-  countOpenByTaskId(taskId: string): Promise<number>;
-  countOpenByTaskIdAndStage(taskId: string, stage: string): Promise<number>;
-  updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
-}
-⋮----
-findById(issueId: string): Promise<ApprovalIssueLike | null>;
-countOpenByTaskId(taskId: string): Promise<number>;
-countOpenByTaskIdAndStage(taskId: string, stage: string): Promise<number>;
-updateStatus(issueId: string, to: ApprovalIssueStatus, nowISO: string): Promise<ApprovalIssueLike | null>;
+## File: src/modules/workspace/AGENTS.md
+````markdown
+# Workspace Module — Agent Guide
+
+## Purpose
+
+`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
+
+> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
+
+## 子域清單（名詞域）
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
+| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
+| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
+| `audit` | 日誌紀錄實體 | 🔨 骨架建立，實作進行中 |
+| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
+| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
+| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
+| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
+| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
+| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
+| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
+| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
+| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
+| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
+| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
+| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
+| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
+
+## task-formation 歸屬決策
+
+`task-formation` 屬於 **`workspace`** 子域，理由：
+- 輸出物（Task entities）是 workspace 的領域物件
+- 業務流程（使用者確認候選任務）是 workspace 層關注點
+- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
+- `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
+- `orchestration/` 是跨子域流程協調層，不包含業務規則。
+- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
+
+## Route Here When
+
+- 撰寫 workspace 的新 use case、entity、adapter 實作。
+- 實作 task / issue / lifecycle 等子域骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/workspace/AGENTS.md`
+- 跨模組 API boundary → `src/modules/workspace/index.ts`
+- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
+- 成員身份驗證 → `src/modules/iam/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/workspace/AGENTS.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
+| 跨模組 API boundary | `src/modules/workspace/index.ts` |
+
+**嚴禁事項：**
+- ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
+- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
+- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/workspace/subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository.ts
+## File: src/modules/workspace/subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository.ts
 ````typescript
-import type { IssueRepository } from "../../../domain/repositories/IssueRepository";
-import type { IssueSnapshot } from "../../../domain/entities/Issue";
-import type { IssueStatus } from "../../../domain/value-objects/IssueStatus";
-import type { IssueStage } from "../../../domain/value-objects/IssueStage";
+import type { ApprovalDecisionRepository } from "../../../domain/repositories/ApprovalDecisionRepository";
+import type { ApprovalDecisionSnapshot } from "../../../domain/entities/ApprovalDecision";
 ⋮----
 export interface FirestoreLike {
   get(collection: string, id: string): Promise<Record<string, unknown> | null>;
   set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
   delete(collection: string, id: string): Promise<void>;
-  query(
-    collection: string,
-    filters: Array<{ field: string; op: string; value: unknown }>,
-  ): Promise<Record<string, unknown>[]>;
+  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
 }
 ⋮----
 get(collection: string, id: string): Promise<Record<string, unknown> | null>;
 set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
 delete(collection: string, id: string): Promise<void>;
-query(
-    collection: string,
-    filters: Array<{ field: string; op: string; value: unknown }>,
-  ): Promise<Record<string, unknown>[]>;
+query(collection: string, filters: Array<
 ⋮----
-export class FirestoreIssueRepository implements IssueRepository {
+export class FirestoreApprovalDecisionRepository implements ApprovalDecisionRepository {
 ⋮----
 constructor(private readonly db: FirestoreLike)
 ⋮----
-async findById(issueId: string): Promise<IssueSnapshot | null>
+async findById(decisionId: string): Promise<ApprovalDecisionSnapshot | null>
 ⋮----
-async findByTaskId(taskId: string): Promise<IssueSnapshot[]>
+async findByTaskId(taskId: string): Promise<ApprovalDecisionSnapshot[]>
 ⋮----
-async findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>
+async findByWorkspaceId(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>
 ⋮----
-async countOpenByTaskId(taskId: string): Promise<number>
+async save(decision: ApprovalDecisionSnapshot): Promise<void>
 ⋮----
-async countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>
+async delete(decisionId: string): Promise<void>
+````
+
+## File: src/modules/workspace/subdomains/approval/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/approval/domain/entities/ApprovalDecision.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { ApprovalDomainEventType } from "../events/ApprovalDomainEvent";
 ⋮----
-async save(issue: IssueSnapshot): Promise<void>
+export type ApprovalDecisionStatus = "pending" | "approved" | "rejected";
 ⋮----
-async updateStatus(
-    issueId: string,
-    to: IssueStatus,
-    nowISO: string,
-): Promise<IssueSnapshot | null>
+export interface ApprovalDecisionSnapshot {
+  readonly id: string;
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly approverId: string;
+  readonly status: ApprovalDecisionStatus;
+  readonly comments: string;
+  readonly createdAtISO: string;
+  readonly decidedAtISO: string | null;
+  readonly updatedAtISO: string;
+}
 ⋮----
-async delete(issueId: string): Promise<void>
+export interface CreateApprovalDecisionInput {
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly approverId: string;
+  readonly comments?: string;
+}
+⋮----
+export class ApprovalDecision {
+⋮----
+private constructor(private _props: ApprovalDecisionSnapshot)
+⋮----
+static create(id: string, input: CreateApprovalDecisionInput): ApprovalDecision
+⋮----
+static reconstitute(snapshot: ApprovalDecisionSnapshot): ApprovalDecision
+⋮----
+approve(comments?: string): void
+⋮----
+reject(comments?: string): void
+⋮----
+get id(): string
+get taskId(): string
+get workspaceId(): string
+get status(): ApprovalDecisionStatus
+⋮----
+getSnapshot(): Readonly<ApprovalDecisionSnapshot>
+⋮----
+pullDomainEvents(): ApprovalDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/approval/domain/events/ApprovalDomainEvent.ts
+````typescript
+export interface ApprovalDecisionCreatedEvent {
+  readonly type: "workspace.approval.decision-created";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly decisionId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+    readonly approverId: string;
+  };
+}
+⋮----
+export interface ApprovalDecisionApprovedEvent {
+  readonly type: "workspace.approval.decision-approved";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly decisionId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export interface ApprovalDecisionRejectedEvent {
+  readonly type: "workspace.approval.decision-rejected";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly decisionId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export type ApprovalDomainEventType =
+  | ApprovalDecisionCreatedEvent
+  | ApprovalDecisionApprovedEvent
+  | ApprovalDecisionRejectedEvent;
+````
+
+## File: src/modules/workspace/subdomains/approval/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/approval/domain/repositories/ApprovalDecisionRepository.ts
+````typescript
+import type { ApprovalDecisionSnapshot } from "../entities/ApprovalDecision";
+⋮----
+export interface ApprovalDecisionRepository {
+  findById(decisionId: string): Promise<ApprovalDecisionSnapshot | null>;
+  findByTaskId(taskId: string): Promise<ApprovalDecisionSnapshot[]>;
+  findByWorkspaceId(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>;
+  save(decision: ApprovalDecisionSnapshot): Promise<void>;
+  delete(decisionId: string): Promise<void>;
+}
+⋮----
+findById(decisionId: string): Promise<ApprovalDecisionSnapshot | null>;
+findByTaskId(taskId: string): Promise<ApprovalDecisionSnapshot[]>;
+findByWorkspaceId(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>;
+save(decision: ApprovalDecisionSnapshot): Promise<void>;
+delete(decisionId: string): Promise<void>;
+````
+
+## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/feed/adapters/inbound/server-actions/feed-actions.ts
+````typescript
+/**
+ * feed-actions — workspace/feed inbound server actions.
+ *
+ * Thin boundary layer: parse → use-case → return CommandResult / snapshot[].
+ * All Firebase setup goes through the workspace firebase-composition root.
+ */
+⋮----
+import type { CommandResult } from "../../../../../../shared";
+import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
+import { CreateFeedPostSchema, ListFeedPostsSchema } from "../../../application";
+import { createClientFeedUseCases } from "../../../../../adapters/outbound/firebase-composition";
+⋮----
+/** Create a new feed post (text + optional photos). */
+export async function createFeedPostAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+/** List feed posts for a workspace, optionally filtered by date (YYYY-MM-DD). */
+export async function listFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]>
+````
+
+## File: src/modules/workspace/subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository.ts
+````typescript
+import type { FeedPostRepository } from "../../../domain/repositories/FeedPostRepository";
+import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
+⋮----
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
+  increment(collection: string, id: string, field: string, delta: number): Promise<void>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+query(collection: string, filters: Array<
+increment(collection: string, id: string, field: string, delta: number): Promise<void>;
+⋮----
+export class FirestoreFeedRepository implements FeedPostRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>
+⋮----
+async listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>
+⋮----
+async listByWorkspaceIdAndDate(
+    accountId: string,
+    workspaceId: string,
+    dateKey: string,
+    limit: number,
+): Promise<FeedPostSnapshot[]>
+⋮----
+async listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>
+⋮----
+async save(post: FeedPostSnapshot): Promise<void>
+⋮----
+async incrementCounter(
+    accountId: string,
+    postId: string,
+    field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount",
+    delta: number,
+): Promise<void>
+⋮----
+private toSnapshot(doc: Record<string, unknown>): FeedPostSnapshot
+````
+
+## File: src/modules/workspace/subdomains/feed/application/dto/FeedDTO.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type CreateFeedPostDTO = z.infer<typeof CreateFeedPostSchema>;
+⋮----
+/** YYYY-MM-DD. Omit to list across all dates (up to limit). */
+⋮----
+export type ListFeedPostsDTO = z.infer<typeof ListFeedPostsSchema>;
+````
+
+## File: src/modules/workspace/subdomains/feed/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/feed/application/use-cases/FeedUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { FeedPostRepository } from "../../domain/repositories/FeedPostRepository";
+import { FeedPost } from "../../domain/entities/FeedPost";
+import type { CreateFeedPostInput, FeedPostSnapshot } from "../../domain/entities/FeedPost";
+⋮----
+export class CreateFeedPostUseCase {
+⋮----
+constructor(private readonly feedRepo: FeedPostRepository)
+⋮----
+async execute(input: CreateFeedPostInput): Promise<CommandResult>
+⋮----
+export class ListFeedPostsUseCase {
+⋮----
+async execute(input: {
+    accountId: string;
+    workspaceId: string;
+    dateKey?: string;
+    limit?: number;
+}): Promise<FeedPostSnapshot[]>
+````
+
+## File: src/modules/workspace/subdomains/feed/domain/entities/FeedPost.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { FeedDomainEventType } from "../events/FeedDomainEvent";
+⋮----
+export type FeedPostType = "post" | "reply" | "repost";
+⋮----
+export interface FeedPostSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly authorAccountId: string;
+  readonly type: FeedPostType;
+  readonly content: string;
+  /** ISO date key YYYY-MM-DD for efficient Firestore date-range queries. */
+  readonly dateKey: string;
+  /** Storage URLs for attached photos (zero or more). */
+  readonly photoUrls: readonly string[];
+  readonly replyToPostId: string | null;
+  readonly repostOfPostId: string | null;
+  readonly likeCount: number;
+  readonly replyCount: number;
+  readonly repostCount: number;
+  readonly viewCount: number;
+  readonly bookmarkCount: number;
+  readonly shareCount: number;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+/** ISO date key YYYY-MM-DD for efficient Firestore date-range queries. */
+⋮----
+/** Storage URLs for attached photos (zero or more). */
+⋮----
+export interface CreateFeedPostInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly authorAccountId: string;
+  readonly content: string;
+  /** Storage URLs for attached photos (zero or more). */
+  readonly photoUrls?: readonly string[];
+  readonly replyToPostId?: string;
+  readonly repostOfPostId?: string;
+}
+⋮----
+/** Storage URLs for attached photos (zero or more). */
+⋮----
+export class FeedPost {
+⋮----
+private constructor(private _props: FeedPostSnapshot)
+⋮----
+static create(id: string, input: CreateFeedPostInput): FeedPost
+⋮----
+const dateKey = now.slice(0, 10); // YYYY-MM-DD
+⋮----
+static reconstitute(snapshot: FeedPostSnapshot): FeedPost
+⋮----
+get id(): string
+get workspaceId(): string
+⋮----
+getSnapshot(): Readonly<FeedPostSnapshot>
+⋮----
+pullDomainEvents(): FeedDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/feed/domain/repositories/FeedPostRepository.ts
+````typescript
+import type { FeedPostSnapshot } from "../entities/FeedPost";
+⋮----
+export interface FeedPostRepository {
+  findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>;
+  listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>;
+  /** List posts for a workspace scoped to a specific date key (YYYY-MM-DD). */
+  listByWorkspaceIdAndDate(accountId: string, workspaceId: string, dateKey: string, limit: number): Promise<FeedPostSnapshot[]>;
+  listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>;
+  save(post: FeedPostSnapshot): Promise<void>;
+  incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount", delta: number): Promise<void>;
+}
+⋮----
+findById(accountId: string, postId: string): Promise<FeedPostSnapshot | null>;
+listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<FeedPostSnapshot[]>;
+/** List posts for a workspace scoped to a specific date key (YYYY-MM-DD). */
+listByWorkspaceIdAndDate(accountId: string, workspaceId: string, dateKey: string, limit: number): Promise<FeedPostSnapshot[]>;
+listByAccountId(accountId: string, limit: number): Promise<FeedPostSnapshot[]>;
+save(post: FeedPostSnapshot): Promise<void>;
+incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount", delta: number): Promise<void>;
+````
+
+## File: src/modules/workspace/subdomains/feed/README.md
+````markdown
+# feed — Workspace Feed Subdomain
+
+每日動態貼文子域。讓工作區成員每天以 IG 風格發布文字與照片動態，未來將擴展為今日任務完成與出勤記錄的整合入口。
+
+## 領域概念
+
+| 概念 | 說明 |
+|---|---|
+| `FeedPost` | 聚合根。代表一則動態（post / reply / repost）|
+| `dateKey` | ISO 日期字串 `YYYY-MM-DD`，用於 Firestore 按日期查詢 |
+| `photoUrls` | 附圖 URL 陣列（最多 9 張），指向 Storage 或外部圖片 |
+| `FeedPostType` | `post`（一般貼文）· `reply`（回覆）· `repost`（轉貼）|
+
+## 狀態
+
+| 層 | 狀態 |
+|---|---|
+| Domain | ✅ FeedPost 聚合根（含 photoUrls、dateKey）|
+| Application | ✅ CreateFeedPostUseCase、ListFeedPostsUseCase |
+| Outbound adapter | ✅ FirestoreFeedRepository（含按日期查詢）|
+| Inbound adapter | ✅ feed-actions.ts server actions |
+| UI | ✅ WorkspaceDailySection — 每日動態 IG 風格貼文牆 |
+
+## 資料結構（Firestore）
+
+Collection: `feed_posts`
+
+```
+{
+  id: string (UUID),
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  type: "post" | "reply" | "repost",
+  content: string,
+  dateKey: string,       // YYYY-MM-DD — 用於日期過濾索引
+  photoUrls: string[],   // Storage URLs，0–9 張
+  replyToPostId: string | null,
+  repostOfPostId: string | null,
+  likeCount: number,
+  replyCount: number,
+  repostCount: number,
+  viewCount: number,
+  bookmarkCount: number,
+  shareCount: number,
+  createdAtISO: string,
+  updatedAtISO: string,
+}
+```
+
+建議 Firestore 複合索引：`(accountId, workspaceId, dateKey)` 以優化每日動態查詢。
+
+## 未來擴展
+
+- 今日任務完成統計（接入 workspace/task 子域）
+- 出勤記錄 check-in（接入 workspace/membership 子域）
+- 照片實際上傳（整合 platform FileAPI，替換 URL 輸入）
+- 點讚 / 回覆互動
+
+## 邊界規則
+
+- `domain/` 不依賴任何外部框架或 Firebase SDK。
+- 跨模組消費者只能透過 `workspace/index.ts` 或 server actions 存取。
+- 照片上傳涉及所有權與 tenant 隔離時，必須走 platform FileAPI，而非直接呼叫 Storage SDK。
 ````
 
 ## File: src/modules/workspace/subdomains/issue/application/use-cases/IssueUseCases.ts
@@ -3424,58 +3339,6 @@ async execute(issueId: string, to: IssueStatus): Promise<CommandResult>
 export class ResolveIssueUseCase {
 ⋮----
 async execute(issueId: string): Promise<CommandResult>
-````
-
-## File: src/modules/workspace/subdomains/issue/domain/entities/Issue.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { IssueStatus } from "../value-objects/IssueStatus";
-import { canTransitionIssueStatus } from "../value-objects/IssueStatus";
-import type { IssueStage } from "../value-objects/IssueStage";
-import type { IssueDomainEventType } from "../events/IssueDomainEvent";
-⋮----
-export interface IssueSnapshot {
-  readonly id: string;
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description: string;
-  readonly status: IssueStatus;
-  readonly createdBy: string;
-  readonly assignedTo: string | null;
-  readonly resolvedAtISO: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface OpenIssueInput {
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description?: string;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
-}
-⋮----
-export class Issue {
-⋮----
-private constructor(private _props: IssueSnapshot)
-⋮----
-static open(id: string, input: OpenIssueInput): Issue
-⋮----
-static reconstitute(snapshot: IssueSnapshot): Issue
-⋮----
-transition(to: IssueStatus): void
-⋮----
-close(): void
-⋮----
-get id(): string
-get taskId(): string
-get status(): IssueStatus
-⋮----
-getSnapshot(): Readonly<IssueSnapshot>
-⋮----
-pullDomainEvents(): IssueDomainEventType[]
 ````
 
 ## File: src/modules/workspace/subdomains/issue/domain/events/IssueDomainEvent.ts
@@ -3532,33 +3395,6 @@ export type IssueDomainEventType =
   | IssueStatusChangedEvent
   | IssueResolvedEvent
   | IssueClosedEvent;
-````
-
-## File: src/modules/workspace/subdomains/issue/domain/repositories/IssueRepository.ts
-````typescript
-import type { IssueSnapshot } from "../entities/Issue";
-import type { IssueStatus } from "../value-objects/IssueStatus";
-import type { IssueStage } from "../value-objects/IssueStage";
-⋮----
-export interface IssueRepository {
-  findById(issueId: string): Promise<IssueSnapshot | null>;
-  findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
-  findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>;
-  countOpenByTaskId(taskId: string): Promise<number>;
-  countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>;
-  save(issue: IssueSnapshot): Promise<void>;
-  updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
-  delete(issueId: string): Promise<void>;
-}
-⋮----
-findById(issueId: string): Promise<IssueSnapshot | null>;
-findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
-findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>;
-countOpenByTaskId(taskId: string): Promise<number>;
-countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>;
-save(issue: IssueSnapshot): Promise<void>;
-updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
-delete(issueId: string): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/orchestration/application/index.ts
@@ -3636,18 +3472,156 @@ constructor(
 async execute(input: ResumeTaskFlowInput): Promise<CommandResult>
 ````
 
-## File: src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts
+## File: src/modules/workspace/subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository.ts
 ````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { QualityTaskRepository } from "../../domain/repositories/QualityTaskRepository";
-import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+import type { QualityReviewRepository } from "../../../domain/repositories/QualityReviewRepository";
+import type { QualityReviewSnapshot } from "../../../domain/entities/QualityReview";
 ⋮----
-export class SubmitTaskToQaUseCase {
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
+}
 ⋮----
-constructor(private readonly taskRepo: QualityTaskRepository)
-async execute(taskId: string): Promise<CommandResult>
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+query(collection: string, filters: Array<
 ⋮----
-export class PassTaskQaUseCase {
+export class FirestoreQualityReviewRepository implements QualityReviewRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(reviewId: string): Promise<QualityReviewSnapshot | null>
+⋮----
+async findByTaskId(taskId: string): Promise<QualityReviewSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<QualityReviewSnapshot[]>
+⋮----
+async save(review: QualityReviewSnapshot): Promise<void>
+⋮----
+async delete(reviewId: string): Promise<void>
+````
+
+## File: src/modules/workspace/subdomains/quality/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/quality/domain/entities/QualityReview.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { QualityReviewDomainEventType } from "../events/QualityDomainEvent";
+⋮----
+export type QualityReviewStatus = "in_review" | "passed" | "failed";
+⋮----
+export interface QualityReviewSnapshot {
+  readonly id: string;
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly reviewerId: string;
+  readonly status: QualityReviewStatus;
+  readonly notes: string;
+  readonly startedAtISO: string;
+  readonly completedAtISO: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface StartQualityReviewInput {
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly reviewerId: string;
+  readonly notes?: string;
+}
+⋮----
+export class QualityReview {
+⋮----
+private constructor(private _props: QualityReviewSnapshot)
+⋮----
+static start(id: string, input: StartQualityReviewInput): QualityReview
+⋮----
+static reconstitute(snapshot: QualityReviewSnapshot): QualityReview
+⋮----
+pass(notes?: string): void
+⋮----
+fail(notes?: string): void
+⋮----
+get id(): string
+get taskId(): string
+get workspaceId(): string
+get status(): QualityReviewStatus
+⋮----
+getSnapshot(): Readonly<QualityReviewSnapshot>
+⋮----
+pullDomainEvents(): QualityReviewDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/quality/domain/events/QualityDomainEvent.ts
+````typescript
+export interface QualityReviewStartedEvent {
+  readonly type: "workspace.quality.review-started";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly reviewId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+    readonly reviewerId: string;
+  };
+}
+⋮----
+export interface QualityReviewPassedEvent {
+  readonly type: "workspace.quality.review-passed";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly reviewId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export interface QualityReviewFailedEvent {
+  readonly type: "workspace.quality.review-failed";
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly payload: {
+    readonly reviewId: string;
+    readonly taskId: string;
+    readonly workspaceId: string;
+  };
+}
+⋮----
+export type QualityReviewDomainEventType =
+  | QualityReviewStartedEvent
+  | QualityReviewPassedEvent
+  | QualityReviewFailedEvent;
+````
+
+## File: src/modules/workspace/subdomains/quality/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/quality/domain/repositories/QualityReviewRepository.ts
+````typescript
+import type { QualityReviewSnapshot } from "../entities/QualityReview";
+⋮----
+export interface QualityReviewRepository {
+  findById(reviewId: string): Promise<QualityReviewSnapshot | null>;
+  findByTaskId(taskId: string): Promise<QualityReviewSnapshot[]>;
+  findByWorkspaceId(workspaceId: string): Promise<QualityReviewSnapshot[]>;
+  save(review: QualityReviewSnapshot): Promise<void>;
+  delete(reviewId: string): Promise<void>;
+}
+⋮----
+findById(reviewId: string): Promise<QualityReviewSnapshot | null>;
+findByTaskId(taskId: string): Promise<QualityReviewSnapshot[]>;
+findByWorkspaceId(workspaceId: string): Promise<QualityReviewSnapshot[]>;
+save(review: QualityReviewSnapshot): Promise<void>;
+delete(reviewId: string): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/application/index.ts
@@ -4309,6 +4283,377 @@ export interface TaskCandidateExtractorPort {
 extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>;
 ````
 
+## File: src/modules/workspace/subdomains/task/adapters/index.ts
+````typescript
+// task — adapters aggregate
+````
+
+## File: src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus.ts
+````typescript
+export type TaskStatus =
+  | "draft"
+  | "in_progress"
+  | "qa"
+  | "acceptance"
+  | "accepted"
+  | "archived"
+  | "cancelled";
+⋮----
+export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean
+⋮----
+export function nextTaskStatus(current: TaskStatus): TaskStatus | null
+⋮----
+export function isTerminalTaskStatus(status: TaskStatus): boolean
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceOverviewSection.tsx
+````typescript
+/**
+ * WorkspaceOverviewSection — workspace.overview tab.
+ *
+ * Six-panel overview of a workspace:
+ *   1. 基本工作區資訊  — workspace metadata
+ *   2. 里程碑 · 甘特圖 · 進度表  — milestone / schedule timeline
+ *   3. 人力與出勤  — staffing & attendance
+ *   4. 成本與預算  — cost & budget
+ *   5. 任務與問題  — tasks & issues summary
+ *   6. 即時狀態   — live feed
+ */
+⋮----
+import {
+  Activity,
+  AlertCircle,
+  BarChart3,
+  CalendarRange,
+  CheckCircle2,
+  Circle,
+  DollarSign,
+  Flag,
+  MapPin,
+  Radio,
+  Users,
+} from "lucide-react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { type WorkspaceEntity } from "./WorkspaceContext";
+⋮----
+interface WorkspaceOverviewSectionProps {
+  workspaceId: string;
+  accountId: string;
+  workspace: WorkspaceEntity;
+}
+⋮----
+// ── Shared layout helpers ─────────────────────────────────────────────────────
+⋮----
+function SectionCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+})
+⋮----
+function StatPill({
+  label,
+  value,
+  color = "text-foreground",
+}: {
+  label: string;
+  value: string | number;
+  color?: string;
+})
+⋮----
+function EmptyState(
+⋮----
+// ── 1. 基本工作區資訊 ─────────────────────────────────────────────────────────
+⋮----
+// ── 2. 里程碑 · 甘特圖 · 進度表 ───────────────────────────────────────────────
+⋮----
+// ── 3. 人力與出勤 ─────────────────────────────────────────────────────────────
+⋮----
+// ── 4. 成本與預算 ─────────────────────────────────────────────────────────────
+⋮----
+// ── 5. 任務與問題 ─────────────────────────────────────────────────────────────
+⋮----
+// ── 6. 即時狀態 ───────────────────────────────────────────────────────────────
+⋮----
+// ── Main export ───────────────────────────────────────────────────────────────
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/issue-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientIssueUseCases } from "../../outbound/firebase-composition";
+import type { IssueSnapshot } from "../../../subdomains/issue/domain/entities/Issue";
+⋮----
+export async function openIssueAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function transitionIssueStatusAction(issueId: string, rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function resolveIssueAction(issueId: string): Promise<CommandResult>
+⋮----
+export async function listIssuesByTaskAction(taskId: string): Promise<IssueSnapshot[]>
+````
+
+## File: src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { ApprovalDecisionRepository } from "../../domain/repositories/ApprovalDecisionRepository";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
+import { ApprovalDecision } from "../../domain/entities/ApprovalDecision";
+import type { CreateApprovalDecisionInput } from "../../domain/entities/ApprovalDecision";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+⋮----
+export class CreateApprovalDecisionUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: CreateApprovalDecisionInput): Promise<CommandResult>
+⋮----
+export class ApproveTaskUseCase {
+⋮----
+async execute(decisionId: string, comments?: string): Promise<CommandResult>
+⋮----
+export class RejectApprovalUseCase {
+⋮----
+export class ListApprovalDecisionsUseCase {
+⋮----
+constructor(private readonly decisionRepo: ApprovalDecisionRepository)
+⋮----
+async execute(workspaceId: string): Promise<import("../../domain/entities/ApprovalDecision").ApprovalDecisionSnapshot[]>
+````
+
+## File: src/modules/workspace/subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository.ts
+````typescript
+import type { IssueRepository } from "../../../domain/repositories/IssueRepository";
+import type { IssueSnapshot } from "../../../domain/entities/Issue";
+import type { IssueStatus } from "../../../domain/value-objects/IssueStatus";
+import type { IssueStage } from "../../../domain/value-objects/IssueStage";
+⋮----
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  delete(collection: string, id: string): Promise<void>;
+  query(
+    collection: string,
+    filters: Array<{ field: string; op: string; value: unknown }>,
+  ): Promise<Record<string, unknown>[]>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+delete(collection: string, id: string): Promise<void>;
+query(
+    collection: string,
+    filters: Array<{ field: string; op: string; value: unknown }>,
+  ): Promise<Record<string, unknown>[]>;
+⋮----
+export class FirestoreIssueRepository implements IssueRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(issueId: string): Promise<IssueSnapshot | null>
+⋮----
+async findByTaskId(taskId: string): Promise<IssueSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<IssueSnapshot[]>
+⋮----
+async findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>
+⋮----
+async countOpenByTaskId(taskId: string): Promise<number>
+⋮----
+async countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>
+⋮----
+async save(issue: IssueSnapshot): Promise<void>
+⋮----
+async updateStatus(
+    issueId: string,
+    to: IssueStatus,
+    nowISO: string,
+): Promise<IssueSnapshot | null>
+⋮----
+async delete(issueId: string): Promise<void>
+````
+
+## File: src/modules/workspace/subdomains/issue/domain/entities/Issue.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { IssueStatus } from "../value-objects/IssueStatus";
+import { canTransitionIssueStatus } from "../value-objects/IssueStatus";
+import type { IssueStage } from "../value-objects/IssueStage";
+import type { IssueDomainEventType } from "../events/IssueDomainEvent";
+⋮----
+export interface IssueSnapshot {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly title: string;
+  readonly description: string;
+  readonly status: IssueStatus;
+  readonly createdBy: string;
+  readonly assignedTo: string | null;
+  readonly resolvedAtISO: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface OpenIssueInput {
+  readonly workspaceId: string;
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly title: string;
+  readonly description?: string;
+  readonly createdBy: string;
+  readonly assignedTo?: string;
+}
+⋮----
+export class Issue {
+⋮----
+private constructor(private _props: IssueSnapshot)
+⋮----
+static open(id: string, input: OpenIssueInput): Issue
+⋮----
+static reconstitute(snapshot: IssueSnapshot): Issue
+⋮----
+transition(to: IssueStatus): void
+⋮----
+close(): void
+⋮----
+get id(): string
+get taskId(): string
+get status(): IssueStatus
+⋮----
+getSnapshot(): Readonly<IssueSnapshot>
+⋮----
+pullDomainEvents(): IssueDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/issue/domain/repositories/IssueRepository.ts
+````typescript
+import type { IssueSnapshot } from "../entities/Issue";
+import type { IssueStatus } from "../value-objects/IssueStatus";
+import type { IssueStage } from "../value-objects/IssueStage";
+⋮----
+export interface IssueRepository {
+  findById(issueId: string): Promise<IssueSnapshot | null>;
+  findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
+  findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>;
+  findByWorkspaceId(workspaceId: string): Promise<IssueSnapshot[]>;
+  countOpenByTaskId(taskId: string): Promise<number>;
+  countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>;
+  save(issue: IssueSnapshot): Promise<void>;
+  updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
+  delete(issueId: string): Promise<void>;
+}
+⋮----
+findById(issueId: string): Promise<IssueSnapshot | null>;
+findByTaskId(taskId: string): Promise<IssueSnapshot[]>;
+findByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<IssueSnapshot[]>;
+findByWorkspaceId(workspaceId: string): Promise<IssueSnapshot[]>;
+countOpenByTaskId(taskId: string): Promise<number>;
+countOpenByTaskIdAndStage(taskId: string, stage: IssueStage): Promise<number>;
+save(issue: IssueSnapshot): Promise<void>;
+updateStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<IssueSnapshot | null>;
+delete(issueId: string): Promise<void>;
+````
+
+## File: src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts
+````typescript
+import { setup, assign } from "xstate";
+⋮----
+/**
+ * Task Lifecycle State Machine (XState v5)
+ *
+ * Purpose: UI-layer finite-state workflow for the full task lifecycle:
+ *   task-formation → task → quality(QA) → approval(acceptance) → settlement
+ *
+ * KEY DESIGN DECISIONS:
+ * - `qa_blocked` / `acceptance_blocked` exist only in this machine context.
+ *   Firestore task.status stays `qa` / `acceptance` while an issue is open.
+ *   Open issue count is the blocking signal, NOT a separate Firestore field.
+ * - The machine is a UI/Server Action orchestration aid. Domain invariants
+ *   are still enforced inside use cases and aggregate methods.
+ * - Events are named after actor intent (ADVANCE, OPEN_ISSUE, ISSUE_RESOLVED),
+ *   not domain events directly.
+ */
+⋮----
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
+⋮----
+export interface TaskLifecycleContext {
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly openIssueCount: number;
+  readonly blockedAtStage: "qa" | "acceptance" | null;
+  readonly invoiceId: string | null;
+  readonly errorMessage: string | null;
+}
+⋮----
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+⋮----
+export type TaskLifecycleEvent =
+  | { type: "ADVANCE" }
+  | { type: "OPEN_ISSUE"; stage: "qa" | "acceptance" }
+  | { type: "ISSUE_RESOLVED"; stage: "qa" | "acceptance" }
+  | { type: "ARCHIVE" }
+  | { type: "SET_ERROR"; message: string }
+  | { type: "CLEAR_ERROR" }
+  | { type: "INVOICE_CREATED"; invoiceId: string };
+⋮----
+// ---------------------------------------------------------------------------
+// Machine
+// ---------------------------------------------------------------------------
+⋮----
+// -----------------------------------------------------------------------
+// Core linear flow
+// -----------------------------------------------------------------------
+⋮----
+/** qa_blocked: issue open at QA stage — Firestore status stays `qa` */
+⋮----
+/** acceptance_blocked: issue open at acceptance stage — Firestore status stays `acceptance` */
+⋮----
+/** settled: invoice draft created — flow is complete */
+⋮----
+export type TaskLifecycleMachine = typeof taskLifecycleMachine;
+````
+
+## File: src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { QualityReviewRepository } from "../../domain/repositories/QualityReviewRepository";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import { QualityReview } from "../../domain/entities/QualityReview";
+import type { StartQualityReviewInput } from "../../domain/entities/QualityReview";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+⋮----
+export class StartQualityReviewUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: StartQualityReviewInput): Promise<CommandResult>
+⋮----
+export class PassQualityReviewUseCase {
+⋮----
+async execute(reviewId: string, notes?: string): Promise<CommandResult>
+⋮----
+export class FailQualityReviewUseCase {
+⋮----
+export class ListQualityReviewsUseCase {
+⋮----
+constructor(private readonly reviewRepo: QualityReviewRepository)
+⋮----
+async execute(workspaceId: string): Promise<import("../../domain/entities/QualityReview").QualityReviewSnapshot[]>
+````
+
 ## File: src/modules/workspace/subdomains/task-formation/README.md
 ````markdown
 # task-formation 子域
@@ -4533,24 +4878,6 @@ export async function startExtractionAction(
 | P3 | 建 `TaskFormationPanel` UI（XState `useMachine`） | `adapters/inbound/react/` |
 ````
 
-## File: src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus.ts
-````typescript
-export type TaskStatus =
-  | "draft"
-  | "in_progress"
-  | "qa"
-  | "acceptance"
-  | "accepted"
-  | "archived"
-  | "cancelled";
-⋮----
-export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean
-⋮----
-export function nextTaskStatus(current: TaskStatus): TaskStatus | null
-⋮----
-export function isTerminalTaskStatus(status: TaskStatus): boolean
-````
-
 ## File: docs/structure/contexts/workspace/AGENTS.md
 ````markdown
 # Workspace Agent
@@ -4648,554 +4975,8 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/structure/contexts/workspace/README.md
-````markdown
-# Workspace Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、日誌、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
-
-## Why This Context Exists
-
-- 把工作區容器語意與平台治理語意分離。
-- 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、日誌、排程與流程協調收斂為同一主域內的高凝聚能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
-
-## Baseline Subdomains
-
-- audit
-- feed
-- scheduling
-- approve
-- issue
-- orchestration
-- quality
-- settlement
-- task
-- task-formation
-
-## Recommended Gap Subdomains
-
-- lifecycle
-- membership
-- sharing
-- presence
-
-## Key Relationships
-
-- 與 iam：workspace 消費 actor、tenant 與 access decision。
-- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
-- 與 platform：workspace 消費 account scope 與 organization surface。
-- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
-- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENTS.md](./AGENTS.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
-
-## Route Surface Contract
-
-- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
-- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
-- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
-- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
-- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
-- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
-- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
-- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
-
-## Anti-Pattern Rules
-
-- 不把 workspace scope 寫成平台治理結果本身。
-- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
-- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
-- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
-- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["workspace boundary"]
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Workspace domain"]
-	Domain --> Scope["workspace scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/structure/contexts/workspace/subdomains.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| audit | 工作區操作日誌與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| approve | 任務驗收與問題單覆核審批流程 |
-| issue | 問題單生命週期與追蹤管理 |
-| orchestration | 知識頁面→任務物化批次作業編排 |
-| quality | 任務 QA 審查與質檢流程 |
-| settlement | 請款發票生命週期與財務對帳 |
-| task | 任務建立、指派與狀態轉換 |
-| task-formation | AI 輔助任務候選抽取與批次匯入 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
-| membership | 把工作區參與關係從平台身份治理中切開 |
-| sharing | 把對外共享與可見性規則收斂到單一上下文 |
-| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
-
-## Recommended Order
-
-1. lifecycle
-2. membership
-3. sharing
-4. presence
-
-## Anti-Patterns
-
-- 不把 lifecycle 混進 orchestration，使容器生命週期被流程編排吞沒。
-- 不把 membership 混成 organization 或 identity。
-- 不把 sharing 混成一般 permission 欄位集合。
-- 不把 presence 藏進 UI 狀態而失去獨立語言。
-- 不用 `workspace-workflow` 混指已分解的 task、issue、settlement、approve、quality、orchestration 等獨立子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個 workspace 責任（task/issue/settlement/approve/quality/orchestration/audit/feed/scheduling），再決定 use case 與 boundary。
-- 工作區流程責任已分解為多個專門子域，避免與 `platform.workflow` 混名。
-- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
-- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	TaskFormation["TaskFormation"] --> Task["Task"]
-	Task --> Approve["Approve / Quality"]
-	Task --> Issue["Issue"]
-	Task --> Settlement["Settlement"]
-	Scheduling["Scheduling"] --> Task
-	Orchestration["Orchestration"] --> Task
-	Task --> AuditFeed["Audit / Feed"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx
-````typescript
-/**
- * WorkspaceDailySection — workspace.daily tab.
- *
- * Daily standup skeleton:
- *   ① Date navigation bar
- *   ② Stats row (today / done / in-progress / blocked)
- *   ③ Standup blocks (昨日 · 今日 · 阻礙)
- *   ④ Today's task timeline (empty state with guide copy)
- *   ⑤ Focus board: High-priority items
- */
-⋮----
-import { useState } from "react";
-import {
-  AlertTriangle,
-  CalendarDays,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Circle,
-  Clock,
-  ListChecks,
-  MessageSquare,
-  Plus,
-} from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-interface WorkspaceDailySectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-function formatDateLabel(date: Date): string
-⋮----
-function addDays(date: Date, delta: number): Date
-⋮----
-function isToday(date: Date): boolean
-⋮----
-// ── Sub-components ─────────────────────────────────────────────────────────────
-⋮----
-function StandupBlock({
-  icon,
-  title,
-  placeholder,
-  color,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  placeholder: string;
-  color: string;
-})
-⋮----
-function FocusItem({
-  label,
-  priority,
-}: {
-  label: string;
-  priority: "high" | "medium" | "low";
-})
-⋮----
-// ── Main export ────────────────────────────────────────────────────────────────
-⋮----
-export function WorkspaceDailySection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceDailySectionProps): React.ReactElement
-⋮----
-{/* ① Date navigation */}
-⋮----
-onClick=
-⋮----
-{/* Date label for mobile */}
-⋮----
-{/* ② Stats */}
-⋮----
-{/* ③ Standup blocks */}
-⋮----
-{/* ④ Today's task timeline */}
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
-````typescript
-/**
- * WorkspaceFilesSection — workspace.files tab — file management.
- *
- * Upload flow:
- *   1. Browser picks a file via hidden <input type="file">.
- *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
- *   3. registerUploadedFileAction() saves metadata to Firestore (server action).
- *   4. listWorkspaceFilesAction() loads the list on mount / after upload.
- *
- * Delete flow:
- *   1. deleteWorkspaceFileAction() soft-deletes the Firestore record (sets deletedAtISO).
- *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
- */
-⋮----
-import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { uploadWorkspaceFile } from "@/src/modules/platform";
-import {
-  listWorkspaceFilesAction,
-  registerUploadedFileAction,
-  deleteWorkspaceFileAction,
-} from "@/src/modules/platform/adapters/inbound/server-actions/file-actions";
-import type { StoredFile } from "@/src/modules/platform";
-⋮----
-interface WorkspaceFilesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function fileCategoryIcon(mimeType: string)
-⋮----
-function categoryCounts(files: StoredFile[])
-⋮----
-function formatBytes(bytes: number): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-const load = () =>
-⋮----
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-⋮----
-const handleDelete = async (fileId: string) =>
-⋮----
-{/* Header */}
-⋮----
-{/* Hidden file input */}
-⋮----
-{/* Error banner */}
-⋮----
-{/* Storage summary */}
-⋮----
-{/* Not yet loaded hint */}
-⋮----
-{/* Empty state */}
-⋮----
-{/* File list */}
-⋮----
-{/* File grid */}
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceOverviewSection.tsx
-````typescript
-/**
- * WorkspaceOverviewSection — workspace.overview tab.
- *
- * Six-panel overview of a workspace:
- *   1. 基本工作區資訊  — workspace metadata
- *   2. 里程碑 · 甘特圖 · 進度表  — milestone / schedule timeline
- *   3. 人力與出勤  — staffing & attendance
- *   4. 成本與預算  — cost & budget
- *   5. 任務與問題  — tasks & issues summary
- *   6. 即時狀態   — live feed
- */
-⋮----
-import {
-  Activity,
-  AlertCircle,
-  BarChart3,
-  CalendarRange,
-  CheckCircle2,
-  Circle,
-  DollarSign,
-  Flag,
-  MapPin,
-  Radio,
-  Users,
-} from "lucide-react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { type WorkspaceEntity } from "./WorkspaceContext";
-⋮----
-interface WorkspaceOverviewSectionProps {
-  workspaceId: string;
-  accountId: string;
-  workspace: WorkspaceEntity;
-}
-⋮----
-// ── Shared layout helpers ─────────────────────────────────────────────────────
-⋮----
-function SectionCard({
-  icon,
-  title,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-})
-⋮----
-function StatPill({
-  label,
-  value,
-  color = "text-foreground",
-}: {
-  label: string;
-  value: string | number;
-  color?: string;
-})
-⋮----
-function EmptyState(
-⋮----
-// ── 1. 基本工作區資訊 ─────────────────────────────────────────────────────────
-⋮----
-// ── 2. 里程碑 · 甘特圖 · 進度表 ───────────────────────────────────────────────
-⋮----
-// ── 3. 人力與出勤 ─────────────────────────────────────────────────────────────
-⋮----
-// ── 4. 成本與預算 ─────────────────────────────────────────────────────────────
-⋮----
-// ── 5. 任務與問題 ─────────────────────────────────────────────────────────────
-⋮----
-// ── 6. 即時狀態 ───────────────────────────────────────────────────────────────
-⋮----
-// ── Main export ───────────────────────────────────────────────────────────────
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
-````typescript
-/**
- * WorkspaceScopeProvider — workspace inbound adapter (React).
- *
- * Canonical workspace scope provider for the src/ layer.
- *
- * Responsibilities:
- *  1. Mount a WorkspaceContextProvider (holds workspace state + dispatch).
- *  2. Subscribe to real-time Firestore workspace updates for the currently
- *     active account (via the outbound Firebase composition root).
- *  3. Dispatch SET_WORKSPACES when data arrives; RESET when the account is
- *     cleared (e.g. on sign-out).
- *
- * Design notes:
- *  - The subscription is managed by an inner WorkspaceSubscription component so
- *    the effect only re-runs when activeAccountId changes, not on every render.
- *  - WorkspaceScopeProvider reads the active account from AccountScopeProvider
- *    (useApp). The dependency direction workspace → platform is correct:
- *    platform is upstream of workspace.
- *  - The composition root (PlatformBootstrap) mounts WorkspaceScopeProvider
- *    inside AccountScopeProvider, so useApp() is always available here.
- */
-⋮----
-import { type ReactNode } from "react";
-import { useEffect } from "react";
-⋮----
-import { WorkspaceContextProvider, useWorkspaceContext } from "./WorkspaceContext";
-import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
-import { subscribeToWorkspacesForAccount } from "../../outbound/firebase-composition";
-⋮----
-// ── WorkspaceSubscription ─────────────────────────────────────────────────────
-// Isolated inner component so the subscription effect's dependency array is
-// minimal — only activeAccountId triggers a new subscription, not the full
-// app state object.
-⋮----
-function WorkspaceSubscription(
-⋮----
-// ── WorkspaceScopeProvider ────────────────────────────────────────────────────
-⋮----
-export function WorkspaceScopeProvider(
-````
-
-## File: src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts
-````typescript
-import { setup, assign } from "xstate";
-⋮----
-/**
- * Task Lifecycle State Machine (XState v5)
- *
- * Purpose: UI-layer finite-state workflow for the full task lifecycle:
- *   task-formation → task → quality(QA) → approval(acceptance) → settlement
- *
- * KEY DESIGN DECISIONS:
- * - `qa_blocked` / `acceptance_blocked` exist only in this machine context.
- *   Firestore task.status stays `qa` / `acceptance` while an issue is open.
- *   Open issue count is the blocking signal, NOT a separate Firestore field.
- * - The machine is a UI/Server Action orchestration aid. Domain invariants
- *   are still enforced inside use cases and aggregate methods.
- * - Events are named after actor intent (ADVANCE, OPEN_ISSUE, ISSUE_RESOLVED),
- *   not domain events directly.
- */
-⋮----
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
-⋮----
-export interface TaskLifecycleContext {
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly openIssueCount: number;
-  readonly blockedAtStage: "qa" | "acceptance" | null;
-  readonly invoiceId: string | null;
-  readonly errorMessage: string | null;
-}
-⋮----
-// ---------------------------------------------------------------------------
-// Events
-// ---------------------------------------------------------------------------
-⋮----
-export type TaskLifecycleEvent =
-  | { type: "ADVANCE" }
-  | { type: "OPEN_ISSUE"; stage: "qa" | "acceptance" }
-  | { type: "ISSUE_RESOLVED"; stage: "qa" | "acceptance" }
-  | { type: "ARCHIVE" }
-  | { type: "SET_ERROR"; message: string }
-  | { type: "CLEAR_ERROR" }
-  | { type: "INVOICE_CREATED"; invoiceId: string };
-⋮----
-// ---------------------------------------------------------------------------
-// Machine
-// ---------------------------------------------------------------------------
-⋮----
-// -----------------------------------------------------------------------
-// Core linear flow
-// -----------------------------------------------------------------------
-⋮----
-/** qa_blocked: issue open at QA stage — Firestore status stays `qa` */
-⋮----
-/** acceptance_blocked: issue open at acceptance stage — Firestore status stays `acceptance` */
-⋮----
-/** settled: invoice draft created — flow is complete */
-⋮----
-export type TaskLifecycleMachine = typeof taskLifecycleMachine;
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
@@ -5443,27 +5224,162 @@ export function appendWorkspaceContextQuery(
 ): string
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx
 ````typescript
-import { useMemo, useState } from "react";
-import { BadgeCheck, Calculator, Minus, Plus, TrendingDown, TrendingUp } from "lucide-react";
+/**
+ * WorkspaceDailySection — workspace.daily tab.
+ *
+ * IG-style daily post feed at the workspace level.
+ * Members can post text and attach photos (by URL) for a given date.
+ * Future expansion: today's task completion summary, attendance check-in.
+ *
+ * Layout:
+ *   ① Date navigation bar
+ *   ② Post composer (text + photo URLs)
+ *   ③ Feed — chronological post cards
+ */
+⋮----
+import { useState, useEffect, useRef, useTransition } from "react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon,
+  Loader2,
+  Send,
+  X,
+} from "lucide-react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
-import { Separator } from "@ui-shadcn/ui/separator";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { createFeedPostAction, listFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
+import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
 ⋮----
-interface WorkspaceSettlementSectionProps { workspaceId: string; accountId: string }
-type Stage = "草稿" | "送出" | "審查" | "通過";
-type Item = { id: string; taskName: string; acceptedAt: string; stage: Stage; unitPrice: number; totalUnits: number; paidUnits: number };
+interface WorkspaceDailySectionProps {
+  workspaceId: string;
+  accountId: string;
+  /** Current actor's accountId used as authorAccountId. Defaults to accountId. */
+  currentUserId?: string;
+}
 ⋮----
-export function WorkspaceSettlementSection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceSettlementSectionProps): React.ReactElement
+/** Current actor's accountId used as authorAccountId. Defaults to accountId. */
 ⋮----
-const changeUnits = (item: Item, delta: number) =>
+// ── Helpers ───────────────────────────────────────────────────────────────────
 ⋮----
-<Checkbox checked=
+function toDateKey(date: Date): string
+⋮----
+return date.toISOString().slice(0, 10); // YYYY-MM-DD
+⋮----
+function formatDateLabel(date: Date): string
+⋮----
+function addDays(date: Date, delta: number): Date
+⋮----
+function isToday(date: Date): boolean
+⋮----
+function formatTime(isoString: string): string
+⋮----
+// ── Post card ─────────────────────────────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Content */}
+⋮----
+// eslint-disable-next-line @next/next/no-img-element
+⋮----
+// ── Composer ──────────────────────────────────────────────────────────────────
+⋮----
+{/* Photo URL input */}
+⋮----
+onChange=
+⋮----
+{/* Photo previews */}
+⋮----
+{/* eslint-disable-next-line @next/next/no-img-element */}
+⋮----
+onClick=
+⋮----
+// ── Main export ────────────────────────────────────────────────────────────────
+⋮----
+async function loadPosts()
+⋮----
+// Sort newest-first
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+⋮----
+{/* ① Date navigation */}
+⋮----
+{/* Date label for mobile */}
+⋮----
+{/* ② Composer (today only) */}
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
+````typescript
+/**
+ * WorkspaceFilesSection — workspace.files tab — file management.
+ *
+ * Upload flow:
+ *   1. Browser picks a file via hidden <input type="file">.
+ *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
+ *   3. registerUploadedFileAction() saves metadata to Firestore (server action).
+ *   4. listWorkspaceFilesAction() loads the list on mount / after upload.
+ *
+ * Delete flow:
+ *   1. deleteWorkspaceFileAction() soft-deletes the Firestore record (sets deletedAtISO).
+ *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
+ */
+⋮----
+import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { uploadWorkspaceFile } from "@/src/modules/platform";
+import {
+  listWorkspaceFilesAction,
+  registerUploadedFileAction,
+  deleteWorkspaceFileAction,
+} from "@/src/modules/platform/adapters/inbound/server-actions/file-actions";
+import type { StoredFile } from "@/src/modules/platform";
+⋮----
+interface WorkspaceFilesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function fileCategoryIcon(mimeType: string)
+⋮----
+function categoryCounts(files: StoredFile[])
+⋮----
+function formatBytes(bytes: number): string
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+const load = () =>
+⋮----
+// Auto-load on mount so files are visible without a manual click.
+useEffect(() => { load(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const handleDelete = async (fileId: string) =>
+⋮----
+{/* Header */}
+⋮----
+{/* Hidden file input */}
+⋮----
+{/* Error banner */}
+⋮----
+{/* Storage summary */}
+⋮----
+{/* Loading indicator before first load */}
+⋮----
+{/* Empty state */}
+⋮----
+{/* File list */}
+⋮----
+{/* File grid */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
@@ -5534,6 +5450,389 @@ function handleReset()
 {/* Phase: error (without candidate list) */}
 ⋮----
 {/* Pipeline stages — always shown */}
+````
+
+## File: docs/structure/contexts/workspace/bounded-contexts.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
+
+## Baseline Bounded Contexts
+
+| Subdomain | Owns | Excludes |
+|---|---|---|
+| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
+| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
+| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
+| approve | 任務驗收與問題單覆核審批判定 | 平台身份授權決策 |
+| issue | 問題單建立、追蹤、狀態轉換 | 知識內容正典生命週期 |
+| orchestration | 知識頁面→任務物化批次流程編排 | domain 事實的直接寫入 |
+| quality | 任務 QA 審查與質檢流程 | 業務驗收規則本身 |
+| settlement | 請款發票生命週期與財務對帳 | billing 計費狀態 |
+| task | 任務建立、指派、狀態機 | 知識內容與 notebook 推理 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 | AI 模型能力（屬 ai context） |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 orchestration 或 app 組裝層 |
+| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
+| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
+| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
+
+## Domain Invariants
+
+- workspaceId 是工作區範疇錨點。
+- 工作區成員關係屬於 membership，而不是平台身份本身。
+- activity feed 只投影事實，不創造事實。
+- audit trail 一旦寫入即不可隨意覆蓋。
+- task/issue/settlement/approve/quality/orchestration 是獨立子域，不得合併為單一 workspace-workflow 概念。
+
+## Dependency Direction
+
+- workspace 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
+- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
+- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
+
+## Anti-Patterns
+
+- 把 Membership 混成 Actor 身份本身。
+- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
+- 用 `workspace-workflow` 代指已分解的 task、issue、settlement、approve、quality、orchestration 等子域。
+- 混用 `platform.workflow` 與 workspace 內的任務流程語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 task、issue、approve、quality、settlement、orchestration、audit、feed、scheduling 哪個責任。
+- workspace 工作區流程語言已分解為多個獨立子域，不再使用 `workspace-workflow` 混指所有流程。
+- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
+- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Workspace bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	TaskFormation["TaskFormation"] --> Task["Task"]
+	Task --> Approve["Approve / Quality"]
+	Task --> Issue["Issue"]
+	Task --> Settlement["Settlement"]
+	Scheduling["Scheduling"] --> Task
+	Orchestration["Orchestration"] --> Task
+	Task --> AuditFeed["Audit / Feed"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+- [subdomains.md](../domain/subdomains.md)
+````
+
+## File: docs/structure/contexts/workspace/context-map.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context map 思維，workspace 應只暴露 scope、membership scope 與協作容器語言，而不暴露內部實作。
+
+## Relationships
+
+| Related Domain | Relationship Type | Workspace Position | Published Language |
+|---|---|---|---|
+| iam | Upstream/Downstream | downstream | actor reference、tenant scope、access decision |
+| billing | Upstream/Downstream | downstream | entitlement signal、subscription capability signal |
+| platform | Upstream/Downstream | downstream | account scope、organization surface、operational service signal |
+| notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+
+## Mapping Rules
+
+- workspace 消費 iam、billing、platform 的 signals 與治理結果，但不重建 identity、policy 或 entitlement 模型。
+- notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
+- sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
+- 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。
+
+## Dependency Direction
+
+- workspace 對 iam、billing、platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
+- workspace 對外輸出 workspaceId、membership scope、share scope，而不是內部 aggregate 或投影實作。
+- downstream 若需保護自己的語言，ACL 由 downstream 自行實作，不由 workspace 代做。
+
+## Anti-Patterns
+
+- 把 workspace 與 notion/notebooklm 寫成對稱共用核心，同時又要求 ACL。
+- 把 sharing scope 直接當成平台 access decision 本身。
+- 讓其他主域直接操作 workspace 內部 membership 或 lifecycle 模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 workspace 對 platform 的 downstream 位置，以及對 notion / notebooklm 的 upstream scope supplier 位置。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個翻譯鏈。
+- workspace 對外提供的是 scope，不是內部 aggregate、投影或 storage 模型。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["platform upstream"] -->|Published Language| Boundary["workspace boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+	Domain --> PL["Published workspace scope"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	IAM["iam"] -->|actor / tenant / access| Boundary["workspace API boundary"]
+	Billing["billing"] -->|entitlement| Boundary
+	Platform["platform"] -->|account / organization surface| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["Workspace domain"]
+	Domain --> Scope["workspaceId / membership scope / share scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](../system/context-map.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
+- [strategic-patterns.md](../system/strategic-patterns.md)
+````
+
+## File: docs/structure/contexts/workspace/subdomains.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| audit | 工作區操作日誌與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| approve | 任務驗收與問題單覆核審批流程 |
+| issue | 問題單生命週期與追蹤管理 |
+| orchestration | 知識頁面→任務物化批次作業編排 |
+| quality | 任務 QA 審查與質檢流程 |
+| settlement | 請款發票生命週期與財務對帳 |
+| task | 任務建立、指派與狀態轉換 |
+| task-formation | AI 輔助任務候選抽取與批次匯入 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
+| membership | 把工作區參與關係從平台身份治理中切開 |
+| sharing | 把對外共享與可見性規則收斂到單一上下文 |
+| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
+
+## Recommended Order
+
+1. lifecycle
+2. membership
+3. sharing
+4. presence
+
+## Anti-Patterns
+
+- 不把 lifecycle 混進 orchestration，使容器生命週期被流程編排吞沒。
+- 不把 membership 混成 organization 或 identity。
+- 不把 sharing 混成一般 permission 欄位集合。
+- 不把 presence 藏進 UI 狀態而失去獨立語言。
+- 不用 `workspace-workflow` 混指已分解的 task、issue、settlement、approve、quality、orchestration 等獨立子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 workspace 責任（task/issue/settlement/approve/quality/orchestration/audit/feed/scheduling），再決定 use case 與 boundary。
+- 工作區流程責任已分解為多個專門子域，避免與 `platform.workflow` 混名。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
+- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	TaskFormation["TaskFormation"] --> Task["Task"]
+	Task --> Approve["Approve / Quality"]
+	Task --> Issue["Issue"]
+	Task --> Settlement["Settlement"]
+	Scheduling["Scheduling"] --> Task
+	Orchestration["Orchestration"] --> Task
+	Task --> AuditFeed["Audit / Feed"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../domain/subdomains.md)
+- [bounded-contexts.md](../domain/bounded-contexts.md)
+````
+
+## File: docs/structure/contexts/workspace/ubiquitous-language.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Workspace | 協作容器與主要範疇邊界 |
+| WorkspaceId | 工作區唯一識別子與範疇錨點 |
+| WorkspaceLifecycle | 工作區建立、封存、還原、移轉等生命週期狀態 |
+| Membership | 工作區內的參與關係 |
+| WorkspaceRole | 工作區範疇下的角色語意 |
+| ShareScope | 共享暴露範圍 |
+| ShareLink | 對外共享的可解析入口 |
+| PresenceSession | 即時在線與共同編輯存在感訊號 |
+| ActivityFeed | 面向使用者的活動流投影 |
+| AuditTrail | 不可否認的工作區操作追蹤 |
+| Schedule | 工作區內的時間安排與提醒意圖 |
+| WorkflowExecution | 某個工作區流程的一次執行實例 |
+| WorkspaceTab | 同一條 workspace detail route 上的 query-state 分頁語意 |
+| OverviewPanel | `Overview` tab 內的 panel 細分語意 |
+
+## Shell Route Terms
+
+| Term | Meaning |
+|---|---|
+| AccountScope | workspace route 所依附的 account scope；由 shell 上的 `accountId` 表示 |
+| AccountTypeStringContract | workspace aggregate / use case / validator 所消費的 code-level enum `"user" | "organization"`；`"user"` 對應 personal account context |
+| CreatorUserId | 建立 workspace 或發起 workspace-scoped command 的具體 user identifier |
+| CurrentUserId | 目前正在操作 workspace UI / workflow 的具體 user identifier |
+| CanonicalWorkspaceRoute | `/{accountId}/{workspaceId}` |
+| LegacyWorkspaceRedirectSurface | `/{accountId}/workspace/{workspaceId}` |
+
+## Language Rules
+
+- 使用 Workspace，不使用 Project 或 Space 作為同義詞。
+- 使用 Membership，不用 User 表示工作區參與關係。
+- 使用 ActivityFeed 與 AuditTrail 區分投影與證據。
+- 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
+- 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
+- 使用 `workspaceId` 表示 workspace scope，不用 `accountId` 混稱。
+- 使用 `AccountType = "user" | "organization"` 作為 workspace 跨邊界字串契約；顯示語言可寫個人帳號 / 組織帳號，但不把 `"personal"` 當成 canonical accountType literal。
+- 使用 `creatorUserId` / `currentUserId` 表示具體使用者操作，不把它寫成 `accountId` 或 `workspaceId`。
+- organization-scoped event metadata 需要時，可由 `accountType = "organization"` 下的 `accountId` 映射出 `organizationId`；但 workspace route surface 本身仍以 `accountId` + `workspaceId` 為主。
+- 使用 `/{accountId}/{workspaceId}` 表示 canonical workspace detail route。
+- `/{accountId}/workspace/{workspaceId}` 只視為 legacy redirect surface，不作為新的文件、設計稿或 UI href。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| User | Membership 或 Actor reference |
+| Timeline | ActivityFeed 或 Schedule |
+| Share Permission | ShareScope |
+| Workspace Log | ActivityFeed 或 AuditTrail |
+| `AccountType = "personal"` | `AccountType = "user"`，顯示語言再另寫個人帳號 |
+| `organizationId`（as workspace route param） | `accountId` |
+| `accountId`（as concrete acting user id） | `creatorUserId` / `currentUserId` |
+| Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
+
+## Naming Anti-Patterns
+
+- 不用 User 混指 Membership 與 Actor reference。
+- 不用 Timeline 混指 ActivityFeed 與 Schedule。
+- 不用 Permission 混指 ShareScope。
+- 不用 Log 混指 ActivityFeed 與 AuditTrail。
+- 不把 personal account 顯示語言誤當成 workspace 的 code-level `AccountType` literal。
+- 不把 `accountId`、`workspaceId`、`creatorUserId`、`organizationId` 混成同一個 identifier 概念。
+- 不把 account-scoped shell route 語意誤當成 workspace 自己的 top-level route ownership。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 Workspace、Membership、ShareScope、ActivityFeed、AuditTrail，再決定類型與檔名。
+- 奧卡姆剃刀：若一個工作區名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護 scope 語言，再考慮 UI 或 API 顯示便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Workspace language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Workspace["Workspace"] --> Membership["Membership"]
+	Membership --> ShareScope["ShareScope"]
+	ShareScope --> ActivityFeed["ActivityFeed"]
+	ActivityFeed --> AuditTrail["AuditTrail"]
+```
+
+## Domain Layer Flow (enforced per subdomain)
+
+```mermaid
+flowchart LR
+  Domain["domain/ (aggregates, entities, ports/)"]
+  Application["application/ (use-cases, dtos)"]
+  Ports["domain/ports/ (IXxxPort interfaces)"]
+  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
+  Interfaces["interfaces/ (actions, queries, components)"]
+
+  Domain --> Application
+  Application --> Ports
+  Ports --> Infrastructure
+  Infrastructure --> Interfaces
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [ubiquitous-language.md](../domain/ubiquitous-language.md)
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
@@ -5715,267 +6014,217 @@ reset();
 onOpenChange(false);
 ````
 
-## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx
 ````typescript
 /**
- * firebase-composition — workspace module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the workspace module.
- * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
- *
- * ESLint: @integration-firebase is allowed here because this file lives at
- * src/modules/workspace/adapters/outbound/ which matches the permitted glob
- * (src/modules/<context>/adapters/outbound/**).
- *
- * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
- * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ * WorkspaceIssuesSection — workspace.issues tab — issue tracker.
  */
 ⋮----
-import {
-  FirebaseWorkspaceQueryRepository,
-  type Unsubscribe,
-} from "./FirebaseWorkspaceQueryRepository";
-import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
-import {
-  getFirebaseFirestore,
-  firestoreApi,
-} from "@integration-firebase";
-import {
-  FirestoreWorkspaceRepository,
-  type FirestoreLike,
-} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
-import {
-  CreateWorkspaceUseCase,
-  ActivateWorkspaceUseCase,
-  StopWorkspaceUseCase,
-} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
-import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
-import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
-import {
-  ExtractTaskCandidatesUseCase,
-  ConfirmCandidatesUseCase,
-} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
-import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
-import { CreateTaskUseCase } from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { AlertCircle, Plus, AlertTriangle, Info, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { listIssuesByTaskAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
+import type { IssueStatus } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus";
 ⋮----
-type FirestoreWhereOperator =
-  | "<"
-  | "<="
-  | "=="
-  | "!="
-  | ">="
-  | ">"
-  | "array-contains"
-  | "in"
-  | "array-contains-any"
-  | "not-in";
+interface WorkspaceIssuesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
 ⋮----
-// ── Singleton repository ───────────────────────────────────────────────────────
+type IssueFilter = "全部" | "開啟" | "處理中" | "已關閉";
 ⋮----
-function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+const handleRefresh = () =>
 ⋮----
-function createFirestoreLikeAdapter(): FirestoreLike
+{/* Header */}
 ⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-async query(
-      collectionName: string,
-      filters: Array<{ field: string; op: string; value: unknown }>,
-): Promise<Record<string, unknown>[]>
+{/* Status filter */}
 ⋮----
-function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+{/* Severity legend */}
 ⋮----
-// ── Public subscriptions ───────────────────────────────────────────────────────
-⋮----
-/**
- * Subscribes to real-time workspace updates for the given account.
- * Calls `onUpdate` immediately with the current dataset and again on every
- * subsequent Firestore change.
- *
- * Returns an unsubscribe function — call it when the subscriber unmounts to
- * avoid memory leaks and unnecessary Firestore reads.
- */
-export function subscribeToWorkspacesForAccount(
-  accountId: string,
-  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
-): Unsubscribe
-⋮----
-export function createClientWorkspaceLifecycleUseCases()
-⋮----
-export function createClientTaskFormationUseCases()
+{/* Issues list */}
 ````
 
-## File: src/modules/workspace/AGENTS.md
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx
+````typescript
+/**
+ * WorkspaceSettlementSection — workspace.settlement tab — invoice settlement.
+ */
+⋮----
+import { Calculator } from "lucide-react";
+⋮----
+interface WorkspaceSettlementSectionProps { workspaceId: string; accountId: string }
+⋮----
+export function WorkspaceSettlementSection({
+  workspaceId: _workspaceId,
+  accountId: _accountId,
+}: WorkspaceSettlementSectionProps): React.ReactElement
+⋮----
+{/* Header */}
+⋮----
+{/* Empty state */}
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx
+````typescript
+/**
+ * WorkspaceTasksSection — workspace.tasks tab — task list with status filters.
+ */
+⋮----
+import { CheckSquare, Plus, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
+import type { TaskStatus } from "@/src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus";
+⋮----
+interface WorkspaceTasksSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+type TaskFilter = "全部" | "待執行" | "進行中" | "已完成" | "已取消";
+⋮----
+const handleRefresh = () =>
+⋮----
+{/* Header */}
+⋮----
+{/* Status filter */}
+⋮----
+{/* Task list */}
+````
+
+## File: docs/structure/contexts/workspace/README.md
 ````markdown
-# Workspace Module — Agent Guide
+# Workspace Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
 
 ## Purpose
 
-`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、日誌、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
 
-> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
+## Why This Context Exists
 
-## 子域清單（名詞域）
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、日誌、排程與流程協調收斂為同一主域內的高凝聚能力。
 
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
-| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
-| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
-| `audit` | 日誌紀錄實體 | 🔨 骨架建立，實作進行中 |
-| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
-| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
-| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
-| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
-| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
-| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
-| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
-| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
-| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
-| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
-| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
-| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
-| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
+## Context Summary
 
-## task-formation 歸屬決策
-
-`task-formation` 屬於 **`workspace`** 子域，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 業務流程（使用者確認候選任務）是 workspace 層關注點
-- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
-- `orchestration/` 是跨子域流程協調層，不包含業務規則。
-- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
-
-## Route Here When
-
-- 撰寫 workspace 的新 use case、entity、adapter 實作。
-- 實作 task / issue / lifecycle 等子域骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/workspace/AGENTS.md`
-- 跨模組 API boundary → `src/modules/workspace/index.ts`
-- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
-- 成員身份驗證 → `src/modules/iam/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
+| Aspect | Summary |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/workspace/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
-| 跨模組 API boundary | `src/modules/workspace/index.ts` |
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | iam 的 actor、tenant、access decision；billing 的 entitlement；platform 的 account 與 organization surface |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理、商業或內容正典 |
 
-**嚴禁事項：**
-- ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
-- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
-- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
-- ❌ 在 barrel 使用 `export *`
+## Baseline Subdomains
 
-## 文件網絡
+- audit
+- feed
+- scheduling
+- approve
+- issue
+- orchestration
+- quality
+- settlement
+- task
+- task-formation
 
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
+## Recommended Gap Subdomains
 
-## File: src/modules/workspace/README.md
-````markdown
-# Workspace Module
+- lifecycle
+- membership
+- sharing
+- presence
 
-> `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
+## Key Relationships
 
-## 子域清單（名詞域）
+- 與 iam：workspace 消費 actor、tenant 與 access decision。
+- 與 billing：workspace 消費 entitlement 與 subscription capability signal。
+- 與 platform：workspace 消費 account scope 與 organization surface。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
 
-> **子域設計原則：** 每個子域以**名詞**命名（`approval` 不用 `approve`；`schedule` 不用 `scheduling`；`share` 不用 `sharing`）。
+## Reading Order
 
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
-| `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
-| `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
-| `audit` | 🔨 骨架建立，實作進行中 | 日誌紀錄實體 |
-| `feed` | 🔨 骨架建立，實作進行中 | 活動動態實體 |
-| `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
-| `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
-| `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|
-| `membership` | 🔨 骨架建立，實作進行中 | 成員資格實體（Membership）|
-| `orchestration` | 🔨 骨架建立，實作進行中 | 跨子域編排（原 workspace-workflow）|
-| `quality` | 🔨 骨架建立，實作進行中 | 品質管控實體 |
-| `resource` | 🔨 骨架建立，實作進行中 | 資源實體（工作區資源配額與管理）|
-| `schedule` | 🔨 骨架建立，實作進行中 | 排程實體 |
-| `settlement` | 🔨 骨架建立，實作進行中 | 結算實體 |
-| `share` | 🔨 骨架建立，實作進行中 | 分享實體（對外發布）|
-| `task` | 🔨 骨架建立，實作進行中 | 任務實體（任務管理）|
-| `task-formation` | 🔨 骨架建立，實作進行中 | 任務生成實體（AI 輔助 + 使用者確認流程）|
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENTS.md](./AGENTS.md)
 
----
+## Dependency Direction
 
-## 目錄結構
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
 
-```
-src/modules/workspace/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-    WorkspaceFacade.ts
-    WorkspaceCoordinator.ts     ← 跨子域流程（task→settlement 等）
-  shared/
-    domain/index.ts             ← WorkspaceId、MembershipRef 等共用 VO
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    lifecycle/
-      domain/
-      application/
-      adapters/outbound/
-    task/
-    issue/
-    membership/
-    orchestration/
-    activity/
-    api-key/
-    approval/
-    invitation/
-    resource/
-    settlement/
-    quality/
-    task-formation/
-    schedule/
-    share/
-    feed/
-    audit/
+## Route Surface Contract
+
+- workspace 不擁有獨立的 top-level shell route；它被組裝在 account-scoped shell surface 之下。
+- workspace 消費來自 platform account scope 的 `AccountType = "user" | "organization"` 字串契約；其中 `"user"` 代表 personal account context，`"organization"` 代表 organization context。
+- workspace detail 的 canonical route 是 `/{accountId}/{workspaceId}`，表示「先選 account，再進入該 account 底下的 workspace」。
+- workspace tabs 與 overview panels 應維持在同一條 detail route 上，以 query state 表示，例如 `?tab=Overview&panel=knowledge-pages`。
+- `/{accountId}/workspace/{workspaceId}` 只保留為相容 redirect，不是新的文件或 UI 應輸出的 canonical href。
+- UI 可以顯示個人帳號 / 組織帳號，但 workspace aggregate、use case、event metadata 與 validator 的 accountType string contract 不應漂移成 `"personal" | "organization"`。
+- account dashboard、members、teams、permissions、schedule、audit 等 account-level concern 不屬於 workspace route surface。
+- workspace route 只負責協作容器與 workspace-scoped consumption，不承接 platform governance canonical navigation。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
+- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
+- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
 ```
 
----
+## Correct Interaction Flow
 
-## 衝突防護
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["workspace boundary"]
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Workspace domain"]
+	Domain --> Scope["workspace scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
 
-| 禁止行為 | 原因 |
-|---|---|
-| 新建或恢復 `workspace-workflow` 子域 | 已拆解，禁止回歸 |
-| 使用 `approve` / `scheduling` / `sharing` 作為子域名 | 已更正為名詞（`approval` / `schedule` / `share`）|
-| 混用 Membership（工作區參與）與 Actor（身份）術語 | 違反 Ubiquitous Language |
-| workspace 直接呼叫 Firestore | 必須透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）|
+## Document Network
 
----
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [README.md](../../../README.md)
+- [architecture-overview.md](../system/architecture-overview.md)
+- [integration-guidelines.md](../system/integration-guidelines.md)
 
-## 文件網絡
+## Constraints
 
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
@@ -6063,6 +6312,228 @@ const tabHref = (tab: WorkspaceTabValue)
 onClick=
 ⋮----
 router.push(href);
+````
+
+## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — workspace module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the workspace module.
+ * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives at
+ * src/modules/workspace/adapters/outbound/ which matches the permitted glob
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
+ * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ */
+⋮----
+import {
+  FirebaseWorkspaceQueryRepository,
+  type Unsubscribe,
+} from "./FirebaseWorkspaceQueryRepository";
+import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
+import {
+  getFirebaseFirestore,
+  firestoreApi,
+} from "@integration-firebase";
+import {
+  FirestoreWorkspaceRepository,
+  type FirestoreLike,
+} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
+import {
+  CreateWorkspaceUseCase,
+  ActivateWorkspaceUseCase,
+  StopWorkspaceUseCase,
+} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  TransitionTaskStatusUseCase,
+  DeleteTaskUseCase,
+} from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
+import {
+  OpenIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ResolveIssueUseCase,
+} from "../../subdomains/issue/application/use-cases/IssueUseCases";
+import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
+import {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "../../subdomains/quality/application/use-cases/QualityUseCases";
+import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
+import {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
+import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
+import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
+⋮----
+type FirestoreWhereOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "in"
+  | "array-contains-any"
+  | "not-in";
+⋮----
+// ── Singleton repository ───────────────────────────────────────────────────────
+⋮----
+function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+⋮----
+function createFirestoreLikeAdapter()
+⋮----
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+async query(
+      collectionName: string,
+      filters: Array<{ field: string; op: string; value: unknown }>,
+): Promise<Record<string, unknown>[]>
+async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
+⋮----
+function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+⋮----
+// ── Public subscriptions ───────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time workspace updates for the given account.
+ * Calls `onUpdate` immediately with the current dataset and again on every
+ * subsequent Firestore change.
+ *
+ * Returns an unsubscribe function — call it when the subscriber unmounts to
+ * avoid memory leaks and unnecessary Firestore reads.
+ */
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
+⋮----
+export function createClientWorkspaceLifecycleUseCases()
+⋮----
+export function createClientTaskFormationUseCases()
+⋮----
+export function createClientTaskUseCases()
+⋮----
+export function createClientIssueUseCases()
+⋮----
+export function createClientQualityUseCases()
+⋮----
+export function createClientApprovalUseCases()
+⋮----
+export function createClientFeedUseCases()
+````
+
+## File: src/modules/workspace/README.md
+````markdown
+# Workspace Module
+
+> `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
+
+## 子域清單（名詞域）
+
+> **子域設計原則：** 每個子域以**名詞**命名（`approval` 不用 `approve`；`schedule` 不用 `scheduling`；`share` 不用 `sharing`）。
+
+| 子域 | 狀態 | 說明 |
+|---|---|---|
+| `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
+| `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
+| `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
+| `audit` | 🔨 骨架建立，實作進行中 | 日誌紀錄實體 |
+| `feed` | ✅ 實作完成 | 每日動態貼文（IG 風格：文字 + 照片，未來擴展今日任務 / 出勤）|
+| `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
+| `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
+| `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|
+| `membership` | 🔨 骨架建立，實作進行中 | 成員資格實體（Membership）|
+| `orchestration` | 🔨 骨架建立，實作進行中 | 跨子域編排（原 workspace-workflow）|
+| `quality` | 🔨 骨架建立，實作進行中 | 品質管控實體 |
+| `resource` | 🔨 骨架建立，實作進行中 | 資源實體（工作區資源配額與管理）|
+| `schedule` | 🔨 骨架建立，實作進行中 | 排程實體 |
+| `settlement` | 🔨 骨架建立，實作進行中 | 結算實體 |
+| `share` | 🔨 骨架建立，實作進行中 | 分享實體（對外發布）|
+| `task` | 🔨 骨架建立，實作進行中 | 任務實體（任務管理）|
+| `task-formation` | 🔨 骨架建立，實作進行中 | 任務生成實體（AI 輔助 + 使用者確認流程）|
+
+---
+
+## 目錄結構
+
+```
+src/modules/workspace/
+  index.ts
+  README.md
+  AGENTS.md
+  orchestration/
+    WorkspaceFacade.ts
+    WorkspaceCoordinator.ts     ← 跨子域流程（task→settlement 等）
+  shared/
+    domain/index.ts             ← WorkspaceId、MembershipRef 等共用 VO
+    events/index.ts             ← Published Language Events
+    types/index.ts
+  subdomains/
+    lifecycle/
+      domain/
+      application/
+      adapters/outbound/
+    task/
+    issue/
+    membership/
+    orchestration/
+    activity/
+    api-key/
+    approval/
+    invitation/
+    resource/
+    settlement/
+    quality/
+    task-formation/
+    schedule/
+    share/
+    feed/
+    audit/
+```
+
+---
+
+## 衝突防護
+
+| 禁止行為 | 原因 |
+|---|---|
+| 新建或恢復 `workspace-workflow` 子域 | 已拆解，禁止回歸 |
+| 使用 `approve` / `scheduling` / `sharing` 作為子域名 | 已更正為名詞（`approval` / `schedule` / `share`）|
+| 混用 Membership（工作區參與）與 Actor（身份）術語 | 違反 Ubiquitous Language |
+| workspace 直接呼叫 Firestore | 必須透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）|
+
+---
+
+## 文件網絡
+
+- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx

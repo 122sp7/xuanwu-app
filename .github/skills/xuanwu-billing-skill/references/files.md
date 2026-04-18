@@ -897,6 +897,56 @@ billing 是 commercial bounded context。它擁有 subscription 與 entitlement 
 - 不把 feature flag 當成 entitlement 正典語義。
 ````
 
+## File: src/modules/billing/AGENTS.md
+````markdown
+# Billing Module — Agent Guide
+
+## Purpose
+
+`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
+
+## 子域清單
+
+| 子域 | 說明 | 狀態 |
+|---|---|---|
+| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
+| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
+| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
+
+## Boundary Rules
+
+- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
+- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
+- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
+
+## Route Here When
+
+- 撰寫 Billing 的新 use case、entity、adapter 實作。
+- 實作 entitlement check port、subscription repository 等骨架。
+
+## Route Elsewhere When
+
+- 讀取邊界規則 → `src/modules/billing/AGENTS.md`
+- 跨模組 API boundary → `src/modules/billing/index.ts`
+
+## 路由規則
+
+| 情境 | 正確路徑 |
+|---|---|
+| 讀取邊界規則 / published language | `src/modules/billing/AGENTS.md` |
+| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
+| 跨模組 API boundary | `src/modules/billing/index.ts` |
+
+**嚴禁事項：**
+- ❌ 在 barrel 使用 `export *`
+
+## 文件網絡
+
+- [README.md](README.md) — 模組目錄結構
+- [src/modules/README.md](../README.md) — 模組層總覽
+- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
 ## File: docs/structure/contexts/billing/AGENTS.md
 ````markdown
 # Billing Context — Agent Guide
@@ -964,40 +1014,23 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../domain/subdomains.md](../../domain/subdomains.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
-````
-
-## File: docs/structure/contexts/billing/README.md
-````markdown
-# Billing Context
-
-本 README 在本次重切作業下，定義 commercial lifecycle 的主域邊界。
-
-## Purpose
-
-billing 是商業與權益治理主域。它負責 billing event、subscription、entitlement 與 referral，為 workspace、notion、notebooklm 等主域提供 capability signal。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 商業生命週期與有效權益解算 |
-| Upstream Dependency | iam 的 actor、tenant、access policy |
-| Downstream Consumers | workspace、notion、notebooklm |
-| Core Principle | 提供商業能力訊號，不接管內容或協作正典 |
-
-## Document Network
-
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../system/architecture-overview.md](../../system/architecture-overview.md)
-- [../../system/context-map.md](../../system/context-map.md)
-- [../../domain/bounded-contexts.md](../../domain/bounded-contexts.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
 
 ## File: src/modules/billing/README.md
@@ -1061,52 +1094,47 @@ src/modules/billing/
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/billing/AGENTS.md
+## File: docs/structure/contexts/billing/README.md
 ````markdown
-# Billing Module — Agent Guide
+# Billing Context
+
+本 README 在本次重切作業下，定義 commercial lifecycle 的主域邊界。
 
 ## Purpose
 
-`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
+billing 是商業與權益治理主域。它負責 billing event、subscription、entitlement 與 referral，為 workspace、notion、notebooklm 等主域提供 capability signal。
 
-## 子域清單
+## Context Summary
 
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
-| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
-| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
-- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
-
-## Route Here When
-
-- 撰寫 Billing 的新 use case、entity、adapter 實作。
-- 實作 entitlement check port、subscription repository 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/billing/AGENTS.md`
-- 跨模組 API boundary → `src/modules/billing/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
+| Aspect | Summary |
 |---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
-| 跨模組 API boundary | `src/modules/billing/index.ts` |
+| Primary Role | 商業生命週期與有效權益解算 |
+| Upstream Dependency | iam 的 actor、tenant、access policy |
+| Downstream Consumers | workspace、notion、notebooklm |
+| Core Principle | 提供商業能力訊號，不接管內容或協作正典 |
 
-**嚴禁事項：**
-- ❌ 在 barrel 使用 `export *`
+## Document Network
 
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
+    
+- 
+        param($m)
+        $dir = $m.Groups[1].Value
+        $file = $m.Groups[2].Value
+        "[$file](../../$dir/$file)"
 ````
