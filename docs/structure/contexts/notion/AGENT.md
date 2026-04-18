@@ -8,20 +8,29 @@
 
 ## Canonical Ownership
 
-- knowledge
-- authoring
-- collaboration
-- database
-- taxonomy
-- relations
-- knowledge-engagement
-- attachments
-- automation
-- external-knowledge-sync
-- notes
-- templates
-- publishing
-- knowledge-versioning
+**戰略語言（DDD strategic vocabulary）：**
+- knowledge（頁面知識語義，實作層整合至 page）
+- authoring（文章建立與驗證）
+- collaboration（協作評論與共編）
+- database（結構化知識庫，原 knowledge-database）
+- taxonomy（分類法與語義組織，整合至 page / database metadata）
+- relations（關聯與 backlink，以 view 承接呈現）
+- knowledge-engagement（知識使用行為量測）
+- attachments（附件與媒體關聯儲存）
+- automation（知識事件觸發自動化）
+- external-knowledge-sync（外部系統雙向整合）
+- notes（個人輕量筆記）
+- templates（頁面模板管理）
+- publishing（正式發布與對外交付）
+- knowledge-versioning（全域版本快照策略）
+
+**實作層子域（`src/modules/notion/` 目錄名稱）：**
+- `page` — 頁面文件創作、版本、knowledge 語義整合
+- `block` — 頁面內容區塊
+- `database` — 結構化知識庫（含 taxonomy/relations 的 metadata 維度）
+- `view` — database 多視圖、篩選、排序（含 relations 呈現）
+- `collaboration` — 協作評論、共編
+- `template` — 模板管理
 
 ## Route Here When
 

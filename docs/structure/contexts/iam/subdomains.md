@@ -8,6 +8,8 @@
 | access-control | 主體現在能做什麼的授權判定 |
 | tenant | 多租戶隔離與 tenant-scoped 規則治理 |
 | security-policy | 安全規則定義、版本化與發佈 |
+| account | 帳號聚合根與帳號生命週期（原 platform/account，已遷入）|
+| organization | 組織、成員與角色邊界（原 platform/organization，已遷入）|
 
 ## Recommended Gap Subdomains
 
@@ -17,9 +19,7 @@
 | consent | 同意與資料使用授權治理收斂 |
 | secret-governance | secret 與 credential access policy 收斂 |
 
-## Migration-Safe Operational Subdomains
-
-These subdomains exist in code but are not yet aligned to the strategic baseline above. They represent the current implementation layer and will converge into strategic subdomains over time.
+## Implementation Subdomains (Code Present, Not Yet Fully Aligned)
 
 | Subdomain | Responsibility |
 |---|---|
