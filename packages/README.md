@@ -122,14 +122,16 @@ import { generateId } from '@infra/uuid'
 
 | 套件 | Context7 文件 | 實作基線 |
 |---|---|---|
-| `infra/state` | `/pmndrs/zustand`、`/statelyai/xstate` | Zustand `createStore` 僅做不可變狀態更新；XState 使用 `createMachine`/actor 模型，不在 machine 放 I/O 業務規則。 |
-| `infra/trpc` | `/trpc/trpc` | 優先使用 v11 `createTRPCClient`；link 組合以 `httpBatchLink` + `splitLink` 為主。 |
+| `infra/state` | `/pmndrs/zustand`、`/statelyai/xstate` | Zustand：`create`（React hook factory，canonical）+ `createStore`（vanilla）+ `StateCreator`（slice 組合）；XState：`createMachine` + `createActor` + `setup`（型別推導），不在 machine 放 I/O 業務規則。 |
+| `infra/trpc` | `/trpc/trpc` | 優先使用 v11 `createTRPCClient`；link 組合以 `httpBatchLink` + `splitLink` 為主。`createTRPCProxyClient` 為相容 alias。 |
 | `infra/uuid` | `/uuidjs/uuid` | 以 `v4` 產生 ID，驗證時使用 `validate()`（必要時加 `version()===4`）。 |
-| `infra/zod` | `/colinhacks/zod` | boundary 驗證採 `parse`/`safeParse`；錯誤統一回傳 `ZodError.issues` 結構。 |
-| `integration-ai` | `/genkit-ai/genkit` | flow/tool 必須有 schema（輸入/輸出）；避免回傳未驗證的模型結果。 |
+| `infra/zod` | `/colinhacks/zod` | boundary 驗證採 `zodParseOrThrow`（拋出型）或 `zodSafeParse`（不拋出型）；錯誤統一回傳 `ZodError.issues` 結構；`createBrandedUuidSchema` 用於 domain value object。 |
+| `integration-ai` | `/websites/genkit_dev_js` | flow/tool 必須有 Zod schema（inputSchema + outputSchema）；Genkit singleton 在 `genkit.ts` 初始化；避免回傳未驗證的模型結果；只在 `infrastructure/ai/` 使用。 |
 | `integration-firebase` | `/firebase/firebase-js-sdk` | 採 modular API；App 初始化維持 singleton（`getApps/getApp/initializeApp`）。 |
-| `integration-queue` | `/websites/upstash_qstash` | 佇列發布需支援 retry、delay、callback/failureCallback。 |
+| `integration-queue` | `/websites/upstash_qstash` | `createQStashClient` 以 HTTP API 發布（無 npm 依賴）；佇列發布需支援 retry、delay、callback/failureCallback；token 來自 env var。 |
 | `ui-markdown` | `/remarkjs/react-markdown`、`/remarkjs/remark-gfm` | 預設維持安全渲染（不開 raw HTML）；GFM 功能透過 `remark-gfm` 啟用。 |
+| `ui-editor` | `/ueberdosis/tiptap-docs` | TipTap 3 `useEditor` + `EditorContent`；`immediatelyRender: false` 避免 Next.js SSR hydration mismatch；HTML string 為 I/O 格式。 |
 | `ui-shadcn` | `/shadcn-ui/ui` | 元件來源透過 `npx shadcn@latest add`；官方檔案不手改，以 wrapper 擴充。 |
+| `ui-visualization` | `/recharts/recharts` | `ResponsiveContainer` + percentage 寬高為標準響應式模式；`XuanwuLineChart`、`XuanwuBarChart`、`XuanwuPieChart` 為封裝入口。 |
 
-> `infra/client-state`、`infra/http`、`infra/serialization`、`ui-components`、`ui-editor`、`ui-visualization` 目前未綁定單一第三方 SDK 官方文件，維持本專案既有封裝規則即可。
+> `infra/client-state`、`infra/http`、`infra/serialization`、`ui-components` 目前未綁定單一第三方 SDK 官方文件，維持本專案既有封裝規則即可。

@@ -37,7 +37,7 @@
       "@ui-components": ["./packages/ui-components/index.ts"],
       "@ui-editor": ["./packages/ui-editor/index.ts"],
       "@ui-markdown": ["./packages/ui-markdown/index.tsx"],
-      "@ui-visualization": ["./packages/ui-visualization/index.ts"]
+      "@ui-visualization": ["./packages/ui-visualization/index.tsx"]
     }
   },
   "include": [
