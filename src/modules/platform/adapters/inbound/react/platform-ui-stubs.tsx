@@ -28,11 +28,13 @@ import {
   FolderOpen,
   LayoutDashboard,
   Lock,
+  Play,
   Plus,
   Settings2,
   Shield,
   Users,
   UserPlus,
+  Zap,
 } from "lucide-react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
@@ -652,8 +654,83 @@ export function OrganizationScheduleRouteScreen(): React.ReactElement {
   ) as React.ReactElement;
 }
 
-// ── OrganizationAuditRouteScreen ──────────────────────────────────────────────
+// ── OrganizationDispatcherRouteScreen ────────────────────────────────────────
 
+const DISPATCHER_QUEUE_STUBS = [
+  { label: "任務形成審核", count: 0, color: "text-primary" },
+  { label: "待驗收任務", count: 0, color: "text-amber-600" },
+  { label: "待結算清單", count: 0, color: "text-emerald-600" },
+  { label: "開放問題單", count: 0, color: "text-rose-600" },
+] as const;
+
+export function OrganizationDispatcherRouteScreen(): React.ReactElement {
+  const [activeQueue, setActiveQueue] = useState<string>(DISPATCHER_QUEUE_STUBS[0].label);
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="size-4 text-primary" />
+          <h1 className="text-xl font-semibold tracking-tight">調度台</h1>
+        </div>
+        <Badge variant="outline" className="text-xs">帳號 · 排程</Badge>
+      </div>
+
+      {/* Queue summary */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {DISPATCHER_QUEUE_STUBS.map((q) => (
+          <button
+            key={q.label}
+            onClick={() => setActiveQueue(q.label)}
+            className={`flex flex-col gap-1.5 rounded-xl border px-3 py-3 text-left transition ${
+              activeQueue === q.label
+                ? "border-primary/40 bg-primary/8"
+                : "border-border/40 bg-card/60 hover:bg-muted/40"
+            }`}
+          >
+            <span className="text-xs text-muted-foreground">{q.label}</span>
+            <p className={`text-xl font-semibold ${q.color}`}>{q.count}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Active queue label */}
+      <div className="flex items-center gap-2">
+        <Play className="size-3.5 text-primary" />
+        <p className="text-sm font-medium">{activeQueue}</p>
+      </div>
+
+      {/* Queue list — empty state */}
+      <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-8 text-center">
+        <Zap className="mx-auto mb-3 size-8 text-muted-foreground/40" />
+        <p className="text-sm font-medium text-muted-foreground">調度佇列目前為空</p>
+        <p className="mt-1 text-xs text-muted-foreground/70">
+          工作區產生待處理項目後，將自動匯聚至帳號調度台。
+        </p>
+      </div>
+
+      {/* Auto-dispatch rules info */}
+      <div className="rounded-xl border border-border/40 bg-muted/20 px-4 py-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">自動調度規則</p>
+        <ul className="space-y-1.5 text-xs text-muted-foreground">
+          {[
+            "任務形成完成後自動推入驗收佇列",
+            "驗收通過後自動轉入結算佇列",
+            "問題單達到高優先後自動升級通知",
+          ].map((rule) => (
+            <li key={rule} className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-emerald-500" />
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  ) as React.ReactElement;
+}
+
+// ── OrganizationAuditRouteScreen ──────────────────────────────────────────────
 const AUDIT_EVENT_TYPES = ["全部", "任務", "成員", "工作區", "設定"] as const;
 
 export function OrganizationAuditRouteScreen(): React.ReactElement {

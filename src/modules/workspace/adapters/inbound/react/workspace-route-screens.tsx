@@ -32,6 +32,7 @@ import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
 import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
 import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
 import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
+import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
 import {
   WORKSPACE_TAB_ITEMS,
   resolveWorkspaceTabValue,
@@ -163,32 +164,11 @@ export function WorkspaceDetailRouteScreen({
       <section className="rounded-xl border border-border/40 bg-card/30 p-4">
         {/* ── workspace group ── */}
         {activeTab === "Overview" && (
-          <div className="space-y-3">
-            <p className="text-sm text-foreground">Workspace Overview</p>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href={`/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=Overview&panel=knowledge-pages`}
-                className="rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
-              >
-                知識頁面
-              </Link>
-              <Link
-                href={`/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=Overview&panel=knowledge-base-articles`}
-                className="rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
-              >
-                文章
-              </Link>
-              <Link
-                href={`/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=Overview&panel=settings`}
-                className="rounded-md border border-border/60 px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
-              >
-                設定
-              </Link>
-            </div>
-            {activePanel && (
-              <p className="text-xs text-muted-foreground">當前 Overview panel：{activePanel}</p>
-            )}
-          </div>
+          <WorkspaceOverviewSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            workspace={workspace}
+          />
         )}
 
         {/* ── notion group ── */}

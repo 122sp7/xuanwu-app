@@ -22,6 +22,7 @@ import {
   OrganizationWorkspacesRouteScreen,
   OrganizationTeamsRouteScreen,
   OrganizationScheduleRouteScreen,
+  OrganizationDispatcherRouteScreen,
   OrganizationDailyRouteScreen,
   OrganizationAuditRouteScreen,
   SettingsNotificationsRouteScreen,
@@ -196,12 +197,7 @@ export function AccountRouteDispatcher({
     slug[0] === "schedule" &&
     slug[1] === "dispatcher"
   ) {
-    return (
-      <RedirectingRoute
-        href={`/${encodeURIComponent(effectiveAccountId)}/schedule${querySuffix}`}
-        message="正在導向排程…"
-      />
-    );
+    return <OrganizationDispatcherRouteScreen />;
   }
 
   // Fallback
