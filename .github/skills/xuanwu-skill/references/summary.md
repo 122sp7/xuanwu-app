@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1202 files | 31,987 lines
+1223 files | 34,342 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 736 | 9,779 |
-| Markdown | 218 | 15,537 |
-| TypeScript (TSX) | 106 | 2,847 |
+| TypeScript | 735 | 10,026 |
+| Markdown | 239 | 17,544 |
+| TypeScript (TSX) | 107 | 2,948 |
 | Python | 63 | 1,459 |
 | No Extension | 50 | 55 |
 | JSON | 19 | 2,045 |
 | Text | 3 | 107 |
 | JavaScript (ESM) | 2 | 10 |
 | RULES | 2 | 18 |
-| PROMPT | 1 | 19 |
-| Other | 2 | 111 |
+| CSS | 1 | 47 |
+| Other | 2 | 83 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
@@ -68,4 +68,4 @@ This skill contains the following reference files:
 - `py_fn/README.md` (265 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
-- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
+- `docs/decisions/architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md` (221 lines)

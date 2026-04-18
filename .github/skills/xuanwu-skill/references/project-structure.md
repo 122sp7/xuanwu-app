@@ -104,7 +104,15 @@ docs/
     ai/
       .gitkeep (0 lines)
     architecture/
+      gaps/
+        GAP-01-schedule-audit-settlement-ui-only.md (204 lines)
+        GAP-02-notion-templates-placeholder.md (207 lines)
+        GAP-03-notebooklm-task-materialization-stub.md (221 lines)
+        GAP-04-task-formation-extractor-weak-fallback.md (219 lines)
+        GAP-05-authorization-boundary-missing.md (218 lines)
       .gitkeep (0 lines)
+      2026-04-18-gap-analysis-index.md (82 lines)
+      2026-04-18-workspace-notion-notebooklm-gap-analysis.md (221 lines)
     data/
       .gitkeep (0 lines)
     domain/
@@ -113,6 +121,7 @@ docs/
       .gitkeep (0 lines)
     platform/
       .gitkeep (0 lines)
+    README.md (13 lines)
   examples/
     ai/
       .gitkeep (0 lines)
@@ -242,50 +251,62 @@ packages/
     client-state/
       AGENTS.md (33 lines)
       index.ts (15 lines)
+      README.md (19 lines)
     http/
       AGENTS.md (34 lines)
       index.ts (34 lines)
+      README.md (38 lines)
     serialization/
       AGENTS.md (33 lines)
       index.ts (18 lines)
+      README.md (20 lines)
     state/
       AGENTS.md (35 lines)
-      index.ts (8 lines)
+      index.ts (28 lines)
+      README.md (75 lines)
     trpc/
       AGENTS.md (35 lines)
       index.ts (4 lines)
+      README.md (36 lines)
     uuid/
       AGENTS.md (43 lines)
       index.ts (14 lines)
+      README.md (25 lines)
     zod/
       AGENTS.md (34 lines)
-      index.ts (10 lines)
+      index.ts (28 lines)
+      README.md (57 lines)
     AGENTS.md (47 lines)
   integration-ai/
     AGENTS.md (45 lines)
-    genkit.ts (8 lines)
-    index.ts (34 lines)
+    genkit.ts (41 lines)
+    index.ts (57 lines)
+    README.md (69 lines)
   integration-firebase/
-    AGENTS.md (53 lines)
+    AGENTS.md (64 lines)
     auth.ts (14 lines)
     client.ts (6 lines)
     firestore.ts (29 lines)
     functions.ts (9 lines)
     index.ts (4 lines)
-    README.md (48 lines)
+    README.md (75 lines)
     storage.ts (19 lines)
   integration-queue/
     AGENTS.md (42 lines)
-    index.ts (22 lines)
+    index.ts (136 lines)
+    README.md (67 lines)
   ui-components/
     AGENTS.md (35 lines)
     index.ts (27 lines)
+    README.md (31 lines)
   ui-editor/
     AGENTS.md (42 lines)
-    index.ts (22 lines)
+    index.ts (76 lines)
+    README.md (65 lines)
   ui-markdown/
     AGENTS.md (35 lines)
     index.tsx (13 lines)
+    README.md (20 lines)
   ui-shadcn/
     hooks/
       use-mobile.ts (3 lines)
@@ -361,10 +382,11 @@ packages/
     README.md (86 lines)
   ui-visualization/
     AGENTS.md (35 lines)
-    index.ts (15 lines)
-  AGENTS.md (101 lines)
+    index.tsx (101 lines)
+    README.md (87 lines)
+  AGENTS.md (107 lines)
   index.ts (15 lines)
-  README.md (115 lines)
+  README.md (137 lines)
 py_fn/
   .serena/
     .gitkeep (0 lines)
@@ -523,10 +545,10 @@ src/
           [[...slug]]/
             page.tsx (5 lines)
       layout.tsx (5 lines)
-    AGENTS.md (40 lines)
+    AGENTS.md (23 lines)
     globals.css (47 lines)
     layout.tsx (10 lines)
-    README.md (55 lines)
+    README.md (19 lines)
   modules/
     ai/
       orchestration/

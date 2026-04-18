@@ -1,224 +1,5 @@
 # Files
 
-## File: packages/integration-ai/genkit.ts
-````typescript
-import { resolve } from "node:path";
-⋮----
-import { googleAI } from "@genkit-ai/google-genai";
-import { genkit } from "genkit";
-⋮----
-const composePrompt = (input:
-⋮----
-export const generateTextWithGenkit = async (input:
-````
-
-## File: src/modules/ai/orchestration/AiFacade.ts
-````typescript
-import { GenkitPromptRegistry } from "../prompts/registry/GenkitPromptRegistry";
-import type { PromptRegistryPort } from "../prompts/registry/PromptRegistry";
-import { PROMPT_KEYS } from "../prompts/versions";
-⋮----
-interface GenerationPromptOutput {
-  readonly text: string;
-}
-⋮----
-interface QueryExpansionPromptOutput {
-  readonly queries: readonly string[];
-}
-⋮----
-/**
- * AiFacade is the orchestration entry for cross-subdomain AI prompt execution.
- * It keeps callers decoupled from prompt definitions by delegating all prompt
- * resolution and execution to the PromptRegistry boundary.
- */
-export class AiFacade
-⋮----
-constructor(private readonly promptRegistry: PromptRegistryPort = new GenkitPromptRegistry())
-⋮----
-async generateText(input:
-⋮----
-async expandQuery(query: string): Promise<readonly string[]>
-````
-
-## File: src/modules/ai/prompts/registry/GenkitPromptRegistry.ts
-````typescript
-import { ai } from "@/packages/integration-ai/genkit";
-import { z } from "genkit";
-⋮----
-import { PROMPT_KEYS } from "../versions";
-import type { PromptRegistryPort } from "./PromptRegistry";
-import { loadPromptDefinitions } from "./prompt-loader";
-import type { PromptKey, PromptRunner } from "./prompt-types";
-⋮----
-export class GenkitPromptRegistry implements PromptRegistryPort
-⋮----
-constructor(knownKeys: readonly PromptKey[] = Object.values(PROMPT_KEYS))
-⋮----
-get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>
-⋮----
-const runner: PromptRunner<TOutput> = async (input) =>
-⋮----
-list(): readonly PromptKey[]
-⋮----
-resolve(key: string): PromptKey | null
-````
-
-## File: src/modules/ai/prompts/registry/InMemoryPromptRegistry.ts
-````typescript
-import type { PromptRegistryPort } from "./PromptRegistry";
-import type { PromptKey, PromptRunner } from "./prompt-types";
-⋮----
-export interface PromptRegistryEntry<TOutput = unknown> {
-  readonly key: PromptKey;
-  readonly runner: PromptRunner<TOutput>;
-}
-⋮----
-export class InMemoryPromptRegistry implements PromptRegistryPort
-⋮----
-constructor(entries: readonly PromptRegistryEntry[] = [])
-⋮----
-register<TOutput = unknown>(entry: PromptRegistryEntry<TOutput>): void
-⋮----
-get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>
-⋮----
-list(): readonly PromptKey[]
-⋮----
-resolve(key: string): PromptKey | null
-````
-
-## File: src/modules/ai/prompts/registry/prompt-loader.ts
-````typescript
-import { registerGenerationPrompts } from "../../subdomains/generation/prompts/generate-text.prompt";
-import { registerRetrievalPrompts } from "../../subdomains/retrieval/prompts/query-expansion.prompt";
-⋮----
-export const loadPromptDefinitions = (): void =>
-````
-
-## File: src/modules/ai/prompts/registry/prompt-types.ts
-````typescript
-export type PromptKey = `${string}.${string}`;
-⋮----
-export type PromptRegistryInput = Readonly<Record<string, unknown>>;
-⋮----
-export interface PromptRegistryResult<TOutput = unknown> {
-  readonly output: TOutput;
-  readonly text?: string;
-}
-⋮----
-export type PromptRunner<TOutput = unknown> = (input: PromptRegistryInput) => Promise<PromptRegistryResult<TOutput>>;
-````
-
-## File: src/modules/ai/prompts/registry/PromptRegistry.ts
-````typescript
-import type { PromptKey, PromptRunner } from "./prompt-types";
-⋮----
-export interface PromptRegistryPort {
-  get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>;
-  list(): readonly PromptKey[];
-  resolve(key: string): PromptKey | null;
-}
-⋮----
-get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>;
-list(): readonly PromptKey[];
-resolve(key: string): PromptKey | null;
-````
-
-## File: src/modules/ai/prompts/versions.ts
-````typescript
-import type { PromptKey } from "./registry/prompt-types";
-````
-
-## File: src/modules/ai/subdomains/generation/prompts/generate-text.prompt.ts
-````typescript
-import { ai } from "@/packages/integration-ai/genkit";
-import { z } from "genkit";
-⋮----
-import { PROMPT_KEYS } from "../../../prompts/versions";
-⋮----
-export const registerGenerationPrompts = (): void =>
-````
-
-## File: src/modules/ai/subdomains/pipeline/domain/ports/AiOrchestrationPort.ts
-````typescript
-export interface AiOrchestrationInput {
-  readonly promptKey: string;
-  readonly variables: Readonly<Record<string, unknown>>;
-}
-⋮----
-export interface AiOrchestrationResult<TOutput = unknown> {
-  readonly output: TOutput;
-  readonly text?: string;
-}
-⋮----
-export interface AiOrchestrationPort {
-  runPrompt<TOutput = unknown>(input: AiOrchestrationInput): Promise<AiOrchestrationResult<TOutput>>;
-}
-⋮----
-runPrompt<TOutput = unknown>(input: AiOrchestrationInput): Promise<AiOrchestrationResult<TOutput>>;
-````
-
-## File: src/modules/ai/subdomains/pipeline/infrastructure/prompts/synthesis.prompt
-````
----
-model: googleai/gemini-2.5-flash
-input:
-  schema:
-    type: object
-    properties:
-      prompt:
-        type: string
-    required: [prompt]
-output:
-  format: json
-  schema:
-    type: object
-    properties:
-      text:
-        type: string
-    required: [text]
----
-{{prompt}}
-````
-
-## File: src/modules/ai/subdomains/pipeline/infrastructure/GenkitAiOrchestrationAdapter.ts
-````typescript
-import { GenkitPromptRegistry } from "../../../prompts/registry/GenkitPromptRegistry";
-import type { PromptRegistryPort } from "../../../prompts/registry/PromptRegistry";
-import type { AiOrchestrationInput, AiOrchestrationPort, AiOrchestrationResult } from "../domain/ports/AiOrchestrationPort";
-⋮----
-export class GenkitAiOrchestrationAdapter implements AiOrchestrationPort
-⋮----
-constructor(private readonly promptRegistry: PromptRegistryPort = new GenkitPromptRegistry())
-⋮----
-async runPrompt<TOutput = unknown>(input: AiOrchestrationInput): Promise<AiOrchestrationResult<TOutput>>
-````
-
-## File: src/modules/ai/subdomains/pipeline/infrastructure/index.ts
-````typescript
-
-````
-
-## File: src/modules/ai/subdomains/retrieval/prompts/query-expansion.prompt.ts
-````typescript
-import { ai } from "@/packages/integration-ai/genkit";
-import { z } from "genkit";
-⋮----
-import { PROMPT_KEYS } from "../../../prompts/versions";
-⋮----
-export const registerRetrievalPrompts = (): void =>
-````
-
-## File: src/modules/notebooklm/infrastructure/ai/synthesis.flow.ts
-````typescript
-import { ai } from "@/packages/integration-ai/genkit";
-import { z } from "genkit";
-⋮----
-export type NotebooklmSynthesisInput = z.infer<typeof NotebooklmSynthesisInputSchema>;
-export type NotebooklmSynthesisOutput = z.infer<typeof NotebooklmSynthesisOutputSchema>;
-⋮----
-const buildSynthesisPrompt = (input: NotebooklmSynthesisInput): string
-````
-
 ## File: .github/agents/ai-genkit-lead.agent.md
 ````markdown
 ---
@@ -4969,9 +4750,1409 @@ These three skills **must be loaded at the start of every conversation** before 
 
 ````
 
+## File: docs/decisions/architecture/gaps/GAP-01-schedule-audit-settlement-ui-only.md
+````markdown
+# GAP-01 Workspace schedule / audit / settlement 仍為 UI empty-state
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-01 |
+| 類型 | 功能缺口 |
+| 優先級 | P0 |
+| 影響範圍 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` |
+| 狀態 | 🔴 Open |
+
+## 問題描述
+
+Domain 層（`WorkDemand` / `AuditEntry` / `Invoice`）、application use cases 及 Firestore repositories 均已存在，但：
+
+1. 三個子域的 `adapters/inbound/index.ts` 全部只有 `export {}`，無 server actions。
+2. 對應 React section（`WorkspaceScheduleSection` / `WorkspaceAuditSection` / `WorkspaceSettlementSection`）皆為 UI empty state，未呼叫任何 use case。
+3. `TaskLifecycleSaga`（saga 在 application 層已定義）在 comment 中明確說明「Caller responsibility: wire this saga into an event bus」——但 wiring 尚未存在。
+
+## 直接影響
+
+- 排程里程碑、日誌記錄、結算流程對使用者完全不可用。
+- Saga 觸發路徑（`task.accepted → createInvoice`）永遠不會執行。
+
+---
+
+## 20 準則逐項對齊
+
+### 1. AI Operational Scope
+
+**現狀**：此缺口限定在「補 server actions + 接 UI + 接 Saga wiring」，不需要新建模組或修改跨域介面定義。  
+**補救要求**：修補 PR 只能建立 `adapters/inbound/server-actions/` 檔案並更新 `firebase-composition.ts` 的組裝呼叫，不得超出此範圍。
+
+---
+
+### 2. Bounded Context
+
+**現狀**：`schedule` / `audit` / `settlement` 各為 workspace 子域，邊界明確。`TaskLifecycleSaga` 橫跨 task/issue/settlement，但透過 domain event token 溝通——目前僅缺 wiring，不缺邊界定義。  
+**補救要求**：Saga wiring 必須在 `workspace` 自身 infrastructure 層完成，不得在 settlement 子域直接引用 task 子域 repository。
+
+---
+
+### 3. Ubiquitous Language Governance
+
+**現狀**：`WorkDemand`（排程需求）、`AuditEntry`（日誌條目）、`Invoice`（發票/結算單）已定義於 domain glossary。  
+**補救要求**：Server action 命名必須沿用上述術語（例如 `createWorkDemandAction`、`recordAuditEntryAction`、`createInvoiceAction`），不得自創「Milestone」「Log」「Bill」等名稱。
+
+---
+
+### 4. Contract / Schema
+
+**現狀**：`CreateWorkDemandInput`、`RecordAuditEntryInput`、`CreateInvoiceInput` 在 domain 層已定義，但 server action 邊界尚無 Zod schema 包裹。  
+**補救要求**：每個 server action 的 `rawInput: unknown` 必須在第一行以對應 Zod schema `parse()` 後再傳給 use case，不得直接 spread rawInput。
+
+---
+
+### 5. Breaking Change Policy
+
+**現狀**：三個子域目前尚未公開任何外部 schema；`InvoiceStatus` 的 FSM 如日後更動需版本化。  
+**補救要求**：一旦 server actions 公開，`CreateWorkDemandInput` 等 input schema 需加版本 tag（例如 `v1`），未來破壞性變更新增 `v2` 而非直接覆寫。
+
+---
+
+### 6. Aggregate Design
+
+**現狀**：`WorkDemand.create()` / `AuditEntry.record()` / `Invoice.create()` 均已以工廠方法設計，狀態修改透過封裝方法（`assign()` / `transition()`），符合規則。  
+**缺口**：`SettlementUseCases.ts` 的 `TransitionInvoiceStatusUseCase` 在 use case 層直接呼叫 `canTransitionInvoiceStatus`，繞過 `Invoice.transition()` 的完整業務路徑，造成 double-validation 重複。  
+**補救要求**：use case 只呼叫 `invoice.transition(to)`，由 aggregate 自己 throw 無效轉換。
+
+---
+
+### 7. State Model / FSM
+
+**現狀**：
+- `DemandStatus`：`draft | open | in_progress | completed`——無 `canTransition` guard，`assign()` 直接切換到 `open` 未校驗前狀態。
+- `AuditEntry`：只能 `record()`，無生命週期轉換。
+- `InvoiceStatus`：已有 `canTransitionInvoiceStatus`，但 use case 層繞過 aggregate method 呼叫。
+
+**補救要求**：
+- 補 `WorkDemand` 中的前置狀態驗證：`assign()` 只能在 `draft` 狀態執行，否則 throw。
+- 非法轉換必須 throw，不得 silent ignore。
+
+---
+
+### 8. Consistency / Transaction Strategy
+
+**現狀**：`TaskLifecycleSaga` 的 `onTaskStatusChanged` → `createInvoice.execute()` 是 saga pattern，符合「跨聚合用 saga」設計。但 saga 尚未與 event bus 接線，導致跨子域副作用不會觸發。  
+**補救要求**：
+- 在 `firebase-composition.ts` 或獨立 saga-wiring 檔案中，訂閱 task domain events，呼叫 `TaskLifecycleSaga.handle()`。
+- 不得改為直接在 `transitionTaskStatusAction` 後同步呼叫 `createInvoice`——必須維持非同步 saga 路徑。
+
+---
+
+### 9. Event Ordering / Causality Model
+
+**現狀**：`WorkDemand`、`AuditEntry`、`Invoice` 的 domain events 均含 `eventId: uuid()`，但無版本號或因果 token（causality token）。`TaskLifecycleSaga` 的 event handler 無冪等保護。  
+**補救要求**：
+- Saga `handle()` 需記錄已處理的 `eventId`，防止重複觸發。
+- 初期可用 Firestore document 作為冪等鍵（`processed_events/{eventId}`），無需引入外部 MQ。
+
+---
+
+### 10. Failure Strategy
+
+**現狀**：use cases 已有 `try/catch → commandFailureFrom(...)` 模式，基本失敗捕獲存在。但：
+- `TaskLifecycleSaga.handle()` 無 try/catch——saga 失敗會沉默丟失。
+- 無 dead-letter 或 retry 路徑。
+
+**補救要求**：
+- `TaskLifecycleSaga.handle()` 加 try/catch，失敗寫入 `saga_failures` collection（含 eventId / error / retry_count）。
+- 提供人工重跑介面（admin action 或 Firestore 觸發）。
+
+---
+
+### 11. Authorization / Security
+
+**現狀**：三個子域的 server actions 尚不存在，當前無授權檢查——但等於沒有入口，風險尚未暴露。  
+**補救要求**：每個新 server action 必須在 `parse(rawInput)` 之後、`useCase.execute()` 之前，呼叫 `requireAuth()` 取得 session 並校驗 actor 對 workspace 的 `role`，不得依賴上游隱式授權。
+
+---
+
+### 12. Hexagonal Architecture
+
+**現狀**：`WorkDemand` / `AuditEntry` / `Invoice` domain 層無 framework import，`FirestoreDemandRepository` / `FirestoreAuditRepository` / `FirestoreInvoiceRepository` 均在 infrastructure 層，符合規則。  
+**缺口**：`SettlementUseCases.ts` import `canTransitionInvoiceStatus`（domain value object 函式），可接受，但同時在 use case 做轉換判斷造成邏輯洩漏（見 Rule 6）。  
+**補救要求**：只在 aggregate method 內做業務判斷，use case 移除重複 `canTransition` 呼叫。
+
+---
+
+### 13. Dependency Rule Enforcement
+
+**現狀**：`TaskLifecycleSaga` 直接 import `issue/domain/events` 和 `task/domain/events`——跨子域直接引用 domain 層型別。  
+**補救要求**：saga 應依賴 workspace 公開事件型別（在 `workspace/shared/events.ts` 或 `workspace/index.ts` 重新 export），不直接深入 `subdomains/issue/domain/events/`。
+
+---
+
+### 14. Testability / Specification
+
+**現狀**：workspace 模組目前無任何 `.test.ts` 或 `.spec.ts` 檔案。  
+**補救要求**：新增 server actions 前，先補：
+- `WorkDemand.create()` / `assign()` 的 unit test（含無效狀態轉換的 throw 測試）
+- `Invoice.transition()` 的 FSM 正反例 unit test
+- `TaskLifecycleSaga.handle()` 的 unit test（mock use cases）
+
+---
+
+### 15. Observability
+
+**現狀**：use cases 無結構化 log（只有 error code string）；domain events 有 `eventId` 但無 `traceId` / `actorId` 跨 event payload。  
+**補救要求**：
+- Server actions 入口記錄 `{ traceId, actorId, workspaceId, action, input_schema }` 結構化 log。
+- Saga 執行記錄 `{ eventId, sagaStep, result, durationMs }`。
+
+---
+
+### 16. ADR / Design Rationale
+
+**現狀**：Saga wiring 方式（event bus vs. use-case hook）有多種可行路徑，目前無 ADR 選定。  
+**補救要求**：在實作 saga wiring 前，新增 ADR 列出：
+- Option A：Firestore trigger（Cloud Functions）
+- Option B：in-process use-case hook（在 server action 後同步呼叫 saga）  
+選定後記錄理由，不可跳過直接實作。
+
+---
+
+### 17. Minimum Necessary Design / YAGNI Enforcement
+
+**現狀**：`WorkDemand` 已有 `priority`、`scheduledAt`、`assignedUserId` 等欄位，屬於確定需求。  
+**補救要求**：補 server actions 時只暴露「建立 WorkDemand」與「指定負責人」兩個行為，不預先建立「批次排程」「週期性任務」等尚無需求的 actions。
+
+---
+
+### 18. Single Responsibility / No Redundancy
+
+**現狀**：`canTransitionInvoiceStatus` 在 `InvoiceStatus.ts`（domain）與 `SettlementUseCases.ts`（application）兩處被呼叫，造成語意重複。  
+**補救要求**：移除 use case 中的 `canTransitionInvoiceStatus` 呼叫，只保留 `invoice.transition(to)` 呼叫（aggregate 內部已 guard）。
+
+---
+
+### 19. Design Activation Rules
+
+**現狀**：排程 / 日誌 / 結算三個功能的業務流程尚為線性單一，不需要 XState machine 或複雜編排。  
+**補救要求**：此次補齊以 CRUD + 狀態轉換為基準，不引入 XState / workflow engine——待未來流程出現分支或平行化需求時再評估。
+
+---
+
+### 20. Lint / Policy as Code
+
+**現狀**：無靜態分析規則強制「inbound adapter 必須存在 server action」或「saga 必須有 wiring」。  
+**補救要求**：
+- 考慮在 `eslint.config.mjs` 的 `restricted-imports` 中加規則：`src/modules/workspace/subdomains/*/adapters/inbound/server-actions` 下的 action 檔必須 import auth helper。
+- ADR 評審時一併確定可靜態檢測的 checklist。
+
+---
+
+## 修補路徑（最小必要步驟）
+
+1. 撰寫 ADR（Rule 16）選定 saga wiring 方式。
+2. 補 `schedule-actions.ts`、`audit-actions.ts`、`settlement-actions.ts`（Rule 4, 11）。
+3. 修 `SettlementUseCases.ts` 移除重複 `canTransition` 呼叫（Rule 6, 18）。
+4. 補 `WorkDemand.assign()` 前置狀態 guard（Rule 7）。
+5. 補 `TaskLifecycleSaga` try/catch + `saga_failures` 寫入（Rule 10）。
+6. 接 saga wiring（Rule 8）。
+7. 補 unit tests（Rule 14）。
+8. 補 server action 入口結構化 log（Rule 15）。
+````
+
+## File: docs/decisions/architecture/gaps/GAP-02-notion-templates-placeholder.md
+````markdown
+# GAP-02 Notion templates 與多子域仍大量 placeholder
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-02 |
+| 類型 | 業務缺口 |
+| 優先級 | P2 |
+| 影響範圍 | `notion.templates` / `notion.pages` / `notion.database` / `notion.knowledge` |
+| 狀態 | 🔴 Open |
+
+## 問題描述
+
+Notion 子域（template / page / block / database / view / collaboration）中：
+
+1. `template-actions.ts`：`queryTemplatesAction` 只解析輸入後直接回傳 `[]`，有明確 `// TODO: implement when TemplateUseCases are available`。
+2. `TemplateUseCases.ts`：為 placeholder。
+3. `notion-page-stub.ts`：`not yet implemented` stub。
+4. `view` / `collaboration` / `block` 子域的 `adapters/inbound/index.ts` 大多為 `export {}`。
+
+## 直接影響
+
+- 使用者在「知識 / 頁面 / 模板」等功能頁面無法執行任何業務操作。
+- 模板 scope 控制（workspace / org / global）無法實作，形成安全盲點。
+
+---
+
+## 20 準則逐項對齊
+
+### 1. AI Operational Scope
+
+**現狀**：修補範圍鎖定「notion 模組已存在子域的 stub 填充」，不新增子域或跨模組介面。  
+**補救要求**：每次 PR 只針對單一子域（template 或 page 或 block），不批次填充所有 placeholder。
+
+---
+
+### 2. Bounded Context
+
+**現狀**：page / block / database / view / template / collaboration 六個子域邊界已結構化，但無公開 API 讓 workspace 或 notebooklm 消費 notion 內容的語意令牌。  
+**補救要求**：`notion/index.ts` 需明確公開「KnowledgeArtifact 參考令牌」（`pageId`、`databaseId`），其他模組只能持有令牌，不能直接引用 notion 內部聚合。
+
+---
+
+### 3. Ubiquitous Language Governance
+
+**現狀**：`Template`、`KnowledgeArtifact`、`Page`、`Block`、`DatabaseRecord` 在 glossary 中有定義，但 `template-actions.ts` 的 `scope` 枚舉（`workspace/org/global`）未見於 ubiquitous language 文件。  
+**補救要求**：`scope` 枚舉值必須以 domain 術語定義（`WorkspaceScope` / `OrganizationScope` / `GlobalScope`），並更新 glossary。
+
+---
+
+### 4. Contract / Schema
+
+**現狀**：`QueryTemplatesInputSchema` 已在 action 邊界使用 Zod，但 `queryTemplatesAction` 回傳 `Template[]` 未定義回傳 schema——空陣列回傳掩蓋了 schema drift 風險。  
+**補救要求**：
+- 補 `TemplateOutputSchema`（Zod），對 repository 回傳的每個 item 做 `parse()`。
+- 凡 stub 回傳 `[]` 的地方，補 TODO 標記禁止進入生產環境。
+
+---
+
+### 5. Breaking Change Policy
+
+**現狀**：`Template` entity schema（`id / workspaceId / title / category / content / createdAtISO`）尚未公開，暫無版本問題。  
+**補救要求**：一旦 template API 公開，`content` 欄位如涉及結構化 block 型別需版本化（`contentV1`），避免未來 block schema 演化破壞舊資料。
+
+---
+
+### 6. Aggregate Design
+
+**現狀**：`Template` 實體定義已存在，但無工廠方法（`Template.create()`）或 domain event，屬裸資料結構（anemic model）。  
+**補救要求**：
+- 補 `Template.create(id, input)` 工廠方法，發布 `template.created` domain event。
+- 補 `Template.publish()` / `Template.deprecate()` 命令方法，不讓 use case 直接修改屬性。
+
+---
+
+### 7. State Model / FSM
+
+**現狀**：`Template` 無生命週期狀態（`draft / published / deprecated`），任何狀態均可被外部直接 overwrite。  
+**補救要求**：
+- 定義 `TemplateStatus: "draft" | "published" | "deprecated"`。
+- 補 FSM guard：`draft → published` (合法) ; `published → deprecated` (合法) ; `deprecated → published` (禁止)。
+- 非法轉換 throw，不 silent ignore。
+
+---
+
+### 8. Consistency / Transaction Strategy
+
+**現狀**：模板套用至頁面（`applyTemplate → createPage`）涉及跨聚合操作，目前無交易策略（stub 回傳空陣列迴避了此問題）。  
+**補救要求**：模板套用使用 saga 或 outbox pattern：先建立 `Page`（page subdomain），再記錄「模板已套用」事件——不用單一同步交易跨兩個聚合。
+
+---
+
+### 9. Event Ordering / Causality Model
+
+**現狀**：notion 子域無任何 domain events 定義（template / page / block 均無 `_domainEvents`）。  
+**補救要求**：
+- 補 `template.created`、`template.published`、`template.applied` domain events，含 `eventId`、`occurredAt`（ISO string）。
+- 消費端（例如 workspace 取用 template）需以 `eventId` 做冪等鍵。
+
+---
+
+### 10. Failure Strategy
+
+**現狀**：`queryTemplatesAction` 回傳空陣列不回報錯誤，失敗路徑完全被 silent—— 使用者無法區分「無資料」與「服務失敗」。  
+**補救要求**：
+- 區分 `QueryResult.empty`（確實無資料）vs `QueryResult.error`（系統錯誤）。
+- 錯誤情況不得回傳空陣列，需回傳含 `error_code` 的結構，讓 UI 可呈現錯誤狀態。
+
+---
+
+### 11. Authorization / Security
+
+**現狀**：`queryTemplatesAction` 接受 `scope: "global"` 但無 actor 驗證——任何人可查詢全域模板。  
+**補救要求**：
+- `global` scope 需 admin role 驗證。
+- `org` scope 需 actorId 屬於該 org 驗證。
+- `workspace` scope 需 actorId 為 workspace member 驗證。
+- 每個 scope 需獨立 permission check，不合併到單一條件。
+
+---
+
+### 12. Hexagonal Architecture
+
+**現狀**：`notion-page-stub.ts`（outbound adapter stub）放在 `adapters/outbound/`，但 `queryTemplatesAction` 跳過 use case 直接回傳 `[]`——domain / application / infrastructure 三層未串接。  
+**補救要求**：`queryTemplatesAction` → `TemplateUseCases.query()` → `TemplateRepository.findByScope()` → Firestore，不得在 action 直接回傳資料。
+
+---
+
+### 13. Dependency Rule Enforcement
+
+**現狀**：目前 notion 模組間尚無跨子域直接 import，但 stub 的存在意味著實際依賴尚未建立。  
+**補救要求**：
+- 填充時遵循 `interfaces → application → domain ← infrastructure`。
+- template / page / block 子域互相不直接 import 對方 domain 層——跨子域呼叫需透過 notion `index.ts`。
+
+---
+
+### 14. Testability / Specification
+
+**現狀**：notion 模組無任何 `.test.ts` 檔案。  
+**補救要求**：填充每個 use case 前，先補：
+- `Template.create()` / `publish()` / `deprecate()` 的 unit test。
+- `queryTemplatesAction` 的 scope permission 測試（三個 scope 各自正反例）。
+
+---
+
+### 15. Observability
+
+**現狀**：stub 回傳無任何 log，無法區分 stub 執行與正常執行路徑。  
+**補救要求**：
+- 填充 use case 後，記錄 `{ traceId, actorId, workspaceId, scope, resultCount }` 結構化 log。
+- Template 套用操作記錄 `{ templateId, targetPageId, actorId, duration }`。
+
+---
+
+### 16. ADR / Design Rationale
+
+**現狀**：template `content` 的儲存格式（rich text block tree vs. JSON string vs. structured schema）有多個選項，尚無 ADR。  
+**補救要求**：在實作 `Template.content` 前，列出：
+- Option A：`content` 為 JSON string（最簡，難 query）
+- Option B：`content` 為 block array schema（可 query，需 migration）  
+選定後記錄，不可跳過。
+
+---
+
+### 17. Minimum Necessary Design / YAGNI Enforcement
+
+**現狀**：`collaboration` 子域（即時共同編輯）目前無確定業務需求觸發。  
+**補救要求**：此次填充只補 template + page 的主鏈路，不建立 collaboration / view 子域的 infrastructure——待有明確業務需求再開啟。
+
+---
+
+### 18. Single Responsibility / No Redundancy
+
+**現狀**：`page` 子域的 stub 存在、`block` 子域的 stub 存在，兩者均有「頁面內容」的概念，目前未明確切分 page 與 block 的職責邊界。  
+**補救要求**：
+- `Page` 只持有 metadata（`title / parentId / workspaceId / status`）。
+- `Block` 只持有 content unit（`type / content / order`）。
+- 兩者不重複持有「內容文字」欄位。
+
+---
+
+### 19. Design Activation Rules
+
+**現狀**：notion 模組尚無複雜工作流需要 XState 或 saga，目前缺口是基礎 CRUD 缺失。  
+**補救要求**：填充以 CRUD 為起點。template `content` 如日後涉及版本化 diff，再評估是否引入 CRDT 或 event sourcing。
+
+---
+
+### 20. Lint / Policy as Code
+
+**現狀**：無靜態規則阻止「server action 直接回傳 `[]` 而不呼叫 use case」。  
+**補救要求**：
+- 考慮建立 custom ESLint rule 或 biome rule：server action 函式體不得直接 `return []` 或 `return {}`（需經由 use case）。
+- 或加入 CI 的 grep check：`grep -rn "return \[\]" src/modules/*/adapters/inbound/server-actions/` 回報警告。
+
+---
+
+## 修補路徑（最小必要步驟）
+
+1. 撰寫 ADR（Rule 16）選定 template content 儲存格式。
+2. 補 `Template` aggregate 工廠方法 + FSM（Rule 6, 7）。
+3. 更新 glossary 補 `TemplateStatus` 術語（Rule 3）。
+4. 補 `TemplateRepository` port + `FirestoreTemplateRepository` 實作（Rule 12）。
+5. 補 `QueryTemplatesUseCase`（Rule 12）。
+6. 更新 `queryTemplatesAction` 呼叫 use case + scope permission check（Rule 11）。
+7. 補 unit tests（Rule 14）。
+8. 補結構化 log（Rule 15）。
+````
+
+## File: docs/decisions/architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md
+````markdown
+# GAP-03 NotebookLM → Workspace 任務實體化仍是 stub
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-03 |
+| 類型 | 業務缺口 |
+| 優先級 | P0 |
+| 影響範圍 | `notebooklm → workspace` 跨域任務 handoff |
+| 狀態 | 🔴 Open |
+
+## 問題描述
+
+`TaskMaterializationWorkflowAdapter.materializeTasks()` 目前：
+
+```typescript
+// 直接回傳假結果，未呼叫任何 workspace API
+return {
+  ok: true,
+  taskCount: input.candidates.length,
+  workflowHref: undefined,
+};
+```
+
+- 沒有呼叫 workspace 的任何 published API / server action。
+- 沒有建立任何真實 Task aggregate。
+- 沒有 correlation tracking。
+
+## 直接影響
+
+- 使用者在 NotebookLM 確認任務候選後，任務永遠不會出現在 workspace task list。
+- AI 推薦能力完全無法形成業務閉環。
+
+---
+
+## 20 準則逐項對齊
+
+### 1. AI Operational Scope
+
+**現狀**：此缺口的修補範圍明確：讓 `TaskMaterializationWorkflowAdapter` 呼叫 `workspace` published API（`createTaskAction`）。不需要修改 notebooklm domain 層或 workspace domain 層。  
+**補救要求**：修補 PR 只修改 adapter 實作，不修改 `TaskMaterializationWorkflowPort` 介面定義——如需修改 port，需先單獨 PR 並列入 Breaking Change Policy 審查。
+
+---
+
+### 2. Bounded Context
+
+**現狀**：`notebooklm` 負責語意理解與候選生成，`workspace` 負責 task 生命週期管理——邊界劃分正確。`TaskMaterializationWorkflowPort` 正確地抽象了跨邊界 handoff。  
+**缺口**：adapter 未真正呼叫 workspace 邊界，跨域協作尚未完成。  
+**補救要求**：adapter 只能呼叫 `workspace/index.ts` 公開的 API 或呼叫 workspace server actions，不得直接 import workspace 內部 repository 或 use case。
+
+---
+
+### 3. Ubiquitous Language Governance
+
+**現狀**：`TaskCandidate`（notebooklm 術語）與 workspace 的 `CreateTaskInput` 術語不完全對齊——`candidate.sourceRef` 對應 workspace 的哪個欄位？  
+**補救要求**：
+- 在 glossary 中定義「候選任務令牌」（`TaskCandidateToken`）為 published language。
+- adapter 的轉換層需顯式 mapper（`toCreateTaskInput(candidate: TaskCandidate): CreateTaskInput`），不隱式 spread。
+
+---
+
+### 4. Contract / Schema
+
+**現狀**：`MaterializeTasksInput` 已有型別定義，但 `candidates` 陣列的每個 item 無 Zod runtime 驗證——AI 輸出的 candidates 可能含 null / undefined 欄位。  
+**補救要求**：
+- 在 adapter 進行 handoff 前，對每個 candidate 執行 `TaskCandidateSchema.parse(c)`。
+- 解析失敗的 candidate 單獨記錄錯誤並跳過（不 throw 整批），保留合法候選繼續建立 task。
+
+---
+
+### 5. Breaking Change Policy
+
+**現狀**：`MaterializeTasksInput` 與 `MaterializeTasksResult` 目前由 notebooklm 自身定義，workspace 尚未消費——破壞性變更風險低。  
+**補救要求**：一旦 workspace server action 接受 `handoffToken`，任何對 `MaterializeTasksInput` schema 的欄位新增/移除需走版本化審查。
+
+---
+
+### 6. Aggregate Design
+
+**現狀**：workspace `Task` aggregate 的 `create()` 方法已正確設計（工廠方法 + domain event）。  
+**缺口**：adapter stub 繞過 aggregate，沒有產生任何 `TaskCreated` domain event，task 的關聯 source（`sourceDocumentId`、`knowledgePageId`）永遠不被記錄在 aggregate state。  
+**補救要求**：
+- `Task.create()` 命令方法需增加 `sourceRef?: TaskSourceReference` 欄位（AI 生成來源）。
+- 不在 adapter 或 use case 直接修改 task 屬性。
+
+---
+
+### 7. State Model / FSM
+
+**現狀**：handoff 流程本身（`pending / processing / succeeded / failed`）無狀態管理。  
+**補救要求**：
+- 在 `notebooklm/orchestration/` 層定義 `TaskHandoffJob` 狀態機（或使用 `TaskMaterializationJob` aggregate，已存在於 workspace/orchestration）。
+- 狀態轉換：`pending → processing → succeeded | failed`，非法轉換 throw。
+
+---
+
+### 8. Consistency / Transaction Strategy
+
+**現狀**：候選確認（notebooklm 側）和 task 建立（workspace 側）是跨域操作，不應放在單一同步交易。  
+**補救要求**：
+- 實作 saga：notebooklm 發布 `CandidatesConfirmed` event，workspace 消費後建立 tasks。
+- 初期可用同步呼叫（server action call），但需定義「若 workspace 建立失敗，notebooklm 如何補償（retry / 通知使用者）」。
+
+---
+
+### 9. Event Ordering / Causality Model
+
+**現狀**：`MaterializeTasksInput` 含 `sourceDocumentId` 但無 `correlationId`——若相同文件觸發多次 materialize，無法去重。  
+**補救要求**：
+- `MaterializeTasksInput` 增加 `idempotencyKey: string`（例如 `${notebookId}:${sourceDocumentId}:${version}`）。
+- workspace 在建立 task 前查詢 `idempotencyKey` 是否已存在，存在則回傳已建立的 task ID。
+
+---
+
+### 10. Failure Strategy
+
+**現狀**：stub 永遠回傳 `{ ok: true }`，不存在失敗路徑——但真實呼叫 workspace API 後必定面對網路失敗、限速、逾時。  
+**補救要求**：
+- `materializeTasks()` 對 workspace API 呼叫加 retry（最多 3 次，指數退避）。
+- 超過 retry 上限：寫入 `materialization_failures` collection，並回傳 `{ ok: false, error: "WORKSPACE_API_UNAVAILABLE" }`。
+- 消費端（`ConfirmCandidatesUseCase`）需處理 `ok: false` 並顯示明確錯誤訊息。
+
+---
+
+### 11. Authorization / Security
+
+**現狀**：`MaterializeTasksInput` 含 `requestedByUserId`，但 adapter 沒有把它傳給 workspace API——workspace 無法驗證操作者是否有權在目標 workspace 建立 task。  
+**補救要求**：
+- handoff 呼叫必須攜帶 actor session token（或 service token），workspace server action 需驗證 actor 具備 workspace member + task:create 權限。
+- 不能以「notebooklm 已驗證」作為隱式授權理由。
+
+---
+
+### 12. Hexagonal Architecture
+
+**現狀**：`TaskMaterializationWorkflowPort` 正確地在 notebooklm orchestration 層定義，adapter 在 `adapters/outbound/` 層，架構符合。  
+**缺口**：adapter 實作為 stub，未連接外部系統（workspace API）。  
+**補救要求**：adapter 只能透過 HTTP call 或 server action import 呼叫 workspace，不得直接 import `@/modules/workspace/subdomains/task/...` 的任何內部路徑。
+
+---
+
+### 13. Dependency Rule Enforcement
+
+**現狀**：目前 stub adapter 未 import workspace 任何內容，所以暫無違規。  
+**補救要求**：填充後，adapter import 路徑只能是：
+- `import { createTaskAction } from "@/modules/workspace/adapters/inbound/server-actions/task-actions"` （允許 cross-module server action 引用）
+- 絕不 import `@/modules/workspace/subdomains/task/domain/...`
+
+---
+
+### 14. Testability / Specification
+
+**現狀**：`TaskMaterializationWorkflowAdapter` 無任何測試，stub 讓測試無意義。  
+**補救要求**：填充後補：
+- Happy path：candidates 全部成功建立 tasks，回傳 `{ ok: true, taskCount: n }`。
+- Partial failure：workspace API 部分失敗，回傳 `{ ok: false, taskCount: m, error }` + 記錄 failure。
+- Idempotency：相同 `idempotencyKey` 重複呼叫不建立重複 task。
+
+---
+
+### 15. Observability
+
+**現狀**：stub 無任何 log；填充後需全鏈路可追蹤。  
+**補救要求**：
+- 記錄 `{ correlationId, workspaceId, notebookId, sourceDocumentId, candidateCount, successCount, failCount, durationMs }`。
+- workspace 建立 task 時帶入 `notebooklm.correlationId` 作為來源追蹤欄位。
+
+---
+
+### 16. ADR / Design Rationale
+
+**現狀**：handoff 方式（同步 server action call vs. 非同步 event + saga）有兩種可行路徑，目前無 ADR 選定。  
+**補救要求**：列出：
+- Option A：notebooklm adapter 同步呼叫 workspace server action（簡單，強耦合 latency）
+- Option B：notebooklm 發布 domain event，workspace saga 消費（解耦，需 event infra）  
+選定後記錄，不可跳過。
+
+---
+
+### 17. Minimum Necessary Design / YAGNI Enforcement
+
+**現狀**：`workflowHref` 欄位在 `MaterializeTasksResult` 中存在但永遠為 `undefined`——屬預測性擴充。  
+**補救要求**：此 PR 不需要實作 `workflowHref`；如無確定的「handoff 狀態頁」需求，不要填充此欄位，保持 `undefined`。
+
+---
+
+### 18. Single Responsibility / No Redundancy
+
+**現狀**：`workspace/orchestration/domain/entities/TaskMaterializationJob.ts` 與 notebooklm 的 `MaterializeTasksInput` 兩處均持有「materialize 任務的狀態」概念——是否重複建模？  
+**補救要求**：
+- `TaskMaterializationJob` 是 workspace 側的 job aggregate（追蹤建立進度）。
+- notebooklm 的 `MaterializeTasksInput` 是 handoff 命令物件（request token）。
+- 兩者職責不重疊，但需在 glossary 明確區分，不得混用名稱。
+
+---
+
+### 19. Design Activation Rules
+
+**現狀**：目前 handoff 需求為單一批次、單向——不需要全套 saga orchestration。  
+**補救要求**：先實作同步 server action call + idempotency key（最簡可用），只有在出現非同步排隊需求時再引入 event bus / saga。
+
+---
+
+### 20. Lint / Policy as Code
+
+**現狀**：無靜態規則阻止 adapter 直接 `return { ok: true }` 不呼叫真實服務。  
+**補救要求**：
+- 建立 PR checklist 規則：任何 outbound adapter 實作不得有 `// TODO: replace` comment 進入主線。
+- 考慮在 CI 加 grep check：`grep -rn "TODO: replace with real" src/modules/` 失敗管道。
+
+---
+
+## 修補路徑（最小必要步驟）
+
+1. 撰寫 ADR（Rule 16）選定 handoff 方式。
+2. 在 `MaterializeTasksInput` 補 `idempotencyKey`（Rule 9）。
+3. 補 `TaskCandidateSchema` Zod parse（Rule 4）。
+4. 補 `toCreateTaskInput()` mapper（Rule 3）。
+5. 填充 adapter：呼叫 workspace `createTaskAction` + retry + failure 記錄（Rule 10, 11）。
+6. 補 workspace `Task` aggregate 的 `sourceRef` 欄位（Rule 6）。
+7. 補 `materializeTasks` 結構化 log（Rule 15）。
+8. 補 unit tests（Rule 14）。
+````
+
+## File: docs/decisions/architecture/gaps/GAP-04-task-formation-extractor-weak-fallback.md
+````markdown
+# GAP-04 Task-formation extractor 依賴未部署，fallback 策略過弱
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-04 |
+| 類型 | 功能缺口 |
+| 優先級 | P1 |
+| 影響範圍 | `workspace.task-formation` / `FirebaseCallableTaskCandidateExtractor` |
+| 狀態 | 🔴 Open |
+
+## 問題描述
+
+`FirebaseCallableTaskCandidateExtractor` 在 callable 失敗時：
+
+```typescript
+// catch 所有錯誤，回傳假資料，外部無從區分成功與失敗
+} catch {
+  return { candidates: [{ title: "待部署", ... }] };
+}
+```
+
+- 失敗路徑完全被 silent，使用者看到假候選資料。
+- 無失敗分類（網路錯誤 vs 授權錯誤 vs 格式錯誤）。
+- 無 retry 決策。
+- 無任何可觀測性資料（latency / error code / workspaceId）。
+
+## 直接影響
+
+- 使用者在 `task-formation` 確認後，看到的是系統假造的任務候選，業務決策基礎錯誤。
+- 部署 callable 後，若發生失敗，對外表現與「成功但只有一個任務」相同——完全無法告警。
+
+---
+
+## 20 準則逐項對齊
+
+### 1. AI Operational Scope
+
+**現狀**：修補範圍鎖定 `FirebaseCallableTaskCandidateExtractor`——不修改 domain port 定義或 XState machine。  
+**補救要求**：修補 PR 只修改 adapter 實作邏輯，不修改 `TaskCandidateExtractorPort` 介面——若需修改 port，單獨 PR 並走 Breaking Change Policy。
+
+---
+
+### 2. Bounded Context
+
+**現狀**：`FirebaseCallableTaskCandidateExtractor` 屬於 task-formation subdomain 的 outbound adapter，邊界正確。  
+**缺口**：錯誤 fallback 回傳「待部署」候選，讓 domain（`TaskFormationJob`）看到假資料，污染 domain state。  
+**補救要求**：失敗時返回 `Error` 或結構化錯誤物件，讓 domain 正確記錄 `errorCode`——不得以假資料填充候選陣列。
+
+---
+
+### 3. Ubiquitous Language Governance
+
+**現狀**：`extractedCandidates` 陣列中的物件屬性（`title / description / due_date / source / confidence / source_block_id / source_snippet`）在 domain glossary 中是否有對應術語？  
+**補救要求**：確認 `TaskCandidate` value object 的欄位與 glossary 術語對齊，特別是 `confidence`（確信度）與 `source`（來源類型）。
+
+---
+
+### 4. Contract / Schema
+
+**現狀**：callable 回傳的 JSON 沒有 Zod parse——任何格式異常都會被 `catch` 後回傳假資料，實際 schema drift 永遠不可見。  
+**補救要求**：
+- 定義 `CallableExtractorOutputSchema`（Zod），對 callable 成功回傳的每個 candidate 做 `parse()`。
+- `parse()` 失敗：throw `ExtractorOutputFormatError`（標記為 non-retryable），記錄 raw response 摘要。
+
+---
+
+### 5. Breaking Change Policy
+
+**現狀**：callable 協議（函式名稱 `extract_task_candidates` + payload schema）目前無版本化。  
+**補救要求**：callable 協議需以 `version` 欄位版本化（例如 `{ version: "v1", ... }`）；未來 callable output schema 改變時，新版本 callable 需保持舊版本可用直到客戶端遷移完成。
+
+---
+
+### 6. Aggregate Design
+
+**現狀**：`TaskFormationJob` aggregate 已有 `errorCode` / `errorMessage` 欄位，以及 `fail()` 方法。  
+**缺口**：adapter 的假 fallback 讓 `TaskFormationJob.status` 永遠變成 `succeeded`（即使 callable 失敗），aggregate 不變條件被繞過。  
+**補救要求**：callable 失敗時，adapter throw error → use case catch → 呼叫 `job.fail(errorCode, errorMessage)` → 保存 job aggregate。
+
+---
+
+### 7. State Model / FSM
+
+**現狀**：`TaskFormationJob` 已定義 `queued / running / succeeded / failed / retrying` 狀態（`TaskFormationJobStatus`）。  
+**缺口**：`retrying` 狀態目前無任何代碼使用它——retry 邏輯尚不存在。  
+**補救要求**：
+- callable retryable 錯誤（網路超時）：狀態轉換 `running → retrying`，retry 次數 +1。
+- callable non-retryable 錯誤（格式錯誤、授權失敗）：狀態直接轉換 `running → failed`。
+- `retrying → running` 在下次 retry 嘗試時觸發。
+
+---
+
+### 8. Consistency / Transaction Strategy
+
+**現狀**：`ExtractTaskCandidatesUseCase` 中，callable 呼叫與 job state 更新是兩個獨立操作，無原子性保障。  
+**補救要求**：
+- callable 呼叫成功後，`job.complete(candidates)` 與 `job.repo.save()` 需在同一 Firestore 批次寫入（`batch.commit()`）。
+- callable 失敗時，`job.fail()` 與 `job.repo.save()` 也需原子寫入。
+
+---
+
+### 9. Event Ordering / Causality Model
+
+**現狀**：`TaskFormationJob` 的 domain events（`job-created` / `job-completed` / `job-failed`）含 `correlationId`，但假 fallback 觸發 `job-completed` event 而非 `job-failed`——事件語意錯誤。  
+**補救要求**：
+- callable 失敗必須觸發 `job-failed` event，含 `errorCode`。
+- 消費端（例如 task-formation XState machine）需處理 `job-failed` 事件，並向使用者呈現錯誤狀態。
+
+---
+
+### 10. Failure Strategy
+
+**現狀**：所有錯誤被一個 `catch {}` 吞噬，回傳假資料——最嚴重的 silent failure 模式。  
+**補救要求**：
+- 分類錯誤：
+  - `RETRYABLE`：網路超時、服務暫時不可用 → 指數退避，最多 3 次。
+  - `NON_RETRYABLE`：schema 解析失敗、授權被拒 → 立即 `job.fail()`。
+  - `UNKNOWN`：未預期錯誤 → 記錄 raw error，`job.fail("UNKNOWN_ERROR")`。
+- Retry 上限後寫入 DLQ（`task_formation_dlq` collection）供人工重觸發。
+
+---
+
+### 11. Authorization / Security
+
+**現狀**：呼叫 callable 前未驗證 actor 是否有權觸發 task-formation。  
+**補救要求**：
+- server action 邊界（`extractTaskCandidatesAction`）需呼叫 `requireAuth()` 並驗證 actor 具備 workspace member + task-formation:create 權限。
+- callable 層（Cloud Function 側）也需驗證 Firebase Auth token——不依賴客戶端已授權的隱式前提。
+
+---
+
+### 12. Hexagonal Architecture
+
+**現狀**：`FirebaseCallableTaskCandidateExtractor` 使用 `firebase/functions` → callable，符合 infrastructure adapter 定義。  
+**缺口**：假 fallback 使 adapter 承擔了「業務降級邏輯」——違反「adapter 只做 I/O，不做業務決策」原則。  
+**補救要求**：adapter 只負責呼叫、解析、分類錯誤；業務降級決策（是否顯示特定 UI 狀態）歸屬 use case 或 XState machine。
+
+---
+
+### 13. Dependency Rule Enforcement
+
+**現狀**：`FirebaseCallableTaskCandidateExtractor` 的 import 路徑正確——只引用 port interface，符合規則。  
+**補救要求**：維持現有 import 路徑，不新增對 domain 內部型別的直接引用。
+
+---
+
+### 14. Testability / Specification
+
+**現狀**：假 fallback 讓所有測試都「成功」，無法驗證真實行為。  
+**補救要求**：補測試：
+- Happy path：fake callable 回傳合法候選陣列 → `job.complete(candidates)`。
+- Schema error：fake callable 回傳格式錯誤 JSON → `job.fail("FORMAT_ERROR")` + non-retryable 分支。
+- Network error：fake callable throw 超時 → retry 3 次後 `job.fail("CALLABLE_TIMEOUT")`。
+- Auth error：fake callable throw 401 → 立即 `job.fail("UNAUTHORIZED")` 無 retry。
+
+---
+
+### 15. Observability
+
+**現狀**：無任何 log，不知道 callable 是否被呼叫、latency 多少、失敗原因為何。  
+**補救要求**：
+- 呼叫前記錄：`{ traceId, workspaceId, actorId, knowledgePageIds, callableVersion }`。
+- 呼叫後記錄：`{ traceId, durationMs, status: "success|failed", errorCode?, candidateCount? }`。
+- 使用結構化 log（非 `console.log`），接入 Google Cloud Logging 或 OpenTelemetry。
+
+---
+
+### 16. ADR / Design Rationale
+
+**現狀**：未部署 callable 的過渡期策略（feature flag vs. env var vs. fallback service）有多個選項，目前隱式選了「假資料 fallback」但無 ADR。  
+**補救要求**：列出：
+- Option A：feature flag 控制，flag off 則 UI 顯示「功能未開放」而非假資料
+- Option B：deploy callable stub 到 Cloud Functions 回傳空陣列，消除假資料  
+選定後記錄，不可繼續使用「假資料 catch」。
+
+---
+
+### 17. Minimum Necessary Design / YAGNI Enforcement
+
+**現狀**：`GenkitTaskCandidateExtractor`（本地 Genkit 實作）已存在但也是 stub——是否需要兩個 extractor 實作？  
+**補救要求**：
+- 此次只修復 `FirebaseCallableTaskCandidateExtractor`（callable 路徑）。
+- `GenkitTaskCandidateExtractor` 只有在有明確「本地 AI 執行」需求時才填充——目前不填充。
+
+---
+
+### 18. Single Responsibility / No Redundancy
+
+**現狀**：`FirebaseCallableTaskCandidateExtractor` 目前同時承擔「呼叫 callable」和「業務降級決策」兩個職責（假 fallback = 業務決策）。  
+**補救要求**：移除業務降級邏輯，adapter 只做：呼叫 → 解析 → 分類錯誤 → throw or return。
+
+---
+
+### 19. Design Activation Rules
+
+**現狀**：callable 尚未部署，目前複雜度為「單一 HTTP 呼叫 + 解析」，不需要 saga 或事件驅動。  
+**補救要求**：此次修補以「去除假資料、加 retry、加 log」為目標，不引入更複雜的批次策略或 streaming 處理。
+
+---
+
+### 20. Lint / Policy as Code
+
+**現狀**：無靜態規則阻止 `catch {}` 不回報錯誤而回傳假資料。  
+**補救要求**：
+- 在 `eslint.config.mjs` 加 `no-empty` rule（禁止空 catch）。
+- 考慮自定義 rule：adapter 層 `catch` 內不得有 `return [...假資料...]` 型態的回傳。
+- CI 加 `grep -rn "待部署\|TODO: replace" src/modules/` 作為阻塞 gate。
+
+---
+
+## 修補路徑（最小必要步驟）
+
+1. 撰寫 ADR（Rule 16）選定過渡期策略。
+2. 定義 `CallableExtractorOutputSchema`（Rule 4）。
+3. 錯誤分類表：`RETRYABLE / NON_RETRYABLE / UNKNOWN`（Rule 10）。
+4. 修改 adapter：移除假 fallback，加 retry + 錯誤分類 + structured log（Rule 10, 12, 15）。
+5. use case 接收 adapter throw → `job.fail(errorCode)`（Rule 6, 7）。
+6. 補 unit tests（四個情境）（Rule 14）。
+7. server action 加 auth gate（Rule 11）。
+````
+
+## File: docs/decisions/architecture/gaps/GAP-05-authorization-boundary-missing.md
+````markdown
+# GAP-05 授權邊界尚未完整顯式化
+
+| 欄位 | 值 |
+|---|---|
+| Gap ID | GAP-05 |
+| 類型 | 業務缺口 |
+| 優先級 | P0 |
+| 影響範圍 | 所有 workspace / notion / notebooklm server actions |
+| 狀態 | 🔴 Open |
+
+## 問題描述
+
+現有 server actions（`task-actions.ts`、`issue-actions.ts`、`quality-actions.ts`、`approval-actions.ts`、`template-actions.ts` 等）的共同模式：
+
+```typescript
+export async function createTaskAction(rawInput: unknown): Promise<CommandResult> {
+  try {
+    const input = CreateTaskSchema.parse(rawInput);
+    const { createTask } = createClientTaskUseCases();
+    return createTask.execute(input);  // ← 無 requireAuth / PermissionAPI 呼叫
+  } catch (err) { ... }
+}
+```
+
+- 所有 action 只做輸入格式驗證，無 actor session 取得，無 permission check。
+- `workspaceId` 從使用者輸入取得，未驗證呼叫者是否屬於該 workspace。
+
+## 直接影響
+
+- 任何知道 `workspaceId` 的人可對任意 workspace 執行寫操作。
+- AI agent / script 可繞過 UI 直接呼叫 server action 建立/刪除任意 workspace 資料。
+
+---
+
+## 20 準則逐項對齊
+
+### 1. AI Operational Scope
+
+**現狀**：此缺口的修補範圍限定在「為現有 server actions 加入 auth + permission gate」，不修改 use case 或 domain 層。  
+**補救要求**：每個 server action 只新增：取得 session → 取得 actorId → permission check → 繼續或回傳 unauthorized error。不重構 use case 或 aggregate。
+
+---
+
+### 2. Bounded Context
+
+**現狀**：`requireAuth()` 和 `PermissionAPI` 屬於 `iam` / `platform` bounded context。server actions 需消費這些能力。  
+**缺口**：目前 server actions 未引用 `platform` Permission API 或 `iam` session API。  
+**補救要求**：server actions 透過 `@/modules/platform/index.ts` 提供的 `getAuthSession()` 或 `requireAuth()` 取得 actor——不得直接 import Firebase Auth SDK 在 action 內呼叫。
+
+---
+
+### 3. Ubiquitous Language Governance
+
+**現狀**：`actor` 是 glossary 定義的術語（非 `user`）。現有 action 的 `createdBy`、`assignedTo`、`requesterId` 欄位使用不一致的命名。  
+**補救要求**：
+- 所有 action 輸入 schema 中，操作者欄位統一改為 `actorId`（已在 `AuditEntry` 中正確使用）。
+- 更新 `CreateTaskSchema`、`OpenIssueSchema` 等，不使用 `createdBy` / `requesterId`。
+
+---
+
+### 4. Contract / Schema
+
+**現狀**：Zod schema 只驗證格式（`z.string().min(1)`），未驗證 `actorId` 是否與 session actor 一致——使用者可偽造 `actorId` 欄位。  
+**補救要求**：
+- `actorId` 不應從 rawInput 接受，應從 session 中取得（`const { actorId } = await requireAuth()`）。
+- Schema 移除 `actorId` 欄位（由 server 注入，不接受客戶端傳入）。
+
+---
+
+### 5. Breaking Change Policy
+
+**現狀**：移除 schema 中的 `actorId` / `createdBy` 欄位是破壞性變更——UI 如果傳入這些欄位，需更新。  
+**補救要求**：
+- 更新 schema 前確認所有呼叫端（`WorkspaceTaskSection` 等）不再傳入 `actorId`。
+- 採用 staged migration：先讓 schema 允許 `actorId` optional，server 端以 session 為準，再移除 optional 欄位。
+
+---
+
+### 6. Aggregate Design
+
+**現狀**：`Task.create()` 接受 `CreateTaskInput`（含 `workspaceId` 但無 `actorId`），domain event 含 `workspaceId`——但 task 不知道是誰創建的。  
+**補救要求**：
+- `Task.create()` 的 input 需包含 `actorId`（由 server action 從 session 注入）。
+- domain event `workspace.task.created` 的 payload 需含 `actorId`，以供 audit trail 追蹤。
+
+---
+
+### 7. State Model / FSM
+
+**現狀**：授權本身不需要 FSM，但 workspace member role 狀態（`owner / admin / member / viewer`）控制了哪些轉換是允許的。  
+**補救要求**：定義 `role → permitted_transitions` 映射表（例如只有 `admin/owner` 可執行 `transition to accepted`），不在各 action 散落條件判斷。
+
+---
+
+### 8. Consistency / Transaction Strategy
+
+**現狀**：授權失敗不應產生任何副作用——目前由於缺少 auth check，授權概念不存在，副作用管控也無從談起。  
+**補救要求**：auth check 必須在 use case 執行前完成。若 use case 已建立 side effect（例如 Firestore 寫入），不允許「事後」回滾——所以 auth 必須是前置 guard，而非後置補償。
+
+---
+
+### 9. Event Ordering / Causality Model
+
+**現狀**：domain events 無 `actorId`，導致事件溯源（event sourcing）追蹤缺少操作者資訊。  
+**補救要求**：所有寫操作觸發的 domain event 需在 payload 加入 `actorId`（從 session 取得）。
+
+---
+
+### 10. Failure Strategy
+
+**現狀**：無 auth check = 無 auth 失敗路徑。填充後需定義。  
+**補救要求**：
+- Session 過期 → 回傳 `commandFailureFrom("UNAUTHORIZED", "Session expired")`，不 throw 未捕獲異常。
+- Permission denied → 回傳 `commandFailureFrom("FORBIDDEN", "Insufficient permissions")`，記錄 `{ actorId, resource, action }` 審計 log。
+- 兩種錯誤碼的 HTTP 語意不同，不得混用。
+
+---
+
+### 11. Authorization / Security
+
+**現狀**：此 gap 的核心問題。所有 server actions 無授權。  
+**補救要求（必須實作）**：
+1. `requireAuth()` → 取得 actorId + session token。
+2. `platform.PermissionAPI.can(actorId, action, { workspaceId })` → 驗證操作許可。
+3. 以上兩步需在每個寫操作 server action 中強制存在。
+4. 讀操作（`list*Action`）至少需要第一步（session 驗證），按需加第二步。
+
+---
+
+### 12. Hexagonal Architecture
+
+**現狀**：`requireAuth()` 是 `platform` 提供的 service API，屬於 application layer 可引用的能力，不違反 hexagonal 規則。  
+**補救要求**：server actions 屬於 `interfaces/` 層，引用 `platform.AuthAPI` 符合「interfaces → application」方向——不得將 Firebase Auth SDK 直接呼叫放在 action 中。
+
+---
+
+### 13. Dependency Rule Enforcement
+
+**現狀**：如果在 server action 直接 import `firebase/auth`，違反「interfaces 不直接引用 infrastructure SDK」規則。  
+**補救要求**：auth 能力必須透過 `@/modules/platform` 提供的 API 抽象，不直接 import Firebase Auth SDK 在 action 層。
+
+---
+
+### 14. Testability / Specification
+
+**現狀**：無 auth 代表 action 測試無法覆蓋「未授權拒絕」情境。  
+**補救要求**：補測試：
+- Authenticated + authorized：正常執行返回成功。
+- Not authenticated：返回 `UNAUTHORIZED`。
+- Authenticated but wrong workspace：返回 `FORBIDDEN`。
+- Permission matrix：owner / admin / member / viewer 各自允許/禁止的操作。
+
+---
+
+### 15. Observability
+
+**現狀**：無 auth log，安全稽核（audit trail）缺失。  
+**補救要求**：
+- 每個寫操作記錄 `{ traceId, actorId, workspaceId, action, result: "allowed|denied", reason? }`。
+- 拒絕事件需持久化至 `audit_log` collection，不僅僅是 console log。
+
+---
+
+### 16. ADR / Design Rationale
+
+**現狀**：auth gate 的實作方式（middleware 模式 vs. 每個 action 顯式呼叫 vs. decorator）有多個選項。  
+**補救要求**：列出：
+- Option A：每個 action 顯式呼叫 `requireAuth()` + `permission.can()`（簡單、易追蹤）
+- Option B：Higher-order function `withAuth(action)` wrapper（減少重複，需測試 wrapper 本身）  
+選定後記錄，不可各 action 自行決定。
+
+---
+
+### 17. Minimum Necessary Design / YAGNI Enforcement
+
+**現狀**：完整 RBAC 系統（細粒度到欄位級別）是過度設計。  
+**補救要求**：此次只實作：
+- action-level permission check（操作級別）
+- workspace membership check（是否屬於此 workspace）  
+不預先建立 row-level security 或 attribute-based access control（ABAC）。
+
+---
+
+### 18. Single Responsibility / No Redundancy
+
+**現狀**：如果各 action 都各自實作不同的 auth check 邏輯，將造成授權邏輯散落。  
+**補救要求**：auth check 邏輯集中在 `platform.PermissionAPI`，各 action 只呼叫統一 API，不自行判斷 role/permission 邏輯。
+
+---
+
+### 19. Design Activation Rules
+
+**現狀**：缺少 auth 是 P0 安全問題，不需要等「複雜度觸發」——此 gap 本身即是觸發條件。  
+**補救要求**：立即補 auth gate，不使用「等功能穩定後再加安全」作為延後理由。
+
+---
+
+### 20. Lint / Policy as Code
+
+**現狀**：無靜態規則強制 server action 必須含 auth 呼叫。  
+**補救要求**：
+- 在 `eslint.config.mjs` 新增 custom rule 或使用 AST-based check：
+  - 在 `src/modules/*/adapters/inbound/server-actions/` 下的所有 `async function *Action` 必須包含對 auth helper 的呼叫。
+- 或在 PR checklist 中加入「server action auth check」必填項目。
+- CI pipeline 加入此 lint check 作為 blocking gate。
+
+---
+
+## 修補路徑（最小必要步驟）
+
+1. 撰寫 ADR（Rule 16）選定 auth gate 實作模式。
+2. 確認 `platform.AuthAPI.requireAuth()` 與 `platform.PermissionAPI.can()` 的公開介面（Rule 2）。
+3. 更新所有 action 的 Zod schema：移除 `actorId` / `createdBy` 欄位（Rule 4, 5）。
+4. 為所有寫操作 action 加入 `requireAuth()` + `permission.can()` 呼叫（Rule 11）。
+5. 更新 `Task.create()` 等 aggregate input 加入 `actorId`（Rule 6, 9）。
+6. 補 action-level audit log（Rule 15）。
+7. 補 unit tests（Rule 14）。
+8. 補 lint rule（Rule 20）。
+````
+
 ## File: docs/decisions/architecture/.gitkeep
 ````
 
+````
+
+## File: docs/decisions/architecture/2026-04-18-gap-analysis-index.md
+````markdown
+# 缺口分析索引 — Workspace / Notion / NotebookLM
+
+> 本文件為各缺口獨立分析文件的索引頁。每個缺口獨立存放，方便各 PR 只對齊單一缺口的 20 條治理準則。
+
+## 分析版本
+
+| 版本 | 日期 | 變更 |
+|---|---|---|
+| v1 | 2026-04-18 | 初版 14 條準則映射（已合併至 v2） |
+| v2 | 2026-04-18 | 拆分為 5 個獨立文件，全面映射 20 條治理準則 |
+
+---
+
+## 優先級定義
+
+| 等級 | 定義 |
+|---|---|
+| P0 | 直接影響主流程可用性、跨邊界一致性或安全邊界，需優先修補 |
+| P1 | 已有替代路徑但風險持續累積，應安排近期迭代處理 |
+| P2 | 不阻塞主流程，但會造成能力不完整或擴展成本上升 |
+
+---
+
+## 缺口總覽
+
+| Gap ID | 類型 | 優先級 | 摘要 | 文件 |
+|---|---|---|---|---|
+| GAP-01 | 功能缺口 | P0 | schedule/audit/settlement 子域已有 domain/application/repository，但無 server actions 且 UI 為 empty state；Saga 未接線 | [GAP-01](./gaps/GAP-01-schedule-audit-settlement-ui-only.md) |
+| GAP-02 | 業務缺口 | P2 | notion.templates 及多個子域仍為 placeholder/stub，無可執行業務能力 | [GAP-02](./gaps/GAP-02-notion-templates-placeholder.md) |
+| GAP-03 | 業務缺口 | P0 | notebooklm → workspace 任務實體化 adapter 回傳假結果，跨域 handoff 未真正落地 | [GAP-03](./gaps/GAP-03-notebooklm-task-materialization-stub.md) |
+| GAP-04 | 功能缺口 | P1 | task-formation callable extractor 失敗後回傳假候選資料，缺失錯誤分類、retry 與可觀測性 | [GAP-04](./gaps/GAP-04-task-formation-extractor-weak-fallback.md) |
+| GAP-05 | 業務缺口 | P0 | 所有 server actions 無 requireAuth / PermissionAPI 呼叫，任意呼叫者可操作任意 workspace | [GAP-05](./gaps/GAP-05-authorization-boundary-missing.md) |
+
+---
+
+## 20 條治理準則覆蓋矩陣
+
+> 每個缺口文件均逐條映射以下 20 條準則。此矩陣顯示哪些準則在各缺口中為「主要違規」（🔴）或「需關注」（🟡）或「符合」（✅）。
+
+| 準則 | GAP-01 | GAP-02 | GAP-03 | GAP-04 | GAP-05 |
+|---|---|---|---|---|---|
+| 1. AI Operational Scope | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 2. Bounded Context | 🟡 Saga wiring | 🟡 token missing | 🟡 adapter only | ✅ | 🔴 no platform API |
+| 3. Ubiquitous Language | ✅ | 🟡 scope enum | 🟡 candidate term | 🟡 field names | 🔴 actorId naming |
+| 4. Contract / Schema | 🔴 no Zod on action | 🟡 output schema | 🔴 no candidate parse | 🔴 no callable schema | 🔴 actorId from client |
+| 5. Breaking Change Policy | 🟡 schema not public | 🟡 content format | 🟡 port not public | 🟡 callable protocol | 🔴 schema field removal |
+| 6. Aggregate Design | 🔴 double-validation | 🔴 no factory/event | 🔴 fake result bypasses | 🔴 fake bypasses job.fail | 🔴 no actorId in create |
+| 7. State Model / FSM | 🔴 assign no guard | 🔴 no TemplateStatus | 🔴 no handoff states | 🔴 retrying unused | 🟡 role→transition map |
+| 8. Consistency / Transaction | 🔴 Saga unwired | 🔴 no cross-agg strategy | 🔴 no compensation | 🔴 callable+state not atomic | ✅ auth is pre-guard |
+| 9. Event Ordering / Causality | 🔴 Saga no idempotency | 🔴 no domain events | 🔴 no idempotency key | 🔴 fake triggers wrong event | 🔴 events lack actorId |
+| 10. Failure Strategy | 🔴 Saga no try/catch | 🔴 silent empty array | 🔴 no retry/DLQ | 🔴 all errors silenced | 🔴 no auth error path |
+| 11. Authorization / Security | 🔴 action no auth | 🔴 scope no permission | 🔴 actor not verified | 🔴 callable no auth | 🔴 all actions no auth |
+| 12. Hexagonal Architecture | 🟡 use-case dup-valid | 🔴 action skips use case | ✅ | 🔴 adapter has biz logic | 🔴 action uses SDK direct |
+| 13. Dependency Rule | 🔴 Saga deep import | ✅ | 🔴 cannot deep import | ✅ | 🔴 no platform abstraction |
+| 14. Testability | 🔴 zero tests | 🔴 zero tests | 🔴 zero tests | 🔴 fake makes tests pass | 🔴 zero auth tests |
+| 15. Observability | 🔴 no struct log | 🔴 no log on stub | 🔴 no correlation log | 🔴 no callable metrics | 🔴 no audit trail |
+| 16. ADR / Design Rationale | 🔴 Saga wiring no ADR | 🔴 content format no ADR | 🔴 handoff no ADR | 🔴 fallback no ADR | 🔴 auth gate no ADR |
+| 17. YAGNI Enforcement | ✅ | 🔴 collab not needed yet | 🟡 workflowHref | 🟡 second extractor | ✅ min permission |
+| 18. Single Responsibility | 🔴 double-validation | 🟡 page/block boundary | 🟡 two job concepts | 🔴 adapter has biz logic | 🔴 auth logic scattered |
+| 19. Design Activation Rules | ✅ | ✅ | ✅ | ✅ | ✅ required now |
+| 20. Lint / Policy as Code | 🔴 no inbound rule | 🔴 no stub-in-prod rule | 🔴 no stub-in-main rule | 🔴 no empty catch rule | 🔴 no auth-required rule |
+
+---
+
+## 建議修補順序
+
+```
+Week 1 (P0 安全)    GAP-05 → 所有 server actions 加 auth gate
+Week 2 (P0 可用性)  GAP-01 → schedule/audit/settlement server actions + Saga wiring
+Week 3 (P0 閉環)    GAP-03 → notebooklm task materialization 真實呼叫
+Week 4 (P1)         GAP-04 → task-formation extractor 錯誤分類 + retry
+Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
+```
+
+> 每個修補 PR 必須對齊對應缺口文件的「修補路徑（最小必要步驟）」，並附帶：Zod 契約、授權檢查、結構化 log、測試證據。
+
+---
+
+## 相關文件
+
+- [歷史版本 overview（v1）](../2026-04-18-workspace-notion-notebooklm-gap-analysis.md)
+- [Decisions README](../../README.md)
+````
+
+## File: docs/decisions/architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md
+````markdown
+# 2026-04-18 Workspace / Notion / NotebookLM 功能缺口與業務缺口盤點
+
+## 背景
+
+本文件以 `npm run repomix:skill` 掃描結果為起點，並交叉檢視目前 `workspace` / `notion` / `notebooklm` 的實作，整理「功能缺口 / 業務缺口」與可落地修補方向。
+
+## 分析範圍（本次要求）
+
+### Workspace Tabs
+
+- `workspace.overview` / `Overview` / 首頁
+- `workspace.daily` / `Daily` / 每日
+- `workspace.schedule` / `Schedule` / 排程
+- `workspace.audit` / `Audit` / 日誌
+- `workspace.files` / `Files` / 檔案
+- `workspace.members` / `Members` / 成員
+- `workspace.settings` / `WorkspaceSettings` / 設定
+- `workspace.task-formation` / `TaskFormation` / 任務形成
+- `workspace.tasks` / `Tasks` / 任務
+- `workspace.quality` / `Quality` / 質檢
+- `workspace.approval` / `Approval` / 驗收
+- `workspace.settlement` / `Settlement` / 結算
+- `workspace.issues` / `Issues` / 問題單
+
+### Notion Tabs
+
+- `notion.knowledge` / `Knowledge` / 知識
+- `notion.pages` / `Pages` / 頁面
+- `notion.database` / `Database` / 資料庫
+- `notion.templates` / `Templates` / 範本
+
+### NotebookLM Tabs
+
+- `notebooklm.notebook` / `Notebook` / RAG 查詢
+- `notebooklm.ai-chat` / `AiChat` / AI 對話
+- `notebooklm.sources` / `Sources` / 來源文件
+- `notebooklm.research` / `Research` / 研究摘要
+
+### Platform Route Titles
+
+- `/organization`、`/members`、`/teams`、`/permissions`、`/workspaces`
+- `/daily`、`/schedule`、`/schedule/dispatcher`、`/audit`
+- `/workspace`、`/dashboard`
+
+## 缺口總覽
+
+### 優先級定義
+
+| 等級 | 定義 |
+|---|---|
+| P0 | 直接影響主流程可用性、跨邊界一致性或安全邊界，需優先修補 |
+| P1 | 已有替代路徑但風險持續累積，應安排近期迭代處理 |
+| P2 | 不阻塞主流程，但會造成能力不完整或擴展成本上升 |
+
+| Gap ID | 類型 | 優先級 | 描述 |
+|---|---|---|---|
+| GAP-01 | 功能缺口 | P0 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` 仍為 UI empty-state，未接 use case 與 repository |
+| GAP-02 | 業務缺口 | P2 | `notion.templates` 與 notion 子域（template/view/collaboration 等）仍大量 placeholder/stub，缺少可執行業務能力 |
+| GAP-03 | 業務缺口 | P0 | `notebooklm` 到 `workspace` 的任務實體化僅 stub，跨邊界交易未真正落地 |
+| GAP-04 | 功能缺口 | P1 | `workspace.task-formation` 的 AI extractor 依賴未部署 callable，現行使用 fallback stub，失敗策略與可觀測性不足 |
+| GAP-05 | 業務缺口 | P0 | 目前部分 Action 僅做輸入驗證，缺少顯式授權與 actor scope 驗證鏈路 |
+
+---
+
+## GAP-01：Workspace 排程 / 日誌 / 結算仍為展示層
+
+### 證據
+
+- `src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx`
+- `src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx`
+- `src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx`
+- 三者皆為 UI empty state 與 disabled CTA，未觸發 application use cases。
+
+### 架構對齊（14 準則）
+
+1. **Proper Domain Segmentation**：將 schedule/audit/settlement 視為各自子域能力，不再由 UI 直出假資料。
+2. **Complete Aggregate Design**：補齊 `WorkDemand` / `AuditEntry` / `Invoice` 聚合不變條件與命令入口。
+3. **Proper Hexagonal Architecture**：由 `interfaces -> application -> domain <- infrastructure` 串接，UI 不直接碰資料來源。
+4. **Consistency / Transaction Strategy**：定義建立里程碑、記錄日誌、結算狀態轉換的一致性交易邊界。
+5. **Contract / Schema**：Server Action 邊界用 Zod 驗證輸入與查詢條件。
+6. **State Model / FSM**：對結算狀態與排程流程加入明確狀態圖（例如草稿/確認/結算）。
+7. **Observability**：操作需記錄 traceId、workspaceId、actorId、event type。
+8. **Failure Strategy**：提供重試、補償與錯誤分類（可重試 vs 不可重試）。
+9. **Authorization / Security**：每個 action 需校驗 actor 對 workspace 的可操作權限。
+10. **Testability / Specification**：建立子域 use case 單元測試與關鍵流程整合測試。
+11. **Lint / Policy as Code**：加強禁止 UI 層直存取 repo 的規則檢查。
+12. **Design Activation Rules**：僅在流程複雜時啟用 FSM/事件化；簡單查詢不過度設計。
+13. **Single Responsibility / No Redundancy**：避免在三個頁籤重複資料模型與狀態判斷。
+14. **Minimum Necessary Design / YAGNI**：先交付最小可用 CRUD + 狀態遷移，不先做推測性擴充。
+
+---
+
+## GAP-02：Notion templates 與多子域仍大量 placeholder
+
+### 證據
+
+- `src/modules/notion/adapters/inbound/server-actions/template-actions.ts`（明確標註 stub / TODO）
+- `src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts`（TODO）
+- `src/modules/notion/subdomains/view/*`、`collaboration/*`、`block/*` 多處 placeholder index 檔
+- `src/modules/notion/adapters/outbound/notion-page-stub.ts`（`not yet implemented`）
+
+### 架構對齊（14 準則）
+
+1. **Proper Domain Segmentation**：明確切開 page/block/database/view/template/collaboration 的責任邊界。
+2. **Complete Aggregate Design**：每個子域至少有可操作聚合根，不以裸資料結構替代。
+3. **Proper Hexagonal Architecture**：以 port + adapter 實作，不讓 React/Action 承擔業務規則。
+4. **Consistency / Transaction Strategy**：模板套用到頁面/資料庫時定義原子操作與回滾策略。
+5. **Contract / Schema**：模板查詢、建立、套用命令皆以 Zod schema 固定契約。
+6. **State Model / FSM**：模板生命週期（draft/published/deprecated）以狀態模型約束。
+7. **Observability**：模板建立/套用/失敗要可追蹤（event + log）。
+8. **Failure Strategy**：替換 stub 為可錯誤回報與可恢復流程，避免 silent empty array。
+9. **Authorization / Security**：模板 scope（workspace/org/global）必須有顯式授權閘道。
+10. **Testability / Specification**：對模板 use cases 與 scope 規則提供行為測試。
+11. **Lint / Policy as Code**：對 placeholder/TODO 建立治理門檻（禁止進入正式流程）。
+12. **Design Activation Rules**：view/collaboration 僅在有確定業務需求時擴張到完整子域。
+13. **Single Responsibility / No Redundancy**：避免 page/database/template 重複持有相同建模責任。
+14. **Minimum Necessary Design / YAGNI**：先補齊 templates 主鏈路，再逐步擴到 collaboration/view 深水區。
+
+---
+
+## GAP-03：NotebookLM → Workspace 任務實體化仍是 stub
+
+### 證據
+
+- `src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts`
+- 目前 `materializeTasks()` 回傳固定 `{ ok: true, taskCount }`，尚未真正呼叫 workspace 公開邊界。
+
+### 架構對齊（14 準則）
+
+1. **Proper Domain Segmentation**：notebooklm 只負責候選與語意；task 建立由 workspace 擁有。
+2. **Complete Aggregate Design**：task 建立/關聯來源需由 workspace aggregate enforce invariant。
+3. **Proper Hexagonal Architecture**：adapter 應透過 workspace public API / server action port 呼叫，不直連資料庫。
+4. **Consistency / Transaction Strategy**：定義跨邊界「候選確認→任務建立」交易與冪等鍵。
+5. **Contract / Schema**：固定 candidate payload schema（id/source/confidence/owner scope）。
+6. **State Model / FSM**：handoff 流程需有 pending/processing/succeeded/failed 狀態。
+7. **Observability**：全鏈路要有 correlationId，能對齊 notebooklm 與 workspace 日誌。
+8. **Failure Strategy**：支援重放/重試，避免重複建任務或遺失候選。
+9. **Authorization / Security**：跨域呼叫要驗證 actor 是否可在目標 workspace 建任務。
+10. **Testability / Specification**：加入跨模組契約測試（consumer/provider contract）。
+11. **Lint / Policy as Code**：禁止 notebooklm 直接 import workspace 內部層（僅 index.ts / published API）。
+12. **Design Activation Rules**：先做同步 handoff；高量或跨服務再升級事件驅動。
+13. **Single Responsibility / No Redundancy**：候選語意與任務聚合不重複建模。
+14. **Minimum Necessary Design / YAGNI**：先完成單一路徑 materialize，再擴充批次策略。
+
+---
+
+## GAP-04：Task-formation extractor 依賴未部署，fallback 策略過弱
+
+### 證據
+
+- `src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts`
+- callable 失敗時固定回傳「待部署」假候選，缺少失敗分類、重試決策與追蹤資訊。
+
+### 架構對齊（14 準則）
+
+1. **Proper Domain Segmentation**：抽取器屬於 task-formation outbound port，不滲透到 domain。
+2. **Complete Aggregate Design**：`TaskFormationJob` 需完整記錄失敗原因與重試次數。
+3. **Proper Hexagonal Architecture**：以 port 抽換 callable 與本地備援實作。
+4. **Consistency / Transaction Strategy**：候選寫入與 job 狀態更新要同交易語意。
+5. **Contract / Schema**：對 callable output 作嚴格 schema parse，拒絕半結構資料。
+6. **State Model / FSM**：狀態應含 `queued/running/succeeded/failed/retrying`。
+7. **Observability**：記錄 callable latency、error code、source_type、workspaceId。
+8. **Failure Strategy**：導入退避重試、DLQ 或人工介面重新觸發。
+9. **Authorization / Security**：呼叫 callable 前校驗 actor 與 workspace scope。
+10. **Testability / Specification**：以 fake callable 覆蓋成功/超時/格式錯誤/權限錯誤。
+11. **Lint / Policy as Code**：對「catch 後直接回假資料」加入規範檢查或審核清單。
+12. **Design Activation Rules**：未部署階段可保留 fallback，但需受 feature flag 控制。
+13. **Single Responsibility / No Redundancy**：UI 不自行判斷 callable 細節，集中在 adapter。
+14. **Minimum Necessary Design / YAGNI**：先補錯誤可見性與重試，再引入更重流程編排。
+
+---
+
+## GAP-05：授權邊界尚未完整顯式化
+
+### 證據
+
+- `src/modules/notion/adapters/inbound/server-actions/template-actions.ts`
+- 目前僅驗證 `workspaceId/accountId/scope/category` 格式，未見 actor/session 驗證與 permission gate。
+
+### 架構對齊（14 準則）
+
+1. **Proper Domain Segmentation**：授權決策歸屬 iam/platform permission API，不內嵌在 UI。
+2. **Complete Aggregate Design**：受保護操作應由聚合命令方法 + actor context 驅動。
+3. **Proper Hexagonal Architecture**：action 僅做 input parse + 授權檢查 + use case 呼叫。
+4. **Consistency / Transaction Strategy**：授權失敗不可落地任何資料副作用。
+5. **Contract / Schema**：命令輸入要包含 actor reference 與 scope token。
+6. **State Model / FSM**：授權相關流程狀態至少區分 allowed/denied/expired。
+7. **Observability**：記錄 deny reason、resource scope、actorId（可審計）。
+8. **Failure Strategy**：授權異常需有統一錯誤碼與可追蹤回復路徑。
+9. **Authorization / Security**：所有寫操作強制 permission gate。
+10. **Testability / Specification**：建立 permission matrix 測試（角色 × 操作 × scope）。
+11. **Lint / Policy as Code**：對 server action 強制 requireAuth/permission call 的靜態規範。
+12. **Design Activation Rules**：先套用高風險寫操作，再擴至查詢與衍生能力。
+13. **Single Responsibility / No Redundancy**：授權邏輯集中於平台服務，不在各 action 重複實作。
+14. **Minimum Necessary Design / YAGNI**：先實作必要最小權限矩陣，不提前抽象過度 ACL。
+
+---
+
+## Context7 最佳解決方案查核（已執行）
+
+> 這些查核直接用於本文件決策：  
+> - 讓 `GAP-01/03/05` 優先落在「邊界可執行 + 一致性 + 安全」而非先做 UI 擴張。  
+> - 讓 `GAP-02/04` 以「先補可驗證主鏈路，再進階擴展」為原則，避免 placeholder 直接演化成過度設計。
+
+### 1) Repomix（`/yamadashy/repomix`）
+
+- 建議使用非互動模式：`--skill-output` + `--force`，適合 CI 與重現性流程。
+- `--skill-generate` 可與 include/ignore/compress 搭配，適合聚焦掃描範圍。
+- 本次已採 repo script：`npx repomix --config repomix.config.json --skill-generate xuanwu-skill --skill-output .github/skills/xuanwu-skill --force`。
+
+### 2) DDD + Hexagonal（`/sairyss/domain-driven-hexagon`）
+
+- 聚合根必須是外部唯一入口，跨聚合副作用建議透過 domain event 降耦。
+- 模組邊界需維持低耦合，只暴露 public interface，利於後續拆分與演化。
+- 強調 YAGNI：架構只在有真實複雜度時啟用，避免過度設計。
+
+## 決策結論
+
+1. 先補 **GAP-01 / GAP-03 / GAP-05**（直接影響工作流可用性、跨域一致性、授權安全）。
+2. 以 feature slice 逐步清除 **GAP-02 / GAP-04** 的 placeholder 與弱備援。
+3. 每個缺口修補 PR 必須附上：Zod 契約、授權檢查、可觀測性欄位、測試證據。
 ````
 
 ## File: docs/decisions/data/.gitkeep
@@ -4992,6 +6173,23 @@ These three skills **must be loaded at the start of every conversation** before 
 ## File: docs/decisions/platform/.gitkeep
 ````
 
+````
+
+## File: docs/decisions/README.md
+````markdown
+# Decisions Index
+
+## 2026
+
+### 缺口分析系列
+
+- [2026-04-18 缺口分析索引（v2 — 20 準則 × 5 缺口）](./architecture/2026-04-18-gap-analysis-index.md) ← **主要入口**
+  - [GAP-01 schedule/audit/settlement UI empty-state](./architecture/gaps/GAP-01-schedule-audit-settlement-ui-only.md)
+  - [GAP-02 notion templates placeholder](./architecture/gaps/GAP-02-notion-templates-placeholder.md)
+  - [GAP-03 notebooklm task materialization stub](./architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md)
+  - [GAP-04 task-formation extractor weak fallback](./architecture/gaps/GAP-04-task-formation-extractor-weak-fallback.md)
+  - [GAP-05 authorization boundary missing](./architecture/gaps/GAP-05-authorization-boundary-missing.md)
+- [2026-04-18 Workspace / Notion / NotebookLM 功能缺口盤點（v1，歷史版本）](./architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md)
 ````
 
 ## File: docs/examples/ai/.gitkeep
@@ -13432,6 +14630,29 @@ export const updateClientState = <T extends object>(
 export const cloneClientState = <T>(state: T): T =>
 ````
 
+## File: packages/infra/client-state/README.md
+````markdown
+# infra/client-state
+
+Client-side 狀態原語（非業務的 atom / slice 工具）。
+
+## 公開 API
+
+```ts
+import {
+  updateClientState,  // 合併更新（支援 updater 函式）
+  cloneClientState,   // structuredClone 包裝
+  type ClientStateUpdater,
+} from '@infra/client-state'
+```
+
+## 使用規則
+
+- 此套件只提供純函式工具，不持有狀態。
+- 業務狀態管理使用 `@infra/state`（Zustand / XState）。
+- 禁止加入業務邏輯或 domain rule。
+````
+
 ## File: packages/infra/http/AGENTS.md
 ````markdown
 # infra/http — Agent Rules
@@ -13508,6 +14729,48 @@ export const requestJson = async <T>(
 ): Promise<T> =>
 ````
 
+## File: packages/infra/http/README.md
+````markdown
+# infra/http
+
+HTTP 工具（fetch wrapper、retry、timeout）。
+
+## 公開 API
+
+```ts
+import {
+  request,        // fetch with timeout + retry
+  requestJson,    // request + JSON deserialization
+  HttpError,      // status / statusText 附加資訊
+  type HttpRequestOptions,
+} from '@infra/http'
+```
+
+## 範例
+
+```ts
+import { requestJson, HttpError } from '@infra/http'
+
+try {
+  const data = await requestJson<{ id: string }>(
+    'https://api.example.com/items',
+    { method: 'GET' },
+    { timeoutMs: 5000, retryCount: 2, retryDelayMs: 500 },
+  )
+} catch (err) {
+  if (err instanceof HttpError) {
+    console.error(`HTTP ${err.status}: ${err.message}`)
+  }
+}
+```
+
+## 使用規則
+
+- 此套件封裝 fetch；integration 與 outbound adapter 層可使用。
+- `domain/` 與 `application/` 層禁止直接 import。
+- 需要 QStash / Firebase 等具體整合，改用對應 `@integration-*` 套件。
+````
+
 ## File: packages/infra/serialization/AGENTS.md
 ````markdown
 # infra/serialization — Agent Rules
@@ -13567,6 +14830,30 @@ export const encodeBase64 = (value: string): string =>
 export const decodeBase64 = (value: string): string =>
 ````
 
+## File: packages/infra/serialization/README.md
+````markdown
+# infra/serialization
+
+序列化 / 反序列化工具。
+
+## 公開 API
+
+```ts
+import {
+  safeJsonParse,   // string -> { ok, value, error } (不拋出)
+  toJsonString,    // unknown -> string
+  encodeBase64,    // string -> base64 string
+  decodeBase64,    // base64 string -> string
+  type JsonParseResult,
+} from '@infra/serialization'
+```
+
+## 使用規則
+
+- 純工具函式，跨層可用（domain 層除外）。
+- 複雜序列化（SuperJSON 含 Date/Map/Set）在 Server Action 邊界使用 `superjson` 直接操作。
+````
+
 ## File: packages/infra/state/AGENTS.md
 ````markdown
 # infra/state — Agent Rules
@@ -13611,11 +14898,110 @@ import { ... } from '@infra/state'
 /**
  * @module infra/state
  * State management primitives for local stores and machines.
+ *
+ * Zustand 5: `create` (React hook factory), `createStore` (vanilla),
+ *            `StateCreator` type for slice composition.
+ * XState 5:  `createMachine`, `createActor`, `assign`, `setup`.
  */
+⋮----
+// ─── Zustand ─────────────────────────────────────────────────────────────────
+⋮----
+// React-aware hook factory (canonical for module interfaces/stores/)
+⋮----
+// Vanilla factory for non-React contexts
+⋮----
+// Slice composition type
+⋮----
+// ─── XState ──────────────────────────────────────────────────────────────────
+⋮----
+// ─── Utilities ───────────────────────────────────────────────────────────────
 ⋮----
 import type { StoreApi } from "zustand/vanilla";
 ⋮----
+/**
+ * Fully replace a vanilla store's state (replace=true).
+ * Useful for resetting store to a known clean snapshot.
+ */
 export const replaceStoreState = <T>(store: StoreApi<T>, nextState: T): void =>
+````
+
+## File: packages/infra/state/README.md
+````markdown
+# infra/state
+
+本地狀態管理原語。封裝 **Zustand 5** 與 **XState 5**，供 `src/modules/*/interfaces/stores/` 與 `src/modules/*/application/machines/` 使用。
+
+## 套件結構
+
+```
+packages/infra/state/
+  index.ts    ← Zustand create/createStore/StateCreator + XState createMachine/createActor/assign/setup
+  AGENTS.md
+```
+
+## 公開 API
+
+```ts
+import {
+  // Zustand — React hook factory (canonical for interfaces/stores/)
+  create,
+  type StateCreator,
+
+  // Zustand — vanilla factory (non-React contexts)
+  createStore,
+  type StoreApi,
+
+  // XState — machine & actor
+  createMachine,
+  createActor,
+  assign,
+  setup,
+  type ActorRefFrom,
+  type SnapshotFrom,
+
+  // Utility
+  replaceStoreState,
+} from '@infra/state'
+```
+
+## 使用規則
+
+| 場景 | 使用 |
+|---|---|
+| module `interfaces/stores/*.store.ts` | `create` + `StateCreator` |
+| 非 React 環境 / SSR vanilla store | `createStore` + `StoreApi` |
+| `application/machines/*.machine.ts` | `createMachine` + `createActor` + `setup` + `assign` |
+| 有型別的 machine context | `setup({ types })` |
+
+## Slice Pattern（必讀）
+
+```ts
+import { create, type StateCreator } from '@infra/state'
+
+interface PanelState { isOpen: boolean }
+interface PanelActions { open(): void; close(): void }
+type PanelStore = PanelState & PanelActions
+
+const createPanelSlice: StateCreator<PanelStore, [], [], PanelStore> = (set) => ({
+  isOpen: false,
+  open: () => set({ isOpen: true }),
+  close: () => set({ isOpen: false }),
+})
+
+export const usePanelStore = create<PanelStore>()((...a) => ({
+  ...createPanelSlice(...a),
+}))
+```
+
+## Context7 官方基線
+
+| Library | Context7 ID |
+|---|---|
+| Zustand | `/pmndrs/zustand` |
+| XState  | `/statelyai/xstate` |
+
+- Zustand：`create` 是 React hook factory；`createStore` 是 vanilla。
+- XState：`createMachine` 定義邏輯，`createActor` 實例化並執行；`setup` 提供更好的 TypeScript 型別推導。
 ````
 
 ## File: packages/infra/trpc/AGENTS.md
@@ -13663,6 +15049,46 @@ import { trpc, TrpcProvider } from '@infra/trpc'
  * @module infra/trpc
  * Shared tRPC client primitives.
  */
+````
+
+## File: packages/infra/trpc/README.md
+````markdown
+# infra/trpc
+
+tRPC v11 客戶端原語。
+
+## 公開 API
+
+```ts
+import {
+  createTRPCClient,
+  createTRPCProxyClient, // alias（相容舊版）
+  httpBatchLink,
+  httpLink,
+  splitLink,
+  TRPCClientError,
+  createTRPCReact,
+  type AnyRouter,
+} from '@infra/trpc'
+```
+
+## 範例
+
+```ts
+import { createTRPCClient, httpBatchLink } from '@infra/trpc'
+
+const trpc = createTRPCClient<AppRouter>({
+  links: [
+    httpBatchLink({ url: '/api/trpc' }),
+  ],
+})
+```
+
+## Context7 官方基線
+
+- 文件：`/trpc/trpc`
+- 優先使用 v11 `createTRPCClient`；link 組合以 `httpBatchLink` + `splitLink` 為主。
+- `createTRPCProxyClient` 已視為相容 alias，不建議新代碼使用。
 ````
 
 ## File: packages/infra/uuid/AGENTS.md
@@ -13730,6 +15156,35 @@ export const isValidUUID = (value: string): value is UUID
 export const asUUID = (value: string): UUID =>
 ````
 
+## File: packages/infra/uuid/README.md
+````markdown
+# infra/uuid
+
+UUID 生成原語。封裝 **uuid v13**，是 domain 層唯一允許的 ID 生成入口。
+
+## 公開 API
+
+```ts
+import {
+  generateId,   // v4 UUID string
+  isValidUUID,  // boolean
+  asUUID,       // branded type cast
+} from '@infra/uuid'
+```
+
+## 使用規則
+
+| ✅ 正確 | ❌ 錯誤 |
+|---|---|
+| `import { generateId } from '@infra/uuid'` | `import { v4 as uuidv4 } from 'uuid'` |
+| 只在 `domain/` factory 或 `application/` use case 呼叫 | 在 `infrastructure/` 或 `interfaces/` 中生成 ID |
+
+## Context7 官方基線
+
+- 文件：`/uuidjs/uuid`
+- 實作：以 `v4()` 生成 ID；驗證時用 `validate()`（必要時再加 `version() === 4`）。
+````
+
 ## File: packages/infra/zod/AGENTS.md
 ````markdown
 # infra/zod — Agent Rules
@@ -13775,11 +15230,90 @@ import { ... } from '@infra/zod'
  * Shared Zod primitives and utility helpers.
  */
 ⋮----
-import { z, type ZodError } from "zod";
+import { z, type ZodError, type ZodTypeAny, type ZodSchema } from "zod";
 ⋮----
 export const createBrandedUuidSchema = <Brand extends string>(brand: Brand)
 ⋮----
 export const zodErrorToFieldMap = (error: ZodError): Record<string, string[]> =>
+⋮----
+/**
+ * Parse and throw with a meaningful error message, or return typed value.
+ * Use at Server Action / tRPC procedure input boundaries.
+ */
+export const zodParseOrThrow = <T extends ZodTypeAny>(
+  schema: T,
+  data: unknown,
+): z.infer<T> =>
+⋮----
+/**
+ * Safely parse without throwing; returns `{ success, data, error }`.
+ * Mirrors `z.safeParse` but re-exported for consistent import.
+ */
+export const zodSafeParse = <S extends ZodSchema>(
+  schema: S,
+  data: unknown,
+): ReturnType<S["safeParse"]>
+````
+
+## File: packages/infra/zod/README.md
+````markdown
+# infra/zod
+
+Zod 基礎設施原語。封裝 **Zod v4**，提供共用 schema 片段、brand helper、邊界驗證工具。
+
+## 公開 API
+
+```ts
+import {
+  z,
+
+  // 共用 schema 片段
+  UuidSchema,
+  IsoDateTimeSchema,
+
+  // Domain value object helper
+  createBrandedUuidSchema,
+
+  // 邊界驗證工具
+  zodErrorToFieldMap,   // ZodError -> Record<fieldPath, messages[]>
+  zodParseOrThrow,      // 驗證失敗時拋出 Error（附摘要）
+  zodSafeParse,         // 不拋出，回傳 { success, data, error }
+} from '@infra/zod'
+```
+
+## 三層驗證位置（架構規則）
+
+| 層級 | 用途 | API |
+|---|---|---|
+| `interfaces/` Server Action 邊界 | 外部輸入驗證 | `zodParseOrThrow` |
+| `domain/value-objects/` | Brand type 定義 | `createBrandedUuidSchema` / `z.brand()` |
+| `infrastructure/` adapter | 外部系統輸出驗證 | `z.parse()` / `zodSafeParse` |
+
+## 範例
+
+```ts
+// ─── Server Action boundary ───────────────────────────────────────
+import { z, zodParseOrThrow } from '@infra/zod'
+
+const InputSchema = z.object({ name: z.string().min(1) })
+
+export async function createWorkspaceAction(raw: unknown) {
+  const input = zodParseOrThrow(InputSchema, raw)
+  // input is typed InputSchema
+}
+
+// ─── Domain value object ──────────────────────────────────────────
+import { createBrandedUuidSchema } from '@infra/zod'
+
+export const WorkspaceIdSchema = createBrandedUuidSchema('WorkspaceId')
+export type WorkspaceId = typeof WorkspaceIdSchema._type
+```
+
+## Context7 官方基線
+
+- 文件：`/colinhacks/zod`（Zod v4）
+- 邊界驗證採 `parse` / `safeParse`；錯誤統一回傳 `ZodError.issues` 結構。
+- `z.object().passthrough()` 禁止用於生產資料路徑。
 ````
 
 ## File: packages/infra/AGENTS.md
@@ -13882,42 +15416,77 @@ import { ... } from '@integration-ai'
 ```
 ````
 
-## File: packages/integration-ai/index.ts
-````typescript
-/**
- * @module integration-ai
- * External AI integration contracts.
- */
-⋮----
-export interface AiGenerateTextInput {
-  prompt: string;
-  systemPrompt?: string;
-  model?: string;
-  metadata?: Record<string, string>;
-}
-⋮----
-export interface AiGenerateTextResult {
-  text: string;
-  model: string;
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-  };
-}
-⋮----
-export interface AiTextClient {
-  generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
-}
-⋮----
-generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
-⋮----
-export class IntegrationAiConfigurationError extends Error
-⋮----
-constructor(message: string)
-⋮----
-export const createGenkitAiClient = (): AiTextClient => (
-⋮----
-export const createUnconfiguredAiClient = (): AiTextClient => (
+## File: packages/integration-ai/README.md
+````markdown
+# integration-ai
+
+AI 服務整合層：Genkit singleton、flow 執行合約、共用 AI 型別。
+
+## 套件結構
+
+```
+packages/integration-ai/
+  index.ts    ← 合約型別 + createUnconfiguredAiClient
+  genkit.ts   ← Genkit singleton（`ai` 實例）
+  AGENTS.md
+```
+
+## 公開 API
+
+```ts
+// 從 index.ts（瀏覽器安全的型別 + 合約）
+import {
+  type AiGenerateTextInput,
+  type AiGenerateTextResult,
+  type AiTextClient,
+  IntegrationAiConfigurationError,
+  IntegrationAiFlowError,
+  createUnconfiguredAiClient,
+} from '@integration-ai'
+
+// Genkit singleton（Server 端，在 infrastructure/ai/ 中使用）
+// genkit/googleAI 是 Server-only，不包含在 index.ts barrel 內
+import { ai } from '@integration-ai/genkit'
+```
+
+## 使用規則
+
+| 規則 | 說明 |
+|---|---|
+| **只允許在 `infrastructure/ai/` 使用** | Flow 定義放 `infrastructure/ai/*.flow.ts` |
+| **禁止在 `domain/` 或 `application/` import** | 這兩層依賴 port 介面，不依賴 genkit 直接呼叫 |
+| **flow 必須有 inputSchema + outputSchema** | 使用 Zod（`genkitZ`）定義 |
+| **AI 輸出在返回 application 前必須驗證** | `outputSchema.parse(output)` |
+| **環境憑證只來自 env vars** | `GOOGLE_GENAI_API_KEY` / `GOOGLE_API_KEY` |
+
+## Flow 定義範例
+
+```ts
+import { ai } from '@integration-ai/genkit'
+import { genkitZ } from '@integration-ai'
+import { googleAI } from '@genkit-ai/google-genai'
+
+export const synthesisFlow = ai.defineFlow(
+  {
+    name: 'notebooklm.synthesis',
+    inputSchema: genkitZ.object({ query: genkitZ.string() }),
+    outputSchema: genkitZ.object({ answer: genkitZ.string() }),
+  },
+  async ({ query }) => {
+    const { text } = await ai.generate({
+      model: googleAI.model('gemini-2.5-flash'),
+      prompt: query,
+    })
+    return { answer: text }
+  },
+)
+```
+
+## Context7 官方基線
+
+- 文件：`/websites/genkit_dev_js`
+- flow/tool 必須有 schema（輸入/輸出）；避免回傳未驗證的模型結果。
+- Genkit singleton 以 `genkit({ plugins: [googleAI()] })` 初始化一次。
 ````
 
 ## File: packages/integration-firebase/AGENTS.md
@@ -13935,7 +15504,8 @@ export const createUnconfiguredAiClient = (): AiTextClient => (
 | Firebase App 初始化 | `client.ts` — singleton `firebaseClientApp` |
 | Firebase Auth 操作 | `auth.ts` — `getFirebaseAuth`, `onFirebaseAuthStateChanged`, `signOutFirebase` |
 | Firestore 操作原語 | `firestore.ts` — `firestoreApi`, `getFirebaseFirestore` |
-| Firebase Storage 操作 | 新增 `storage.ts`（遵循同樣封裝模式）|
+| Firebase Functions 操作 | `functions.ts` — `getFirebaseFunctions`, `httpsCallable` |
+| Firebase Storage 操作 | `storage.ts` — `getFirebaseStorage`, `ref`, `uploadBytes`, `getDownloadURL` |
 | 新增 Firebase 服務封裝 | 在此套件新增對應 `.ts` 並從 `index.ts` re-export |
 
 ## Route Elsewhere（不放這裡）
@@ -13963,6 +15533,16 @@ import { firestoreApi, getFirebaseFirestore } from '@integration-firebase'
 - 不得 import `src/modules/*` 任何路徑
 - 不得在此套件處理認證 session 狀態（由 iam module 負責）
 - 環境設定只能來自 `NEXT_PUBLIC_FIREBASE_*` env vars
+
+---
+
+## Context7 官方基線
+
+- 文件來源：`/firebase/firebase-js-sdk`
+- 必守準則：
+  - 維持 modular API 用法，避免 namespaced 舊寫法。
+  - App 初始化保持 singleton（`getApps/getApp/initializeApp`）。
+  - `index.ts` 僅 re-export SDK 封裝，不洩漏業務語意。
 
 ---
 
@@ -14072,6 +15652,8 @@ packages/integration-firebase/
   client.ts     ← Firebase App singleton 初始化
   auth.ts       ← Auth 操作（getAuth、onAuthStateChanged、signOut）
   firestore.ts  ← Firestore 操作原語（firestoreApi）
+  functions.ts  ← Functions 操作（getFunctions、httpsCallable）
+  storage.ts    ← Storage 操作（ref、uploadBytes、getDownloadURL）
   index.ts      ← 統一 re-export
   AGENTS.md     ← Agent 使用規則
 ```
@@ -14096,6 +15678,23 @@ import {
   firestoreApi,
   type Firestore,
 } from '@integration-firebase'
+
+// Functions
+import {
+  getFirebaseFunctions,
+  httpsCallable,
+  type Functions,
+} from '@integration-firebase'
+
+// Storage
+import {
+  getFirebaseStorage,
+  ref,
+  uploadBytes,
+  uploadBytesResumable,
+  getDownloadURL,
+  type FirebaseStorage,
+} from '@integration-firebase'
 ```
 
 ## 使用限制
@@ -14109,6 +15708,14 @@ import {
 ## 設定來源
 
 所有 Firebase 設定從 `NEXT_PUBLIC_FIREBASE_*` 環境變數讀取，詳見 `client.ts`。
+
+## Context7 官方基線
+
+- 文件來源：`/firebase/firebase-js-sdk`
+- 實作原則：
+  - 維持 modular import（`firebase/app`, `firebase/auth`, `firebase/firestore`, `firebase/storage`, `firebase/functions`）。
+  - App 初始化維持 singleton（`getApps().length === 0 ? initializeApp(...) : getApp()`）。
+  - 僅封裝 SDK 能力，不在此層加入業務規則。
 ````
 
 ## File: packages/integration-firebase/storage.ts
@@ -14184,8 +15791,106 @@ import { ... } from '@integration-queue'
 ````typescript
 /**
  * @module integration-queue
- * Queue integration contracts and in-memory fallback primitive.
+ * 訊息佇列整合層：QStash HTTP publisher 合約與工具函式。
+ *
+ * Context7 基線：/websites/upstash_qstash
+ * - 支援 retry、delay、callback/failureCallback。
+ * - 發布訊息必須通過 Authorization: Bearer <token>。
+ * - 不依賴 @upstash/qstash npm package（使用 HTTP API）。
  */
+⋮----
+// ─── Config ───────────────────────────────────────────────────────────────────
+⋮----
+export interface QStashConfig {
+  /** QStash REST URL — 預設 https://qstash.upstash.io/v2 */
+  baseUrl?: string;
+  /** Bearer token from QSTASH_TOKEN env var */
+  token: string;
+}
+⋮----
+/** QStash REST URL — 預設 https://qstash.upstash.io/v2 */
+⋮----
+/** Bearer token from QSTASH_TOKEN env var */
+⋮----
+// ─── Request types ────────────────────────────────────────────────────────────
+⋮----
+export interface QueuePublishOptions {
+  /**
+   * The destination URL to deliver the message to.
+   * E.g. `https://yourapp.com/api/worker/embedding`
+   */
+  destination: string;
+
+  /** JSON-serialisable message body */
+  body?: unknown;
+
+  /** Additional HTTP headers forwarded to the destination */
+  headers?: Record<string, string>;
+
+  /** Delay before delivery (seconds or Upstash duration string, e.g. "30s") */
+  delay?: number | string;
+
+  /** Max delivery retries (default: 3) */
+  retries?: number;
+
+  /** URL called on successful delivery */
+  callback?: string;
+
+  /** URL called when all retries are exhausted */
+  failureCallback?: string;
+}
+⋮----
+/**
+   * The destination URL to deliver the message to.
+   * E.g. `https://yourapp.com/api/worker/embedding`
+   */
+⋮----
+/** JSON-serialisable message body */
+⋮----
+/** Additional HTTP headers forwarded to the destination */
+⋮----
+/** Delay before delivery (seconds or Upstash duration string, e.g. "30s") */
+⋮----
+/** Max delivery retries (default: 3) */
+⋮----
+/** URL called on successful delivery */
+⋮----
+/** URL called when all retries are exhausted */
+⋮----
+export interface QueuePublishResult {
+  messageId: string;
+}
+⋮----
+// ─── Client interface ─────────────────────────────────────────────────────────
+⋮----
+export interface QueueClient {
+  publish(options: QueuePublishOptions): Promise<QueuePublishResult>;
+}
+⋮----
+publish(options: QueuePublishOptions): Promise<QueuePublishResult>;
+⋮----
+// ─── HTTP implementation ──────────────────────────────────────────────────────
+⋮----
+/**
+ * Creates a QStash HTTP publisher that sends messages via the QStash REST API.
+ *
+ * @example
+ * ```ts
+ * const queue = createQStashClient({ token: process.env.QSTASH_TOKEN! });
+ * await queue.publish({
+ *   destination: 'https://app.example.com/api/worker/embed',
+ *   body: { documentId: 'doc-123' },
+ *   retries: 3,
+ *   delay: '5s',
+ * });
+ * ```
+ */
+export const createQStashClient = (config: QStashConfig): QueueClient =>
+⋮----
+async publish(options)
+⋮----
+// ─── Legacy QueuePublisher interface ─────────────────────────────────────────
+// Kept for backward compatibility with callers using QueueMessage shape.
 ⋮----
 export interface QueueMessage {
   topic: string;
@@ -14199,11 +15904,98 @@ export interface QueuePublisher {
 ⋮----
 publish(message: QueueMessage): Promise<
 ⋮----
+// ─── Error ────────────────────────────────────────────────────────────────────
+⋮----
+export class IntegrationQueueError extends Error
+⋮----
+constructor(
+    message: string,
+    public readonly statusCode?: number,
+)
+⋮----
+/** @deprecated Use IntegrationQueueError */
 export class QueuePublishError extends Error
 ⋮----
 constructor(message: string)
 ⋮----
+// ─── No-op stub ───────────────────────────────────────────────────────────────
+⋮----
+/** Development / test stub — logs instead of sending real requests. */
+export const createNoOpQueueClient = (): QueueClient => (
+⋮----
+/** @deprecated Use createNoOpQueueClient */
 export const createInMemoryQueuePublisher = (): QueuePublisher => (
+````
+
+## File: packages/integration-queue/README.md
+````markdown
+# integration-queue
+
+訊息佇列整合層：QStash HTTP publisher 合約與工具函式。
+
+## 套件結構
+
+```
+packages/integration-queue/
+  index.ts    ← QueueClient 介面 + createQStashClient + 型別定義
+  AGENTS.md
+```
+
+## 公開 API
+
+```ts
+import {
+  // 主要 API
+  createQStashClient,
+  type QueueClient,
+  type QueuePublishOptions,
+  type QueuePublishResult,
+  type QStashConfig,
+
+  // 錯誤
+  IntegrationQueueError,
+
+  // 開發 / 測試 stub
+  createNoOpQueueClient,
+
+  // Legacy 相容
+  createInMemoryQueuePublisher,
+  type QueuePublisher,
+  type QueueMessage,
+} from '@integration-queue'
+```
+
+## 使用範例
+
+```ts
+import { createQStashClient } from '@integration-queue'
+
+const queue = createQStashClient({
+  token: process.env.QSTASH_TOKEN!,
+})
+
+await queue.publish({
+  destination: 'https://app.example.com/api/worker/embed',
+  body: { documentId: 'doc-123' },
+  retries: 3,
+  delay: '5s',
+  failureCallback: 'https://app.example.com/api/worker/embed-failed',
+})
+```
+
+## 使用規則
+
+| 規則 | 說明 |
+|---|---|
+| **只允許在 outbound adapter 使用** | `src/modules/*/adapters/outbound/` |
+| **token 來自 env var** | `QSTASH_TOKEN`，不得 hardcode |
+| **domain / application 禁止直接 import** | 透過 port interface 注入 |
+
+## Context7 官方基線
+
+- 文件：`/websites/upstash_qstash`
+- 佇列發布需支援 retry、delay、callback/failureCallback。
+- 發布訊息通過 `Authorization: Bearer <token>` HTTP header。
 ````
 
 ## File: packages/ui-components/AGENTS.md
@@ -14276,6 +16068,41 @@ export interface EmptyStateProps {
 export const EmptyState = (
 ````
 
+## File: packages/ui-components/README.md
+````markdown
+# ui-components
+
+業務無關的自訂 UI 元件（wrap、design-system 擴充）。
+
+## 公開 API
+
+```ts
+import {
+  PageSection,
+  type PageSectionProps,
+
+  EmptyState,
+  type EmptyStateProps,
+} from '@ui-components'
+```
+
+## 使用規則
+
+| 規則 | 說明 |
+|---|---|
+| **唯一放置自訂 UI 元件的位置** | 任何 wrap / 設計系統擴充都放此層 |
+| **禁止含業務邏輯** | 業務語意放 `src/modules/*/interfaces/` |
+| **不 import `src/modules/`** | UI 元件不得感知 domain |
+
+## 判斷：放這裡 vs ui-shadcn
+
+| 情況 | 放哪裡 |
+|---|---|
+| shadcn 官方組件（Button, Card, Input…） | `@ui-shadcn`（CLI 管理，不手改） |
+| 對官方組件的 wrap / 業務語意層 | `@ui-components` |
+| 跨 module 共用但無業務語意的 layout 元件 | `@ui-components` |
+````
+
 ## File: packages/ui-editor/AGENTS.md
 ````markdown
 # ui-editor — Agent Rules
@@ -14326,26 +16153,149 @@ import { RichTextEditor } from '@ui-editor'
 ````typescript
 /**
  * @module ui-editor
- * Lightweight editor wrappers for package-level composition.
+ * TipTap 3 富文本編輯器封裝。
+ *
+ * Context7 基線：/ueberdosis/tiptap-docs
+ * - 使用 useEditor + EditorContent（React 整合方式）。
+ * - `immediatelyRender: false` 避免 Next.js SSR hydration mismatch。
+ * - 啟用 StarterKit + Link + Underline + TextStyle + Color + Typography + Placeholder。
  */
 ⋮----
-import { createElement, type ChangeEventHandler, type TextareaHTMLAttributes } from "react";
+import { createElement, useEffect } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import Underline from "@tiptap/extension-underline";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
+import Typography from "@tiptap/extension-typography";
+import Placeholder from "@tiptap/extension-placeholder";
 ⋮----
-export interface RichTextEditorProps
-  extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange"> {
+// ─── RichTextEditor ───────────────────────────────────────────────────────────
+⋮----
+export interface RichTextEditorProps {
+  /** HTML string content */
   value: string;
-  onChange: (value: string) => void;
+  onChange: (html: string) => void;
+  placeholder?: string;
+  className?: string;
+  /** Disable editor (read-only mode via prop) */
+  disabled?: boolean;
 }
 ⋮----
-export const RichTextEditor = (
+/** HTML string content */
 ⋮----
-const handleChange: ChangeEventHandler<HTMLTextAreaElement> = (event) =>
+/** Disable editor (read-only mode via prop) */
+⋮----
+/**
+ * Editable TipTap rich-text editor with common formatting extensions.
+ *
+ * @example
+ * ```tsx
+ * <RichTextEditor
+ *   value={html}
+ *   onChange={setHtml}
+ *   placeholder="Start writing…"
+ * />
+ * ```
+ */
+export const RichTextEditor = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+  disabled = false,
+}: RichTextEditorProps) =>
+⋮----
+// Sync external content changes (e.g., form reset)
+⋮----
+// Sync editable state
+⋮----
+// ─── ReadOnlyEditor ───────────────────────────────────────────────────────────
 ⋮----
 export interface ReadOnlyEditorProps {
+  /** HTML string content */
   value: string;
+  className?: string;
 }
 ⋮----
+/** HTML string content */
+⋮----
+/**
+ * Read-only TipTap viewer. Uses an editable:false editor instance so that
+ * the same HTML output is rendered with ProseMirror schema rather than
+ * raw dangerouslySetInnerHTML.
+ */
 export const ReadOnlyEditor = (
+````
+
+## File: packages/ui-editor/README.md
+````markdown
+# ui-editor
+
+TipTap 3 富文本編輯器封裝。提供 `RichTextEditor`（可編輯）與 `ReadOnlyEditor`（唯讀）兩個 React 元件。
+
+## 套件結構
+
+```
+packages/ui-editor/
+  index.ts    ← RichTextEditor + ReadOnlyEditor
+  AGENTS.md
+```
+
+## 公開 API
+
+```ts
+import {
+  RichTextEditor,
+  type RichTextEditorProps,
+
+  ReadOnlyEditor,
+  type ReadOnlyEditorProps,
+} from '@ui-editor'
+```
+
+## 使用範例
+
+```tsx
+'use client'
+
+import { RichTextEditor, ReadOnlyEditor } from '@ui-editor'
+
+// 可編輯
+<RichTextEditor
+  value={html}
+  onChange={setHtml}
+  placeholder="Start writing…"
+/>
+
+// 唯讀
+<ReadOnlyEditor value={html} />
+```
+
+## 啟用的 TipTap 擴充
+
+| 擴充 | 功能 |
+|---|---|
+| `@tiptap/starter-kit` | 段落、標題、列表、粗體、斜體、刪除線、程式碼等 |
+| `@tiptap/extension-link` | 超連結（`openOnClick: false`） |
+| `@tiptap/extension-underline` | 底線 |
+| `@tiptap/extension-text-style` | 文字樣式容器 |
+| `@tiptap/extension-color` | 文字色彩 |
+| `@tiptap/extension-typography` | 智慧引號、Em dash 等排版轉換 |
+| `@tiptap/extension-placeholder` | 佔位提示（僅 RichTextEditor） |
+
+## 注意事項
+
+- `immediatelyRender: false` — 避免 Next.js SSR hydration mismatch。
+- 父元件需要 `'use client'` directive（RichTextEditor 使用 React hooks）。
+- HTML 資料格式：TipTap 以 HTML string 輸入/輸出。
+
+## Context7 官方基線
+
+- 文件：`/ueberdosis/tiptap-docs`
+- `useEditor` + `EditorContent` 是 React 整合方式。
+- Next.js 下必須設定 `immediatelyRender: false`。
 ````
 
 ## File: packages/ui-markdown/AGENTS.md
@@ -14402,6 +16352,30 @@ export interface MarkdownRendererProps
   extends Omit<ComponentPropsWithoutRef<"div">, "children"> {
   markdown: string;
 }
+````
+
+## File: packages/ui-markdown/README.md
+````markdown
+# ui-markdown
+
+Markdown 渲染元件（react-markdown + remark-gfm）。
+
+## 公開 API
+
+```tsx
+import { MarkdownRenderer, type MarkdownRendererProps } from '@ui-markdown'
+
+<MarkdownRenderer markdown={text} className="my-prose-class" />
+```
+
+## 使用規則
+
+- 預設維持安全渲染（不開 raw HTML）。
+- GFM（表格、任務列表、刪除線）透過 `remark-gfm` 啟用。
+
+## Context7 官方基線
+
+- 文件：`/remarkjs/react-markdown`、`/remarkjs/remark-gfm`
 ````
 
 ## File: packages/ui-shadcn/hooks/use-mobile.ts
@@ -15642,14 +17616,35 @@ import { LineChart, StatCard } from '@ui-visualization'
 ```
 ````
 
-## File: packages/ui-visualization/index.ts
+## File: packages/ui-visualization/index.tsx
 ````typescript
 /**
  * @module ui-visualization
- * Presentation-only visualization primitives.
+ * 數據視覺化元件（Recharts 2 封裝）。
+ *
+ * Context7 基線：/recharts/recharts
+ * - 使用 ResponsiveContainer 確保響應式佈局。
+ * - 避免固定 width/height，改用 percentage + parent div 高度。
  */
 ⋮----
-import { createElement, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
+⋮----
+// ─── StatCard (preserved from original) ──────────────────────────────────────
 ⋮----
 export interface StatCardProps {
   label: string;
@@ -15658,7 +17653,163 @@ export interface StatCardProps {
   icon?: ReactNode;
 }
 ⋮----
-export const StatCard = (
+export const StatCard = ({ label, value, caption, icon }: StatCardProps) => (
+  <article className="rounded-md border p-4">
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      {icon}
+    </div>
+    <p className="mt-2 text-2xl font-semibold">{String(value)}</p>
+    {caption && <p className="mt-1 text-xs text-muted-foreground">{caption}</p>}
+  </article>
+);
+⋮----
+// ─── Shared types ─────────────────────────────────────────────────────────────
+⋮----
+export interface DataPoint {
+  name: string;
+  [key: string]: string | number;
+}
+⋮----
+export interface SeriesConfig {
+  dataKey: string;
+  color?: string;
+  label?: string;
+}
+⋮----
+// ─── XuanwuLineChart ──────────────────────────────────────────────────────────
+⋮----
+export interface XuanwuLineChartProps {
+  data: DataPoint[];
+  series: SeriesConfig[];
+  height?: number;
+  showGrid?: boolean;
+  showLegend?: boolean;
+  className?: string;
+}
+⋮----
+/**
+ * Responsive line chart.
+ *
+ * @example
+ * ```tsx
+ * <XuanwuLineChart
+ *   data={[{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }]}
+ *   series={[{ dataKey: 'value', label: 'Revenue', color: '#8884d8' }]}
+ * />
+ * ```
+ */
+⋮----
+// ─── XuanwuBarChart ───────────────────────────────────────────────────────────
+⋮----
+/**
+ * Responsive bar chart with optional stacking.
+ */
+⋮----
+// ─── XuanwuPieChart ───────────────────────────────────────────────────────────
+⋮----
+/**
+ * Responsive pie / donut chart.
+ *
+ * @example
+ * ```tsx
+ * <XuanwuPieChart
+ *   data={[{ name: 'Done', value: 80 }, { name: 'Todo', value: 20 }]}
+ *   innerRadius={60}
+ * />
+ * ```
+ */
+````
+
+## File: packages/ui-visualization/README.md
+````markdown
+# ui-visualization
+
+數據視覺化元件（Recharts 2 封裝）。
+
+## 套件結構
+
+```
+packages/ui-visualization/
+  index.ts    ← StatCard + XuanwuLineChart + XuanwuBarChart + XuanwuPieChart
+  AGENTS.md
+```
+
+## 公開 API
+
+```ts
+import {
+  // 統計卡片
+  StatCard,
+  type StatCardProps,
+
+  // 折線圖
+  XuanwuLineChart,
+  type XuanwuLineChartProps,
+
+  // 長條圖
+  XuanwuBarChart,
+  type XuanwuBarChartProps,
+
+  // 圓餅圖 / 環形圖
+  XuanwuPieChart,
+  type XuanwuPieChartProps,
+
+  // 共用資料型別
+  type DataPoint,
+  type SeriesConfig,
+  type PieDataPoint,
+} from '@ui-visualization'
+```
+
+## 使用範例
+
+```tsx
+'use client'
+
+import { XuanwuLineChart, XuanwuBarChart, XuanwuPieChart } from '@ui-visualization'
+
+// 折線圖
+<XuanwuLineChart
+  data={[
+    { name: 'Jan', value: 400 },
+    { name: 'Feb', value: 300 },
+  ]}
+  series={[{ dataKey: 'value', label: '收入', color: '#8884d8' }]}
+  height={300}
+/>
+
+// 長條圖（堆疊）
+<XuanwuBarChart
+  data={data}
+  series={[
+    { dataKey: 'done', label: '完成' },
+    { dataKey: 'todo', label: '待辦' },
+  ]}
+  stacked
+/>
+
+// 環形圖
+<XuanwuPieChart
+  data={[{ name: '完成', value: 80 }, { name: '待辦', value: 20 }]}
+  innerRadius={60}
+/>
+```
+
+## 使用規則
+
+- 使用 `ResponsiveContainer` — 不固定 width/height，透過父 div 高度控制。
+- 禁止含業務邏輯，只做資料呈現。
+- 需要 `'use client'` directive（Recharts 使用 ResizeObserver）。
+
+## 顏色系統
+
+預設使用 CSS variable `--chart-1` ... `--chart-5`（Shadcn 主題變數）。可透過 `series[i].color` 覆寫。
+
+## Context7 官方基線
+
+- 文件：`/recharts/recharts`
+- `ResponsiveContainer` + percentage 寬高為標準響應式模式。
 ````
 
 ## File: packages/AGENTS.md
@@ -15737,6 +17888,12 @@ import { getFirestore } from 'firebase/firestore'
 - 所有子套件需維持各自 `index.ts` 作為公開入口
 - `packages/index.ts` 必須具名匯出所有套件（`infra-*`、`integration-*`、`ui-*`）
 - 新增套件時，需同步更新本檔、`packages/README.md`、`packages/index.ts`
+
+## Context7 文件對齊規則
+
+- 涉及下列套件時，先以 Context7 查核官方文件再實作：`infra/state`、`infra/trpc`、`infra/uuid`、`infra/zod`、`integration-ai`、`integration-firebase`、`integration-queue`、`ui-markdown`、`ui-shadcn`。
+- 基線文件清單與實作準則以 `packages/README.md` 的「Context7 官方文件基線（repomix:packages）」為準。
+- 若升級相依版本造成 API 差異，需先更新基線文件再改程式碼。
 
 ---
 
@@ -15902,6 +18059,28 @@ import { generateId } from '@infra/uuid'
 | 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
 | 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
 | 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
+
+---
+
+## Context7 官方文件基線（repomix:packages）
+
+以下為 packages 層「各包」在實作與維護時需對齊的官方文件基線（已透過 Context7 查核）。
+
+| 套件 | Context7 文件 | 實作基線 |
+|---|---|---|
+| `infra/state` | `/pmndrs/zustand`、`/statelyai/xstate` | Zustand：`create`（React hook factory，canonical）+ `createStore`（vanilla）+ `StateCreator`（slice 組合）；XState：`createMachine` + `createActor` + `setup`（型別推導），不在 machine 放 I/O 業務規則。 |
+| `infra/trpc` | `/trpc/trpc` | 優先使用 v11 `createTRPCClient`；link 組合以 `httpBatchLink` + `splitLink` 為主。`createTRPCProxyClient` 為相容 alias。 |
+| `infra/uuid` | `/uuidjs/uuid` | 以 `v4` 產生 ID，驗證時使用 `validate()`（必要時加 `version()===4`）。 |
+| `infra/zod` | `/colinhacks/zod` | boundary 驗證採 `zodParseOrThrow`（拋出型）或 `zodSafeParse`（不拋出型）；錯誤統一回傳 `ZodError.issues` 結構；`createBrandedUuidSchema` 用於 domain value object。 |
+| `integration-ai` | `/websites/genkit_dev_js` | flow/tool 必須有 Zod schema（inputSchema + outputSchema）；Genkit singleton 在 `genkit.ts` 初始化；避免回傳未驗證的模型結果；只在 `infrastructure/ai/` 使用。 |
+| `integration-firebase` | `/firebase/firebase-js-sdk` | 採 modular API；App 初始化維持 singleton（`getApps/getApp/initializeApp`）。 |
+| `integration-queue` | `/websites/upstash_qstash` | `createQStashClient` 以 HTTP API 發布（無 npm 依賴）；佇列發布需支援 retry、delay、callback/failureCallback；token 來自 env var。 |
+| `ui-markdown` | `/remarkjs/react-markdown`、`/remarkjs/remark-gfm` | 預設維持安全渲染（不開 raw HTML）；GFM 功能透過 `remark-gfm` 啟用。 |
+| `ui-editor` | `/ueberdosis/tiptap-docs` | TipTap 3 `useEditor` + `EditorContent`；`immediatelyRender: false` 避免 Next.js SSR hydration mismatch；HTML string 為 I/O 格式。 |
+| `ui-shadcn` | `/shadcn-ui/ui` | 元件來源透過 `npx shadcn@latest add`；官方檔案不手改，以 wrapper 擴充。 |
+| `ui-visualization` | `/recharts/recharts` | `ResponsiveContainer` + percentage 寬高為標準響應式模式；`XuanwuLineChart`、`XuanwuBarChart`、`XuanwuPieChart` 為封裝入口。 |
+
+> `infra/client-state`、`infra/http`、`infra/serialization`、`ui-components` 目前未綁定單一第三方 SDK 官方文件，維持本專案既有封裝規則即可。
 ````
 
 ## File: py_fn/.serena/.gitkeep
@@ -18135,46 +20314,29 @@ export default function ShellLayout({
 
 ## File: src/app/AGENTS.md
 ````markdown
-# App — Agent Guide
+# src/app — Agent Guide
 
-## Purpose
+路由組合層。只做 page / layout 組裝，不承載業務邏輯。
 
-`src/app/` 是 **Next.js 16 App Router** 的路由入口層，負責 layout 組合與 page slot 分發。不承載任何業務邏輯。
+## Route Here
 
-## Boundary Rules
+- 新增 page、layout 或 route group。
+- account-scoped 頁面或 parallel / intercepting routes。
 
-- `app/` 只組合路由、layout 與 UI 入口，不寫業務規則、不呼叫 repository、不直接存取 Firebase SDK。
-- 業務行為透過 Server Action 或模組 `index.ts` 公開邊界取得。
-- 不在 layout / page 中引用另一個模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部路徑。
-- Route 組件只接受 scope props（`accountId`、`workspaceId`），不直接消費跨模組的 context provider。
+## Route Elsewhere
 
-## Route Group 設計
-
-| 群組 | 用途 |
+| 需求 | 目標 |
 |---|---|
-| `(public)` | 登入前公開頁（landing、auth） |
-| `(shell)` | 登入後帶 shell chrome 的應用頁面 |
-| `(shell)/(account)/[accountId]` | account-scoped 頁面，`accountId` 為 shell route identifier |
-| `[[...slug]]` | catch-all，在 account scope 下承接所有子路徑 |
+| 業務邏輯 | `src/modules/<context>/application/use-cases/` |
+| Server Action | `modules/<context>/interfaces/_actions/` |
+| 共享 UI 元件 | `packages/ui-shadcn/` |
+| 業務無關 hook | `packages/ui-components/` |
 
-## Route Here When
+## Hard Rules
 
-- 需要新增 page、layout 或 route group。
-- 需要在 shell 內新增一個 account-scoped 功能頁面。
-- 需要組合 parallel routes 或 intercepting routes。
-
-## Route Elsewhere When
-
-- 業務邏輯 → `src/modules/<context>/application/use-cases/`。
-- Server Action → `modules/<context>/interfaces/_actions/`。
-- 共享 UI 元件 → `packages/ui-shadcn/`。
-- 共享 hook → `packages/ui-components/`（業務無關）或模組本地 `adapters/inbound/react/hooks/`。
-
-## Delivery Style
-
-- 保持 layout 和 page 輕薄（thin）：只做 slot 組合與 scope prop 傳遞。
-- 新增 route segment 前先確認 `accountId` / `workspaceId` scope 是否已在父 layout 中取得。
-- 奧卡姆剃刀：能用既有 route group 的就不要新開 group。
+- 不呼叫 repository、Firebase SDK，不引用模組內部路徑。
+- Route props 只傳 `accountId`、`workspaceId`，不傳 aggregate 物件。
+- 能用既有 route group 就不要新開 group。
 ````
 
 ## File: src/app/globals.css
@@ -18244,66 +20406,146 @@ export default function RootLayout({
 
 ## File: src/app/README.md
 ````markdown
-# App — Next.js App Router Entry
+# src/app — Next.js App Router 路由入口
 
-> **⚠ 衝突防護聲明**：本層（`src/app/<context>/`）與 `app/<context>/`（完整 Hexagonal DDD 實作層）是**兩個獨立的實作層，不可互換、不可混用**。
+`src/app/` 是 Next.js 16 App Router 的路由組合層，只做 layout 組裝與 page slot 分發，不承載業務邏輯。
 
-`src/app/` 是 Next.js 16 App Router 的 UI 進入層。負責路由組合與 layout 組裝，不承載任何業務邏輯。
+## 路由群組
 
-## 目錄結構
-
-```
-src/app/
-  layout.tsx               ← Root Layout（html / body / metadata）
-  (public)/
-    page.tsx               ← 公開頁面（登入前可見）
-  (shell)/
-    layout.tsx             ← Shell Group Layout（通用 chrome wrapper）
-    (account)/
-      [accountId]/
-        [[...slug]]/
-          page.tsx         ← account-scoped catch-all route
-```
-
-## 路由群組說明
-
-| 路由群組 | 用途 |
+| 群組 | 用途 |
 |---|---|
-| `(public)` | 登入前可存取的公開頁面（marketing、landing、auth） |
-| `(shell)` | 登入後有 shell chrome（導覽列、側邊欄）的頁面 |
-| `(account)/[accountId]` | 以 `accountId` 為 scope 的帳號相關頁面 |
-| `[[...slug]]` | catch-all：在 account scope 下承接所有子路徑 |
+| `(public)` | 登入前公開頁面 |
+| `(shell)` | 登入後帶 shell chrome 的應用頁面 |
+| `(shell)/(account)/[accountId]` | account-scoped 頁面 |
+| `[[...slug]]` | account scope 下的 catch-all |
 
-## Layout 層級
+## 規則
 
-```
-RootLayout (layout.tsx)           ← html / body / global metadata
-└── ShellLayout ((shell)/layout.tsx)  ← shell chrome wrapper
-    └── page.tsx                      ← route segment 的實際頁面
-```
+- 只組合路由與 layout，不寫業務規則。
+- 業務行為來自 `src/modules/<context>/index.ts`。
+- Server Action 來自 `modules/<context>/interfaces/_actions/`。
+- Route props 只傳 `accountId`、`workspaceId` 等 scope identifier。
+````
 
-## 設計原則
-
-- `app/` 只做路由組合（Route Composition）與 Layout 組裝，不寫業務規則。
-- 業務邏輯統一來自 `src/modules/<context>/`（模組 `index.ts` 公開入口）。
-- Server Action 呼叫来自 `modules/<context>/interfaces/_actions/`。
-- 不在 page / layout 內直接呼叫 Firestore、Firebase Auth SDK 或 domain repository。
-- 路由 props 只傳 scope identifier（`accountId`、`workspaceId`），不傳 upstream aggregate 物件。
-
-## 命名規則
-
-| 元素 | 規則 |
-|---|---|
-| Route Group | `(kebab-case)` |
-| Dynamic Segment | `[camelCase]` |
-| Catch-all | `[[...slug]]` |
-| Layout | `layout.tsx` |
-| Page | `page.tsx` |
+## File: src/modules/ai/orchestration/AiFacade.ts
+````typescript
+import { GenkitPromptRegistry } from "../prompts/registry/GenkitPromptRegistry";
+import type { PromptRegistryPort } from "../prompts/registry/PromptRegistry";
+import { PROMPT_KEYS } from "../prompts/versions";
+⋮----
+interface GenerationPromptOutput {
+  readonly text: string;
+}
+⋮----
+interface QueryExpansionPromptOutput {
+  readonly queries: readonly string[];
+}
+⋮----
+/**
+ * AiFacade is the orchestration entry for cross-subdomain AI prompt execution.
+ * It keeps callers decoupled from prompt definitions by delegating all prompt
+ * resolution and execution to the PromptRegistry boundary.
+ */
+export class AiFacade
+⋮----
+constructor(private readonly promptRegistry: PromptRegistryPort = new GenkitPromptRegistry())
+⋮----
+async generateText(input:
+⋮----
+async expandQuery(query: string): Promise<readonly string[]>
 ````
 
 ## File: src/modules/ai/orchestration/index.ts
 ````typescript
 
+````
+
+## File: src/modules/ai/prompts/registry/GenkitPromptRegistry.ts
+````typescript
+import { ai } from "@/packages/integration-ai/genkit";
+import { z } from "genkit";
+⋮----
+import { PROMPT_KEYS } from "../versions";
+import type { PromptRegistryPort } from "./PromptRegistry";
+import { loadPromptDefinitions } from "./prompt-loader";
+import type { PromptKey, PromptRunner } from "./prompt-types";
+⋮----
+export class GenkitPromptRegistry implements PromptRegistryPort
+⋮----
+constructor(knownKeys: readonly PromptKey[] = Object.values(PROMPT_KEYS))
+⋮----
+get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>
+⋮----
+const runner: PromptRunner<TOutput> = async (input) =>
+⋮----
+list(): readonly PromptKey[]
+⋮----
+resolve(key: string): PromptKey | null
+````
+
+## File: src/modules/ai/prompts/registry/InMemoryPromptRegistry.ts
+````typescript
+import type { PromptRegistryPort } from "./PromptRegistry";
+import type { PromptKey, PromptRunner } from "./prompt-types";
+⋮----
+export interface PromptRegistryEntry<TOutput = unknown> {
+  readonly key: PromptKey;
+  readonly runner: PromptRunner<TOutput>;
+}
+⋮----
+export class InMemoryPromptRegistry implements PromptRegistryPort
+⋮----
+constructor(entries: readonly PromptRegistryEntry[] = [])
+⋮----
+register<TOutput = unknown>(entry: PromptRegistryEntry<TOutput>): void
+⋮----
+get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>
+⋮----
+list(): readonly PromptKey[]
+⋮----
+resolve(key: string): PromptKey | null
+````
+
+## File: src/modules/ai/prompts/registry/prompt-loader.ts
+````typescript
+import { registerGenerationPrompts } from "../../subdomains/generation/prompts/generate-text.prompt";
+import { registerRetrievalPrompts } from "../../subdomains/retrieval/prompts/query-expansion.prompt";
+⋮----
+export const loadPromptDefinitions = (): void =>
+````
+
+## File: src/modules/ai/prompts/registry/prompt-types.ts
+````typescript
+export type PromptKey = `${string}.${string}`;
+⋮----
+export type PromptRegistryInput = Readonly<Record<string, unknown>>;
+⋮----
+export interface PromptRegistryResult<TOutput = unknown> {
+  readonly output: TOutput;
+  readonly text?: string;
+}
+⋮----
+export type PromptRunner<TOutput = unknown> = (input: PromptRegistryInput) => Promise<PromptRegistryResult<TOutput>>;
+````
+
+## File: src/modules/ai/prompts/registry/PromptRegistry.ts
+````typescript
+import type { PromptKey, PromptRunner } from "./prompt-types";
+⋮----
+export interface PromptRegistryPort {
+  get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>;
+  list(): readonly PromptKey[];
+  resolve(key: string): PromptKey | null;
+}
+⋮----
+get<TOutput = unknown>(key: PromptKey): PromptRunner<TOutput>;
+list(): readonly PromptKey[];
+resolve(key: string): PromptKey | null;
+````
+
+## File: src/modules/ai/prompts/versions.ts
+````typescript
+import type { PromptKey } from "./registry/prompt-types";
 ````
 
 ## File: src/modules/ai/shared/errors/index.ts
@@ -19063,6 +21305,16 @@ extractTasks(input: TaskExtractionInput): Promise<TaskExtractionOutput>;
 
 ````
 
+## File: src/modules/ai/subdomains/generation/prompts/generate-text.prompt.ts
+````typescript
+import { ai } from "@/packages/integration-ai/genkit";
+import { z } from "genkit";
+⋮----
+import { PROMPT_KEYS } from "../../../prompts/versions";
+⋮----
+export const registerGenerationPrompts = (): void =>
+````
+
 ## File: src/modules/ai/subdomains/memory/adapters/inbound/index.ts
 ````typescript
 // memory — adapters/inbound placeholder
@@ -19190,7 +21442,67 @@ export interface PromptRenderPort {
 render(template: PromptTemplate, variables: Record<string, string>): RenderedPrompt;
 ````
 
+## File: src/modules/ai/subdomains/pipeline/domain/ports/AiOrchestrationPort.ts
+````typescript
+export interface AiOrchestrationInput {
+  readonly promptKey: string;
+  readonly variables: Readonly<Record<string, unknown>>;
+}
+⋮----
+export interface AiOrchestrationResult<TOutput = unknown> {
+  readonly output: TOutput;
+  readonly text?: string;
+}
+⋮----
+export interface AiOrchestrationPort {
+  runPrompt<TOutput = unknown>(input: AiOrchestrationInput): Promise<AiOrchestrationResult<TOutput>>;
+}
+⋮----
+runPrompt<TOutput = unknown>(input: AiOrchestrationInput): Promise<AiOrchestrationResult<TOutput>>;
+````
+
 ## File: src/modules/ai/subdomains/pipeline/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/pipeline/infrastructure/prompts/synthesis.prompt
+````
+---
+model: googleai/gemini-2.5-flash
+input:
+  schema:
+    type: object
+    properties:
+      prompt:
+        type: string
+    required: [prompt]
+output:
+  format: json
+  schema:
+    type: object
+    properties:
+      text:
+        type: string
+    required: [text]
+---
+{{prompt}}
+````
+
+## File: src/modules/ai/subdomains/pipeline/infrastructure/GenkitAiOrchestrationAdapter.ts
+````typescript
+import { GenkitPromptRegistry } from "../../../prompts/registry/GenkitPromptRegistry";
+import type { PromptRegistryPort } from "../../../prompts/registry/PromptRegistry";
+import type { AiOrchestrationInput, AiOrchestrationPort, AiOrchestrationResult } from "../domain/ports/AiOrchestrationPort";
+⋮----
+export class GenkitAiOrchestrationAdapter implements AiOrchestrationPort
+⋮----
+constructor(private readonly promptRegistry: PromptRegistryPort = new GenkitPromptRegistry())
+⋮----
+async runPrompt<TOutput = unknown>(input: AiOrchestrationInput): Promise<AiOrchestrationResult<TOutput>>
+````
+
+## File: src/modules/ai/subdomains/pipeline/infrastructure/index.ts
 ````typescript
 
 ````
@@ -19276,6 +21588,16 @@ semanticSearch(input: SemanticSearchInput): Promise<VectorSearchResult[]>;
 ````typescript
 // retrieval — domain layer placeholder
 // TODO: export entities, value-objects, repositories, events, services
+````
+
+## File: src/modules/ai/subdomains/retrieval/prompts/query-expansion.prompt.ts
+````typescript
+import { ai } from "@/packages/integration-ai/genkit";
+import { z } from "genkit";
+⋮----
+import { PROMPT_KEYS } from "../../../prompts/versions";
+⋮----
+export const registerRetrievalPrompts = (): void =>
 ````
 
 ## File: src/modules/ai/subdomains/tool-calling/adapters/inbound/index.ts
@@ -21814,6 +24136,17 @@ async materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksRe
 ⋮----
 // TODO: replace with real workspace Server Action call when workspace
 // task materialization domain is implemented.
+````
+
+## File: src/modules/notebooklm/infrastructure/ai/synthesis.flow.ts
+````typescript
+import { ai } from "@/packages/integration-ai/genkit";
+import { z } from "genkit";
+⋮----
+export type NotebooklmSynthesisInput = z.infer<typeof NotebooklmSynthesisInputSchema>;
+export type NotebooklmSynthesisOutput = z.infer<typeof NotebooklmSynthesisOutputSchema>;
+⋮----
+const buildSynthesisPrompt = (input: NotebooklmSynthesisInput): string
 ````
 
 ## File: src/modules/notebooklm/orchestration/index.ts
@@ -36777,7 +39110,7 @@ import tailwindcssAnimate from 'tailwindcss-animate';
       "@ui-components": ["./packages/ui-components/index.ts"],
       "@ui-editor": ["./packages/ui-editor/index.ts"],
       "@ui-markdown": ["./packages/ui-markdown/index.tsx"],
-      "@ui-visualization": ["./packages/ui-visualization/index.ts"]
+      "@ui-visualization": ["./packages/ui-visualization/index.tsx"]
     }
   },
   "include": [
@@ -36793,4 +39126,110 @@ import tailwindcssAnimate from 'tailwindcss-animate';
     "functions"
   ]
 }
+````
+
+## File: packages/integration-ai/genkit.ts
+````typescript
+/**
+ * Genkit singleton.
+ *
+ * Initialises one shared `genkit` instance with the Google AI plugin.
+ * Import this only in infrastructure AI adapter files — never in
+ * domain or application layers.
+ *
+ * Required env var: GOOGLE_GENAI_API_KEY (or GOOGLE_API_KEY)
+ */
+⋮----
+import { genkit, z } from "genkit";
+import { googleAI } from "@genkit-ai/google-genai";
+import { DEFAULT_AI_MODEL } from "./index";
+⋮----
+/** Re-export z for infrastructure adapters — avoids separate zod import. */
+⋮----
+/**
+ * Shared Genkit AI instance.
+ *
+ * @example
+ * ```ts
+ * import { ai } from '@integration-ai/genkit';
+ *
+ * export const myFlow = ai.defineFlow(
+ *   {
+ *     name: 'notebooklm.synthesis',
+ *     inputSchema: z.object({ query: z.string() }),
+ *     outputSchema: z.object({ answer: z.string() }),
+ *   },
+ *   async ({ query }) => {
+ *     const { text } = await ai.generate({
+ *       model: googleAI.model('gemini-2.5-flash'),
+ *       prompt: query,
+ *     });
+ *     return { answer: text };
+ *   },
+ * );
+ * ```
+ */
+⋮----
+/** Default model — use googleAI.model() helper (Context7-preferred over string ID). */
+````
+
+## File: packages/integration-ai/index.ts
+````typescript
+/**
+ * @module integration-ai
+ * AI 服務整合層：Genkit singleton factory、flow 執行合約、共用 AI 型別。
+ *
+ * Context7 基線：/genkit-ai/genkit
+ * - flow/tool 必須有 inputSchema 與 outputSchema（Zod）。
+ * - 結果在返回 application layer 前必須驗證（outputSchema.parse）。
+ * - 環境憑證只來自 env vars（GOOGLE_GENAI_API_KEY / GOOGLE_API_KEY）。
+ * - 使用 googleAI.model() helper 優先於字串 ID（Context7 推薦）。
+ */
+⋮----
+// ─── Model constants ──────────────────────────────────────────────────────────
+⋮----
+/** 系統預設 AI 模型。單一來源，genkit.ts 與 infrastructure adapters 共用此常數。 */
+⋮----
+// ─── Shared contract types ────────────────────────────────────────────────────
+⋮----
+export interface AiGenerateTextInput {
+  prompt: string;
+  systemPrompt?: string;
+  model?: string;
+  metadata?: Record<string, string>;
+}
+⋮----
+export interface AiGenerateTextResult {
+  text: string;
+  model: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+  };
+}
+⋮----
+export interface AiTextClient {
+  generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
+}
+⋮----
+generateText(input: AiGenerateTextInput): Promise<AiGenerateTextResult>;
+⋮----
+// ─── Error types ─────────────────────────────────────────────────────────────
+⋮----
+export class IntegrationAiConfigurationError extends Error
+⋮----
+constructor(message: string)
+⋮----
+export class IntegrationAiFlowError extends Error
+⋮----
+constructor(
+    message: string,
+    public readonly flowName: string,
+    public readonly cause?: unknown,
+)
+⋮----
+// ─── Unconfigured fallback ────────────────────────────────────────────────────
+⋮----
+/** Development / test stub that throws on use when no provider is configured. */
+export const createUnconfiguredAiClient = (): AiTextClient => (
 ````
