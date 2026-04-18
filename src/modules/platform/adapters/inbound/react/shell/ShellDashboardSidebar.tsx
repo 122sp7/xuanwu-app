@@ -163,7 +163,6 @@ export function ShellDashboardSidebar({
             setIsExpanded((prev) => !prev);
           }}
           currentSearchWorkspaceId={currentSearchWorkspaceId}
-          currentWorkspaceTab={currentWorkspaceTab}
         />
       </aside>
 
