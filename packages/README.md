@@ -25,15 +25,15 @@ src/app / src/modules  →  packages  →  third-party libraries
 
 ### 🧱 infra/* — 基礎設施原語層 (`@infra/*`)
 
-純功能原語，無業務語意，可跨任何模組重用。
+純功能原語，**無外部服務依賴**，離線可用，不需要憑證。
 
 | 套件 | alias | 職責 |
 |---|---|---|
 | `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務的 atom / slice） |
-| `infra/date` | `@infra/date` | 日期解析、格式化、時區工具 |
-| `infra/genkit` | `@infra/genkit` | Genkit 基礎設施原語（flow runner、telemetry） |
 | `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
 | `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
+| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
+| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） |
 | `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一允許的 id 生成入口） |
 | `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
 
@@ -41,20 +41,13 @@ src/app / src/modules  →  packages  →  third-party libraries
 
 ### 🔌 integration-* — 外部服務整合層 (`@integration-*`)
 
-封裝外部 SDK，標準化 API 介面，normalize 錯誤與型別。
+連接**外部服務**，需要憑證、網路呼叫、第三方帳號。封裝 SDK，標準化 API 介面，normalize 錯誤與型別。
 
 | 套件 | alias | 封裝目標 |
 |---|---|---|
-| `integration-ai` | `@integration-ai` | AI SDK 整合（Genkit flow 呼叫、Google AI、OpenAI） |
-| `integration-auth` | `@integration-auth` | 認證整合（Firebase Auth、session 管理） |
-| `integration-data` | `@integration-data` | 通用資料層整合（Firestore 以外的資料來源） |
-| `integration-firebase` | `@integration-firebase` | Firebase App / Firestore 基礎設施原語 |
-| `integration-functions` | `@integration-functions` | Cloud Functions 呼叫（HTTP callable、onCall） |
+| `integration-ai` | `@integration-ai` | AI 服務整合（Genkit 封裝、Google AI、OpenAI） |
+| `integration-firebase` | `@integration-firebase` | Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） |
 | `integration-queue` | `@integration-queue` | 訊息佇列整合（QStash、Cloud Tasks） |
-| `integration-realtime` | `@integration-realtime` | 即時資料整合（Firestore realtime / RTDB / WebSocket） |
-| `integration-state` | `@integration-state` | 跨模組狀態整合（Zustand store factory、XState helpers） |
-| `integration-storage` | `@integration-storage` | 物件儲存整合（Firebase Storage、Cloud Storage） |
-| `integration-trpc` | `@integration-trpc` | tRPC 客戶端設定與 Provider |
 
 ---
 
@@ -106,8 +99,8 @@ import { generateId } from '@infra/uuid'
 
 | 問題 | 結果 |
 |---|---|
-| 可跨多個 modules 重用，且無業務語意？ | → 放 `packages/infra/*/` |
-| 是第三方 SDK 封裝或外部系統整合？ | → 放 `packages/integration-*/` |
+| 可跨多個 modules 重用，且無業務語意？無外部服務依賴，離線可用？ | → 放 `packages/infra/*/` |
+| 是第三方 SDK 封裝或外部系統整合？需要憑證 / 網路 / 第三方帳號？ | → 放 `packages/integration-*/` |
 | 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
 | 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
 | 是業務邏輯或 domain rule？ | → 放 `src/modules/` |

@@ -11,10 +11,10 @@
 | 類型 | 正確套件 |
 |---|---|
 | client-side 狀態原語（非業務） | `infra/client-state/` → `@infra/client-state` |
-| 日期解析、格式化、時區工具 | `infra/date/` → `@infra/date` |
-| Genkit 基礎設施原語 | `infra/genkit/` → `@infra/genkit` |
 | HTTP 工具（fetch wrapper、retry） | `infra/http/` → `@infra/http` |
 | 序列化 / 反序列化工具 | `infra/serialization/` → `@infra/serialization` |
+| 本地狀態管理原語（Zustand store factory、XState machine helpers） | `infra/state/` → `@infra/state` |
+| tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） | `infra/trpc/` → `@infra/trpc` |
 | UUID 生成（domain 層 id 的唯一來源） | `infra/uuid/` → `@infra/uuid` |
 | Zod 共用 schema 片段、brand helper | `infra/zod/` → `@infra/zod` |
 
@@ -22,16 +22,9 @@
 
 | 類型 | 正確套件 |
 |---|---|
-| AI SDK 整合（Genkit flow 呼叫、Google AI、OpenAI） | `integration-ai/` → `@integration-ai` |
-| 認證整合（Firebase Auth、session 管理） | `integration-auth/` → `@integration-auth` |
-| 通用資料層整合（Firestore 以外） | `integration-data/` → `@integration-data` |
-| Firebase App / Firestore 基礎設施原語 | `integration-firebase/` → `@integration-firebase` |
-| Cloud Functions 呼叫（HTTP callable、onCall） | `integration-functions/` → `@integration-functions` |
+| AI 服務整合（Genkit 封裝、Google AI、OpenAI） | `integration-ai/` → `@integration-ai` |
+| Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） | `integration-firebase/` → `@integration-firebase` |
 | 訊息佇列整合（QStash、Cloud Tasks） | `integration-queue/` → `@integration-queue` |
-| 即時資料整合（Firestore realtime / RTDB / WebSocket） | `integration-realtime/` → `@integration-realtime` |
-| 跨模組狀態整合（Zustand factory、XState helpers） | `integration-state/` → `@integration-state` |
-| 物件儲存整合（Firebase Storage、Cloud Storage） | `integration-storage/` → `@integration-storage` |
-| tRPC 客戶端設定與 Provider | `integration-trpc/` → `@integration-trpc` |
 
 ### 🎨 ui-* — UI 元件層
 
@@ -82,24 +75,17 @@ import { getFirestore } from 'firebase/firestore'
 
 **infra/***
 - [infra/client-state/AGENTS.md](./infra/client-state/AGENTS.md)
-- [infra/date/AGENTS.md](./infra/date/AGENTS.md)
-- [infra/genkit/AGENTS.md](./infra/genkit/AGENTS.md)
 - [infra/http/AGENTS.md](./infra/http/AGENTS.md)
 - [infra/serialization/AGENTS.md](./infra/serialization/AGENTS.md)
+- [infra/state/AGENTS.md](./infra/state/AGENTS.md)
+- [infra/trpc/AGENTS.md](./infra/trpc/AGENTS.md)
 - [infra/uuid/AGENTS.md](./infra/uuid/AGENTS.md)
 - [infra/zod/AGENTS.md](./infra/zod/AGENTS.md)
 
 **integration-***
 - [integration-ai/AGENTS.md](./integration-ai/AGENTS.md)
-- [integration-auth/AGENTS.md](./integration-auth/AGENTS.md)
-- [integration-data/AGENTS.md](./integration-data/AGENTS.md)
 - [integration-firebase/AGENTS.md](./integration-firebase/AGENTS.md)
-- [integration-functions/AGENTS.md](./integration-functions/AGENTS.md)
 - [integration-queue/AGENTS.md](./integration-queue/AGENTS.md)
-- [integration-realtime/AGENTS.md](./integration-realtime/AGENTS.md)
-- [integration-state/AGENTS.md](./integration-state/AGENTS.md)
-- [integration-storage/AGENTS.md](./integration-storage/AGENTS.md)
-- [integration-trpc/AGENTS.md](./integration-trpc/AGENTS.md)
 
 **ui-***
 - [ui-components/AGENTS.md](./ui-components/AGENTS.md)
