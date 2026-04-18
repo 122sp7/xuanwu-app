@@ -17379,162 +17379,7 @@ save(share: WorkspaceShareSnapshot): Promise<void>;
 delete(shareId: string): Promise<void>;
 ````
 
-## File: src/modules/workspace/subdomains/task-formation/adapters/inbound/index.ts
-````typescript
-
-````
-
 ## File: src/modules/workspace/subdomains/task-formation/adapters/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository.ts
-````typescript
-import type { TaskFormationJobRepository } from "../../../domain/repositories/TaskFormationJobRepository";
-import type { TaskFormationJobSnapshot, CompleteTaskFormationJobInput } from "../../../domain/entities/TaskFormationJob";
-⋮----
-export interface FirestoreLike {
-  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
-}
-⋮----
-get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-query(collection: string, filters: Array<
-⋮----
-export class FirestoreTaskFormationJobRepository implements TaskFormationJobRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(jobId: string): Promise<TaskFormationJobSnapshot | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<TaskFormationJobSnapshot[]>
-⋮----
-async save(job: TaskFormationJobSnapshot): Promise<void>
-⋮----
-async markRunning(jobId: string): Promise<TaskFormationJobSnapshot | null>
-⋮----
-async markCompleted(jobId: string, input: CompleteTaskFormationJobInput): Promise<TaskFormationJobSnapshot | null>
-⋮----
-async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskFormationJobSnapshot | null>
-````
-
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/task-formation/application/dto/TaskFormationDTO.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type CreateTaskFormationJobDTO = z.infer<typeof CreateTaskFormationJobSchema>;
-````
-
-## File: src/modules/workspace/subdomains/task-formation/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { TaskFormationJobRepository } from "../../domain/repositories/TaskFormationJobRepository";
-import { TaskFormationJob } from "../../domain/entities/TaskFormationJob";
-import type { CreateTaskFormationJobInput, CompleteTaskFormationJobInput } from "../../domain/entities/TaskFormationJob";
-⋮----
-export class CreateTaskFormationJobUseCase {
-⋮----
-constructor(private readonly jobRepo: TaskFormationJobRepository)
-⋮----
-async execute(input: CreateTaskFormationJobInput): Promise<CommandResult>
-⋮----
-export class CompleteTaskFormationJobUseCase {
-⋮----
-async execute(jobId: string, input: CompleteTaskFormationJobInput): Promise<CommandResult>
-````
-
-## File: src/modules/workspace/subdomains/task-formation/domain/entities/TaskFormationJob.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { TaskFormationJobStatus } from "../value-objects/TaskFormationJobStatus";
-import type { TaskFormationDomainEventType } from "../events/TaskFormationDomainEvent";
-⋮----
-export interface TaskFormationJobSnapshot {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-  readonly totalItems: number;
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-  readonly status: TaskFormationJobStatus;
-  readonly startedAtISO: string | null;
-  readonly completedAtISO: string | null;
-  readonly errorCode: string | null;
-  readonly errorMessage: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateTaskFormationJobInput {
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-}
-⋮----
-export interface CompleteTaskFormationJobInput {
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-}
-⋮----
-export class TaskFormationJob {
-⋮----
-private constructor(private _props: TaskFormationJobSnapshot)
-⋮----
-static create(id: string, input: CreateTaskFormationJobInput): TaskFormationJob
-⋮----
-static reconstitute(snapshot: TaskFormationJobSnapshot): TaskFormationJob
-⋮----
-markRunning(): void
-⋮----
-markCompleted(input: CompleteTaskFormationJobInput): void
-⋮----
-markFailed(errorCode: string, errorMessage: string): void
-⋮----
-get id(): string
-get status(): TaskFormationJobStatus
-⋮----
-getSnapshot(): Readonly<TaskFormationJobSnapshot>
-⋮----
-pullDomainEvents(): TaskFormationDomainEventType[]
-````
-
-## File: src/modules/workspace/subdomains/task-formation/domain/events/TaskFormationDomainEvent.ts
-````typescript
-export interface TaskFormationDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface TaskFormationJobCreatedEvent extends TaskFormationDomainEvent {
-  readonly type: "workspace.task-formation.job-created";
-  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly correlationId: string };
-}
-⋮----
-export type TaskFormationDomainEventType = TaskFormationJobCreatedEvent;
-````
-
-## File: src/modules/workspace/subdomains/task-formation/domain/index.ts
 ````typescript
 
 ````
@@ -26660,6 +26505,171 @@ getSnapshot(): Readonly<InvoiceSnapshot>
 pullDomainEvents(): InvoiceDomainEventType[]
 ````
 
+## File: src/modules/workspace/subdomains/task-formation/adapters/inbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions.ts
+````typescript
+/**
+ * task-formation-actions — Server Actions for AI task candidate extraction and confirmation.
+ *
+ * startExtractionAction: Creates a TaskFormationJob, runs AI extraction via py_fn,
+ *   persists candidates to Firestore, and returns the job snapshot (with candidates).
+ *
+ * confirmCandidatesAction: Takes selected candidate indices, creates Tasks in the
+ *   workspace task subdomain, and records a candidates-confirmed domain event.
+ */
+⋮----
+import { z } from "zod";
+import { ExtractTaskCandidatesSchema, ConfirmCandidatesSchema } from "../../../application/dto/TaskFormationDTO";
+import { createClientTaskFormationUseCases } from "../../../../../adapters/outbound/firebase-composition";
+⋮----
+// ── Actions ────────────────────────────────────────────────────────────────────
+⋮----
+/**
+ * Starts AI extraction for the given workspace and source pages.
+ * Returns the CommandResult plus the full candidates list from the persisted job.
+ */
+export async function startExtractionAction(rawInput: unknown)
+⋮----
+/**
+ * Confirms selected candidates from a previously extracted job.
+ * Creates Tasks in the workspace task subdomain for each confirmed candidate.
+ */
+export async function confirmCandidatesAction(rawInput: unknown)
+⋮----
+/**
+ * Reads a previously extracted job snapshot (e.g. to restore reviewing state on page reload).
+ */
+export async function getTaskFormationJobSnapshotAction(rawInput: unknown)
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts
+````typescript
+import { getFirebaseFunctions, httpsCallable } from "@integration-firebase/functions";
+import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+⋮----
+/**
+ * Input / output contracts for the py_fn `extract_task_candidates` callable.
+ * This callable is expected to be implemented in py_fn when the backend is ready.
+ * Until then, the adapter returns a structured mock response.
+ */
+interface ExtractTaskCandidatesCallableInput {
+  readonly workspace_id: string;
+  readonly source_type: string;
+  readonly source_page_ids: string[];
+  readonly source_text?: string;
+}
+⋮----
+interface ExtractTaskCandidatesCallableOutput {
+  readonly candidates: Array<{
+    readonly title: string;
+    readonly description?: string;
+    readonly due_date?: string;
+    readonly source: string;
+    readonly confidence: number;
+    readonly source_block_id?: string;
+    readonly source_snippet?: string;
+  }>;
+}
+⋮----
+/**
+ * FirebaseCallableTaskCandidateExtractor — working implementation of
+ * TaskCandidateExtractorPort using Firebase HTTPS Callable to py_fn.
+ *
+ * While the py_fn `extract_task_candidates` function is not yet deployed,
+ * this adapter falls back to a stub response so the UI pipeline remains testable.
+ *
+ * ESLint: @integration-firebase is allowed here — outbound adapter layer.
+ */
+export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort {
+⋮----
+async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
+⋮----
+// py_fn function not yet deployed — return stub data so UI pipeline is testable.
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository.ts
+````typescript
+import type { TaskFormationJobRepository } from "../../../domain/repositories/TaskFormationJobRepository";
+import type { TaskFormationJobSnapshot, CompleteTaskFormationJobInput } from "../../../domain/entities/TaskFormationJob";
+⋮----
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+query(collection: string, filters: Array<
+⋮----
+export class FirestoreTaskFormationJobRepository implements TaskFormationJobRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(jobId: string): Promise<TaskFormationJobSnapshot | null>
+⋮----
+// Backward compat: old docs may lack `candidates` field.
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<TaskFormationJobSnapshot[]>
+⋮----
+async save(job: TaskFormationJobSnapshot): Promise<void>
+⋮----
+async markRunning(jobId: string): Promise<TaskFormationJobSnapshot | null>
+⋮----
+async markCompleted(jobId: string, input: CompleteTaskFormationJobInput): Promise<TaskFormationJobSnapshot | null>
+⋮----
+async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskFormationJobSnapshot | null>
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts
+````typescript
+import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+⋮----
+/**
+ * GenkitTaskCandidateExtractor — Genkit flow implementation of TaskCandidateExtractorPort.
+ *
+ * Flow name: workspace.extract-task-candidates
+ *
+ * This adapter is a stub. To activate, replace the body with a real Genkit
+ * flow invocation via `platform/ai` AIAPI:
+ *
+ *   import { genkit } from "genkit";
+ *   import { googleAI } from "@genkit-ai/google-genai";
+ *   const ai = genkit({ plugins: [googleAI()] });
+ *
+ *   const extractFlow = ai.defineFlow(
+ *     {
+ *       name: "workspace.extract-task-candidates",
+ *       inputSchema: ExtractInputSchema,
+ *       outputSchema: ExtractOutputSchema,
+ *     },
+ *     async (input) => { ... }
+ *   );
+ *
+ * Until `platform/ai` AIAPI is wired, the FirebaseCallableTaskCandidateExtractor
+ * in adapters/outbound/callable/ provides the working implementation.
+ *
+ * ESLint: Genkit imports are allowed here — outbound adapter layer.
+ */
+export class GenkitTaskCandidateExtractor implements TaskCandidateExtractorPort {
+⋮----
+async extract(_input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
+⋮----
+// TODO: Replace with real Genkit flow invocation once platform/ai AIAPI is wired.
+// See class-level JSDoc for setup instructions.
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/index.ts
+````typescript
+
+````
+
 ## File: src/modules/workspace/subdomains/task-formation/AGENT.md
 ````markdown
 # task-formation — Agent Guide
@@ -26828,6 +26838,255 @@ Event discriminant 格式：`<module>.<subdomain>.<action>`（全 kebab-case）
 - ❌ `TaskFormationJob` 只存計數，不存候選清單本體
 - ❌ `application/machines/` 內的 machine 直接 import Firebase SDK 或 Genkit
 - ❌ 在 inbound server action 直接呼叫 Genkit `ai.generate()`
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/dto/TaskFormationDTO.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type CreateTaskFormationJobDTO = z.infer<typeof CreateTaskFormationJobSchema>;
+⋮----
+export type ExtractTaskCandidatesDTO = z.infer<typeof ExtractTaskCandidatesSchema>;
+⋮----
+export type ConfirmCandidatesDTO = z.infer<typeof ConfirmCandidatesSchema>;
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/machines/task-formation.machine.ts
+````typescript
+import { setup, assign, fromPromise } from "xstate";
+import type { ExtractedTaskCandidate } from "../../domain/value-objects/TaskCandidate";
+⋮----
+/**
+ * Task Formation State Machine (XState v5)
+ *
+ * Models the UI-layer workflow for extracting and confirming task candidates:
+ *
+ *   idle ──START──→ extracting ──onDone──→ reviewing ──CONFIRM──→ confirming ──onDone──→ done
+ *                  ──onError──→ failed                ──onError──→ reviewing（保留選擇）
+ *   reviewing ──CANCEL──→ idle
+ *   failed ──RETRY──→ idle
+ *
+ * The machine does NOT call repositories or Server Actions directly.
+ * Callers must provide actor implementations via `provide()`.
+ */
+⋮----
+// ── Context ────────────────────────────────────────────────────────────────────
+⋮----
+export interface TaskFormationContext {
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly jobId: string | null;
+  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
+  readonly selectedIndices: ReadonlyArray<number>;
+  readonly errorMessage: string | null;
+}
+⋮----
+// ── Events ─────────────────────────────────────────────────────────────────────
+⋮----
+export type TaskFormationMachineEvent =
+  | { type: "START"; sourceType: "rule" | "ai"; sourcePageIds: string[] }
+  | { type: "CONFIRM" }
+  | { type: "CANCEL" }
+  | { type: "RETRY" }
+  | { type: "TOGGLE_CANDIDATE"; index: number }
+  | { type: "SELECT_ALL" }
+  | { type: "DESELECT_ALL" };
+⋮----
+// ── Machine ────────────────────────────────────────────────────────────────────
+⋮----
+// Replaced by `provide()` at the call site.
+⋮----
+// Replaced by `provide()` at the call site.
+⋮----
+export type TaskFormationMachine = typeof taskFormationMachine;
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { TaskFormationJobRepository } from "../../domain/repositories/TaskFormationJobRepository";
+import { TaskFormationJob } from "../../domain/entities/TaskFormationJob";
+import type { CreateTaskFormationJobInput, CompleteTaskFormationJobInput } from "../../domain/entities/TaskFormationJob";
+import type { TaskCandidateExtractorPort } from "../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractTaskCandidatesDTO, ConfirmCandidatesDTO } from "../dto/TaskFormationDTO";
+import type { CreateTaskInput } from "../../../task/domain/entities/Task";
+⋮----
+export class CreateTaskFormationJobUseCase {
+⋮----
+constructor(private readonly jobRepo: TaskFormationJobRepository)
+⋮----
+async execute(input: CreateTaskFormationJobInput): Promise<CommandResult>
+⋮----
+export class CompleteTaskFormationJobUseCase {
+⋮----
+async execute(jobId: string, input: CompleteTaskFormationJobInput): Promise<CommandResult>
+⋮----
+/**
+ * ExtractTaskCandidatesUseCase — creates a job, marks it running, calls the
+ * AI extractor port, and persists extracted candidates back to the job.
+ *
+ * The port is injected (never imported directly) so the use case stays
+ * infrastructure-agnostic.
+ */
+export class ExtractTaskCandidatesUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: ExtractTaskCandidatesDTO): Promise<CommandResult>
+⋮----
+/** Boundary callback — injected so the use case doesn't depend on task repository directly. */
+export interface CreateTaskBoundary {
+  createTask(input: CreateTaskInput): Promise<CommandResult>;
+}
+⋮----
+createTask(input: CreateTaskInput): Promise<CommandResult>;
+⋮----
+/**
+ * ConfirmCandidatesUseCase — user selects which extracted candidates to
+ * promote into real Tasks. Creates Tasks via the injected boundary callback,
+ * then records a `candidates-confirmed` domain event on the Job.
+ */
+export class ConfirmCandidatesUseCase {
+⋮----
+async execute(input: ConfirmCandidatesDTO): Promise<CommandResult>
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/entities/TaskFormationJob.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { TaskFormationJobStatus } from "../value-objects/TaskFormationJobStatus";
+import type { TaskFormationDomainEventType } from "../events/TaskFormationDomainEvent";
+import type { ExtractedTaskCandidate } from "../value-objects/TaskCandidate";
+⋮----
+export interface TaskFormationJobSnapshot {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly correlationId: string;
+  readonly knowledgePageIds: ReadonlyArray<string>;
+  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
+  readonly totalItems: number;
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+  readonly status: TaskFormationJobStatus;
+  readonly startedAtISO: string | null;
+  readonly completedAtISO: string | null;
+  readonly errorCode: string | null;
+  readonly errorMessage: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateTaskFormationJobInput {
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly correlationId: string;
+  readonly knowledgePageIds: ReadonlyArray<string>;
+}
+⋮----
+export interface CompleteTaskFormationJobInput {
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+}
+⋮----
+export class TaskFormationJob {
+⋮----
+private constructor(private _props: TaskFormationJobSnapshot)
+⋮----
+static create(id: string, input: CreateTaskFormationJobInput): TaskFormationJob
+⋮----
+static reconstitute(snapshot: TaskFormationJobSnapshot): TaskFormationJob
+⋮----
+markRunning(): void
+⋮----
+markCompleted(input: CompleteTaskFormationJobInput): void
+⋮----
+markFailed(errorCode: string, errorMessage: string): void
+⋮----
+setCandidates(candidates: ExtractedTaskCandidate[]): void
+⋮----
+markCandidatesConfirmed(confirmedCount: number): void
+⋮----
+get id(): string
+get status(): TaskFormationJobStatus
+⋮----
+getSnapshot(): Readonly<TaskFormationJobSnapshot>
+⋮----
+pullDomainEvents(): TaskFormationDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/events/TaskFormationDomainEvent.ts
+````typescript
+export interface TaskFormationDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface TaskFormationJobCreatedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.job-created";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly correlationId: string };
+}
+⋮----
+export interface TaskCandidatesExtractedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.candidates-extracted";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly candidateCount: number };
+}
+⋮----
+export interface TaskCandidatesConfirmedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.candidates-confirmed";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly confirmedCount: number };
+}
+⋮----
+export interface TaskFormationJobFailedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.job-failed";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly errorCode: string };
+}
+⋮----
+export type TaskFormationDomainEventType =
+  | TaskFormationJobCreatedEvent
+  | TaskCandidatesExtractedEvent
+  | TaskCandidatesConfirmedEvent
+  | TaskFormationJobFailedEvent;
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/ports/TaskCandidateExtractorPort.ts
+````typescript
+import type { ExtractedTaskCandidate, TaskCandidateSource } from "../value-objects/TaskCandidate";
+⋮----
+export interface ExtractTaskCandidatesInput {
+  readonly workspaceId: string;
+  readonly sourceType: TaskCandidateSource;
+  readonly sourcePageIds: string[];
+  readonly sourceText?: string;
+}
+⋮----
+/**
+ * TaskCandidateExtractorPort — outbound port for AI-driven task candidate extraction.
+ *
+ * Implementations live in adapters/outbound/genkit/ (Genkit flow) or
+ * adapters/outbound/callable/ (Firebase callable to py_fn).
+ * Use cases depend only on this interface; they never import concrete adapters.
+ */
+export interface TaskCandidateExtractorPort {
+  extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>;
+}
+⋮----
+extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>;
 ````
 
 ## File: src/modules/workspace/subdomains/task-formation/README.md
@@ -35018,51 +35277,6 @@ function WorkspaceSubscription(
 export function WorkspaceScopeProvider(
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
-````typescript
-/**
- * WorkspaceTaskFormationSection — workspace.task-formation tab.
- *
- * Closed-loop design: task candidates are derived from knowledge sources
- * (notion pages, databases, or AI research summaries). This section shows:
- *   1. A closed-loop banner explaining data provenance
- *   2. Source selector — where to pull task candidates from
- *   3. Pipeline stages showing the formation workflow
- */
-⋮----
-import {
-  ListPlus,
-  ArrowRight,
-  FileText,
-  LayoutGrid,
-  BookOpen,
-  Upload,
-  ChevronRight,
-  Info,
-} from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-interface WorkspaceTaskFormationSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-type SourceType = "pages" | "database" | "research" | null;
-⋮----
-{/* Header */}
-⋮----
-{/* Closed-loop banner */}
-⋮----
-{/* Source selector */}
-⋮----
-{/* Pipeline stages */}
-⋮----
-{/* Empty state or action prompt */}
-````
-
 ## File: src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts
 ````typescript
 import { setup, assign } from "xstate";
@@ -40724,89 +40938,74 @@ const changeUnits = (item: Item, delta: number) =>
 <Checkbox checked=
 ````
 
-## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
 ````typescript
 /**
- * firebase-composition — workspace module outbound composition root.
+ * WorkspaceTaskFormationSection — workspace.task-formation tab.
  *
- * Single entry point for all Firebase operations owned by the workspace module.
- * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
- *
- * ESLint: @integration-firebase is allowed here because this file lives at
- * src/modules/workspace/adapters/outbound/ which matches the permitted glob
- * (src/modules/<context>/adapters/outbound/**).
- *
- * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
- * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ * Closed-loop design: task candidates are derived from knowledge sources
+ * (notion pages, databases, or AI research summaries). This section shows:
+ *   1. A closed-loop banner explaining data provenance
+ *   2. Source selector — where to pull task candidates from
+ *   3. Candidate review + confirmation step
+ *   4. Pipeline stages showing the formation workflow
  */
 ⋮----
 import {
-  FirebaseWorkspaceQueryRepository,
-  type Unsubscribe,
-} from "./FirebaseWorkspaceQueryRepository";
-import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
-import {
-  getFirebaseFirestore,
-  firestoreApi,
-} from "@integration-firebase";
-import {
-  FirestoreWorkspaceRepository,
-  type FirestoreLike,
-} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
-import {
-  CreateWorkspaceUseCase,
-  ActivateWorkspaceUseCase,
-  StopWorkspaceUseCase,
-} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+  ListPlus,
+  ArrowRight,
+  FileText,
+  LayoutGrid,
+  BookOpen,
+  Upload,
+  ChevronRight,
+  Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
+import { useState, useTransition } from "react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
 ⋮----
-type FirestoreWhereOperator =
-  | "<"
-  | "<="
-  | "=="
-  | "!="
-  | ">="
-  | ">"
-  | "array-contains"
-  | "in"
-  | "array-contains-any"
-  | "not-in";
+interface WorkspaceTaskFormationSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
 ⋮----
-// ── Singleton repository ───────────────────────────────────────────────────────
+type SourceType = "pages" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
 ⋮----
-function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+function toggleCandidate(i: number)
 ⋮----
-function createFirestoreLikeAdapter(): FirestoreLike
+function handleExtract()
 ⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-async query(
-      collectionName: string,
-      filters: Array<{ field: string; op: string; value: unknown }>,
-): Promise<Record<string, unknown>[]>
+function handleConfirm()
 ⋮----
-function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+function handleReset()
 ⋮----
-// ── Public subscriptions ───────────────────────────────────────────────────────
+{/* Header */}
 ⋮----
-/**
- * Subscribes to real-time workspace updates for the given account.
- * Calls `onUpdate` immediately with the current dataset and again on every
- * subsequent Firestore change.
- *
- * Returns an unsubscribe function — call it when the subscriber unmounts to
- * avoid memory leaks and unnecessary Firestore reads.
- */
-export function subscribeToWorkspacesForAccount(
-  accountId: string,
-  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
-): Unsubscribe
+{/* Closed-loop banner */}
 ⋮----
-export function createClientWorkspaceLifecycleUseCases()
+{/* Phase: idle — source selector */}
+⋮----
+{/* Phase: extracting */}
+⋮----
+{/* Phase: reviewing */}
+⋮----
+{/* Phase: confirming */}
+⋮----
+{/* Phase: done */}
+⋮----
+{/* Phase: error (without candidate list) */}
+⋮----
+{/* Pipeline stages — always shown */}
 ````
 
 ## File: .github/agents/ai-genkit-lead.agent.md
@@ -43314,6 +43513,101 @@ reset();
 onOpenChange(false);
 ````
 
+## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — workspace module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the workspace module.
+ * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives at
+ * src/modules/workspace/adapters/outbound/ which matches the permitted glob
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
+ * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ */
+⋮----
+import {
+  FirebaseWorkspaceQueryRepository,
+  type Unsubscribe,
+} from "./FirebaseWorkspaceQueryRepository";
+import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
+import {
+  getFirebaseFirestore,
+  firestoreApi,
+} from "@integration-firebase";
+import {
+  FirestoreWorkspaceRepository,
+  type FirestoreLike,
+} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
+import {
+  CreateWorkspaceUseCase,
+  ActivateWorkspaceUseCase,
+  StopWorkspaceUseCase,
+} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import { CreateTaskUseCase } from "../../subdomains/task/application/use-cases/TaskUseCases";
+⋮----
+type FirestoreWhereOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "in"
+  | "array-contains-any"
+  | "not-in";
+⋮----
+// ── Singleton repository ───────────────────────────────────────────────────────
+⋮----
+function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+⋮----
+function createFirestoreLikeAdapter(): FirestoreLike
+⋮----
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+async query(
+      collectionName: string,
+      filters: Array<{ field: string; op: string; value: unknown }>,
+): Promise<Record<string, unknown>[]>
+⋮----
+function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+⋮----
+// ── Public subscriptions ───────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time workspace updates for the given account.
+ * Calls `onUpdate` immediately with the current dataset and again on every
+ * subsequent Firestore change.
+ *
+ * Returns an unsubscribe function — call it when the subscriber unmounts to
+ * avoid memory leaks and unnecessary Firestore reads.
+ */
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
+⋮----
+export function createClientWorkspaceLifecycleUseCases()
+⋮----
+export function createClientTaskFormationUseCases()
+````
+
 ## File: src/modules/workspace/AGENT.md
 ````markdown
 # Workspace Module — Agent Guide
@@ -44851,93 +45145,6 @@ function SidebarMenuAction({
 // Random width between 50 to 90%.
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
-````typescript
-/**
- * workspace-route-screens — workspace-scoped route screen components.
- *
- * Provides screens rendered within a workspace context:
- *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
- *   - WorkspaceHubScreen          (workspace listing / hub for an account)
- *
- * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
- * etc.) belong in platform-ui-stubs because they are platform-owned, not
- * workspace-owned.
- */
-⋮----
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
-import { WorkspaceDailySection } from "./WorkspaceDailySection";
-import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
-import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
-import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
-import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
-import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
-import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
-import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
-import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
-import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
-import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
-import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
-import {
-  WORKSPACE_TAB_ITEMS,
-  WORKSPACE_DOMAIN_GROUP_LABELS,
-  resolveWorkspaceTabValue,
-  type WorkspaceTabValue,
-  type WorkspaceDomainGroup,
-} from "./workspace-nav-model";
-⋮----
-// Cross-module: notion section components (via adapters/inbound/react boundary)
-import {
-  NotionKnowledgeSection,
-  NotionPagesSection,
-  NotionDatabaseSection,
-  NotionTemplatesSection,
-} from "@/src/modules/notion/adapters/inbound/react";
-⋮----
-// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
-import {
-  NotebooklmNotebookSection,
-  NotebooklmAiChatSection,
-  NotebooklmSourcesSection,
-  NotebooklmResearchSection,
-} from "@/src/modules/notebooklm/adapters/inbound/react";
-⋮----
-// ── Internal helpers ──────────────────────────────────────────────────────────
-⋮----
-function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
-⋮----
-// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
-⋮----
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string;
-  accountsHydrated: boolean;
-  currentUserId?: string;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-⋮----
-const tabHref = (tab: WorkspaceTabValue)
-⋮----
-<Badge variant=
-⋮----
-{/* ── workspace group ── */}
-⋮----
-// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
-⋮----
-onClick=
-⋮----
-router.push(href);
-````
-
 ## File: .github/agents/domain-architect.agent.md
 ````markdown
 ---
@@ -45361,6 +45568,93 @@ export function resolveShellNavSection(pathname: string): ShellNavSection
 export function resolveShellPageTitle(pathname: string, tab?: string | null): string
 ⋮----
 export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
+## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
+````typescript
+/**
+ * workspace-route-screens — workspace-scoped route screen components.
+ *
+ * Provides screens rendered within a workspace context:
+ *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
+ *   - WorkspaceHubScreen          (workspace listing / hub for an account)
+ *
+ * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
+ * etc.) belong in platform-ui-stubs because they are platform-owned, not
+ * workspace-owned.
+ */
+⋮----
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+⋮----
+import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
+import { WorkspaceDailySection } from "./WorkspaceDailySection";
+import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
+import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
+import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
+import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
+import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
+import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
+import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
+import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
+import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
+import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
+import {
+  WORKSPACE_TAB_ITEMS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabValue,
+  type WorkspaceDomainGroup,
+} from "./workspace-nav-model";
+⋮----
+// Cross-module: notion section components (via adapters/inbound/react boundary)
+import {
+  NotionKnowledgeSection,
+  NotionPagesSection,
+  NotionDatabaseSection,
+  NotionTemplatesSection,
+} from "@/src/modules/notion/adapters/inbound/react";
+⋮----
+// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
+import {
+  NotebooklmNotebookSection,
+  NotebooklmAiChatSection,
+  NotebooklmSourcesSection,
+  NotebooklmResearchSection,
+} from "@/src/modules/notebooklm/adapters/inbound/react";
+⋮----
+// ── Internal helpers ──────────────────────────────────────────────────────────
+⋮----
+function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
+⋮----
+// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string;
+  accountsHydrated: boolean;
+  currentUserId?: string;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+⋮----
+const tabHref = (tab: WorkspaceTabValue)
+⋮----
+<Badge variant=
+⋮----
+{/* ── workspace group ── */}
+⋮----
+// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
+⋮----
+onClick=
+⋮----
+router.push(href);
 ````
 
 ## File: tsconfig.json

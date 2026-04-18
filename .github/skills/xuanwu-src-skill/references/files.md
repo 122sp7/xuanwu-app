@@ -6332,11 +6332,48 @@ delete(id: string): Promise<void>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/platform/index.ts
+## File: src/modules/platform/adapters/inbound/react/shell/index.ts
 ````typescript
 /**
- * Platform Module — public API surface.
- * All cross-module consumers must import from here only.
+ * Shell UI components barrel — platform inbound React adapter.
+ *
+ * Shell chrome: app-rail, sidebar, header, and contextual nav.
+ * Consumed internally by ShellFrame (parent directory).
+ */
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarHeader.tsx
+````typescript
+/**
+ * ShellSidebarHeader — app/(shell)/_shell composition layer.
+ * Moved from modules/platform alongside sibling shell files.
+ * Pure UI component with no downstream imports.
+ */
+⋮----
+import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
+⋮----
+interface ShellSidebarHeaderProps {
+  sectionLabel: string;
+  sectionIcon: React.ReactNode;
+  onOpenCustomize: () => void;
+  onToggleCollapsed: () => void;
+}
+⋮----
+export function ShellSidebarHeader({
+  sectionLabel,
+  sectionIcon,
+  onOpenCustomize,
+  onToggleCollapsed,
+}: ShellSidebarHeaderProps)
+````
+
+## File: src/modules/platform/adapters/inbound/react/ShellFrame.tsx
+````typescript
+/**
+ * ShellFrame — platform inbound adapter (React).
+ *
+ * Shell chrome wrapper: app-rail, sidebar, top header, and main content slot.
+ * Lives in src/modules/platform/adapters/inbound/react/ alongside sibling shell files.
  */
 ````
 
@@ -7283,17 +7320,6 @@ getNavSections(): Promise<readonly PlatformNavSection[]>;
 ## File: src/modules/platform/subdomains/search/application/index.ts
 ````typescript
 
-````
-
-## File: src/modules/platform/subdomains/search/application/services/shell-command-catalog.ts
-````typescript
-export interface ShellCommandCatalogItem {
-  readonly href: string;
-  readonly label: string;
-  readonly group: "導覽" | "Knowledge" | "Source";
-}
-⋮----
-export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
 ````
 
 ## File: src/modules/platform/subdomains/search/domain/index.ts
@@ -11402,162 +11428,7 @@ save(share: WorkspaceShareSnapshot): Promise<void>;
 delete(shareId: string): Promise<void>;
 ````
 
-## File: src/modules/workspace/subdomains/task-formation/adapters/inbound/index.ts
-````typescript
-
-````
-
 ## File: src/modules/workspace/subdomains/task-formation/adapters/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository.ts
-````typescript
-import type { TaskFormationJobRepository } from "../../../domain/repositories/TaskFormationJobRepository";
-import type { TaskFormationJobSnapshot, CompleteTaskFormationJobInput } from "../../../domain/entities/TaskFormationJob";
-⋮----
-export interface FirestoreLike {
-  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
-}
-⋮----
-get(collection: string, id: string): Promise<Record<string, unknown> | null>;
-set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
-query(collection: string, filters: Array<
-⋮----
-export class FirestoreTaskFormationJobRepository implements TaskFormationJobRepository {
-⋮----
-constructor(private readonly db: FirestoreLike)
-⋮----
-async findById(jobId: string): Promise<TaskFormationJobSnapshot | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<TaskFormationJobSnapshot[]>
-⋮----
-async save(job: TaskFormationJobSnapshot): Promise<void>
-⋮----
-async markRunning(jobId: string): Promise<TaskFormationJobSnapshot | null>
-⋮----
-async markCompleted(jobId: string, input: CompleteTaskFormationJobInput): Promise<TaskFormationJobSnapshot | null>
-⋮----
-async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskFormationJobSnapshot | null>
-````
-
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/task-formation/application/dto/TaskFormationDTO.ts
-````typescript
-import { z } from "zod";
-⋮----
-export type CreateTaskFormationJobDTO = z.infer<typeof CreateTaskFormationJobSchema>;
-````
-
-## File: src/modules/workspace/subdomains/task-formation/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { TaskFormationJobRepository } from "../../domain/repositories/TaskFormationJobRepository";
-import { TaskFormationJob } from "../../domain/entities/TaskFormationJob";
-import type { CreateTaskFormationJobInput, CompleteTaskFormationJobInput } from "../../domain/entities/TaskFormationJob";
-⋮----
-export class CreateTaskFormationJobUseCase {
-⋮----
-constructor(private readonly jobRepo: TaskFormationJobRepository)
-⋮----
-async execute(input: CreateTaskFormationJobInput): Promise<CommandResult>
-⋮----
-export class CompleteTaskFormationJobUseCase {
-⋮----
-async execute(jobId: string, input: CompleteTaskFormationJobInput): Promise<CommandResult>
-````
-
-## File: src/modules/workspace/subdomains/task-formation/domain/entities/TaskFormationJob.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import type { TaskFormationJobStatus } from "../value-objects/TaskFormationJobStatus";
-import type { TaskFormationDomainEventType } from "../events/TaskFormationDomainEvent";
-⋮----
-export interface TaskFormationJobSnapshot {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-  readonly totalItems: number;
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-  readonly status: TaskFormationJobStatus;
-  readonly startedAtISO: string | null;
-  readonly completedAtISO: string | null;
-  readonly errorCode: string | null;
-  readonly errorMessage: string | null;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateTaskFormationJobInput {
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly correlationId: string;
-  readonly knowledgePageIds: ReadonlyArray<string>;
-}
-⋮----
-export interface CompleteTaskFormationJobInput {
-  readonly processedItems: number;
-  readonly succeededItems: number;
-  readonly failedItems: number;
-}
-⋮----
-export class TaskFormationJob {
-⋮----
-private constructor(private _props: TaskFormationJobSnapshot)
-⋮----
-static create(id: string, input: CreateTaskFormationJobInput): TaskFormationJob
-⋮----
-static reconstitute(snapshot: TaskFormationJobSnapshot): TaskFormationJob
-⋮----
-markRunning(): void
-⋮----
-markCompleted(input: CompleteTaskFormationJobInput): void
-⋮----
-markFailed(errorCode: string, errorMessage: string): void
-⋮----
-get id(): string
-get status(): TaskFormationJobStatus
-⋮----
-getSnapshot(): Readonly<TaskFormationJobSnapshot>
-⋮----
-pullDomainEvents(): TaskFormationDomainEventType[]
-````
-
-## File: src/modules/workspace/subdomains/task-formation/domain/events/TaskFormationDomainEvent.ts
-````typescript
-export interface TaskFormationDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string;
-  readonly type: string;
-  readonly payload: object;
-}
-⋮----
-export interface TaskFormationJobCreatedEvent extends TaskFormationDomainEvent {
-  readonly type: "workspace.task-formation.job-created";
-  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly correlationId: string };
-}
-⋮----
-export type TaskFormationDomainEventType = TaskFormationJobCreatedEvent;
-````
-
-## File: src/modules/workspace/subdomains/task-formation/domain/index.ts
 ````typescript
 
 ````
@@ -12544,74 +12415,6 @@ export async function callParseDocument(input: ParseDocumentInput): Promise<void
 export async function callReindexDocument(input: ReindexDocumentInput): Promise<void>
 ````
 
-## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — notebooklm module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the notebooklm module.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
-import { getFirebaseStorage, ref, uploadBytes } from "@integration-firebase/storage";
-import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
-import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
-import {
-  AddDocumentUseCase,
-  ArchiveDocumentUseCase,
-  QueryDocumentsUseCase,
-} from "../../subdomains/document/application/use-cases/DocumentUseCases";
-import {
-  CreateNotebookUseCase,
-  AddDocumentToNotebookUseCase,
-  GenerateNotebookResponseUseCase,
-} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
-import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, type RagQueryInput, type RagQueryOutput } from "./callable/FirebaseCallableAdapter";
-⋮----
-// ── Singleton repositories ────────────────────────────────────────────────────
-⋮----
-function getDocumentRepo(): FirestoreDocumentRepository
-⋮----
-function getNotebookRepo(): InMemoryNotebookRepository
-⋮----
-// ── RagQuery generation port bridge ──────────────────────────────────────────
-⋮----
-class RagQueryGenerationPort implements NotebookGenerationPort {
-⋮----
-constructor(
-⋮----
-async generateResponse(input: {
-    prompt: string;
-    notebookId: string;
-    model?: string;
-}): Promise<
-⋮----
-// ── Factory functions ─────────────────────────────────────────────────────────
-⋮----
-export function createClientNotebooklmDocumentUseCases()
-⋮----
-export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
-⋮----
-// ── Storage upload helper ─────────────────────────────────────────────────────
-⋮----
-/**
- * Upload a document to the GCS path expected by the py_fn Storage Trigger.
- * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
- * The Storage Trigger automatically runs parse + RAG on this prefix.
- */
-export async function uploadDocumentToStorage(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-// keep firestore & firestoreApi accessible within this composition module
-````
-
 ## File: src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts
 ````typescript
 /**
@@ -13067,6 +12870,38 @@ export async function createKnowledgePage(
 ): Promise<CreateKnowledgePageResult>
 ````
 
+## File: src/modules/platform/adapters/inbound/react/AccountScopeProvider.tsx
+````typescript
+/**
+ * AccountScopeProvider — platform inbound adapter (React).
+ *
+ * Manages platform-owned account lifecycle: auth → accounts → activeAccount.
+ * Ported from: app/(shell)/_providers/AppProvider.tsx
+ *
+ * Consumers use useAccountScope() to read account state.
+ */
+⋮----
+import { useReducer, useEffect, type ReactNode } from "react";
+⋮----
+import {
+  AppContext,
+  APP_INITIAL_STATE,
+  type AppState,
+  type AppAction,
+} from "./AppContext";
+import {
+  resolveActiveAccount,
+  subscribeToAccountsForUser,
+} from "./AppContext";
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+⋮----
+function appReducer(state: AppState, action: AppAction): AppState
+⋮----
+export function AccountScopeProvider(
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+````
+
 ## File: src/modules/platform/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -13102,14 +12937,30 @@ import { WorkspaceScopeProvider } from "@/src/modules/workspace/adapters/inbound
 export function PlatformBootstrap(
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/index.ts
+## File: src/modules/platform/adapters/inbound/react/shell/shell-quick-create.ts
 ````typescript
 /**
- * Shell UI components barrel — platform inbound React adapter.
- *
- * Shell chrome: app-rail, sidebar, header, and contextual nav.
- * Consumed internally by ShellFrame (parent directory).
+ * shell-quick-create — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports notion's createKnowledgePage.
+ * Kept as a composition adapter at the app boundary.
  */
+⋮----
+import { createKnowledgePage } from "../../../../../notion/adapters/outbound/notion-page-stub";
+⋮----
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+⋮----
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+⋮----
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+): Promise<QuickCreatePageResult>
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellGuard.tsx
@@ -13144,31 +12995,6 @@ interface ShellGuardProps {
 export function ShellGuard(
 ⋮----
 // Redirect is in-flight — render spinner to prevent content flash.
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarHeader.tsx
-````typescript
-/**
- * ShellSidebarHeader — app/(shell)/_shell composition layer.
- * Moved from modules/platform alongside sibling shell files.
- * Pure UI component with no downstream imports.
- */
-⋮----
-import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
-⋮----
-interface ShellSidebarHeaderProps {
-  sectionLabel: string;
-  sectionIcon: React.ReactNode;
-  onOpenCustomize: () => void;
-  onToggleCollapsed: () => void;
-}
-⋮----
-export function ShellSidebarHeader({
-  sectionLabel,
-  sectionIcon,
-  onOpenCustomize,
-  onToggleCollapsed,
-}: ShellSidebarHeaderProps)
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellThemeToggle.tsx
@@ -13283,6 +13109,162 @@ export function useAccountRouteContext(): AccountRouteContextValue
  */
 ````
 
+## File: src/modules/platform/adapters/inbound/server-actions/file-actions.ts
+````typescript
+/**
+ * file-actions — platform file storage server actions.
+ *
+ * Manages workspace-scoped file metadata in Firestore.
+ * Actual binary upload is done client-side via uploadWorkspaceFile() (Firebase Storage).
+ * These actions handle the metadata lifecycle only.
+ */
+⋮----
+import { z } from "zod";
+import { createClientFileStorageUseCases } from "../../outbound/firebase-composition";
+⋮----
+// ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+// ── Actions ───────────────────────────────────────────────────────────────────
+⋮----
+/**
+ * listWorkspaceFilesAction — list all (non-deleted) files for a workspace.
+ * Returns StoredFile[] ordered by createdAtISO descending (client-sorted).
+ */
+export async function listWorkspaceFilesAction(rawInput: unknown)
+⋮----
+/**
+ * registerUploadedFileAction — register a file's metadata after client-side upload.
+ *
+ * Call this after uploadWorkspaceFile() completes on the client.
+ * ownerId is set to workspaceId to scope the file to the workspace.
+ */
+export async function registerUploadedFileAction(rawInput: unknown)
+⋮----
+/**
+ * deleteWorkspaceFileAction — soft-delete a stored file by fileId.
+ * Sets deletedAtISO on the Firestore document; storage object is not removed.
+ */
+export async function deleteWorkspaceFileAction(rawInput: unknown)
+````
+
+## File: src/modules/platform/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — platform module outbound composition root.
+ *
+ * Provides:
+ *   - FirestoreFileStorageRepository  (Firestore-backed FileStorageRepository)
+ *   - uploadWorkspaceFile()           (Firebase Storage upload for workspace files)
+ *   - getWorkspaceFileDownloadUrl()   (resolve download URL from GCS path)
+ *   - createClientFileStorageUseCases() (factory for use-case instances)
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/platform/adapters/outbound/ which matches the permitted glob.
+ *
+ * Firestore collection: storedFiles/{fileId}
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
+import type { StoredFile } from "../../subdomains/file-storage/domain/entities/StoredFile";
+import type { FileStorageRepository } from "../../subdomains/file-storage/domain/repositories/FileStorageRepository";
+import {
+  CreateStoredFileUseCase,
+  GetStoredFileUseCase,
+  ListStoredFilesUseCase,
+  DeleteStoredFileUseCase,
+} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
+⋮----
+// ── Firestore repository ──────────────────────────────────────────────────────
+⋮----
+/**
+ * FirestoreFileStorageRepository — Firestore-backed implementation of FileStorageRepository.
+ *
+ * Document shape mirrors StoredFile (flat; no nesting required).
+ * listByOwner queries by ownerId (= workspaceId) and excludes soft-deleted files.
+ */
+class FirestoreFileStorageRepository implements FileStorageRepository {
+⋮----
+async save(file: StoredFile): Promise<void>
+⋮----
+async findById(fileId: string): Promise<StoredFile | null>
+⋮----
+async listByOwner(ownerId: string): Promise<StoredFile[]>
+⋮----
+async delete(fileId: string): Promise<void>
+⋮----
+// ── Singleton ─────────────────────────────────────────────────────────────────
+⋮----
+function getFileRepo(): FirestoreFileStorageRepository
+⋮----
+// ── Factory ───────────────────────────────────────────────────────────────────
+⋮----
+export function createClientFileStorageUseCases()
+⋮----
+// ── Storage helpers ───────────────────────────────────────────────────────────
+⋮----
+/**
+ * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
+ *
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Returns the GCS storage path (used as StoredFile.url).
+ */
+export async function uploadWorkspaceFile(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspace-files/...
+ */
+export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
+````
+
+## File: src/modules/platform/index.ts
+````typescript
+/**
+ * Platform Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+````
+
+## File: src/modules/platform/subdomains/search/application/services/shell-command-catalog.ts
+````typescript
+export interface ShellCommandCatalogItem {
+  readonly href: string;
+  readonly label: string;
+  readonly group: "導覽" | "Workspace" | "Knowledge" | "AI";
+}
+⋮----
+/**
+ * SHELL_COMMAND_CATALOG_ITEMS — global command palette navigation entries.
+ *
+ * Account-level hrefs (/workspace, /dashboard, /schedule, …) are resolved to
+ * /{accountId}/… at runtime via buildShellContextualHref from
+ * platform/subdomains/platform-config/application/services/shell-navigation-catalog.
+ *
+ * Workspace-tab hrefs (/workspace?tab=…) are resolved to
+ * /{accountId}/{workspaceId}?tab=… by the same helper.
+ *
+ * Tab values must stay in sync with WorkspaceTabValue in workspace-nav-model.ts.
+ * Route labels must stay in sync with ROUTE_TITLES in shell-navigation-catalog.ts.
+ */
+⋮----
+// ── Account-level routes ──────────────────────────────────────────────────
+⋮----
+// ── Workspace tabs (workspace group) ─────────────────────────────────────
+⋮----
+// ── Knowledge tabs (notion group) ────────────────────────────────────────
+⋮----
+// ── AI tabs (notebooklm group) ────────────────────────────────────────────
+⋮----
+export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/useWorkspaceScope.ts
 ````typescript
 /**
@@ -13393,29 +13375,6 @@ export function WorkspaceContextProvider({
 })
 ⋮----
 export function useWorkspaceContext(): WorkspaceContextValue
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
-````typescript
-/**
- * WorkspaceFilesSection — workspace.files tab — file management.
- */
-⋮----
-import { FolderOpen, Upload, Grid2x2, List } from "lucide-react";
-import { useState } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-interface WorkspaceFilesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-{/* Header */}
-⋮----
-{/* Storage summary */}
-⋮----
-{/* Files — empty state */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx
@@ -14080,6 +14039,171 @@ getSnapshot(): Readonly<InvoiceSnapshot>
 pullDomainEvents(): InvoiceDomainEventType[]
 ````
 
+## File: src/modules/workspace/subdomains/task-formation/adapters/inbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions.ts
+````typescript
+/**
+ * task-formation-actions — Server Actions for AI task candidate extraction and confirmation.
+ *
+ * startExtractionAction: Creates a TaskFormationJob, runs AI extraction via py_fn,
+ *   persists candidates to Firestore, and returns the job snapshot (with candidates).
+ *
+ * confirmCandidatesAction: Takes selected candidate indices, creates Tasks in the
+ *   workspace task subdomain, and records a candidates-confirmed domain event.
+ */
+⋮----
+import { z } from "zod";
+import { ExtractTaskCandidatesSchema, ConfirmCandidatesSchema } from "../../../application/dto/TaskFormationDTO";
+import { createClientTaskFormationUseCases } from "../../../../../adapters/outbound/firebase-composition";
+⋮----
+// ── Actions ────────────────────────────────────────────────────────────────────
+⋮----
+/**
+ * Starts AI extraction for the given workspace and source pages.
+ * Returns the CommandResult plus the full candidates list from the persisted job.
+ */
+export async function startExtractionAction(rawInput: unknown)
+⋮----
+/**
+ * Confirms selected candidates from a previously extracted job.
+ * Creates Tasks in the workspace task subdomain for each confirmed candidate.
+ */
+export async function confirmCandidatesAction(rawInput: unknown)
+⋮----
+/**
+ * Reads a previously extracted job snapshot (e.g. to restore reviewing state on page reload).
+ */
+export async function getTaskFormationJobSnapshotAction(rawInput: unknown)
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts
+````typescript
+import { getFirebaseFunctions, httpsCallable } from "@integration-firebase/functions";
+import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+⋮----
+/**
+ * Input / output contracts for the py_fn `extract_task_candidates` callable.
+ * This callable is expected to be implemented in py_fn when the backend is ready.
+ * Until then, the adapter returns a structured mock response.
+ */
+interface ExtractTaskCandidatesCallableInput {
+  readonly workspace_id: string;
+  readonly source_type: string;
+  readonly source_page_ids: string[];
+  readonly source_text?: string;
+}
+⋮----
+interface ExtractTaskCandidatesCallableOutput {
+  readonly candidates: Array<{
+    readonly title: string;
+    readonly description?: string;
+    readonly due_date?: string;
+    readonly source: string;
+    readonly confidence: number;
+    readonly source_block_id?: string;
+    readonly source_snippet?: string;
+  }>;
+}
+⋮----
+/**
+ * FirebaseCallableTaskCandidateExtractor — working implementation of
+ * TaskCandidateExtractorPort using Firebase HTTPS Callable to py_fn.
+ *
+ * While the py_fn `extract_task_candidates` function is not yet deployed,
+ * this adapter falls back to a stub response so the UI pipeline remains testable.
+ *
+ * ESLint: @integration-firebase is allowed here — outbound adapter layer.
+ */
+export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort {
+⋮----
+async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
+⋮----
+// py_fn function not yet deployed — return stub data so UI pipeline is testable.
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository.ts
+````typescript
+import type { TaskFormationJobRepository } from "../../../domain/repositories/TaskFormationJobRepository";
+import type { TaskFormationJobSnapshot, CompleteTaskFormationJobInput } from "../../../domain/entities/TaskFormationJob";
+⋮----
+export interface FirestoreLike {
+  get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+  set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+  query(collection: string, filters: Array<{ field: string; op: string; value: unknown }>): Promise<Record<string, unknown>[]>;
+}
+⋮----
+get(collection: string, id: string): Promise<Record<string, unknown> | null>;
+set(collection: string, id: string, data: Record<string, unknown>): Promise<void>;
+query(collection: string, filters: Array<
+⋮----
+export class FirestoreTaskFormationJobRepository implements TaskFormationJobRepository {
+⋮----
+constructor(private readonly db: FirestoreLike)
+⋮----
+async findById(jobId: string): Promise<TaskFormationJobSnapshot | null>
+⋮----
+// Backward compat: old docs may lack `candidates` field.
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<TaskFormationJobSnapshot[]>
+⋮----
+async save(job: TaskFormationJobSnapshot): Promise<void>
+⋮----
+async markRunning(jobId: string): Promise<TaskFormationJobSnapshot | null>
+⋮----
+async markCompleted(jobId: string, input: CompleteTaskFormationJobInput): Promise<TaskFormationJobSnapshot | null>
+⋮----
+async markFailed(jobId: string, errorCode: string, errorMessage: string): Promise<TaskFormationJobSnapshot | null>
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts
+````typescript
+import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+⋮----
+/**
+ * GenkitTaskCandidateExtractor — Genkit flow implementation of TaskCandidateExtractorPort.
+ *
+ * Flow name: workspace.extract-task-candidates
+ *
+ * This adapter is a stub. To activate, replace the body with a real Genkit
+ * flow invocation via `platform/ai` AIAPI:
+ *
+ *   import { genkit } from "genkit";
+ *   import { googleAI } from "@genkit-ai/google-genai";
+ *   const ai = genkit({ plugins: [googleAI()] });
+ *
+ *   const extractFlow = ai.defineFlow(
+ *     {
+ *       name: "workspace.extract-task-candidates",
+ *       inputSchema: ExtractInputSchema,
+ *       outputSchema: ExtractOutputSchema,
+ *     },
+ *     async (input) => { ... }
+ *   );
+ *
+ * Until `platform/ai` AIAPI is wired, the FirebaseCallableTaskCandidateExtractor
+ * in adapters/outbound/callable/ provides the working implementation.
+ *
+ * ESLint: Genkit imports are allowed here — outbound adapter layer.
+ */
+export class GenkitTaskCandidateExtractor implements TaskCandidateExtractorPort {
+⋮----
+async extract(_input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
+⋮----
+// TODO: Replace with real Genkit flow invocation once platform/ai AIAPI is wired.
+// See class-level JSDoc for setup instructions.
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/index.ts
+````typescript
+
+````
+
 ## File: src/modules/workspace/subdomains/task-formation/AGENT.md
 ````markdown
 # task-formation — Agent Guide
@@ -14248,6 +14372,255 @@ Event discriminant 格式：`<module>.<subdomain>.<action>`（全 kebab-case）
 - ❌ `TaskFormationJob` 只存計數，不存候選清單本體
 - ❌ `application/machines/` 內的 machine 直接 import Firebase SDK 或 Genkit
 - ❌ 在 inbound server action 直接呼叫 Genkit `ai.generate()`
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/dto/TaskFormationDTO.ts
+````typescript
+import { z } from "zod";
+⋮----
+export type CreateTaskFormationJobDTO = z.infer<typeof CreateTaskFormationJobSchema>;
+⋮----
+export type ExtractTaskCandidatesDTO = z.infer<typeof ExtractTaskCandidatesSchema>;
+⋮----
+export type ConfirmCandidatesDTO = z.infer<typeof ConfirmCandidatesSchema>;
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/machines/task-formation.machine.ts
+````typescript
+import { setup, assign, fromPromise } from "xstate";
+import type { ExtractedTaskCandidate } from "../../domain/value-objects/TaskCandidate";
+⋮----
+/**
+ * Task Formation State Machine (XState v5)
+ *
+ * Models the UI-layer workflow for extracting and confirming task candidates:
+ *
+ *   idle ──START──→ extracting ──onDone──→ reviewing ──CONFIRM──→ confirming ──onDone──→ done
+ *                  ──onError──→ failed                ──onError──→ reviewing（保留選擇）
+ *   reviewing ──CANCEL──→ idle
+ *   failed ──RETRY──→ idle
+ *
+ * The machine does NOT call repositories or Server Actions directly.
+ * Callers must provide actor implementations via `provide()`.
+ */
+⋮----
+// ── Context ────────────────────────────────────────────────────────────────────
+⋮----
+export interface TaskFormationContext {
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly jobId: string | null;
+  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
+  readonly selectedIndices: ReadonlyArray<number>;
+  readonly errorMessage: string | null;
+}
+⋮----
+// ── Events ─────────────────────────────────────────────────────────────────────
+⋮----
+export type TaskFormationMachineEvent =
+  | { type: "START"; sourceType: "rule" | "ai"; sourcePageIds: string[] }
+  | { type: "CONFIRM" }
+  | { type: "CANCEL" }
+  | { type: "RETRY" }
+  | { type: "TOGGLE_CANDIDATE"; index: number }
+  | { type: "SELECT_ALL" }
+  | { type: "DESELECT_ALL" };
+⋮----
+// ── Machine ────────────────────────────────────────────────────────────────────
+⋮----
+// Replaced by `provide()` at the call site.
+⋮----
+// Replaced by `provide()` at the call site.
+⋮----
+export type TaskFormationMachine = typeof taskFormationMachine;
+````
+
+## File: src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { TaskFormationJobRepository } from "../../domain/repositories/TaskFormationJobRepository";
+import { TaskFormationJob } from "../../domain/entities/TaskFormationJob";
+import type { CreateTaskFormationJobInput, CompleteTaskFormationJobInput } from "../../domain/entities/TaskFormationJob";
+import type { TaskCandidateExtractorPort } from "../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractTaskCandidatesDTO, ConfirmCandidatesDTO } from "../dto/TaskFormationDTO";
+import type { CreateTaskInput } from "../../../task/domain/entities/Task";
+⋮----
+export class CreateTaskFormationJobUseCase {
+⋮----
+constructor(private readonly jobRepo: TaskFormationJobRepository)
+⋮----
+async execute(input: CreateTaskFormationJobInput): Promise<CommandResult>
+⋮----
+export class CompleteTaskFormationJobUseCase {
+⋮----
+async execute(jobId: string, input: CompleteTaskFormationJobInput): Promise<CommandResult>
+⋮----
+/**
+ * ExtractTaskCandidatesUseCase — creates a job, marks it running, calls the
+ * AI extractor port, and persists extracted candidates back to the job.
+ *
+ * The port is injected (never imported directly) so the use case stays
+ * infrastructure-agnostic.
+ */
+export class ExtractTaskCandidatesUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: ExtractTaskCandidatesDTO): Promise<CommandResult>
+⋮----
+/** Boundary callback — injected so the use case doesn't depend on task repository directly. */
+export interface CreateTaskBoundary {
+  createTask(input: CreateTaskInput): Promise<CommandResult>;
+}
+⋮----
+createTask(input: CreateTaskInput): Promise<CommandResult>;
+⋮----
+/**
+ * ConfirmCandidatesUseCase — user selects which extracted candidates to
+ * promote into real Tasks. Creates Tasks via the injected boundary callback,
+ * then records a `candidates-confirmed` domain event on the Job.
+ */
+export class ConfirmCandidatesUseCase {
+⋮----
+async execute(input: ConfirmCandidatesDTO): Promise<CommandResult>
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/entities/TaskFormationJob.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { TaskFormationJobStatus } from "../value-objects/TaskFormationJobStatus";
+import type { TaskFormationDomainEventType } from "../events/TaskFormationDomainEvent";
+import type { ExtractedTaskCandidate } from "../value-objects/TaskCandidate";
+⋮----
+export interface TaskFormationJobSnapshot {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly correlationId: string;
+  readonly knowledgePageIds: ReadonlyArray<string>;
+  readonly candidates: ReadonlyArray<ExtractedTaskCandidate>;
+  readonly totalItems: number;
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+  readonly status: TaskFormationJobStatus;
+  readonly startedAtISO: string | null;
+  readonly completedAtISO: string | null;
+  readonly errorCode: string | null;
+  readonly errorMessage: string | null;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateTaskFormationJobInput {
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly correlationId: string;
+  readonly knowledgePageIds: ReadonlyArray<string>;
+}
+⋮----
+export interface CompleteTaskFormationJobInput {
+  readonly processedItems: number;
+  readonly succeededItems: number;
+  readonly failedItems: number;
+}
+⋮----
+export class TaskFormationJob {
+⋮----
+private constructor(private _props: TaskFormationJobSnapshot)
+⋮----
+static create(id: string, input: CreateTaskFormationJobInput): TaskFormationJob
+⋮----
+static reconstitute(snapshot: TaskFormationJobSnapshot): TaskFormationJob
+⋮----
+markRunning(): void
+⋮----
+markCompleted(input: CompleteTaskFormationJobInput): void
+⋮----
+markFailed(errorCode: string, errorMessage: string): void
+⋮----
+setCandidates(candidates: ExtractedTaskCandidate[]): void
+⋮----
+markCandidatesConfirmed(confirmedCount: number): void
+⋮----
+get id(): string
+get status(): TaskFormationJobStatus
+⋮----
+getSnapshot(): Readonly<TaskFormationJobSnapshot>
+⋮----
+pullDomainEvents(): TaskFormationDomainEventType[]
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/events/TaskFormationDomainEvent.ts
+````typescript
+export interface TaskFormationDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+⋮----
+export interface TaskFormationJobCreatedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.job-created";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly correlationId: string };
+}
+⋮----
+export interface TaskCandidatesExtractedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.candidates-extracted";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly candidateCount: number };
+}
+⋮----
+export interface TaskCandidatesConfirmedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.candidates-confirmed";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly confirmedCount: number };
+}
+⋮----
+export interface TaskFormationJobFailedEvent extends TaskFormationDomainEvent {
+  readonly type: "workspace.task-formation.job-failed";
+  readonly payload: { readonly jobId: string; readonly workspaceId: string; readonly errorCode: string };
+}
+⋮----
+export type TaskFormationDomainEventType =
+  | TaskFormationJobCreatedEvent
+  | TaskCandidatesExtractedEvent
+  | TaskCandidatesConfirmedEvent
+  | TaskFormationJobFailedEvent;
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/workspace/subdomains/task-formation/domain/ports/TaskCandidateExtractorPort.ts
+````typescript
+import type { ExtractedTaskCandidate, TaskCandidateSource } from "../value-objects/TaskCandidate";
+⋮----
+export interface ExtractTaskCandidatesInput {
+  readonly workspaceId: string;
+  readonly sourceType: TaskCandidateSource;
+  readonly sourcePageIds: string[];
+  readonly sourceText?: string;
+}
+⋮----
+/**
+ * TaskCandidateExtractorPort — outbound port for AI-driven task candidate extraction.
+ *
+ * Implementations live in adapters/outbound/genkit/ (Genkit flow) or
+ * adapters/outbound/callable/ (Firebase callable to py_fn).
+ * Use cases depend only on this interface; they never import concrete adapters.
+ */
+export interface TaskCandidateExtractorPort {
+  extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>;
+}
+⋮----
+extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>;
 ````
 
 ## File: src/modules/workspace/subdomains/task-formation/README.md
@@ -15022,6 +15395,82 @@ export async function ragQueryAction(rawInput: unknown)
 export async function synthesizeWorkspaceAction(rawInput: unknown)
 ````
 
+## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — notebooklm module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the notebooklm module.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
+import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
+import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
+import {
+  AddDocumentUseCase,
+  ArchiveDocumentUseCase,
+  QueryDocumentsUseCase,
+} from "../../subdomains/document/application/use-cases/DocumentUseCases";
+import {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
+import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
+import { callRagQuery, type RagQueryInput, type RagQueryOutput } from "./callable/FirebaseCallableAdapter";
+⋮----
+// ── Singleton repositories ────────────────────────────────────────────────────
+⋮----
+function getDocumentRepo(): FirestoreDocumentRepository
+⋮----
+function getNotebookRepo(): InMemoryNotebookRepository
+⋮----
+// ── RagQuery generation port bridge ──────────────────────────────────────────
+⋮----
+class RagQueryGenerationPort implements NotebookGenerationPort {
+⋮----
+constructor(
+⋮----
+async generateResponse(input: {
+    prompt: string;
+    notebookId: string;
+    model?: string;
+}): Promise<
+⋮----
+// ── Factory functions ─────────────────────────────────────────────────────────
+⋮----
+export function createClientNotebooklmDocumentUseCases()
+⋮----
+export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
+⋮----
+// ── Storage upload helper ─────────────────────────────────────────────────────
+⋮----
+/**
+ * Upload a document to the GCS path expected by the py_fn Storage Trigger.
+ * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
+ * The Storage Trigger automatically runs parse + RAG on this prefix.
+ */
+export async function uploadDocumentToStorage(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
+ * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
+ *
+ * Accepts both gs://bucket/path and relative paths like uploads/...
+ */
+export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
+⋮----
+// keep firestore & firestoreApi accessible within this composition module
+````
+
 ## File: src/modules/notebooklm/README.md
 ````markdown
 # NotebookLM Module
@@ -15243,38 +15692,6 @@ src/modules/notion/
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/platform/adapters/inbound/react/AccountScopeProvider.tsx
-````typescript
-/**
- * AccountScopeProvider — platform inbound adapter (React).
- *
- * Manages platform-owned account lifecycle: auth → accounts → activeAccount.
- * Ported from: app/(shell)/_providers/AppProvider.tsx
- *
- * Consumers use useAccountScope() to read account state.
- */
-⋮----
-import { useReducer, useEffect, type ReactNode } from "react";
-⋮----
-import {
-  AppContext,
-  APP_INITIAL_STATE,
-  type AppState,
-  type AppAction,
-} from "./AppContext";
-import {
-  resolveActiveAccount,
-  subscribeToAccountsForUser,
-} from "./AppContext";
-import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
-⋮----
-function appReducer(state: AppState, action: AppAction): AppState
-⋮----
-export function AccountScopeProvider(
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
-````
-
 ## File: src/modules/platform/adapters/inbound/react/AppContext.tsx
 ````typescript
 /**
@@ -15437,30 +15854,44 @@ export function CreateOrganizationDialog({
 async function handleSubmit(e: React.FormEvent)
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/shell-quick-create.ts
+## File: src/modules/platform/adapters/inbound/react/shell/ShellContextNavSection.tsx
 ````typescript
 /**
- * shell-quick-create — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports notion's createKnowledgePage.
- * Kept as a composition adapter at the app boundary.
+ * ShellContextNavSection — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace module.
  */
 ⋮----
-import { createKnowledgePage } from "../../../../../notion/adapters/outbound/notion-page-stub";
+import Link from "next/link";
+import {
+  AlertCircle,
+  BadgeCheck,
+  ClipboardCheck,
+  Inbox,
+  ListTodo,
+  Receipt,
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { appendWorkspaceContextQuery } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import { buildShellContextualHref } from "../../../../index";
+import { sidebarItemClass, sidebarSectionTitleClass } from "./ShellSidebarNavData";
 ⋮----
-export interface QuickCreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
+interface ContextScopedNavItem {
+  href: string;
+  label: string;
 }
 ⋮----
-export interface QuickCreatePageResult {
-  readonly success: boolean;
-  readonly error?: { message: string };
+interface ShellContextNavSectionProps {
+  title: string;
+  items: readonly ContextScopedNavItem[];
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  activeWorkspaceId: string | null;
 }
 ⋮----
-export async function quickCreateKnowledgePage(
-  input: QuickCreatePageInput,
-): Promise<QuickCreatePageResult>
+/** Resolve a lucide icon for context-section items by parsing ?tab= from the href. */
+function getContextItemIcon(href: string): ReactNode | null
+⋮----
+className=
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellLanguageSwitcher.tsx
@@ -15520,14 +15951,66 @@ function applyLocale(code: LocaleCode): void
 function handleSelect(code: LocaleCode): void
 ````
 
-## File: src/modules/platform/adapters/inbound/react/ShellFrame.tsx
+## File: src/modules/platform/adapters/inbound/react/shell/ShellRootLayout.tsx
 ````typescript
 /**
- * ShellFrame — platform inbound adapter (React).
+ * ShellRootLayout — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes downstream modules.
  *
- * Shell chrome wrapper: app-rail, sidebar, top header, and main content slot.
- * Lives in src/modules/platform/adapters/inbound/react/ alongside sibling shell files.
+ * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
+ * from workspace (workspaces/activeWorkspaceId).
  */
+⋮----
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+⋮----
+import { useAuth } from "../../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  type AccountProfile,
+  isOrganizationActor,
+  resolveOrganizationRouteFallback,
+  subscribeToProfile,
+  type AccountEntity,
+  useApp,
+} from "../AppContext";
+import {
+  ShellGuard,
+  AccountSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+  ShellHeaderControls,
+  ShellUserAvatar,
+} from "../platform-ui-stubs";
+import {
+  resolveShellPageTitle,
+  isExactOrChildPath,
+  buildShellContextualHref,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { useWorkspaceContext } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+⋮----
+import { AppRail } from "./ShellAppRail";
+import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
+⋮----
+function toggleSidebar()
+⋮----
+function handleSelectOrganization(account: AccountEntity)
+⋮----
+function handleSelectPersonal()
+⋮----
+function handleOrganizationCreated(account: AccountEntity)
+⋮----
+function handleSelectWorkspace(workspaceId: string | null)
+⋮----
+async function handleLogout()
+⋮----
+void handleLogout();
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx
@@ -15610,6 +16093,72 @@ onClick=
 {/* ③ Standup blocks */}
 ⋮----
 {/* ④ Today's task timeline */}
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
+````typescript
+/**
+ * WorkspaceFilesSection — workspace.files tab — file management.
+ *
+ * Upload flow:
+ *   1. Browser picks a file via hidden <input type="file">.
+ *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
+ *   3. registerUploadedFileAction() saves metadata to Firestore (server action).
+ *   4. listWorkspaceFilesAction() loads the list on mount / after upload.
+ *
+ * Delete flow:
+ *   1. deleteWorkspaceFileAction() soft-deletes the Firestore record (sets deletedAtISO).
+ *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
+ */
+⋮----
+import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { uploadWorkspaceFile } from "@/src/modules/platform";
+import {
+  listWorkspaceFilesAction,
+  registerUploadedFileAction,
+  deleteWorkspaceFileAction,
+} from "@/src/modules/platform/adapters/inbound/server-actions/file-actions";
+import type { StoredFile } from "@/src/modules/platform";
+⋮----
+interface WorkspaceFilesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function fileCategoryIcon(mimeType: string)
+⋮----
+function categoryCounts(files: StoredFile[])
+⋮----
+function formatBytes(bytes: number): string
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+const load = () =>
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const handleDelete = async (fileId: string) =>
+⋮----
+{/* Header */}
+⋮----
+{/* Hidden file input */}
+⋮----
+{/* Error banner */}
+⋮----
+{/* Storage summary */}
+⋮----
+{/* Not yet loaded hint */}
+⋮----
+{/* Empty state */}
+⋮----
+{/* File list */}
+⋮----
+{/* File grid */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceOverviewSection.tsx
@@ -15728,51 +16277,6 @@ function WorkspaceSubscription(
 // ── WorkspaceScopeProvider ────────────────────────────────────────────────────
 ⋮----
 export function WorkspaceScopeProvider(
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
-````typescript
-/**
- * WorkspaceTaskFormationSection — workspace.task-formation tab.
- *
- * Closed-loop design: task candidates are derived from knowledge sources
- * (notion pages, databases, or AI research summaries). This section shows:
- *   1. A closed-loop banner explaining data provenance
- *   2. Source selector — where to pull task candidates from
- *   3. Pipeline stages showing the formation workflow
- */
-⋮----
-import {
-  ListPlus,
-  ArrowRight,
-  FileText,
-  LayoutGrid,
-  BookOpen,
-  Upload,
-  ChevronRight,
-  Info,
-} from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-interface WorkspaceTaskFormationSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-type SourceType = "pages" | "database" | "research" | null;
-⋮----
-{/* Header */}
-⋮----
-{/* Closed-loop banner */}
-⋮----
-{/* Source selector */}
-⋮----
-{/* Pipeline stages */}
-⋮----
-{/* Empty state or action prompt */}
 ````
 
 ## File: src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts
@@ -16258,42 +16762,6 @@ const handleSynthesize = () =>
 href=
 ````
 
-## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
-````typescript
-/**
- * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
- * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
- *
- * Closed-loop design: uploaded documents are the entry point of the data loop.
- * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
- */
-⋮----
-import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus } from "lucide-react";
-import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
-import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
-import { uploadDocumentToStorage } from "../../../adapters/outbound/firebase-composition";
-⋮----
-interface NotebooklmSourcesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-const load = () =>
-⋮----
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-⋮----
-// reload list after upload
-⋮----
-{/* hidden file input */}
-⋮----
-{/* Processing chain banner — always visible once loaded */}
-⋮----
-{/* Downstream CTAs when documents are ready */}
-````
-
 ## File: src/modules/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Module — Agent Guide
@@ -16488,106 +16956,66 @@ onClick=
 onOrganizationCreated=
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/ShellContextNavSection.tsx
+## File: src/modules/platform/adapters/inbound/react/shell/ShellDashboardSidebar.tsx
 ````typescript
 /**
- * ShellContextNavSection — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace module.
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
  */
 ⋮----
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+⋮----
 import {
-  AlertCircle,
-  BadgeCheck,
-  ClipboardCheck,
-  Inbox,
-  ListTodo,
-  Receipt,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { appendWorkspaceContextQuery } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
-import { buildShellContextualHref } from "../../../../index";
-import { sidebarItemClass, sidebarSectionTitleClass } from "./ShellSidebarNavData";
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
 ⋮----
-interface ContextScopedNavItem {
-  href: string;
-  label: string;
-}
-⋮----
-interface ShellContextNavSectionProps {
-  title: string;
-  items: readonly ContextScopedNavItem[];
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  activeWorkspaceId: string | null;
-}
-⋮----
-/** Resolve a lucide icon for context-section items by parsing ?tab= from the href. */
-function getContextItemIcon(href: string): ReactNode | null
-⋮----
-className=
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellRootLayout.tsx
-````typescript
-/**
- * ShellRootLayout — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes downstream modules.
- *
- * Uses useApp() from platform (accounts/auth) and useWorkspaceContext()
- * from workspace (workspaces/activeWorkspaceId).
- */
-⋮----
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-⋮----
-import { useAuth } from "../../../../../iam/adapters/inbound/react/AuthContext";
 import {
-  type AccountProfile,
-  isOrganizationActor,
-  resolveOrganizationRouteFallback,
-  subscribeToProfile,
-  type AccountEntity,
-  useApp,
-} from "../AppContext";
-import {
-  ShellGuard,
-  AccountSwitcher,
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  ShellHeaderControls,
-  ShellUserAvatar,
-} from "../platform-ui-stubs";
-import {
-  resolveShellPageTitle,
-  isExactOrChildPath,
-  buildShellContextualHref,
-  SHELL_MOBILE_NAV_ITEMS,
-  SHELL_ORG_PRIMARY_NAV_ITEMS,
-  SHELL_ORG_SECONDARY_NAV_ITEMS,
-} from "../../../../index";
-import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
-import { useWorkspaceContext } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
 ⋮----
-import { AppRail } from "./ShellAppRail";
-import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
+export function ShellDashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps)
 ⋮----
-function toggleSidebar()
-⋮----
-function handleSelectOrganization(account: AccountEntity)
-⋮----
-function handleSelectPersonal()
-⋮----
-function handleOrganizationCreated(account: AccountEntity)
-⋮----
-function handleSelectWorkspace(workspaceId: string | null)
-⋮----
-async function handleLogout()
-⋮----
-void handleLogout();
+isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+onToggleExpanded=
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellUserAvatar.tsx
@@ -17445,89 +17873,74 @@ const changeUnits = (item: Item, delta: number) =>
 <Checkbox checked=
 ````
 
-## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
 ````typescript
 /**
- * firebase-composition — workspace module outbound composition root.
+ * WorkspaceTaskFormationSection — workspace.task-formation tab.
  *
- * Single entry point for all Firebase operations owned by the workspace module.
- * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
- *
- * ESLint: @integration-firebase is allowed here because this file lives at
- * src/modules/workspace/adapters/outbound/ which matches the permitted glob
- * (src/modules/<context>/adapters/outbound/**).
- *
- * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
- * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ * Closed-loop design: task candidates are derived from knowledge sources
+ * (notion pages, databases, or AI research summaries). This section shows:
+ *   1. A closed-loop banner explaining data provenance
+ *   2. Source selector — where to pull task candidates from
+ *   3. Candidate review + confirmation step
+ *   4. Pipeline stages showing the formation workflow
  */
 ⋮----
 import {
-  FirebaseWorkspaceQueryRepository,
-  type Unsubscribe,
-} from "./FirebaseWorkspaceQueryRepository";
-import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
-import {
-  getFirebaseFirestore,
-  firestoreApi,
-} from "@integration-firebase";
-import {
-  FirestoreWorkspaceRepository,
-  type FirestoreLike,
-} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
-import {
-  CreateWorkspaceUseCase,
-  ActivateWorkspaceUseCase,
-  StopWorkspaceUseCase,
-} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+  ListPlus,
+  ArrowRight,
+  FileText,
+  LayoutGrid,
+  BookOpen,
+  Upload,
+  ChevronRight,
+  Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
+import { useState, useTransition } from "react";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
 ⋮----
-type FirestoreWhereOperator =
-  | "<"
-  | "<="
-  | "=="
-  | "!="
-  | ">="
-  | ">"
-  | "array-contains"
-  | "in"
-  | "array-contains-any"
-  | "not-in";
+interface WorkspaceTaskFormationSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
 ⋮----
-// ── Singleton repository ───────────────────────────────────────────────────────
+type SourceType = "pages" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
 ⋮----
-function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+function toggleCandidate(i: number)
 ⋮----
-function createFirestoreLikeAdapter(): FirestoreLike
+function handleExtract()
 ⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-async query(
-      collectionName: string,
-      filters: Array<{ field: string; op: string; value: unknown }>,
-): Promise<Record<string, unknown>[]>
+function handleConfirm()
 ⋮----
-function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+function handleReset()
 ⋮----
-// ── Public subscriptions ───────────────────────────────────────────────────────
+{/* Header */}
 ⋮----
-/**
- * Subscribes to real-time workspace updates for the given account.
- * Calls `onUpdate` immediately with the current dataset and again on every
- * subsequent Firestore change.
- *
- * Returns an unsubscribe function — call it when the subscriber unmounts to
- * avoid memory leaks and unnecessary Firestore reads.
- */
-export function subscribeToWorkspacesForAccount(
-  accountId: string,
-  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
-): Unsubscribe
+{/* Closed-loop banner */}
 ⋮----
-export function createClientWorkspaceLifecycleUseCases()
+{/* Phase: idle — source selector */}
+⋮----
+{/* Phase: extracting */}
+⋮----
+{/* Phase: reviewing */}
+⋮----
+{/* Phase: confirming */}
+⋮----
+{/* Phase: done */}
+⋮----
+{/* Phase: error (without candidate list) */}
+⋮----
+{/* Pipeline stages — always shown */}
 ````
 
 ## File: src/modules/iam/AGENT.md
@@ -17596,66 +18009,211 @@ export function createClientWorkspaceLifecycleUseCases()
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/ShellDashboardSidebar.tsx
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
 ````typescript
 /**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
+ * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
+ * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
+ *
+ * Closed-loop design: uploaded documents are the entry point of the data loop.
+ * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
+ *
+ * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
  */
 ⋮----
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRef, useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
+import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";
+⋮----
+interface NotebooklmSourcesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+/** MIME types renderable via Google Doc Viewer */
+⋮----
+function googleDocViewerUrl(downloadUrl: string): string
+⋮----
+// Preview state
+⋮----
+const load = () =>
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+// reload list after upload
+⋮----
+const handlePreview = async (doc: DocumentSnapshot) =>
+⋮----
+const closePreview = () =>
+⋮----
+{/* hidden file input */}
+⋮----
+{/* Processing chain banner — always visible once loaded */}
+⋮----
+{/* Downstream CTAs when documents are ready */}
+⋮----
+{/* PDF / image preview overlay — Google Doc Viewer */}
+⋮----
+{/* Header */}
+⋮----
+{/* Body */}
+⋮----
+src=
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
+import { CreateOrganizationDialog } from "../platform-ui-stubs";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/packages/ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/packages/ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+````
+
+## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarNavData.tsx
+````typescript
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  LayoutDashboard,
+  NotebookText,
+  Settings2,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
 ⋮----
 import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
-⋮----
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
+  type ActiveAccount,
+  isOrganizationActor,
   isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
+} from "../AppContext";
+import {
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
 ⋮----
-export function ShellDashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps)
+// ── Types ─────────────────────────────────────────────────────────────────────
 ⋮----
-isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-onToggleExpanded=
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+⋮----
+export type NavSection = ShellNavSection;
+⋮----
+// ── Static nav constants ──────────────────────────────────────────────────────
+⋮----
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+⋮----
+export function sidebarItemClass(active: boolean)
+⋮----
+// ── Pure section helpers ──────────────────────────────────────────────────────
+⋮----
+export function resolveNavSection(pathname: string): NavSection
+⋮----
+export function isActiveRoute(pathname: string, href: string)
+⋮----
+// ── Simple section nav component ──────────────────────────────────────────────
 ````
 
 ## File: src/modules/platform/AGENT.md
@@ -17899,6 +18457,101 @@ reset();
 onOpenChange(false);
 ````
 
+## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — workspace module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the workspace module.
+ * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives at
+ * src/modules/workspace/adapters/outbound/ which matches the permitted glob
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
+ * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ */
+⋮----
+import {
+  FirebaseWorkspaceQueryRepository,
+  type Unsubscribe,
+} from "./FirebaseWorkspaceQueryRepository";
+import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
+import {
+  getFirebaseFirestore,
+  firestoreApi,
+} from "@integration-firebase";
+import {
+  FirestoreWorkspaceRepository,
+  type FirestoreLike,
+} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
+import {
+  CreateWorkspaceUseCase,
+  ActivateWorkspaceUseCase,
+  StopWorkspaceUseCase,
+} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import { CreateTaskUseCase } from "../../subdomains/task/application/use-cases/TaskUseCases";
+⋮----
+type FirestoreWhereOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "in"
+  | "array-contains-any"
+  | "not-in";
+⋮----
+// ── Singleton repository ───────────────────────────────────────────────────────
+⋮----
+function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+⋮----
+function createFirestoreLikeAdapter(): FirestoreLike
+⋮----
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+async query(
+      collectionName: string,
+      filters: Array<{ field: string; op: string; value: unknown }>,
+): Promise<Record<string, unknown>[]>
+⋮----
+function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+⋮----
+// ── Public subscriptions ───────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time workspace updates for the given account.
+ * Calls `onUpdate` immediately with the current dataset and again on every
+ * subsequent Firestore change.
+ *
+ * Returns an unsubscribe function — call it when the subscriber unmounts to
+ * avoid memory leaks and unnecessary Firestore reads.
+ */
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
+⋮----
+export function createClientWorkspaceLifecycleUseCases()
+⋮----
+export function createClientTaskFormationUseCases()
+````
+
 ## File: src/modules/workspace/AGENT.md
 ````markdown
 # Workspace Module — Agent Guide
@@ -18065,244 +18718,6 @@ src/modules/workspace/
 - [AGENT.md](AGENT.md) — Agent / Copilot 使用規則
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
-import { CreateOrganizationDialog } from "../platform-ui-stubs";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "../../../../index";
-import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/packages/ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/packages/ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarNavData.tsx
-````typescript
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  LayoutDashboard,
-  NotebookText,
-  Settings2,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-⋮----
-import {
-  type ActiveAccount,
-  isOrganizationActor,
-  isActiveOrganizationAccount,
-} from "../AppContext";
-import {
-  SHELL_ACCOUNT_SECTION_MATCHERS,
-  SHELL_ACCOUNT_NAV_ITEMS,
-  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-  SHELL_SECTION_LABELS,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellNavSection,
-} from "../../../../index";
-import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-⋮----
-export type NavSection = ShellNavSection;
-⋮----
-// ── Static nav constants ──────────────────────────────────────────────────────
-⋮----
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-⋮----
-export function sidebarItemClass(active: boolean)
-⋮----
-// ── Pure section helpers ──────────────────────────────────────────────────────
-⋮----
-export function resolveNavSection(pathname: string): NavSection
-⋮----
-export function isActiveRoute(pathname: string, href: string)
-⋮----
-// ── Simple section nav component ──────────────────────────────────────────────
-````
-
-## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
-````typescript
-/**
- * workspace-route-screens — workspace-scoped route screen components.
- *
- * Provides screens rendered within a workspace context:
- *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
- *   - WorkspaceHubScreen          (workspace listing / hub for an account)
- *
- * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
- * etc.) belong in platform-ui-stubs because they are platform-owned, not
- * workspace-owned.
- */
-⋮----
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-⋮----
-import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
-import { WorkspaceDailySection } from "./WorkspaceDailySection";
-import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
-import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
-import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
-import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
-import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
-import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
-import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
-import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
-import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
-import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
-import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
-import {
-  WORKSPACE_TAB_ITEMS,
-  WORKSPACE_DOMAIN_GROUP_LABELS,
-  resolveWorkspaceTabValue,
-  type WorkspaceTabValue,
-  type WorkspaceDomainGroup,
-} from "./workspace-nav-model";
-⋮----
-// Cross-module: notion section components (via adapters/inbound/react boundary)
-import {
-  NotionKnowledgeSection,
-  NotionPagesSection,
-  NotionDatabaseSection,
-  NotionTemplatesSection,
-} from "@/src/modules/notion/adapters/inbound/react";
-⋮----
-// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
-import {
-  NotebooklmNotebookSection,
-  NotebooklmAiChatSection,
-  NotebooklmSourcesSection,
-  NotebooklmResearchSection,
-} from "@/src/modules/notebooklm/adapters/inbound/react";
-⋮----
-// ── Internal helpers ──────────────────────────────────────────────────────────
-⋮----
-function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
-⋮----
-// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
-⋮----
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string;
-  accountsHydrated: boolean;
-  currentUserId?: string;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-⋮----
-const tabHref = (tab: WorkspaceTabValue)
-⋮----
-<Badge variant=
-⋮----
-{/* ── workspace group ── */}
-⋮----
-// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
-⋮----
-onClick=
-⋮----
-router.push(href);
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
@@ -18499,6 +18914,66 @@ export function AccountDashboardRouteScreen(): React.ReactElement
 {/* Log — empty state */}
 ````
 
+## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarBody.tsx
+````typescript
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
+ */
+⋮----
+import Link from "next/link";
+⋮----
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "../../../../index";
+⋮----
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+⋮----
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  currentSearchWorkspaceId: string;
+}
+⋮----
+className=
+⋮----
+// Show the context section only when a workspace is actually in scope.
+````
+
 ## File: src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
 ````typescript
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -18597,64 +19072,91 @@ export function resolveShellPageTitle(pathname: string, tab?: string | null): st
 export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/ShellSidebarBody.tsx
+## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
 ````typescript
 /**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
+ * workspace-route-screens — workspace-scoped route screen components.
+ *
+ * Provides screens rendered within a workspace context:
+ *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
+ *   - WorkspaceHubScreen          (workspace listing / hub for an account)
+ *
+ * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
+ * etc.) belong in platform-ui-stubs because they are platform-owned, not
+ * workspace-owned.
  */
 ⋮----
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 ⋮----
+import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
+import { WorkspaceDailySection } from "./WorkspaceDailySection";
+import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
+import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
+import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
+import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
+import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
+import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
+import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
+import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
+import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
+import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
 import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
-import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "../../../../index";
+  WORKSPACE_TAB_ITEMS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabValue,
+  type WorkspaceDomainGroup,
+} from "./workspace-nav-model";
 ⋮----
+// Cross-module: notion section components (via adapters/inbound/react boundary)
 import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
+  NotionKnowledgeSection,
+  NotionPagesSection,
+  NotionDatabaseSection,
+  NotionTemplatesSection,
+} from "@/src/modules/notion/adapters/inbound/react";
 ⋮----
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
+// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
+import {
+  NotebooklmNotebookSection,
+  NotebooklmAiChatSection,
+  NotebooklmSourcesSection,
+  NotebooklmResearchSection,
+} from "@/src/modules/notebooklm/adapters/inbound/react";
+⋮----
+// ── Internal helpers ──────────────────────────────────────────────────────────
+⋮----
+function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
+⋮----
+// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string;
+  accountsHydrated: boolean;
+  currentUserId?: string;
+  initialTab?: string;
+  initialOverviewPanel?: string;
 }
 ⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
+const tabHref = (tab: WorkspaceTabValue)
 ⋮----
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  currentSearchWorkspaceId: string;
-}
+<Badge variant=
 ⋮----
-className=
+{/* ── workspace group ── */}
 ⋮----
-// Show the context section only when a workspace is actually in scope.
+// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
+⋮----
+onClick=
+⋮----
+router.push(href);
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx

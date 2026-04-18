@@ -1178,74 +1178,6 @@ export async function callParseDocument(input: ParseDocumentInput): Promise<void
 export async function callReindexDocument(input: ReindexDocumentInput): Promise<void>
 ````
 
-## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — notebooklm module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the notebooklm module.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
-import { getFirebaseStorage, ref, uploadBytes } from "@integration-firebase/storage";
-import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
-import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
-import {
-  AddDocumentUseCase,
-  ArchiveDocumentUseCase,
-  QueryDocumentsUseCase,
-} from "../../subdomains/document/application/use-cases/DocumentUseCases";
-import {
-  CreateNotebookUseCase,
-  AddDocumentToNotebookUseCase,
-  GenerateNotebookResponseUseCase,
-} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
-import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, type RagQueryInput, type RagQueryOutput } from "./callable/FirebaseCallableAdapter";
-⋮----
-// ── Singleton repositories ────────────────────────────────────────────────────
-⋮----
-function getDocumentRepo(): FirestoreDocumentRepository
-⋮----
-function getNotebookRepo(): InMemoryNotebookRepository
-⋮----
-// ── RagQuery generation port bridge ──────────────────────────────────────────
-⋮----
-class RagQueryGenerationPort implements NotebookGenerationPort {
-⋮----
-constructor(
-⋮----
-async generateResponse(input: {
-    prompt: string;
-    notebookId: string;
-    model?: string;
-}): Promise<
-⋮----
-// ── Factory functions ─────────────────────────────────────────────────────────
-⋮----
-export function createClientNotebooklmDocumentUseCases()
-⋮----
-export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
-⋮----
-// ── Storage upload helper ─────────────────────────────────────────────────────
-⋮----
-/**
- * Upload a document to the GCS path expected by the py_fn Storage Trigger.
- * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
- * The Storage Trigger automatically runs parse + RAG on this prefix.
- */
-export async function uploadDocumentToStorage(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-// keep firestore & firestoreApi accessible within this composition module
-````
-
 ## File: src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts
 ````typescript
 /**
@@ -1600,6 +1532,82 @@ export async function ragQueryAction(rawInput: unknown)
 export async function synthesizeWorkspaceAction(rawInput: unknown)
 ````
 
+## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — notebooklm module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the notebooklm module.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase";
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@integration-firebase/storage";
+import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
+import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
+import {
+  AddDocumentUseCase,
+  ArchiveDocumentUseCase,
+  QueryDocumentsUseCase,
+} from "../../subdomains/document/application/use-cases/DocumentUseCases";
+import {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
+import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
+import { callRagQuery, type RagQueryInput, type RagQueryOutput } from "./callable/FirebaseCallableAdapter";
+⋮----
+// ── Singleton repositories ────────────────────────────────────────────────────
+⋮----
+function getDocumentRepo(): FirestoreDocumentRepository
+⋮----
+function getNotebookRepo(): InMemoryNotebookRepository
+⋮----
+// ── RagQuery generation port bridge ──────────────────────────────────────────
+⋮----
+class RagQueryGenerationPort implements NotebookGenerationPort {
+⋮----
+constructor(
+⋮----
+async generateResponse(input: {
+    prompt: string;
+    notebookId: string;
+    model?: string;
+}): Promise<
+⋮----
+// ── Factory functions ─────────────────────────────────────────────────────────
+⋮----
+export function createClientNotebooklmDocumentUseCases()
+⋮----
+export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
+⋮----
+// ── Storage upload helper ─────────────────────────────────────────────────────
+⋮----
+/**
+ * Upload a document to the GCS path expected by the py_fn Storage Trigger.
+ * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
+ * The Storage Trigger automatically runs parse + RAG on this prefix.
+ */
+export async function uploadDocumentToStorage(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
+ * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
+ *
+ * Accepts both gs://bucket/path and relative paths like uploads/...
+ */
+export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
+⋮----
+// keep firestore & firestoreApi accessible within this composition module
+````
+
 ## File: src/modules/notebooklm/README.md
 ````markdown
 # NotebookLM Module
@@ -1705,42 +1713,6 @@ const handleSynthesize = () =>
 href=
 ````
 
-## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
-````typescript
-/**
- * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
- * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
- *
- * Closed-loop design: uploaded documents are the entry point of the data loop.
- * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
- */
-⋮----
-import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus } from "lucide-react";
-import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
-import { Button } from "@ui-shadcn/ui/button";
-import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
-import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
-import { uploadDocumentToStorage } from "../../../adapters/outbound/firebase-composition";
-⋮----
-interface NotebooklmSourcesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-const load = () =>
-⋮----
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-⋮----
-// reload list after upload
-⋮----
-{/* hidden file input */}
-⋮----
-{/* Processing chain banner — always visible once loaded */}
-⋮----
-{/* Downstream CTAs when documents are ready */}
-````
-
 ## File: src/modules/notebooklm/AGENT.md
 ````markdown
 # NotebookLM Module — Agent Guide
@@ -1802,4 +1774,60 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
+````typescript
+/**
+ * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
+ * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
+ *
+ * Closed-loop design: uploaded documents are the entry point of the data loop.
+ * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
+ *
+ * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
+ */
+⋮----
+import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRef, useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
+import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";
+⋮----
+interface NotebooklmSourcesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+/** MIME types renderable via Google Doc Viewer */
+⋮----
+function googleDocViewerUrl(downloadUrl: string): string
+⋮----
+// Preview state
+⋮----
+const load = () =>
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+// reload list after upload
+⋮----
+const handlePreview = async (doc: DocumentSnapshot) =>
+⋮----
+const closePreview = () =>
+⋮----
+{/* hidden file input */}
+⋮----
+{/* Processing chain banner — always visible once loaded */}
+⋮----
+{/* Downstream CTAs when documents are ready */}
+⋮----
+{/* PDF / image preview overlay — Google Doc Viewer */}
+⋮----
+{/* Header */}
+⋮----
+{/* Body */}
+⋮----
+src=
 ````
