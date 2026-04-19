@@ -47,7 +47,7 @@ docs/
         bounded-contexts.md (61 lines)
         context-map.md (50 lines)
         cross-runtime-contracts.md (99 lines)
-        ddd-strategic-design.md (118 lines)
+        ddd-strategic-design.md (53 lines)
         README.md (76 lines)
         subdomains.md (96 lines)
         ubiquitous-language.md (49 lines)
@@ -105,7 +105,7 @@ docs/
       .gitkeep (0 lines)
     domain/
       bounded-context-subdomain-template.md (203 lines)
-      bounded-contexts.md (272 lines)
+      bounded-contexts.md (88 lines)
       ddd-strategic-design.md (218 lines)
       event-driven-design.md (189 lines)
       subdomains.md (273 lines)
@@ -804,16 +804,16 @@ src/
         inbound/
           react/
             index.ts (4 lines)
-            NotionDatabaseSection.tsx (25 lines)
+            NotionDatabaseSection.tsx (31 lines)
             NotionKnowledgeSection.tsx (21 lines)
-            NotionPagesSection.tsx (28 lines)
-            NotionTemplatesSection.tsx (17 lines)
+            NotionPagesSection.tsx (32 lines)
+            NotionTemplatesSection.tsx (25 lines)
           server-actions/
-            database-actions.ts (14 lines)
+            database-actions.ts (17 lines)
             page-actions.ts (18 lines)
-            template-actions.ts (13 lines)
+            template-actions.ts (15 lines)
         outbound/
-          firebase-composition.ts (36 lines)
+          firebase-composition.ts (45 lines)
           notion-page-stub.ts (25 lines)
       orchestration/
         index.ts (3 lines)
@@ -903,11 +903,13 @@ src/
             inbound/
               index.ts (2 lines)
             outbound/
+              memory/
+                InMemoryTemplateRepository.ts (13 lines)
               index.ts (2 lines)
             index.ts (1 lines)
           application/
             use-cases/
-              TemplateUseCases.ts (1 lines)
+              TemplateUseCases.ts (21 lines)
             index.ts (2 lines)
           domain/
             entities/
@@ -1305,14 +1307,16 @@ src/
             AccountRouteDispatcher.tsx (67 lines)
             index.ts (6 lines)
             useWorkspaceScope.ts (8 lines)
+            workspace-audit-filter.ts (5 lines)
             workspace-nav-model.ts (174 lines)
-            workspace-route-screens.tsx (82 lines)
+            workspace-route-screens.tsx (84 lines)
             workspace-shell-interop.tsx (166 lines)
             workspace-ui-stubs.tsx (18 lines)
             WorkspaceApprovalSection.tsx (41 lines)
-            WorkspaceAuditSection.tsx (18 lines)
+            WorkspaceAuditSection.test.ts (6 lines)
+            WorkspaceAuditSection.tsx (23 lines)
             WorkspaceContext.tsx (47 lines)
-            WorkspaceDailySection.tsx (90 lines)
+            WorkspaceDailySection.tsx (94 lines)
             WorkspaceFilesSection.tsx (65 lines)
             WorkspaceIssuesSection.tsx (115 lines)
             WorkspaceMembersSection.tsx (18 lines)
