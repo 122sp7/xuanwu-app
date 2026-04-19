@@ -379,7 +379,6 @@ export {
   getPaginationRowModel,
   getGroupedRowModel,
   getExpandedRowModel,
-  getSelectedRowModel,
   type ColumnDef,
   type SortingState,
   type ColumnFiltersState,
