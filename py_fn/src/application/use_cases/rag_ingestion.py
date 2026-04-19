@@ -19,7 +19,12 @@ from core.config import (
     RAG_VECTOR_NAMESPACE,
 )
 from domain.repositories import RagIngestionGateway, get_rag_ingestion_gateway
-from domain.services.rag_ingestion_text import clean_text, chunk_text, detect_language_hint
+from domain.services.rag_ingestion_text import (
+    chunk_text,
+    clean_text,
+    detect_language_hint,
+    layout_chunks_to_rag_chunks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +40,15 @@ def ingest_document_for_rag(
     account_id: str,
     workspace_id: str,
     taxonomy: str = "general",
+    layout_chunks: list[dict[str, Any]] | None = None,
     gateway: RagIngestionGateway | None = None,
 ) -> RagIngestionResult:
-    """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
+    """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。
+
+    當 layout_chunks 非空時優先使用 Layout Parser 語意分塊，保留表格結構與
+    段落語意邊界（chunking_strategy="layout-v1"）。
+    否則退回字元切分（chunking_strategy="char-split-v2"），維持向下相容。
+    """
     gateway = gateway or get_rag_ingestion_gateway()
 
     if not account_id:
@@ -48,14 +59,32 @@ def ingest_document_for_rag(
     raw_chars = len(text or "")
     normalized = clean_text(text or "")
     normalized_chars = len(normalized)
-    normalization_version = "v2"
     language_hint = detect_language_hint(normalized)
 
-    base_chunks = chunk_text(
-        normalized,
-        chunk_size=RAG_CHUNK_SIZE_CHARS,
-        overlap=RAG_CHUNK_OVERLAP_CHARS,
-    )
+    # ── 選擇分塊策略 ─────────────────────────────────────────────────────────
+    if layout_chunks:
+        base_chunks = layout_chunks_to_rag_chunks(layout_chunks)
+        chunking_strategy = "layout-v1"
+        normalization_version = "layout-v1"
+        logger.info(
+            "RAG ingestion: using Layout Parser chunks (%d chunks) for %s",
+            len(base_chunks),
+            doc_id,
+        )
+    else:
+        base_chunks = chunk_text(
+            normalized,
+            chunk_size=RAG_CHUNK_SIZE_CHARS,
+            overlap=RAG_CHUNK_OVERLAP_CHARS,
+        )
+        chunking_strategy = "char-split-v2"
+        normalization_version = "v2"
+        logger.info(
+            "RAG ingestion: using char-split (%d chunks) for %s",
+            len(base_chunks),
+            doc_id,
+        )
+
     if not base_chunks:
         return RagIngestionResult(
             chunk_count=0,
@@ -100,14 +129,19 @@ def ingest_document_for_rag(
                     "page_count": page_count,
                     "char_start": chunk["char_start"],
                     "char_end": chunk["char_end"],
+                    # Layout Parser specific fields (empty strings for char-split path)
+                    "page_start": chunk.get("page_start", 0),
+                    "page_end": chunk.get("page_end", 0),
+                    "layout_chunk_id": chunk.get("chunk_id", ""),
                     "text": chunk["text"],
                     "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
                     "raw_chars": raw_chars,
                     "normalized_chars": normalized_chars,
                     "normalization_version": normalization_version,
                     "language_hint": language_hint,
+                    "chunking_strategy": chunking_strategy,
                     "indexed_at": now_iso,
-                    "ingestion_pipeline": "rag-v2",
+                    "ingestion_pipeline": "rag-v3",
                 },
             }
         )
@@ -147,6 +181,7 @@ def ingest_document_for_rag(
                 "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
                 "normalization_version": normalization_version,
                 "language_hint": language_hint,
+                "chunking_strategy": chunking_strategy,
                 "indexed_at": now_iso,
             },
             ttl_seconds=RAG_DOC_CACHE_TTL_SECONDS,

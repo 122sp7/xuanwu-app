@@ -6,9 +6,17 @@ from interface.handlers.parse_document import handle_parse_document
 
 
 class _FakeParsedDocument:
-    def __init__(self, page_count: int = 3, text: str = "parsed content") -> None:
+    def __init__(
+        self,
+        page_count: int = 3,
+        text: str = "parsed content",
+        chunks: list | None = None,
+        entities: list | None = None,
+    ) -> None:
         self.page_count = page_count
         self.text = text
+        self.chunks = chunks if chunks is not None else []
+        self.entities = entities if entities is not None else []
 
 
 class _FakeRuntime:
@@ -110,3 +118,40 @@ def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -
     assert runtime.init_kwargs["doc_id"] == "report"
     assert runtime.mark_rag_ready_kwargs is not None
     assert runtime.mark_rag_ready_kwargs["chunk_count"] == 2
+
+
+def test_handleParseDocument_WithLayoutChunks_PassesChunksToRag(monkeypatch) -> None:
+    """Layout Parser chunks が存在する場合、ingest_document_for_rag へ layout_chunks が渡されること。"""
+    _layout_chunks = [
+        {"chunk_id": "c1", "text": "採購訂單標頭", "page_start": 1, "page_end": 1, "source_block_indices": [0]},
+        {"chunk_id": "c2", "text": "明細表格", "page_start": 1, "page_end": 2, "source_block_indices": [1, 2]},
+    ]
+
+    class _FakeRuntimeWithChunks(_FakeRuntime):
+        def process_document_gcs(self, *, gcs_uri: str, mime_type: str) -> _FakeParsedDocument:
+            return _FakeParsedDocument(chunks=_layout_chunks)
+
+    runtime = _FakeRuntimeWithChunks()
+    captured: dict = {}
+
+    def _capture_rag(**kwargs):
+        captured.update(kwargs)
+        return _FakeRagResult()
+
+    monkeypatch.setattr("interface.handlers.parse_document.get_document_pipeline", lambda: runtime)
+    monkeypatch.setattr("interface.handlers.parse_document.ingest_document_for_rag", _capture_rag)
+
+    response = handle_parse_document(
+        SimpleNamespace(
+            data={
+                "account_id": "account-1",
+                "workspace_id": "workspace-1",
+                "gcs_uri": "gs://bucket/uploads/account-1/po.pdf",
+                "filename": "po.pdf",
+                "mime_type": "application/pdf",
+            }
+        )
+    )
+
+    assert response["doc_id"] == "po"
+    assert captured.get("layout_chunks") == _layout_chunks

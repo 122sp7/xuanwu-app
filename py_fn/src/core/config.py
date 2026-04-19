@@ -22,6 +22,18 @@ DOCAI_PROCESSOR_NAME: str = (
 DOCAI_LOCATION: str = "asia-southeast1"
 DOCAI_API_ENDPOINT: str = "asia-southeast1-documentai.googleapis.com"
 
+# Layout Parser — 保留表格結構與段落語意邊界的主要 Processor（混合文件首選）
+# 若未設定，退回 DOCAI_PROCESSOR_NAME（向下相容）
+DOCAI_LAYOUT_PROCESSOR_NAME: str = os.environ.get(
+    "DOCAI_LAYOUT_PROCESSOR_NAME", DOCAI_PROCESSOR_NAME
+).strip()
+
+# Form Parser — 結構化欄位擷取副通道（PO號、金額、日期、供應商等 KV entity）
+# 若未設定則不啟用 Form Parser 副通道
+DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
+    "DOCAI_FORM_PROCESSOR_NAME", ""
+).strip()
+
 # ── OpenAI (Embeddings / LLM) ───────────────────────────────────────────────
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "").strip()
 OPENAI_EMBEDDING_MODEL: str = os.environ.get(
