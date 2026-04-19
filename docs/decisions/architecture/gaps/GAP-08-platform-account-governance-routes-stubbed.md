@@ -14,7 +14,7 @@
 - `platform-ui-stubs.tsx` 檔頭明示「remaining stubs」，多數頁面為 static counts / disabled actions。
 - shell route catalogs 已完成（`shell-command-catalog.ts`, `shell-navigation-catalog.ts`），但能力頁仍未接入實際 use case。
 
-## 14 architecture criteria mapping
+## Architecture criteria mapping
 
 ### Proper Domain Segmentation (Bounded Context): defines system boundaries
 - account/org governance 正確屬 platform bounded context。

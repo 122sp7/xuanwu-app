@@ -6,8 +6,9 @@
 
 | 版本 | 日期 | 變更 |
 |---|---|---|
-| v1 | 2026-04-18 | 初版 14 條準則映射（已合併至 v2） |
+| v1 | 2026-04-18 | 初版 14 條準則映射（已合併至 v2；v1 原始文件已刪除） |
 | v2 | 2026-04-18 | 拆分為 5 個獨立文件，全面映射 20 條治理準則 |
+| v3 | 2026-04-18 | 新增 GAP-06/07/08（architecture criteria mapping；待升級為完整 20 準則矩陣） |
 
 ---
 
@@ -30,6 +31,9 @@
 | GAP-03 | 業務缺口 | P0 | notebooklm → workspace 任務實體化 adapter 回傳假結果，跨域 handoff 未真正落地 | [GAP-03](./gaps/GAP-03-notebooklm-task-materialization-stub.md) |
 | GAP-04 | 功能缺口 | P1 | task-formation callable extractor 失敗後回傳假候選資料，缺失錯誤分類、retry 與可觀測性 | [GAP-04](./gaps/GAP-04-task-formation-extractor-weak-fallback.md) |
 | GAP-05 | 業務缺口 | P0 | 所有 server actions 無 requireAuth / PermissionAPI 呼叫，任意呼叫者可操作任意 workspace | [GAP-05](./gaps/GAP-05-authorization-boundary-missing.md) |
+| GAP-06 | 功能缺口 | P1 | workspace.members / quality / approval / settings 未接線；UI 為靜態/disabled state | [GAP-06](./gaps/GAP-06-workspace-governance-tabs-disconnected.md) |
+| GAP-07 | 業務缺口 | P0 | notebooklm.ai-chat 未啟用 conversation domain model；對話未持久化 | [GAP-07](./gaps/GAP-07-notebooklm-conversation-model-not-activated.md) |
+| GAP-08 | 業務缺口 | P1 | Account governance routes 仍為 platform-ui-stubs；能力頁未接入 use case | [GAP-08](./gaps/GAP-08-platform-account-governance-routes-stubbed.md) |
 
 ---
 
@@ -98,5 +102,5 @@ Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
 
 ## 相關文件
 
-- [歷史版本 overview（v1）](../2026-04-18-workspace-notion-notebooklm-gap-analysis.md)
+- [v3 次級索引（GAP-06~08 原始脈絡）](../2026-04-18-navigation-capability-gap-index-v3.md)
 - [Decisions README](../../README.md)

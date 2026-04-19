@@ -1,4 +1,7 @@
-# 2026-04-18 Navigation Capability Gap Index (v3 — 14 Criteria)
+# 2026-04-18 Navigation Capability Gap Index (v3)
+
+> ⚠️ **此文件為 v3 補充記錄，GAP-06/07/08 已整合至主索引 [gap-analysis-index.md](./2026-04-18-gap-analysis-index.md)。**
+> 本文保留 v3 的發現脈絡與 Context7 驗證錨點，不再作為獨立追蹤入口。
 
 > Scope: only **new/non-duplicate** gaps found from current tab/route catalog after `npm run repomix:skill` refresh.
 > Excludes existing GAP-01~GAP-05 in `docs/decisions/architecture/gaps/`.

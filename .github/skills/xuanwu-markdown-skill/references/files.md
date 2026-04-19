@@ -382,275 +382,6 @@ packages/ui-shadcn/
 - `tsconfig.json` — `@ui-shadcn/*` path alias
 ````
 
-## File: py_fn/README.md
-````markdown
-# py_fn 架構規範（路徑級依賴版）
-
-這份規範重點是「看完整路徑判斷依賴」，不是看資料夾名稱。
-例如 services 這個名字在 application 和 domain 都存在，但它們是不同層，規則不同。
-
-## 1. 全域依賴方向
-
-```text
-interface -> application -> domain
-infrastructure -> application -> domain
-app -> interface / application / infrastructure / core
-core -> all layers
-domain -> only core
-```
-
-## 2. 目錄基準（含子資料夾）
-
-```text
-py_fn/src
-├─ app
-│  ├─ config
-│  ├─ bootstrap
-│  ├─ container
-│  └─ settings
-├─ application
-│  ├─ use_cases
-│  ├─ dto
-│  ├─ services
-│  ├─ ports
-│  │  ├─ input
-│  │  └─ output
-│  └─ mappers
-├─ domain
-│  ├─ entities
-│  ├─ value_objects
-│  ├─ repositories
-│  ├─ services
-│  ├─ events
-│  └─ exceptions
-├─ infrastructure
-│  ├─ cache
-│  ├─ audit
-│  ├─ persistence
-│  │  ├─ firestore
-│  │  ├─ storage
-│  │  └─ vector
-│  ├─ external
-│  │  ├─ openai
-│  │  ├─ genkit
-│  │  └─ http
-│  ├─ repositories
-│  ├─ config
-│  └─ logging
-├─ interface
-│  ├─ controllers
-│  ├─ middleware
-│  ├─ handlers
-│  ├─ schemas
-│  └─ routes
-└─ core
-   ├─ utils
-   ├─ types
-   ├─ constants
-   ├─ exceptions
-   └─ security
-```
-
-## 3. 各層職責摘要
-
-### app
-- 啟動、組裝、注入。
-- 這一層可以依賴所有層，但不承載核心業務規則。
-
-### application
-- 放 use case、application service、ports、DTO、mappers。
-- 負責流程編排，不直接依賴 infrastructure 實作。
-
-### domain
-- 放 entities、value objects、repositories 介面、domain services、events、exceptions。
-- 是最核心的層，必須保持純淨。
-
-### infrastructure
-- 放 Firestore、Storage、Vector、外部 API、repository implementation。
-- 只負責技術實作，不主導業務流程。
-
-### interface
-- 放 controllers、handlers、routes、schemas、middleware。
-- 接外部請求、驗證輸入、呼叫 use case。
-
-### core
-- 放所有層可共用的 utils、types、constants、exceptions、security。
-- core 本身不依賴任何外層。
-
-## 4.1 值物件與 DTO 規劃
-
-### 應放在 domain/value_objects
-- 純資料語意、無基礎設施細節、可被多個 use case 重用。
-- 例如：`RagQueryInput`、`RagCitation`、`RagQueryResult`。
-
-### 應放在 application/dto
-- 某個 use case 的輸入/輸出模型。
-- 例如：`RagIngestionResult` 這種 use case 輸出摘要。
-
-### 不應放進 domain/value_objects
-- 外部服務供應商回傳模型。
-- 例如：`ParsedDocument` 屬於 Document AI adapter 的回傳型別，保留在 infrastructure/external。
-
-### 目前 py_fn 的落點範例
-- `domain/value_objects/rag.py`: `RagQueryInput`, `RagCitation`, `RagQueryResult`
-- `domain/repositories/rag.py`: `RagQueryGateway`, `RagIngestionGateway`, `DocumentPipelineGateway`
-- `application/dto/rag.py`: `RagIngestionResult`
-- `infrastructure/external/documentai/client.py`: `ParsedDocument`
-
-## 4.2 同名資料夾的判讀規則
-
-- services 只看名稱會誤判，必須看完整路徑
-       - domain/services 是核心業務規則
-       - application/services 是應用層編排
-       - infrastructure/services 若存在，只能是技術 adapter；若可拆回更明確目錄，優先拆回 cache / audit / external / persistence
-- repositories 也一樣
-       - domain/repositories 是介面（contracts）
-       - infrastructure/repositories 是實作（implementations）
-- config 也一樣
-       - app/config 是啟動與組裝配置
-       - infrastructure/config 是技術配置
-       - core/constants 才是跨層可共用常量
-
-## 5. 路徑級依賴矩陣（最重要）
-
-| From 路徑 | Allowed To Import |
-| --- | --- |
-| interface/routes | interface/controllers, interface/handlers, core |
-| interface/controllers | application/use_cases, application/dto, domain, core |
-| interface/handlers | application/use_cases, application/ports/input, core |
-| interface/middleware | core |
-| interface/schemas | core, 同層 schema 模組 |
-| application/use_cases | domain, application/ports/output, application/dto, core |
-| application/services | domain, application/ports/output, core |
-| application/mappers | application/dto, domain, core |
-| application/ports/input | domain, core |
-| application/ports/output | domain, core |
-| domain/entities | domain/value_objects, core |
-| domain/value_objects | core |
-| domain/services | domain/entities, domain/value_objects, domain/repositories, core |
-| domain/repositories | domain/entities, domain/value_objects, core |
-| domain/events | domain/entities, core |
-| domain/exceptions | core |
-| infrastructure/repositories | domain/repositories, domain/entities, infrastructure/persistence, core |
-| infrastructure/cache | infrastructure/external, core |
-| infrastructure/audit | infrastructure/external, core |
-| infrastructure/persistence | domain/entities, domain/value_objects, core |
-| infrastructure/external | application/ports/output, domain, core |
-| infrastructure/config | core |
-| infrastructure/logging | core |
-| app/bootstrap | app/config, app/container, infrastructure, application, interface, core |
-| app/container | infrastructure, application, domain, core |
-| app/settings | core |
-| core/* | 不可依賴任何外層 |
-
-## 6. 明確禁止規則
-
-- domain 不可 import application/interface/infrastructure/app
-- application 不可 import infrastructure 實作
-- interface 不可直接 import infrastructure（除非經 app 組裝注入後由 application port 提供）
-- infrastructure 不可主導業務流程（流程應在 application/use_cases）
-
-## 7. 標準依賴流
-
-```text
-route -> controller/handler -> use case -> domain -> repository interface
-                                                     ^
-                                                     |
-                           repository implementation (infrastructure)
-```
-
-## 8. import 範例
-
-### interface controller
-
-```python
-from application.use_cases.create_user import CreateUserUseCase
-from interface.schemas.user_schema import CreateUserRequest
-```
-
-### application use case
-
-```python
-from domain.repositories.user_repository import UserRepository
-from domain.entities.user import User
-```
-
-### infrastructure repository implementation
-
-```python
-from domain.repositories.user_repository import UserRepository
-from infrastructure.persistence.firestore.client import FirestoreClient
-```
-
-### app container
-
-```python
-from infrastructure.repositories.firestore_user_repository import FirestoreUserRepository
-from application.use_cases.create_user import CreateUserUseCase
-```
-
-## 9. PR 檢查清單
-
-- 是否用完整路徑判讀層級，而不是只看資料夾名稱
-- domain 是否只依賴 core
-- use case 是否只依賴抽象（ports/repository interface）
-- infrastructure 是否只做技術實作
-- app 是否是唯一組裝與注入入口
-
-## 10. 附錄 A：快速記憶版
-
-如果只想快速判斷，先記這張：
-
-```text
-Controller/Handler -> UseCase -> Domain -> Repository Interface
-                                                                         ^
-                                                                         |
-                                                   Repository Implementation
-                                                                         |
-                                                                Database / API
-```
-
-對應路徑：
-
-```text
-interface/controllers or interface/handlers
-application/use_cases
-domain/entities or domain/services
-domain/repositories
-infrastructure/repositories
-infrastructure/persistence or infrastructure/external
-```
-
-## 11. 附錄 B：高階流程圖
-
-```text
-HTTP Request
-       -> interface (controller / handler)
-       -> application (use case)
-       -> domain (entity / service / repository interface)
-       -> infrastructure (Firestore / Vector / API implementation)
-```
-
-## 12. 附錄 C：典型誤判案例
-
-### services 同名但不同層
-- `application/services/*` 可以編排流程，但不應放純領域規則。
-- `domain/services/*` 才是純領域規則。
-
-### repositories 同名但不同性質
-- `domain/repositories/*` 是介面。
-- `infrastructure/repositories/*` 是實作。
-
-### config 同名但職責不同
-- `app/config/*` 面向啟動與組裝。
-- `infrastructure/config/*` 面向技術設定。
-- 可跨層重用的常量優先放 `core/constants/*`。
-
-## 13. 一句話總結
-
-看完整路徑判斷層級，不看資料夾名稱猜責任。
-````
-
 ## File: .github/AGENTS.md
 ````markdown
 # .github — Agent Guide
@@ -3102,7 +2833,10 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 
 ## File: docs/decisions/architecture/2026-04-18-navigation-capability-gap-index-v3.md
 ````markdown
-# 2026-04-18 Navigation Capability Gap Index (v3 — 14 Criteria)
+# 2026-04-18 Navigation Capability Gap Index (v3)
+
+> ⚠️ **此文件為 v3 補充記錄，GAP-06/07/08 已整合至主索引 [gap-analysis-index.md](./2026-04-18-gap-analysis-index.md)。**
+> 本文保留 v3 的發現脈絡與 Context7 驗證錨點，不再作為獨立追蹤入口。
 
 > Scope: only **new/non-duplicate** gaps found from current tab/route catalog after `npm run repomix:skill` refresh.
 > Excludes existing GAP-01~GAP-05 in `docs/decisions/architecture/gaps/`.
@@ -3153,7 +2887,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 - `quality-actions.ts`、`approval-actions.ts` 已存在 use case 入口，但 UI 完全未呼叫。
 - `workspace` 已有 membership/quality/approval 子域與 use cases，能力未被啟用到導航頁。
 
-## 14 architecture criteria mapping
+## Architecture criteria mapping
 
 ### Proper Domain Segmentation (Bounded Context): defines system boundaries
 - 邊界正確：membership/quality/approval 屬 workspace bounded context。
@@ -3236,7 +2970,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 - `notebook-actions.ts` 只呼叫 `ragQueryAction`，未使用 conversation use cases。
 - `subdomains/conversation/domain` 與 `application/use-cases` 已存在，但 inbound/outbound adapters 仍 placeholder。
 
-## 14 architecture criteria mapping
+## Architecture criteria mapping
 
 ### Proper Domain Segmentation (Bounded Context): defines system boundaries
 - notebooklm 已清楚定義 notebook/document/conversation 子域。
@@ -3320,7 +3054,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 - `platform-ui-stubs.tsx` 檔頭明示「remaining stubs」，多數頁面為 static counts / disabled actions。
 - shell route catalogs 已完成（`shell-command-catalog.ts`, `shell-navigation-catalog.ts`），但能力頁仍未接入實際 use case。
 
-## 14 architecture criteria mapping
+## Architecture criteria mapping
 
 ### Proper Domain Segmentation (Bounded Context): defines system boundaries
 - account/org governance 正確屬 platform bounded context。
@@ -5590,40 +5324,318 @@ import { XuanwuLineChart, XuanwuBarChart, XuanwuPieChart } from '@ui-visualizati
 - `ResponsiveContainer` + percentage 寬高為標準響應式模式。
 ````
 
-## File: py_fn/AGENTS.md
+## File: py_fn/README.md
 ````markdown
-# py_fn — Agent Guide
+# py_fn 架構規範（路徑級依賴版）
 
-## Purpose
+這份規範重點是「看完整路徑判斷依賴」，不是看資料夾名稱。
+例如 services 這個名字在 application 和 domain 都存在，但它們是不同層，規則不同。
 
-`py_fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。
+## 0. Document AI 雙通道設計（US Region）
 
-## Runtime Boundary
+⚠️ 兩個 processor 均位於 **US region**，`DOCAI_API_ENDPOINT` 必須為 `us-documentai.googleapis.com`。
 
-- `py_fn/` 處理：parse、clean、taxonomy、chunk、embed、persistence pipeline
-- Next.js 處理：upload UX、browser-facing API、response orchestration
-- 兩者互動只透過 QStash 訊息、Firestore trigger 或事件契約
+| Processor | 用途 | Resource Name |
+|---|---|---|
+| Layout Parser（主） | 語意分塊：標題、段落、表格各自成 chunk，保留溯源引用鏈 | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
+| Form Parser（副） | 結構化欄位擷取：PO號、金額、日期、供應商等 KV entity | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
 
-## Route Here When
+### 問題對應
 
-- 需要解析、清洗文件內容（PDF、Markdown、HTML）
-- 需要 chunk、embed、存入向量資料庫
-- 需要可重試的背景作業或批次處理
+| 問題 | Layout Parser 解法 |
+|---|---|
+| 表格打散 | Table block 成獨立 chunk，含完整行列 |
+| 工程細節與條款混淆 | Heading+paragraph 結構分離成 section chunks |
+| 字元切分破壞完整性 | 使用 Document AI 原生 chunk boundaries |
 
-## Route Elsewhere When
+### 雙通道流程
 
-- 需要 browser-facing API 或即時回應 → `src/app/`
-- 需要 use case 業務邏輯 → `src/modules/<context>/`
+```text
+GCS Document
+    ├─ Layout Parser  → ParsedDocument.chunks   → RAG 語意分塊（chunking_strategy="layout-v1"）
+    └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
+```
 
-## Architecture
+副通道失敗時記錄 WARNING 並繼續（不阻斷主流程）。
 
-`py_fn/src/` 採用同樣的 Hexagonal Architecture 分層：
-- `app/` — 應用入口（config、bootstrap、container、settings）
-- `application/` — use cases、DTO、ports、services、mappers
-- `domain/` — entities、value objects、repositories、events
-- `infrastructure/` — Firestore、Storage、AI SDK adapters
+### 入口函式
 
-詳細架構規範見 [README.md](README.md)。
+```python
+# infrastructure/external/documentai/client.py
+from infrastructure.external.documentai.client import process_document_gcs_with_form
+
+parsed = process_document_gcs_with_form(gcs_uri="gs://bucket/file.pdf")
+# parsed.chunks   → Layout Parser 語意分塊
+# parsed.entities → Form Parser 結構化欄位
+```
+
+### 環境變數
+
+| 變數 | 預設值 |
+|---|---|
+| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
+| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
+
+## 1. 全域依賴方向
+
+```text
+interface -> application -> domain
+infrastructure -> application -> domain
+app -> interface / application / infrastructure / core
+core -> all layers
+domain -> only core
+```
+
+## 2. 目錄基準（含子資料夾）
+
+```text
+py_fn/src
+├─ app
+│  ├─ config
+│  ├─ bootstrap
+│  ├─ container
+│  └─ settings
+├─ application
+│  ├─ use_cases
+│  ├─ dto
+│  ├─ services
+│  ├─ ports
+│  │  ├─ input
+│  │  └─ output
+│  └─ mappers
+├─ domain
+│  ├─ entities
+│  ├─ value_objects
+│  ├─ repositories
+│  ├─ services
+│  ├─ events
+│  └─ exceptions
+├─ infrastructure
+│  ├─ cache
+│  ├─ audit
+│  ├─ persistence
+│  │  ├─ firestore
+│  │  ├─ storage
+│  │  └─ vector
+│  ├─ external
+│  │  ├─ openai
+│  │  ├─ genkit
+│  │  └─ http
+│  ├─ repositories
+│  ├─ config
+│  └─ logging
+├─ interface
+│  ├─ controllers
+│  ├─ middleware
+│  ├─ handlers
+│  ├─ schemas
+│  └─ routes
+└─ core
+   ├─ utils
+   ├─ types
+   ├─ constants
+   ├─ exceptions
+   └─ security
+```
+
+## 3. 各層職責摘要
+
+### app
+- 啟動、組裝、注入。
+- 這一層可以依賴所有層，但不承載核心業務規則。
+
+### application
+- 放 use case、application service、ports、DTO、mappers。
+- 負責流程編排，不直接依賴 infrastructure 實作。
+
+### domain
+- 放 entities、value objects、repositories 介面、domain services、events、exceptions。
+- 是最核心的層，必須保持純淨。
+
+### infrastructure
+- 放 Firestore、Storage、Vector、外部 API、repository implementation。
+- 只負責技術實作，不主導業務流程。
+
+### interface
+- 放 controllers、handlers、routes、schemas、middleware。
+- 接外部請求、驗證輸入、呼叫 use case。
+
+### core
+- 放所有層可共用的 utils、types、constants、exceptions、security。
+- core 本身不依賴任何外層。
+
+## 4.1 值物件與 DTO 規劃
+
+### 應放在 domain/value_objects
+- 純資料語意、無基礎設施細節、可被多個 use case 重用。
+- 例如：`RagQueryInput`、`RagCitation`、`RagQueryResult`。
+
+### 應放在 application/dto
+- 某個 use case 的輸入/輸出模型。
+- 例如：`RagIngestionResult` 這種 use case 輸出摘要。
+
+### 不應放進 domain/value_objects
+- 外部服務供應商回傳模型。
+- 例如：`ParsedDocument` 屬於 Document AI adapter 的回傳型別，保留在 infrastructure/external。
+
+### 目前 py_fn 的落點範例
+- `domain/value_objects/rag.py`: `RagQueryInput`, `RagCitation`, `RagQueryResult`
+- `domain/repositories/rag.py`: `RagQueryGateway`, `RagIngestionGateway`, `DocumentPipelineGateway`
+- `application/dto/rag.py`: `RagIngestionResult`
+- `infrastructure/external/documentai/client.py`: `ParsedDocument`
+
+## 4.2 同名資料夾的判讀規則
+
+- services 只看名稱會誤判，必須看完整路徑
+       - domain/services 是核心業務規則
+       - application/services 是應用層編排
+       - infrastructure/services 若存在，只能是技術 adapter；若可拆回更明確目錄，優先拆回 cache / audit / external / persistence
+- repositories 也一樣
+       - domain/repositories 是介面（contracts）
+       - infrastructure/repositories 是實作（implementations）
+- config 也一樣
+       - app/config 是啟動與組裝配置
+       - infrastructure/config 是技術配置
+       - core/constants 才是跨層可共用常量
+
+## 5. 路徑級依賴矩陣（最重要）
+
+| From 路徑 | Allowed To Import |
+| --- | --- |
+| interface/routes | interface/controllers, interface/handlers, core |
+| interface/controllers | application/use_cases, application/dto, domain, core |
+| interface/handlers | application/use_cases, application/ports/input, core |
+| interface/middleware | core |
+| interface/schemas | core, 同層 schema 模組 |
+| application/use_cases | domain, application/ports/output, application/dto, core |
+| application/services | domain, application/ports/output, core |
+| application/mappers | application/dto, domain, core |
+| application/ports/input | domain, core |
+| application/ports/output | domain, core |
+| domain/entities | domain/value_objects, core |
+| domain/value_objects | core |
+| domain/services | domain/entities, domain/value_objects, domain/repositories, core |
+| domain/repositories | domain/entities, domain/value_objects, core |
+| domain/events | domain/entities, core |
+| domain/exceptions | core |
+| infrastructure/repositories | domain/repositories, domain/entities, infrastructure/persistence, core |
+| infrastructure/cache | infrastructure/external, core |
+| infrastructure/audit | infrastructure/external, core |
+| infrastructure/persistence | domain/entities, domain/value_objects, core |
+| infrastructure/external | application/ports/output, domain, core |
+| infrastructure/config | core |
+| infrastructure/logging | core |
+| app/bootstrap | app/config, app/container, infrastructure, application, interface, core |
+| app/container | infrastructure, application, domain, core |
+| app/settings | core |
+| core/* | 不可依賴任何外層 |
+
+## 6. 明確禁止規則
+
+- domain 不可 import application/interface/infrastructure/app
+- application 不可 import infrastructure 實作
+- interface 不可直接 import infrastructure（除非經 app 組裝注入後由 application port 提供）
+- infrastructure 不可主導業務流程（流程應在 application/use_cases）
+
+## 7. 標準依賴流
+
+```text
+route -> controller/handler -> use case -> domain -> repository interface
+                                                     ^
+                                                     |
+                           repository implementation (infrastructure)
+```
+
+## 8. import 範例
+
+### interface controller
+
+```python
+from application.use_cases.create_user import CreateUserUseCase
+from interface.schemas.user_schema import CreateUserRequest
+```
+
+### application use case
+
+```python
+from domain.repositories.user_repository import UserRepository
+from domain.entities.user import User
+```
+
+### infrastructure repository implementation
+
+```python
+from domain.repositories.user_repository import UserRepository
+from infrastructure.persistence.firestore.client import FirestoreClient
+```
+
+### app container
+
+```python
+from infrastructure.repositories.firestore_user_repository import FirestoreUserRepository
+from application.use_cases.create_user import CreateUserUseCase
+```
+
+## 9. PR 檢查清單
+
+- 是否用完整路徑判讀層級，而不是只看資料夾名稱
+- domain 是否只依賴 core
+- use case 是否只依賴抽象（ports/repository interface）
+- infrastructure 是否只做技術實作
+- app 是否是唯一組裝與注入入口
+
+## 10. 附錄 A：快速記憶版
+
+如果只想快速判斷，先記這張：
+
+```text
+Controller/Handler -> UseCase -> Domain -> Repository Interface
+                                                                         ^
+                                                                         |
+                                                   Repository Implementation
+                                                                         |
+                                                                Database / API
+```
+
+對應路徑：
+
+```text
+interface/controllers or interface/handlers
+application/use_cases
+domain/entities or domain/services
+domain/repositories
+infrastructure/repositories
+infrastructure/persistence or infrastructure/external
+```
+
+## 11. 附錄 B：高階流程圖
+
+```text
+HTTP Request
+       -> interface (controller / handler)
+       -> application (use case)
+       -> domain (entity / service / repository interface)
+       -> infrastructure (Firestore / Vector / API implementation)
+```
+
+## 12. 附錄 C：典型誤判案例
+
+### services 同名但不同層
+- `application/services/*` 可以編排流程，但不應放純領域規則。
+- `domain/services/*` 才是純領域規則。
+
+### repositories 同名但不同性質
+- `domain/repositories/*` 是介面。
+- `infrastructure/repositories/*` 是實作。
+
+### config 同名但職責不同
+- `app/config/*` 面向啟動與組裝。
+- `infrastructure/config/*` 面向技術設定。
+- 可跨層重用的常量優先放 `core/constants/*`。
+
+## 13. 一句話總結
+
+看完整路徑判斷層級，不看資料夾名稱猜責任。
 ````
 
 ## File: src/AGENTS.md
@@ -10528,6 +10540,80 @@ import { LineChart, StatCard } from '@ui-visualization'
 ```
 ````
 
+## File: py_fn/AGENTS.md
+````markdown
+# py_fn — Agent Guide
+
+## Purpose
+
+`py_fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。
+
+## Runtime Boundary
+
+- `py_fn/` 處理：parse、clean、taxonomy、chunk、embed、persistence pipeline
+- Next.js 處理：upload UX、browser-facing API、response orchestration
+- 兩者互動只透過 QStash 訊息、Firestore trigger 或事件契約
+
+## Route Here When
+
+- 需要解析、清洗文件內容（PDF、Markdown、HTML）
+- 需要 chunk、embed、存入向量資料庫
+- 需要可重試的背景作業或批次處理
+
+## Route Elsewhere When
+
+- 需要 browser-facing API 或即時回應 → `src/app/`
+- 需要 use case 業務邏輯 → `src/modules/<context>/`
+
+## Architecture
+
+`py_fn/src/` 採用同樣的 Hexagonal Architecture 分層：
+- `app/` — 應用入口（config、bootstrap、container、settings）
+- `application/` — use cases、DTO、ports、services、mappers
+- `domain/` — entities、value objects、repositories、events
+- `infrastructure/` — Firestore、Storage、AI SDK adapters
+
+詳細架構規範見 [README.md](README.md)。
+
+## Document AI Processors（US Region）
+
+⚠️ 兩個 processor 均位於 **US region**，client endpoint 必須使用 `us-documentai.googleapis.com`。
+
+| Processor | 用途 | Resource Name |
+|---|---|---|
+| Layout Parser | 主通道 — 語意分塊（標題、段落、表格各自成 chunk） | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
+| Form Parser | 副通道 — 結構化欄位擷取（PO號、金額、日期、供應商） | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
+
+### 雙通道設計
+
+```text
+GCS Document
+    → Layout Parser  →  ParsedDocument.chunks  →  RAG 語意分塊（主）
+    → Form Parser    →  ParsedDocument.entities →  結構化欄位（副，best-effort）
+```
+
+- 主通道（Layout Parser）失敗 → 整體 pipeline 失敗（拋例外）
+- 副通道（Form Parser）失敗 → 記錄 WARNING，以空 entities 繼續（不阻斷主流程）
+
+### 環境變數
+
+| 變數 | 預設值 | 說明 |
+|---|---|---|
+| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser 資源名稱 |
+| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser 資源名稱（設為空字串可停用） |
+
+### Form Parser 擷取欄位（AP8 採購訂購單）
+
+| 欄位 | Document AI Entity Type |
+|---|---|
+| 訂購單號 | `id` 或自定義 KV |
+| 供應商 | `organization` |
+| 買方 | `organization` |
+| 金額小計 | `price` / `quantity` |
+| 交貨日期 | `date_time` |
+| 聯絡人 | `person` + `phone` + `email` |
+````
+
 ## File: src/app/AGENTS.md
 ````markdown
 # src/app — Agent Guide
@@ -12668,8 +12754,9 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 
 | 版本 | 日期 | 變更 |
 |---|---|---|
-| v1 | 2026-04-18 | 初版 14 條準則映射（已合併至 v2） |
+| v1 | 2026-04-18 | 初版 14 條準則映射（已合併至 v2；v1 原始文件已刪除） |
 | v2 | 2026-04-18 | 拆分為 5 個獨立文件，全面映射 20 條治理準則 |
+| v3 | 2026-04-18 | 新增 GAP-06/07/08（architecture criteria mapping；待升級為完整 20 準則矩陣） |
 
 ---
 
@@ -12692,6 +12779,9 @@ Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xu
 | GAP-03 | 業務缺口 | P0 | notebooklm → workspace 任務實體化 adapter 回傳假結果，跨域 handoff 未真正落地 | [GAP-03](./gaps/GAP-03-notebooklm-task-materialization-stub.md) |
 | GAP-04 | 功能缺口 | P1 | task-formation callable extractor 失敗後回傳假候選資料，缺失錯誤分類、retry 與可觀測性 | [GAP-04](./gaps/GAP-04-task-formation-extractor-weak-fallback.md) |
 | GAP-05 | 業務缺口 | P0 | 所有 server actions 無 requireAuth / PermissionAPI 呼叫，任意呼叫者可操作任意 workspace | [GAP-05](./gaps/GAP-05-authorization-boundary-missing.md) |
+| GAP-06 | 功能缺口 | P1 | workspace.members / quality / approval / settings 未接線；UI 為靜態/disabled state | [GAP-06](./gaps/GAP-06-workspace-governance-tabs-disconnected.md) |
+| GAP-07 | 業務缺口 | P0 | notebooklm.ai-chat 未啟用 conversation domain model；對話未持久化 | [GAP-07](./gaps/GAP-07-notebooklm-conversation-model-not-activated.md) |
+| GAP-08 | 業務缺口 | P1 | Account governance routes 仍為 platform-ui-stubs；能力頁未接入 use case | [GAP-08](./gaps/GAP-08-platform-account-governance-routes-stubbed.md) |
 
 ---
 
@@ -12760,7 +12850,7 @@ Week 5+ (P2)        GAP-02 → notion templates 主鏈路填充
 
 ## 相關文件
 
-- [歷史版本 overview（v1）](../2026-04-18-workspace-notion-notebooklm-gap-analysis.md)
+- [v3 次級索引（GAP-06~08 原始脈絡）](../2026-04-18-navigation-capability-gap-index-v3.md)
 - [Decisions README](../../README.md)
 ````
 
@@ -14945,274 +15035,6 @@ function KnowledgeGraph({ nodes, edges }) {
 ```ts
 import { Network, DataSet, Timeline, type VisNode, type VisEdge } from '@ui-vis'
 ```
-````
-
-## File: docs/decisions/architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md
-````markdown
-# 2026-04-18 Workspace / Notion / NotebookLM 功能缺口與業務缺口盤點
-
-> ⚠️ **版本說明（v1，歷史版本）**
->
-> 本文件為初版盤點（v1），**已被以下文件取代為詳細分析**：
->
-> - [缺口分析索引 v2（20 準則完整矩陣）](./2026-04-18-gap-analysis-index.md) ← **主要入口**
-> - [GAP-01 詳細分析](./gaps/GAP-01-schedule-audit-settlement-ui-only.md)
-> - [GAP-02 詳細分析](./gaps/GAP-02-notion-templates-placeholder.md)
-> - [GAP-03 詳細分析](./gaps/GAP-03-notebooklm-task-materialization-stub.md)
-> - [GAP-04 詳細分析](./gaps/GAP-04-task-formation-extractor-weak-fallback.md)
-> - [GAP-05 詳細分析](./gaps/GAP-05-authorization-boundary-missing.md)
->
-> v1 保留作歷史參考。若有出入，以上述詳細分析文件為準。
-
-## 背景
-
-本文件以 `npm run repomix:skill` 掃描結果為起點，並交叉檢視目前 `workspace` / `notion` / `notebooklm` 的實作，整理「功能缺口 / 業務缺口」與可落地修補方向。
-
-## 分析範圍（本次要求）
-
-### Workspace Tabs
-
-- `workspace.overview` / `Overview` / 首頁
-- `workspace.daily` / `Daily` / 每日
-- `workspace.schedule` / `Schedule` / 排程
-- `workspace.audit` / `Audit` / 日誌
-- `workspace.files` / `Files` / 檔案
-- `workspace.members` / `Members` / 成員
-- `workspace.settings` / `WorkspaceSettings` / 設定
-- `workspace.task-formation` / `TaskFormation` / 任務形成
-- `workspace.tasks` / `Tasks` / 任務
-- `workspace.quality` / `Quality` / 質檢
-- `workspace.approval` / `Approval` / 驗收
-- `workspace.settlement` / `Settlement` / 結算
-- `workspace.issues` / `Issues` / 問題單
-
-### Notion Tabs
-
-- `notion.knowledge` / `Knowledge` / 知識
-- `notion.pages` / `Pages` / 頁面
-- `notion.database` / `Database` / 資料庫
-- `notion.templates` / `Templates` / 範本
-
-### NotebookLM Tabs
-
-- `notebooklm.notebook` / `Notebook` / RAG 查詢
-- `notebooklm.ai-chat` / `AiChat` / AI 對話
-- `notebooklm.sources` / `Sources` / 來源文件
-- `notebooklm.research` / `Research` / 研究摘要
-
-### Platform Route Titles
-
-- `/organization`、`/members`、`/teams`、`/permissions`、`/workspaces`
-- `/daily`、`/schedule`、`/schedule/dispatcher`、`/audit`
-- `/workspace`、`/dashboard`
-
-## 缺口總覽
-
-### 優先級定義
-
-| 等級 | 定義 |
-|---|---|
-| P0 | 直接影響主流程可用性、跨邊界一致性或安全邊界，需優先修補 |
-| P1 | 已有替代路徑但風險持續累積，應安排近期迭代處理 |
-| P2 | 不阻塞主流程，但會造成能力不完整或擴展成本上升 |
-
-| Gap ID | 類型 | 優先級 | 描述 |
-|---|---|---|---|
-| GAP-01 | 功能缺口 | P0 | `workspace.schedule` / `workspace.audit` / `workspace.settlement` 仍為 UI empty-state，未接 use case 與 repository |
-| GAP-02 | 業務缺口 | P2 | `notion.templates` 與 notion 子域（template/view/collaboration 等）仍大量 placeholder/stub，缺少可執行業務能力 |
-| GAP-03 | 業務缺口 | P0 | `notebooklm` 到 `workspace` 的任務實體化僅 stub，跨邊界交易未真正落地 |
-| GAP-04 | 功能缺口 | P1 | `workspace.task-formation` 的 AI extractor 依賴未部署 callable，現行使用 fallback stub，失敗策略與可觀測性不足 |
-| GAP-05 | 業務缺口 | P0 | 目前部分 Action 僅做輸入驗證，缺少顯式授權與 actor scope 驗證鏈路 |
-
----
-
-## GAP-01：Workspace 排程 / 日誌 / 結算仍為展示層
-
-### 證據
-
-- `src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx`
-- `src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx`
-- `src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx`
-- 三者皆為 UI empty state 與 disabled CTA，未觸發 application use cases。
-
-### 架構對齊（20 準則）
-
-1. **Proper Domain Segmentation**：將 schedule/audit/settlement 視為各自子域能力，不再由 UI 直出假資料。
-2. **Complete Aggregate Design**：補齊 `WorkDemand` / `AuditEntry` / `Invoice` 聚合不變條件與命令入口。
-3. **Proper Hexagonal Architecture**：由 `interfaces -> application -> domain <- infrastructure` 串接，UI 不直接碰資料來源。
-4. **Consistency / Transaction Strategy**：定義建立里程碑、記錄日誌、結算狀態轉換的一致性交易邊界。
-5. **Contract / Schema**：Server Action 邊界用 Zod 驗證輸入與查詢條件。
-6. **State Model / FSM**：對結算狀態與排程流程加入明確狀態圖（例如草稿/確認/結算）。
-7. **Observability**：操作需記錄 traceId、workspaceId、actorId、event type。
-8. **Failure Strategy**：提供重試、補償與錯誤分類（可重試 vs 不可重試）。
-9. **Authorization / Security**：每個 action 需校驗 actor 對 workspace 的可操作權限。
-10. **Testability / Specification**：建立子域 use case 單元測試與關鍵流程整合測試。
-11. **Lint / Policy as Code**：加強禁止 UI 層直存取 repo 的規則檢查。
-12. **Design Activation Rules**：僅在流程複雜時啟用 FSM/事件化；簡單查詢不過度設計。
-13. **Single Responsibility / No Redundancy**：避免在三個頁籤重複資料模型與狀態判斷。
-14. **Minimum Necessary Design / YAGNI**：先交付最小可用 CRUD + 狀態遷移，不先做推測性擴充。
-15. **AI Operational Scope**：修補作業限定為「補 server actions + Saga wiring」，不新建模組或修改跨域介面定義。
-16. **Ubiquitous Language Governance**：`WorkDemand` / `AuditEntry` / `Invoice` 術語已定義；命名不得自行引入 `Milestone` / `Log` / `Bill` 等同義詞替換。
-17. **Breaking Change Policy**：server actions 公開後 input schema 需版本化（`v1`）；破壞性欄位移除需 staged migration，不可直接覆寫。
-18. **Event Ordering / Causality Model**：domain events 需含 `eventId` 作冪等鍵；Saga handler 以 `eventId` 去重，避免相同事件重複觸發狀態轉換。
-19. **Dependency Rule Enforcement**：`TaskLifecycleSaga` 不得深入 `subdomains/issue/domain/events/`，只能透過 `workspace/index.ts` 公開事件型別。
-20. **ADR / Design Rationale**：Saga wiring 方式（Firestore trigger vs. in-process hook）需 ADR 選定後方可實作；不得擅自選定。
-
----
-
-## GAP-02：Notion templates 與多子域仍大量 placeholder
-
-### 證據
-
-- `src/modules/notion/adapters/inbound/server-actions/template-actions.ts`（明確標註 stub / TODO）
-- `src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts`（TODO）
-- `src/modules/notion/subdomains/view/*`、`collaboration/*`、`block/*` 多處 placeholder index 檔
-- `src/modules/notion/adapters/outbound/notion-page-stub.ts`（`not yet implemented`）
-
-### 架構對齊（20 準則）
-
-1. **Proper Domain Segmentation**：明確切開 page/block/database/view/template/collaboration 的責任邊界。
-2. **Complete Aggregate Design**：每個子域至少有可操作聚合根，不以裸資料結構替代。
-3. **Proper Hexagonal Architecture**：以 port + adapter 實作，不讓 React/Action 承擔業務規則。
-4. **Consistency / Transaction Strategy**：模板套用到頁面/資料庫時定義原子操作與回滾策略。
-5. **Contract / Schema**：模板查詢、建立、套用命令皆以 Zod schema 固定契約。
-6. **State Model / FSM**：模板生命週期（draft/published/deprecated）以狀態模型約束。
-7. **Observability**：模板建立/套用/失敗要可追蹤（event + log）。
-8. **Failure Strategy**：替換 stub 為可錯誤回報與可恢復流程，避免 silent empty array。
-9. **Authorization / Security**：模板 scope（workspace/org/global）必須有顯式授權閘道。
-10. **Testability / Specification**：對模板 use cases 與 scope 規則提供行為測試。
-11. **Lint / Policy as Code**：對 placeholder/TODO 建立治理門檻（禁止進入正式流程）。
-12. **Design Activation Rules**：view/collaboration 僅在有確定業務需求時擴張到完整子域。
-13. **Single Responsibility / No Redundancy**：避免 page/database/template 重複持有相同建模責任。
-14. **Minimum Necessary Design / YAGNI**：先補齊 templates 主鏈路，再逐步擴到 collaboration/view 深水區。
-15. **AI Operational Scope**：每次 PR 只針對一個子域的 stub 填充，不批次修改多個子域邊界。
-16. **Ubiquitous Language Governance**：`scope` 枚舉值需依 glossary 定義為 `WorkspaceScope / OrganizationScope / GlobalScope`；術語未入 glossary 前不得自行命名。
-17. **Breaking Change Policy**：`Template.content` 欄位結構一旦公開需版本化（`contentV1`），不可直接覆寫修改。
-18. **Event Ordering / Causality Model**：補 `template.created / published / applied` domain events，含 `eventId + occurredAt`；消費端以 `eventId` 去重。
-19. **Dependency Rule Enforcement**：template / page / block 子域間不直接 import，跨子域呼叫只能透過 `notion/index.ts`。
-20. **ADR / Design Rationale**：`Template.content` 儲存格式（JSON string vs. block array schema）需 ADR 選定後實作。
-
----
-
-## GAP-03：NotebookLM → Workspace 任務實體化仍是 stub
-
-### 證據
-
-- `src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts`
-- 目前 `materializeTasks()` 回傳固定 `{ ok: true, taskCount }`，尚未真正呼叫 workspace 公開邊界。
-
-### 架構對齊（20 準則）
-
-1. **Proper Domain Segmentation**：notebooklm 只負責候選與語意；task 建立由 workspace 擁有。
-2. **Complete Aggregate Design**：task 建立/關聯來源需由 workspace aggregate enforce invariant。
-3. **Proper Hexagonal Architecture**：adapter 應透過 workspace public API / server action port 呼叫，不直連資料庫。
-4. **Consistency / Transaction Strategy**：定義跨邊界「候選確認→任務建立」交易與冪等鍵。
-5. **Contract / Schema**：固定 candidate payload schema（id/source/confidence/owner scope）。
-6. **State Model / FSM**：handoff 流程需有 pending/processing/succeeded/failed 狀態。
-7. **Observability**：全鏈路要有 correlationId，能對齊 notebooklm 與 workspace 日誌。
-8. **Failure Strategy**：支援重放/重試，避免重複建任務或遺失候選。
-9. **Authorization / Security**：跨域呼叫要驗證 actor 是否可在目標 workspace 建任務。
-10. **Testability / Specification**：加入跨模組契約測試（consumer/provider contract）。
-11. **Lint / Policy as Code**：禁止 notebooklm 直接 import workspace 內部層（僅 index.ts / published API）。
-12. **Design Activation Rules**：先做同步 handoff；高量或跨服務再升級事件驅動。
-13. **Single Responsibility / No Redundancy**：候選語意與任務聚合不重複建模。
-14. **Minimum Necessary Design / YAGNI**：先完成單一路徑 materialize，再擴充批次策略。
-15. **AI Operational Scope**：修補範圍只修改 adapter 實作，不修改 `TaskMaterializationWorkflowPort` 介面（需修改時獨立 PR）。
-16. **Ubiquitous Language Governance**：`TaskCandidateToken` 作為 published language token 需在 glossary 定義；`toCreateTaskInput()` mapper 命名需沿用術語。
-17. **Breaking Change Policy**：`MaterializeTasksInput` schema 欄位新增或移除為破壞性變更，需版本化審查。
-18. **Event Ordering / Causality Model**：補 `idempotencyKey`（`${notebookId}:${sourceDocumentId}:${version}`）；workspace 建立 task 前查詢 idempotency key 是否已存在。
-19. **Dependency Rule Enforcement**：adapter 只能 import `workspace/index.ts` 公開的 API 或 server actions，不得 import workspace 子域內部路徑。
-20. **ADR / Design Rationale**：handoff 方式（同步 server action call vs. 非同步 event + saga）需 ADR 選定後實作。
-
----
-
-## GAP-04：Task-formation extractor 依賴未部署，fallback 策略過弱
-
-### 證據
-
-- `src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts`
-- callable 失敗時固定回傳「待部署」假候選，缺少失敗分類、重試決策與追蹤資訊。
-
-### 架構對齊（20 準則）
-
-1. **Proper Domain Segmentation**：抽取器屬於 task-formation outbound port，不滲透到 domain。
-2. **Complete Aggregate Design**：`TaskFormationJob` 需完整記錄失敗原因與重試次數。
-3. **Proper Hexagonal Architecture**：以 port 抽換 callable 與本地備援實作。
-4. **Consistency / Transaction Strategy**：候選寫入與 job 狀態更新要同交易語意。
-5. **Contract / Schema**：對 callable output 作嚴格 schema parse，拒絕半結構資料。
-6. **State Model / FSM**：狀態應含 `queued/running/succeeded/failed/retrying`。
-7. **Observability**：記錄 callable latency、error code、source_type、workspaceId。
-8. **Failure Strategy**：導入退避重試、DLQ 或人工介面重新觸發。
-9. **Authorization / Security**：呼叫 callable 前校驗 actor 與 workspace scope。
-10. **Testability / Specification**：以 fake callable 覆蓋成功/超時/格式錯誤/權限錯誤。
-11. **Lint / Policy as Code**：對「catch 後直接回假資料」加入規範檢查或審核清單。
-12. **Design Activation Rules**：未部署階段可保留 fallback，但需受 feature flag 控制。
-13. **Single Responsibility / No Redundancy**：UI 不自行判斷 callable 細節，集中在 adapter。
-14. **Minimum Necessary Design / YAGNI**：先補錯誤可見性與重試，再引入更重流程編排。
-15. **AI Operational Scope**：修補範圍鎖定 adapter 實作，不修改 `TaskCandidateExtractorPort` 介面本身。
-16. **Ubiquitous Language Governance**：`TaskCandidate` value object 欄位（`confidence / source`）需與 glossary 術語對齊；不得自行引入 `score / origin` 等替換詞。
-17. **Breaking Change Policy**：callable 協議需含 `version` 欄位版本化；舊版本在客戶端遷移前需保持可用，不可直接覆寫。
-18. **Event Ordering / Causality Model**：callable 失敗必須觸發 `job.failed` domain event（非 `job.completed`），含 `errorCode`；消費端以 `correlationId` 去重。
-19. **Dependency Rule Enforcement**：`FirebaseCallableTaskCandidateExtractor` 只引用 port interface，不新增 domain 層直接依賴。
-20. **ADR / Design Rationale**：過渡期策略（feature flag vs. callable stub）需 ADR 選定後記錄，不繼續使用假資料 catch 作為長期方案。
-
----
-
-## GAP-05：授權邊界尚未完整顯式化
-
-### 證據
-
-- `src/modules/notion/adapters/inbound/server-actions/template-actions.ts`
-- 目前僅驗證 `workspaceId/accountId/scope/category` 格式，未見 actor/session 驗證與 permission gate。
-
-### 架構對齊（20 準則）
-
-1. **Proper Domain Segmentation**：授權決策歸屬 iam/platform permission API，不內嵌在 UI。
-2. **Complete Aggregate Design**：受保護操作應由聚合命令方法 + actor context 驅動。
-3. **Proper Hexagonal Architecture**：action 僅做 input parse + 授權檢查 + use case 呼叫。
-4. **Consistency / Transaction Strategy**：授權失敗不可落地任何資料副作用。
-5. **Contract / Schema**：命令輸入要包含 actor reference 與 scope token。
-6. **State Model / FSM**：授權相關流程狀態至少區分 allowed/denied/expired。
-7. **Observability**：記錄 deny reason、resource scope、actorId（可審計）。
-8. **Failure Strategy**：授權異常需有統一錯誤碼與可追蹤回復路徑。
-9. **Authorization / Security**：所有寫操作強制 permission gate。
-10. **Testability / Specification**：建立 permission matrix 測試（角色 × 操作 × scope）。
-11. **Lint / Policy as Code**：對 server action 強制 requireAuth/permission call 的靜態規範。
-12. **Design Activation Rules**：先套用高風險寫操作，再擴至查詢與衍生能力。
-13. **Single Responsibility / No Redundancy**：授權邏輯集中於平台服務，不在各 action 重複實作。
-14. **Minimum Necessary Design / YAGNI**：先實作必要最小權限矩陣，不提前抽象過度 ACL。
-15. **AI Operational Scope**：修補範圍限定「為現有 server actions 加入 auth + permission gate」，不修改 use case 或 domain 層業務邏輯。
-16. **Ubiquitous Language Governance**：操作者欄位統一改為 `actorId`（禁用 `createdBy / requesterId`）；更新相關 schema 的 glossary 定義。
-17. **Breaking Change Policy**：schema 中移除 `actorId` 輸入欄位為破壞性變更，需 staged migration — Phase 1 設為 optional，Phase 2 移除；不可直接覆寫。
-18. **Event Ordering / Causality Model**：所有寫操作 domain events 的 payload 加入 `actorId`（從 session 取得），不從 client input 信任取得。
-19. **Dependency Rule Enforcement**：auth 能力必須透過 `@/modules/platform` 提供的 API 抽象，不在 action 層直接 import Firebase Auth SDK。
-20. **ADR / Design Rationale**：auth gate 實作模式（每個 action 顯式呼叫 vs. HOF wrapper）需 ADR 選定後統一套用。
-
----
-
-## Context7 最佳解決方案查核（已執行）
-
-> 這些查核直接用於本文件決策：  
-> - 讓 `GAP-01/03/05` 優先落在「邊界可執行 + 一致性 + 安全」而非先做 UI 擴張。  
-> - 讓 `GAP-02/04` 以「先補可驗證主鏈路，再進階擴展」為原則，避免 placeholder 直接演化成過度設計。
-
-### 1) Repomix（`/yamadashy/repomix`）
-
-- 建議使用非互動模式：`--skill-output` + `--force`，適合 CI 與重現性流程。
-- `--skill-generate` 可與 include/ignore/compress 搭配，適合聚焦掃描範圍。
-- 本次已採 repo script：`npx repomix --config repomix.config.json --skill-generate xuanwu-skill --skill-output .github/skills/xuanwu-skill --force`。
-
-### 2) DDD + Hexagonal（`/sairyss/domain-driven-hexagon`）
-
-- 聚合根必須是外部唯一入口，跨聚合副作用建議透過 domain event 降耦。
-- 模組邊界需維持低耦合，只暴露 public interface，利於後續拆分與演化。
-- 強調 YAGNI：架構只在有真實複雜度時啟用，避免過度設計。
-
-## 決策結論
-
-1. 先補 **GAP-01 / GAP-03 / GAP-05**（直接影響工作流可用性、跨域一致性、授權安全）。
-2. 以 feature slice 逐步清除 **GAP-02 / GAP-04** 的 placeholder 與弱備援。
-3. 每個缺口修補 PR 必須附上：Zod 契約、授權檢查、可觀測性欄位、測試證據。
 ````
 
 ## File: docs/decisions/README.md
@@ -20045,144 +19867,6 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 - Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
 ````
 
-## File: docs/structure/system/module-graph.system-wide.md
-````markdown
-# System-Wide Module Graph
-
-本圖反映 0014-main-domain-resplit.md 確立的八主域重切 baseline。
-
-凡例：
-  subdomain          = Baseline subdomain（已基線化）
-  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
-  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
-
----
-
-## Upstream → Downstream Dependency Map
-
-  Upstream     │  Downstream
-  ─────────────┼───────────────────────────────────────────────────────────
-  iam          │  billing · platform · workspace · notion · notebooklm
-  billing      │  workspace · notion · notebooklm
-  ai           │  notion · notebooklm
-  platform     │  workspace
-  workspace    │  notion · notebooklm
-  notion       │  notebooklm
-  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
-
----
-
-## Domain + Subdomain Inventory
-
-─────────────────────────────────────────────────────────────────────────────
-T0  IAM                     BILLING                 AI
-    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
-─────────────────────────────────────────────────────────────────────────────
-
-    identity                billing                 generation
-    access-control          subscription            orchestration
-    tenant                  entitlement             distillation
-    security-policy         referral                retrieval
-    account                                          memory
-    organization                                     context
-                                                     safety
-                                                     tool-calling
-                                                     reasoning
-                                                     conversation
-                                                     evaluation
-                                                     tracing
-
-    [session]               [pricing]               [provider-routing]
-    [consent]               [invoice]               [model-policy]
-    [secret-governance]     [quota-policy]
-
-─────────────────────────────────────────────────────────────────────────────
-T1  PLATFORM
-    平台營運支撐
-─────────────────────────────────────────────────────────────────────────────
-
-    notification            audit-log
-    background-job          observability
-    content                 support
-    search                  workflow
-    platform-config         compliance
-    feature-flag            integration
-    onboarding
-
-    > account（含 account-profile）/ organization（含 team）→ 已遷入 T0 iam
-
-    [consent]               [secret-management]     [operational-catalog]
-
-─────────────────────────────────────────────────────────────────────────────
-T2  WORKSPACE
-    協作容器與工作區範疇
-─────────────────────────────────────────────────────────────────────────────
-
-    audit                   issue                   settlement
-    feed                    orchestration           task
-    scheduling              quality                 task-formation
-    approve
-
-    [lifecycle]             [membership]
-    [sharing]               [presence]
-
-─────────────────────────────────────────────────────────────────────────────
-T3  NOTION
-    正典知識內容
-─────────────────────────────────────────────────────────────────────────────
-
-    knowledge               automation
-    authoring               external-knowledge-sync
-    collaboration           notes
-    database                templates
-    knowledge-engagement     knowledge-versioning
-    attachments
-
-    taxonomy                relations               publishing
-
-─────────────────────────────────────────────────────────────────────────────
-T4  NOTEBOOKLM
-    對話與推理輸出
-─────────────────────────────────────────────────────────────────────────────
-
-    conversation            source（含 ingestion）
-    note                    synthesis（含 retrieval·grounding·evaluation）
-    notebook                conversation-versioning
-
-─────────────────────────────────────────────────────────────────────────────
-SINK  ANALYTICS
-      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
-─────────────────────────────────────────────────────────────────────────────
-
-    reporting               telemetry-projection
-    metrics
-    dashboards
-
-    [experimentation]       [decision-support]
-
----
-
-## Ownership Rules（速查）
-
-  iam         → 身份、tenant、access decision、**account、organization**；不擁有商業、內容、推理正典
-  billing     → subscription、entitlement；不擁有身份治理或內容正典
-  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
-  platform    → operational services（notification、search、audit-log 等）；account/org 已遷入 iam
-  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
-  notion      → 正典知識內容；不擁有治理或推理流程
-  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
-  analytics   → 下游 read model sink；不反向成為上游 canonical owner
-
----
-
-## Document Network
-
-  architecture-overview.md  — 全域架構與主域關係
-  bounded-contexts.md        — 主域與子域所有權詳目
-  context-map.md             — Upstream/Downstream published language 對照
-  ubiquitous-language.md     — 戰略術語權威
-````
-
 ## File: docs/structure/domain/bounded-contexts.md
 ````markdown
 # Bounded Contexts
@@ -20457,4 +20141,142 @@ flowchart LR
 - [project-delivery-milestones.md](../system/project-delivery-milestones.md)
 - decisions/0001-hexagonal-architecture.md
 - decisions/0002-bounded-contexts.md
+````
+
+## File: docs/structure/system/module-graph.system-wide.md
+````markdown
+# System-Wide Module Graph
+
+本圖反映 0014-main-domain-resplit.md 確立的八主域重切 baseline。
+
+凡例：
+  subdomain          = Baseline subdomain（已基線化）
+  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
+  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
+
+---
+
+## Upstream → Downstream Dependency Map
+
+  Upstream     │  Downstream
+  ─────────────┼───────────────────────────────────────────────────────────
+  iam          │  billing · platform · workspace · notion · notebooklm
+  billing      │  workspace · notion · notebooklm
+  ai           │  notion · notebooklm
+  platform     │  workspace
+  workspace    │  notion · notebooklm
+  notion       │  notebooklm
+  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
+
+---
+
+## Domain + Subdomain Inventory
+
+─────────────────────────────────────────────────────────────────────────────
+T0  IAM                     BILLING                 AI
+    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
+─────────────────────────────────────────────────────────────────────────────
+
+    identity                billing                 generation
+    access-control          subscription            orchestration
+    tenant                  entitlement             distillation
+    security-policy         referral                retrieval
+    account                                          memory
+    organization                                     context
+                                                     safety
+                                                     tool-calling
+                                                     reasoning
+                                                     conversation
+                                                     evaluation
+                                                     tracing
+
+    [session]               [pricing]               [provider-routing]
+    [consent]               [invoice]               [model-policy]
+    [secret-governance]     [quota-policy]
+
+─────────────────────────────────────────────────────────────────────────────
+T1  PLATFORM
+    平台營運支撐
+─────────────────────────────────────────────────────────────────────────────
+
+    notification            audit-log
+    background-job          observability
+    content                 support
+    search                  workflow
+    platform-config         compliance
+    feature-flag            integration
+    onboarding
+
+    > account（含 account-profile）/ organization（含 team）→ 已遷入 T0 iam
+
+    [consent]               [secret-management]     [operational-catalog]
+
+─────────────────────────────────────────────────────────────────────────────
+T2  WORKSPACE
+    協作容器與工作區範疇
+─────────────────────────────────────────────────────────────────────────────
+
+    audit                   issue                   settlement
+    feed                    orchestration           task
+    scheduling              quality                 task-formation
+    approve
+
+    [lifecycle]             [membership]
+    [sharing]               [presence]
+
+─────────────────────────────────────────────────────────────────────────────
+T3  NOTION
+    正典知識內容
+─────────────────────────────────────────────────────────────────────────────
+
+    knowledge               automation
+    authoring               external-knowledge-sync
+    collaboration           notes
+    database                templates
+    knowledge-engagement     knowledge-versioning
+    attachments
+
+    taxonomy                relations               publishing
+
+─────────────────────────────────────────────────────────────────────────────
+T4  NOTEBOOKLM
+    對話與推理輸出
+─────────────────────────────────────────────────────────────────────────────
+
+    conversation            source（含 ingestion）
+    note                    synthesis（含 retrieval·grounding·evaluation）
+    notebook                conversation-versioning
+
+─────────────────────────────────────────────────────────────────────────────
+SINK  ANALYTICS
+      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
+─────────────────────────────────────────────────────────────────────────────
+
+    reporting               telemetry-projection
+    metrics
+    dashboards
+
+    [experimentation]       [decision-support]
+
+---
+
+## Ownership Rules（速查）
+
+  iam         → 身份、tenant、access decision、**account、organization**；不擁有商業、內容、推理正典
+  billing     → subscription、entitlement；不擁有身份治理或內容正典
+  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
+  platform    → operational services（notification、search、audit-log 等）；account/org 已遷入 iam
+  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
+  notion      → 正典知識內容；不擁有治理或推理流程
+  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
+  analytics   → 下游 read model sink；不反向成為上游 canonical owner
+
+---
+
+## Document Network
+
+  architecture-overview.md  — 全域架構與主域關係
+  bounded-contexts.md        — 主域與子域所有權詳目
+  context-map.md             — Upstream/Downstream published language 對照
+  ubiquitous-language.md     — 戰略術語權威
 ````

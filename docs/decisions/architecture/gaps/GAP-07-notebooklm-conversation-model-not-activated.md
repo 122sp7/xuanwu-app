@@ -14,7 +14,7 @@
 - `notebook-actions.ts` 只呼叫 `ragQueryAction`，未使用 conversation use cases。
 - `subdomains/conversation/domain` 與 `application/use-cases` 已存在，但 inbound/outbound adapters 仍 placeholder。
 
-## 14 architecture criteria mapping
+## Architecture criteria mapping
 
 ### Proper Domain Segmentation (Bounded Context): defines system boundaries
 - notebooklm 已清楚定義 notebook/document/conversation 子域。

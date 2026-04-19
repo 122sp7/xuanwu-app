@@ -14,7 +14,7 @@
 - `quality-actions.ts`、`approval-actions.ts` 已存在 use case 入口，但 UI 完全未呼叫。
 - `workspace` 已有 membership/quality/approval 子域與 use cases，能力未被啟用到導航頁。
 
-## 14 architecture criteria mapping
+## Architecture criteria mapping
 
 ### Proper Domain Segmentation (Bounded Context): defines system boundaries
 - 邊界正確：membership/quality/approval 屬 workspace bounded context。

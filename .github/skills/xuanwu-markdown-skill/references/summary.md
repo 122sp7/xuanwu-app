@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-266 files | 19,395 lines
+265 files | 19,221 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 266 | 19,395 |
+| Markdown | 265 | 19,221 |
 
 **Largest files:**
 - `docs/structure/system/hard-rules-consolidated.md` (414 lines)
 - `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (387 lines)
+- `py_fn/README.md` (310 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `docs/structure/domain/bounded-contexts.md` (272 lines)
 - `src/modules/template/README.md` (266 lines)
-- `py_fn/README.md` (265 lines)
-- `docs/decisions/architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md` (264 lines)
 - `docs/decisions/architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md` (244 lines)
 - `docs/decisions/architecture/gaps/GAP-04-task-formation-extractor-weak-fallback.md` (242 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
+- `docs/decisions/architecture/gaps/GAP-05-authorization-boundary-missing.md` (240 lines)
