@@ -10,7 +10,7 @@
 import { Button, Input } from "@packages";
 import { FileText, Plus, ListPlus } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
 import { queryPagesAction, createPageAction } from "../server-actions/page-actions";
@@ -43,6 +43,11 @@ export function NotionPagesSection({
     });
   };
 
+  // Auto-load on mount
+  useEffect(() => {
+    load();
+  }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCreate = () => {
     if (!newTitle.trim()) return;
     startTransition(async () => {
@@ -65,11 +70,6 @@ export function NotionPagesSection({
           <FileText className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">頁面</h2>
         </div>
-        {!loaded && (
-          <Button size="sm" variant="ghost" onClick={load} disabled={isPending}>
-            {isPending ? "載入中…" : "載入頁面"}
-          </Button>
-        )}
       </div>
 
       {loaded && (

@@ -202,7 +202,7 @@ export function WorkspaceDetailRouteScreen({
           <NotionDatabaseSection workspaceId={workspaceId} accountId={accountId} />
         )}
         {activeTab === "Templates" && (
-          <NotionTemplatesSection workspaceId={workspaceId} accountId={accountId} />
+          <NotionTemplatesSection workspaceId={workspaceId} accountId={accountId} currentUserId={currentUserId ?? ""} />
         )}
 
         {/* ── notebooklm group ── */}
