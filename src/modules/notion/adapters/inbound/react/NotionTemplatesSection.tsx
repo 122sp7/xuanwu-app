@@ -9,8 +9,7 @@ import { Button, Input } from "@packages";
 import { Layout, Plus } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
-import type { Template } from "../../../subdomains/template/domain/entities/Template";
-import type { TemplateCategory } from "../../../subdomains/template/domain/entities/Template";
+import type { Template, TemplateCategory } from "../../../subdomains/template/domain/entities/Template";
 import { queryTemplatesAction, createTemplateAction } from "../server-actions/template-actions";
 
 interface NotionTemplatesSectionProps {
