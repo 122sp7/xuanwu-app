@@ -60,6 +60,8 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
 20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
 
+> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
+
 ## Read Order
 
 1. Start with [docs/README.md](../docs/README.md).
