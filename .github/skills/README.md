@@ -10,6 +10,7 @@ Skills 是工具型執行手冊，不是架構權威。
 | `context7` | 官方文件驗證（API / schema / version） |
 | `hexagonal-ddd` | 模組邊界與依賴方向設計 |
 | `xuanwu-skill` | codebase reference lookup |
+| `xuanwu-markdown-skill` | docs / instructions / markdown reference lookup |
 
 ## Selection Rule
 
