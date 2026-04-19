@@ -12,7 +12,7 @@
 | analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
 | platform | platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
 | workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
-| notion | knowledge, authoring, collaboration, database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
+| notion | knowledge, authoring, collaboration, database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning, taxonomy, relations, publishing | — |
 | notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
 
 ## Detailed Subdomain Catalog
@@ -174,14 +174,13 @@
 | notes | 個人輕量筆記與正式知識協作 |
 | templates | 頁面範本管理與套用 |
 | knowledge-versioning | 全域版本快照策略管理 |
+| taxonomy | 分類法與語義組織的正典邊界 |
+| relations | 內容之間關聯與 backlink 的正典邊界 |
+| publishing | 正式發布與對外交付的正典邊界 |
 
 #### Recommended Gap Subdomains
 
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
+無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
 
 ### notebooklm
 

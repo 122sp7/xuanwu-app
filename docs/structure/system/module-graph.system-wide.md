@@ -90,7 +90,7 @@ T3  NOTION
     knowledge-engagement     knowledge-versioning
     attachments
 
-    [taxonomy]              [relations]             [publishing]
+    taxonomy                relations               publishing
 
 ─────────────────────────────────────────────────────────────────────────────
 T4  NOTEBOOKLM
