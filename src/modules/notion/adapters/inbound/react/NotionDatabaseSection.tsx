@@ -7,13 +7,13 @@
  * milestones, personnel). Each database can be sent to workspace.task-formation.
  */
 
-import { Button } from "@packages";
-import { LayoutGrid, ListPlus } from "lucide-react";
+import { Button, Input } from "@packages";
+import { LayoutGrid, ListPlus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
 import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
-import { queryDatabasesAction } from "../server-actions/database-actions";
+import { queryDatabasesAction, createDatabaseAction } from "../server-actions/database-actions";
 
 interface NotionDatabaseSectionProps {
   workspaceId: string;
@@ -30,6 +30,7 @@ export function NotionDatabaseSection({
 }: NotionDatabaseSectionProps): React.ReactElement {
   const [databases, setDatabases] = useState<DatabaseSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [newName, setNewName] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const load = () => {
@@ -45,6 +46,20 @@ export function NotionDatabaseSection({
     load();
   }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    startTransition(async () => {
+      await createDatabaseAction({
+        workspaceId,
+        accountId,
+        name: newName.trim(),
+      });
+      setNewName("");
+      const result = await queryDatabasesAction({ workspaceId, accountId });
+      setDatabases(Array.isArray(result) ? result : []);
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -56,8 +71,22 @@ export function NotionDatabaseSection({
 
       {loaded && (
         <>
+          <div className="flex gap-2">
+            <Input
+              placeholder="新資料庫名稱…"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              className="h-8 text-sm"
+              disabled={isPending}
+            />
+            <Button size="sm" onClick={handleCreate} disabled={isPending || !newName.trim()}>
+              <Plus className="size-3.5" />
+            </Button>
+          </div>
+
           {databases.length === 0 ? (
-            <p className="text-sm text-muted-foreground">尚無資料庫。</p>
+            <p className="text-sm text-muted-foreground">尚無資料庫，請建立第一個資料庫。</p>
           ) : (
             <ul className="space-y-2">
               {databases.map((db) => (
@@ -89,6 +118,10 @@ export function NotionDatabaseSection({
             </p>
           )}
         </>
+      )}
+
+      {!loaded && isPending && (
+        <p className="text-sm text-muted-foreground">載入中…</p>
       )}
     </div>
   ) as React.ReactElement;
