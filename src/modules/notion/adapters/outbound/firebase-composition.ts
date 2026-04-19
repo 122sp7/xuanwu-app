@@ -12,6 +12,7 @@
 
 import { InMemoryPageRepository } from "../../subdomains/page/adapters/outbound/memory/InMemoryPageRepository";
 import { InMemoryDatabaseRepository } from "../../subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository";
+import { InMemoryTemplateRepository } from "../../subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository";
 import {
   CreatePageUseCase,
   RenamePageUseCase,
@@ -22,11 +23,16 @@ import {
   CreateDatabaseUseCase,
   AddPropertyUseCase,
 } from "../../subdomains/database/application/use-cases/DatabaseUseCases";
+import {
+  QueryTemplatesUseCase,
+  CreateTemplateUseCase,
+} from "../../subdomains/template/application/use-cases/TemplateUseCases";
 
 // ── Singleton repositories ────────────────────────────────────────────────────
 
 let _pageRepo: InMemoryPageRepository | undefined;
 let _databaseRepo: InMemoryDatabaseRepository | undefined;
+let _templateRepo: InMemoryTemplateRepository | undefined;
 
 function getPageRepo(): InMemoryPageRepository {
   if (!_pageRepo) _pageRepo = new InMemoryPageRepository();
@@ -36,6 +42,11 @@ function getPageRepo(): InMemoryPageRepository {
 function getDatabaseRepo(): InMemoryDatabaseRepository {
   if (!_databaseRepo) _databaseRepo = new InMemoryDatabaseRepository();
   return _databaseRepo;
+}
+
+function getTemplateRepo(): InMemoryTemplateRepository {
+  if (!_templateRepo) _templateRepo = new InMemoryTemplateRepository();
+  return _templateRepo;
 }
 
 // ── Factory functions ─────────────────────────────────────────────────────────
@@ -56,5 +67,13 @@ export function createClientNotionDatabaseUseCases() {
     createDatabase: new CreateDatabaseUseCase(repo),
     addProperty: new AddPropertyUseCase(repo),
     findByWorkspaceId: (workspaceId: string) => repo.findByWorkspaceId(workspaceId),
+  };
+}
+
+export function createClientNotionTemplateUseCases() {
+  const repo = getTemplateRepo();
+  return {
+    queryTemplates: new QueryTemplatesUseCase(repo),
+    createTemplate: new CreateTemplateUseCase(repo),
   };
 }
