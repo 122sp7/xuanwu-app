@@ -11,7 +11,7 @@ export interface ExtractTaskCandidatesInput {
  * TaskCandidateExtractorPort — outbound port for AI-driven task candidate extraction.
  *
  * Implementations live in adapters/outbound/genkit/ (Genkit flow) or
- * adapters/outbound/callable/ (Firebase callable to py_fn).
+ * adapters/outbound/callable/ (Firebase callable to fn).
  * Use cases depend only on this interface; they never import concrete adapters.
  */
 export interface TaskCandidateExtractorPort {

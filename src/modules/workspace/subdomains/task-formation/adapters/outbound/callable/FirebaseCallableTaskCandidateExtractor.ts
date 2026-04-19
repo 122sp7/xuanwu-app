@@ -17,7 +17,7 @@ const CandidateSchema = z.object({
  * FirebaseCallableTaskCandidateExtractor — working implementation of
  * TaskCandidateExtractorPort with Firebase-only runtime behavior.
  *
- * This adapter intentionally avoids py_fn callable dependency and generates
+ * This adapter intentionally avoids fn callable dependency and generates
  * candidates from workspace-side context (`sourceText`, `sourcePageIds`) so
  * task-formation can be completed within Next.js + Firebase flow.
  *

@@ -4,7 +4,7 @@
 
 `fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。
 
-> **遷移說明**：`fn/` 取代舊的 `py_fn/`，採相同 Hexagonal Architecture，
+> **遷移說明**：`fn/` 取代舊的 `fn/`，採相同 Hexagonal Architecture，
 > 全面對齊 `.github/copilot-instructions.md` 20 條 Mandatory Compliance Rules。
 
 ---

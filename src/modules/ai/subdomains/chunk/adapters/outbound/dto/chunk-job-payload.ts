@@ -2,15 +2,15 @@
  * chunk-job-payload.ts
  *
  * Outbound DTO: QStash message payload for dispatching chunking jobs
- * to py_fn workers. This is an outbound contract (dispatcher → worker),
+ * to fn workers. This is an outbound contract (dispatcher → worker),
  * NOT a provider API contract.
  *
  * Discussion 08 — cross-runtime contract:
  * - TypeScript side (this file): Zod schema defining the payload shape
- * - Python side (py_fn/src/application/dto/chunk_job.py): Pydantic mirror
+ * - Python side (fn/src/application/dto/chunk_job.py): Pydantic mirror
  *
  * Both sides must stay semantically aligned. Changes here require
- * corresponding updates to the py_fn Pydantic model.
+ * corresponding updates to the fn Pydantic model.
  *
  * @see docs/structure/contexts/ai/cross-runtime-contracts.md
  */
@@ -33,7 +33,7 @@ export const ChunkJobPayloadSchema = z.object({
   /** Optional hint for chunking strategy */
   strategyHint: z.enum(["fixed-size", "semantic", "markdown-section"]).optional(),
 
-  /** Max token count per chunk; py_fn uses default if omitted */
+  /** Max token count per chunk; fn uses default if omitted */
   maxTokensPerChunk: z.number().int().positive().max(8192).optional(),
 
   /** ISO 8601 timestamp when the job was requested */

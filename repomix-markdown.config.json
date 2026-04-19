@@ -39,7 +39,7 @@
     "docs/**/*.md",
     "src/**/*.md",
     "packages/**/*.md",
-    "py_fn/**/*.md"
+    "fn/**/*.md"
   ],
   "ignore": {
     "useGitignore": true,

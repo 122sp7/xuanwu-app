@@ -2,7 +2,7 @@
  * firebase-composition — notion module outbound composition root.
  *
  * Currently uses InMemory repositories — no Firestore adapter exists yet
- * for notion (it is pure TypeScript DDD; py_fn has no corresponding capability).
+ * for notion (it is pure TypeScript DDD; fn has no corresponding capability).
  * Replace InMemory repos with real Firestore implementations when the notion
  * Firestore schema is finalized.
  *

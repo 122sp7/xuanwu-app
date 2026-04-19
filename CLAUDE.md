@@ -29,7 +29,7 @@ src/modules/              主域模組實作層（Hexagonal DDD）
     shared/
     orchestration/
 docs/                     架構文件（DDD、Context Map、ADR）
-py_fn/                    Python Cloud Functions（ingestion、embedding）
+fn/                    Python Cloud Functions（ingestion、embedding）
 packages/                 Shared packages
 ```
 

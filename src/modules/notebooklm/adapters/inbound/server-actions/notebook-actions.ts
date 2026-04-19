@@ -46,7 +46,7 @@ export async function createNotebookAction(rawInput: unknown) {
 }
 
 /**
- * ragQueryAction — RAG retrieval + generation via py_fn rag_query callable.
+ * ragQueryAction — RAG retrieval + generation via fn rag_query callable.
  * Returns AI-generated answer with source citations.
  */
 export async function ragQueryAction(rawInput: unknown) {

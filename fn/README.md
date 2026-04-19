@@ -3,7 +3,7 @@
 `fn/` 是 Python Cloud Functions worker 層，負責 ingestion、parsing、chunking、embedding 與 background job。
 這份規範以「路徑級依賴」為核心，看完整路徑判斷依賴方向，而非單看資料夾名稱。
 
-> **遷移說明**：`fn/` 取代舊的 `py_fn/`，依相同 Hexagonal Architecture 重建，
+> **遷移說明**：`fn/` 取代舊的 `fn/`，依相同 Hexagonal Architecture 重建，
 > 全面對齊 `.github/copilot-instructions.md` 的 20 條 Mandatory Compliance Rules。
 
 ---

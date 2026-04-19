@@ -4,7 +4,7 @@
  * document-actions — notebooklm document server actions.
  *
  * Handles document upload (via Firebase Storage) and listing.
- * py_fn Storage Trigger runs parse + RAG automatically after upload.
+ * fn Storage Trigger runs parse + RAG automatically after upload.
  */
 
 import { z } from "zod";
@@ -47,7 +47,7 @@ export async function queryDocumentsAction(rawInput: unknown) {
  * registerUploadedDocumentAction — register a document snapshot after upload.
  *
  * Call this after uploadDocumentToStorage() completes on the client.
- * py_fn's Storage Trigger will also fire automatically to run parse + RAG.
+ * fn's Storage Trigger will also fire automatically to run parse + RAG.
  * This action records the document in the local domain for immediate UI feedback.
  */
 export async function registerUploadedDocumentAction(rawInput: unknown) {

@@ -2,7 +2,7 @@
 
 /**
  * NotebooklmAiChatSection — notebooklm.ai-chat tab — RAG Q&A interface.
- * Calls py_fn rag_query callable via ragQueryAction server action.
+ * Calls fn rag_query callable via ragQueryAction server action.
  */
 
 import { Button, Input } from "@packages";

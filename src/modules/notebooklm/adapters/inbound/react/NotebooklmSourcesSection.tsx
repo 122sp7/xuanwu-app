@@ -2,10 +2,10 @@
 
 /**
  * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
- * Uploads via Firebase Storage (py_fn Storage Trigger auto-runs parse + RAG).
+ * Uploads via Firebase Storage (fn Storage Trigger auto-runs parse + RAG).
  *
  * Closed-loop design: uploaded documents are the entry point of the data loop.
- * After upload → py_fn parses → RAG index → available in notebook/research → task formation.
+ * After upload → fn parses → RAG index → available in notebook/research → task formation.
  *
  * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
  */
@@ -188,7 +188,7 @@ export function NotebooklmSourcesSection({
           <span className="shrink-0 text-muted-foreground font-medium">處理鏈：</span>
           <span className="shrink-0 rounded bg-orange-500/10 px-2 py-0.5 text-orange-600">① 上傳</span>
           <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
-          <span className="shrink-0 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600">② py_fn 解析</span>
+          <span className="shrink-0 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600">② fn 解析</span>
           <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
           <span className="shrink-0 rounded bg-purple-500/10 px-2 py-0.5 text-purple-600">③ RAG 索引</span>
           <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
@@ -202,7 +202,7 @@ export function NotebooklmSourcesSection({
           <code className="mx-1 rounded bg-muted px-1 text-xs">
             uploads/{"{accountId}"}/{"{workspaceId}"}/
           </code>
-          前綴，py_fn Storage Trigger 會自動處理。
+          前綴，fn Storage Trigger 會自動處理。
         </p>
       )}
 

@@ -1,9 +1,9 @@
 /**
  * FirestoreDocumentRepository — read-only Firestore adapter for notebooklm documents.
  *
- * py_fn owns all writes to accounts/{accountId}/documents/{docId}.
+ * fn owns all writes to accounts/{accountId}/documents/{docId}.
  * TypeScript side is read-only: it subscribes to Firestore status updates
- * written by the py_fn pipeline (parse + RAG ingestion).
+ * written by the fn pipeline (parse + RAG ingestion).
  *
  * ESLint: @integration-firebase is allowed here — this file lives at
  * src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/
@@ -20,7 +20,7 @@ import type {
   DocumentQuery,
 } from "../../../domain/repositories/DocumentRepository";
 
-// ── Firestore record shape written by py_fn ───────────────────────────────────
+// ── Firestore record shape written by fn ───────────────────────────────────
 
 interface PyFnDocumentRecord {
   id?: string;
@@ -94,7 +94,7 @@ function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap {
 
 export class FirestoreDocumentRepository implements DocumentRepository {
   async save(_snapshot: DocumentSnap): Promise<void> {
-    // Intentionally no-op: py_fn is the sole writer for this collection.
+    // Intentionally no-op: fn is the sole writer for this collection.
     // TypeScript side is read-only.
   }
 
@@ -130,6 +130,6 @@ export class FirestoreDocumentRepository implements DocumentRepository {
   }
 
   async delete(_id: string): Promise<void> {
-    // py_fn manages deletions; TypeScript side does not delete.
+    // fn manages deletions; TypeScript side does not delete.
   }
 }

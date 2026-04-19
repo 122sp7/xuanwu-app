@@ -38,7 +38,7 @@
 
 - 共享 UI 元件 → `packages/ui-shadcn/`
 - 共享 Firebase 客戶端 → `packages/integration-firebase/`
-- 重度 Ingestion / Embedding / Parsing pipeline → `py_fn/`
+- 重度 Ingestion / Embedding / Parsing pipeline → `fn/`
 - 路由組合 / Shell UI / Next.js App Router → `src/app/`
 - 戰略架構邊界與術語 → `docs/structure/domain/` + `docs/structure/contexts/<context>/`
 

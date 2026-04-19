@@ -70,14 +70,14 @@
 			"type": "shell",
 			"command": "python -m compileall -q .",
 			"options": {
-				"cwd": "${workspaceFolder}/py_fn"
+				"cwd": "${workspaceFolder}/fn"
 			},
 			"isBackground": false,
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated",
-				"group": "py_fn",
+				"group": "fn",
 				"showReuseMessage": true,
 				"clear": false
 			}
@@ -87,7 +87,7 @@
 			"type": "shell",
 			"command": "python -m pytest tests/ -v",
 			"options": {
-				"cwd": "${workspaceFolder}/py_fn"
+				"cwd": "${workspaceFolder}/fn"
 			},
 			"isBackground": false,
 			"problemMatcher": [],
@@ -98,7 +98,7 @@
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated",
-				"group": "py_fn",
+				"group": "fn",
 				"showReuseMessage": true,
 				"clear": false
 			}

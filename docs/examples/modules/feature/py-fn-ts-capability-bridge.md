@@ -1,4 +1,4 @@
-# py_fn ↔ TypeScript 能力橋接指南
+# fn ↔ TypeScript 能力橋接指南
 
 ## 背景：三層模型的真實狀態
 
@@ -8,18 +8,18 @@
 
 實際情況是：
 
-| 層次 | TypeScript (`src/modules/`) | py_fn |
+| 層次 | TypeScript (`src/modules/`) | fn |
 |---|---|---|
 | Domain entities | ✅ 存在（`Document.ts`, `Notebook.ts` 等） | ✅ 存在（domain value objects） |
 | Use case stubs | ✅ 存在（InMemory 版，可測試） | ✅ 完整實作 |
 | Infrastructure adapters | ❌ 只有 `InMemoryRepository`，無 Firestore 實作 | ✅ 真實 Firestore + Vector + Storage |
 | HTTP / Callable entry points | ❌ 無 | ✅ Firebase Functions 已部署 |
 
-**本文件的目的**：說明 py_fn 已具備的能力、TypeScript 側缺少什麼、以及如何用最小變動接通兩端。
+**本文件的目的**：說明 fn 已具備的能力、TypeScript 側缺少什麼、以及如何用最小變動接通兩端。
 
 ---
 
-## 1. py_fn 現有能力清單（已部署 Firebase Functions）
+## 1. fn 現有能力清單（已部署 Firebase Functions）
 
 ### 1.1 Cloud Storage Trigger（自動觸發）
 
@@ -46,7 +46,7 @@ GCS upload (uploads/{accountId}/{file})
 | `rag_query` | RAG 檢索 + 生成查詢 | `account_id`, `workspace_id`, `query` |
 | `rag_reindex_document` | 重新執行 normalization + chunk + embed | `account_id`, `doc_id` |
 
-### 1.3 Firestore Document Schema（py_fn 寫入）
+### 1.3 Firestore Document Schema（fn 寫入）
 
 Collection path: `accounts/{accountId}/documents/{docId}`
 
@@ -127,7 +127,7 @@ src/modules/notebooklm/subdomains/document/
 ```
 src/modules/notebooklm/subdomains/notebook/
 ├── adapters/outbound/callable/
-│   └── FirebaseRagQueryAdapter.ts       ❌ 呼叫 py_fn rag_query callable
+│   └── FirebaseRagQueryAdapter.ts       ❌ 呼叫 fn rag_query callable
 └── adapters/inbound/server-actions/
     └── notebook-actions.ts              ❌ ragQuery server action
 ```
@@ -153,7 +153,7 @@ function fromFirestore(raw: Record<string, unknown>, id: string): DocumentSnap {
     id,
     workspaceId: (raw.spaceId ?? raw.metadata?.space_id ?? "") as string,
     accountId: raw.account_id as string,
-    organizationId: "", // py_fn 不寫 organizationId，從 account 查詢時補填
+    organizationId: "", // fn 不寫 organizationId，從 account 查詢時補填
     name: raw.title as string,
     mimeType: (raw.source as any)?.mime_type ?? "",
     sizeBytes: (raw.source as any)?.size_bytes ?? 0,
@@ -184,16 +184,16 @@ export class FirestoreDocumentRepository implements DocumentRepository {
       : query(ref, orderBy("source.uploaded_at", "desc"));
     // ... snapshot read
   }
-  // save / findById / delete → py_fn 負責寫入，TypeScript 側不需要 write
+  // save / findById / delete → fn 負責寫入，TypeScript 側不需要 write
 }
 ```
 
 **邊界規則**：`FirestoreDocumentRepository` 是 **read-only**（只讀）。
-寫入由 py_fn 完成，TypeScript 只監聽 Firestore 狀態變化。
+寫入由 fn 完成，TypeScript 只監聽 Firestore 狀態變化。
 
 ### 3.2 模式 B：HTTPS Callable（觸發工作流）
 
-用於主動觸發 py_fn 操作（上傳後觸發解析、執行 RAG 查詢）。
+用於主動觸發 fn 操作（上傳後觸發解析、執行 RAG 查詢）。
 
 ```typescript
 // src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts
@@ -245,7 +245,7 @@ export async function callParseDocument(input: {
 Next.js UI（拖放上傳）
   → Firebase Storage uploadBytes() → uploads/{accountId}/{workspaceId}/{filename}
   → Cloud Storage Trigger (on_document_uploaded)
-  → py_fn 自動執行完整 parse + RAG pipeline
+  → fn 自動執行完整 parse + RAG pipeline
   → Firestore accounts/{accountId}/documents/{docId} 狀態更新
   → TypeScript Firestore 訂閱收到更新 → UI 即時反映狀態
 ```
@@ -283,7 +283,7 @@ Next.js UI（拖放上傳）
 
 **上傳路徑約定**：
 ```
-GCS bucket: [UPLOAD_BUCKET from py_fn config]
+GCS bucket: [UPLOAD_BUCKET from fn config]
 Object path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
 Custom metadata:
   account_id: {accountId}
@@ -299,7 +299,7 @@ Custom metadata:
 
 ```
 1. callRagQuery() (callable adapter)
-   → 呼叫 py_fn rag_query callable
+   → 呼叫 fn rag_query callable
 
 2. notebook-actions.ts (Server Action)
    "use server"
@@ -331,13 +331,13 @@ Custom metadata:
 
 ### 4.5 `notion.*` tabs
 
-Notion 的四個 tabs（knowledge / pages / database / templates）目前 py_fn **沒有對應能力**。
+Notion 的四個 tabs（knowledge / pages / database / templates）目前 fn **沒有對應能力**。
 它們是純 TypeScript DDD 實作，需要建立：
 1. Firestore 寫入路徑（由 TypeScript 側直接負責）
 2. 對應的 Firestore adapter
 3. Server actions
 
-這部分不涉及 py_fn 橋接，按標準 Hexagonal adapter 模式實作即可。
+這部分不涉及 fn 橋接，按標準 Hexagonal adapter 模式實作即可。
 
 ---
 
@@ -346,8 +346,8 @@ Notion 的四個 tabs（knowledge / pages / database / templates）目前 py_fn 
 根據「已有能力最大化」原則（Occam's Razor）：
 
 ```
-Phase 1 — 橋接 py_fn 已有能力（highest ROI）
-  ✅ py_fn parse + RAG 已可用
+Phase 1 — 橋接 fn 已有能力（highest ROI）
+  ✅ fn parse + RAG 已可用
   → 1. FirestoreDocumentRepository (read-only)
   → 2. document-actions.ts (upload + query)
   → 3. NotebooklmSourcesSection.tsx (Sources tab 可見)
@@ -370,10 +370,10 @@ Phase 3 — Notion 純 TypeScript 實作
 
 | 規則 | 正確做法 | 禁止做法 |
 |---|---|---|
-| py_fn callable 呼叫 | 透過 infrastructure adapter（`adapters/outbound/callable/`） | 在 server action 直接 import firebase/functions SDK |
-| Firestore 讀取（py_fn 寫入的 collection） | TypeScript `FirestoreDocumentRepository` 只讀，映射 py_fn schema | 在 TypeScript 端重複寫入 py_fn 管理的 fields |
+| fn callable 呼叫 | 透過 infrastructure adapter（`adapters/outbound/callable/`） | 在 server action 直接 import firebase/functions SDK |
+| Firestore 讀取（fn 寫入的 collection） | TypeScript `FirestoreDocumentRepository` 只讀，映射 fn schema | 在 TypeScript 端重複寫入 fn 管理的 fields |
 | GCS 上傳路徑 | `uploads/{accountId}/{workspaceId}/{uuid}-{filename}` + custom metadata | 任意路徑（Storage Trigger 依賴 `uploads/` 前綴過濾） |
-| 狀態同步 | Firestore 訂閱（onSnapshot）取得 py_fn 寫入的狀態更新 | 輪詢 callable 或自行維護一份狀態副本 |
+| 狀態同步 | Firestore 訂閱（onSnapshot）取得 fn 寫入的狀態更新 | 輪詢 callable 或自行維護一份狀態副本 |
 
 ---
 
@@ -381,7 +381,7 @@ Phase 3 — Notion 純 TypeScript 實作
 
 - [`workspace-nav-notion-notebooklm-implementation-guide.md`](./workspace-nav-notion-notebooklm-implementation-guide.md) — Tab 導覽模型與三層設計
 - [`notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — Source 文件處理流程細節
-- [`py_fn/README.md`](../../../../py_fn/README.md) — py_fn 架構規範
-- [`py_fn/main.py`](../../../../py_fn/main.py) — Firebase Functions 入口（callable 名稱列表）
-- [`py_fn/src/interface/handlers/`](../../../../py_fn/src/interface/handlers/) — 各 callable 的 handler 實作
-- [`py_fn/src/infrastructure/persistence/firestore/document_repository.py`](../../../../py_fn/src/infrastructure/persistence/firestore/document_repository.py) — Firestore document schema
+- [`fn/README.md`](../../../../fn/README.md) — fn 架構規範
+- [`fn/main.py`](../../../../fn/main.py) — Firebase Functions 入口（callable 名稱列表）
+- [`fn/src/interface/handlers/`](../../../../fn/src/interface/handlers/) — 各 callable 的 handler 實作
+- [`fn/src/infrastructure/persistence/firestore/document_repository.py`](../../../../fn/src/infrastructure/persistence/firestore/document_repository.py) — Firestore document schema

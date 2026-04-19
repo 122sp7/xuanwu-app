@@ -49,7 +49,7 @@
     "src/modules/workspace/**",
     "src/modules/iam/index.ts",
     "src/packages/index.ts",
-    "py_fn/**",
+    "fn/**",
     "AGENTS.md",
     "CLAUDE.md",
     "apphosting.yaml",
