@@ -33,7 +33,7 @@ This skill contains the following reference files:
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
 - Only files matching these patterns are included: .github/**/*.md, docs/**/*.md, src/**/*.md, packages/**/*.md, py_fn/**/*.md
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/xuanwu-*/**
+- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-388 files | 34,528 lines
+266 files | 19,395 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 388 | 34,528 |
+| Markdown | 266 | 19,395 |
 
 **Largest files:**
-- `.github/skills/vercel-react-best-practices/AGENTS.md` (3,810 lines)
-- `.github/skills/sleek-design-mobile-apps/SKILL.md` (476 lines)
-- `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
 - `docs/structure/system/hard-rules-consolidated.md` (414 lines)
 - `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (387 lines)
-- `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
-- `.github/skills/agent-browser/references/authentication.md` (303 lines)
-- `.github/skills/repomix-explorer/SKILL.md` (301 lines)
-- `.github/skills/shadcn/SKILL.md` (296 lines)
-- `.github/skills/agent-browser/references/commands.md` (295 lines)
+- `docs/structure/domain/subdomains.md` (273 lines)
+- `docs/structure/domain/bounded-contexts.md` (272 lines)
+- `src/modules/template/README.md` (266 lines)
+- `py_fn/README.md` (265 lines)
+- `docs/decisions/architecture/2026-04-18-workspace-notion-notebooklm-gap-analysis.md` (264 lines)
+- `docs/decisions/architecture/gaps/GAP-03-notebooklm-task-materialization-stub.md` (244 lines)
+- `docs/decisions/architecture/gaps/GAP-04-task-formation-extractor-weak-fallback.md` (242 lines)
+- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)

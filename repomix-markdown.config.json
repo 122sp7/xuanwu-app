@@ -93,7 +93,7 @@
 
       "*.sqlite",
       "*.db",
-      ".github/skills/xuanwu-*/**"
+      ".github/skills/**"
     ]
   },
   "security": {
