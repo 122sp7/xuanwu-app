@@ -124,6 +124,8 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 "page_count": parsed.page_count,
                 "extraction_ms": extraction_ms,
                 "text": parsed.text,
+                "chunk_count": len(parsed.chunks),
+                "entities": parsed.entities,
             },
         )
 
@@ -147,6 +149,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                     page_count=parsed.page_count,
                     account_id=account_id,
                     workspace_id=workspace_id,
+                    layout_chunks=parsed.chunks or None,
                 )
                 runtime.mark_rag_ready(
                     doc_id=doc_id,
