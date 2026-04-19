@@ -29,6 +29,23 @@ export {
   type SnapshotFrom,
 } from "xstate";
 
+// ─── XState React ─────────────────────────────────────────────────────────────
+// Use only in "use client" components / hooks (interface layer).
+//
+// useMachine     — spawn a machine + subscribe to state (alias for useActor in v5)
+// useActorRef    — get a stable actorRef without re-render on every snapshot
+// useSelector    — subscribe to a derived slice; only re-renders on slice change
+// shallowEqual   — pass as comparator to useSelector to avoid object-ref churn
+// createActorContext — React Context factory for sharing actor across components
+
+export {
+  useMachine,
+  useActorRef,
+  useSelector,
+  shallowEqual,
+  createActorContext,
+} from "@xstate/react";
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 import type { StoreApi } from "zustand/vanilla";
