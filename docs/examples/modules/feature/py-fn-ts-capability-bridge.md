@@ -153,7 +153,7 @@ function fromFirestore(raw: Record<string, unknown>, id: string): DocumentSnap {
     id,
     workspaceId: (raw.spaceId ?? raw.metadata?.space_id ?? "") as string,
     accountId: raw.account_id as string,
-    organizationId: "", // fn 不寫 organizationId，從 account 查詢時補填
+    organizationId: "", // TODO: organizationId 必須由呼叫方從 iam account adapter 取得，此處暫為佔位符
     name: raw.title as string,
     mimeType: (raw.source as any)?.mime_type ?? "",
     sizeBytes: (raw.source as any)?.size_bytes ?? 0,
@@ -198,6 +198,7 @@ export class FirestoreDocumentRepository implements DocumentRepository {
 ```typescript
 // src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { z } from "zod";
 
 export interface RagQueryInput {
   account_id: string;
@@ -219,11 +220,30 @@ export interface RagQueryOutput {
   search_hits: number;
 }
 
+// Rule 4: 所有 fn callable 回傳值必須通過 Zod 驗證再傳入 application layer
+const RagQueryOutputSchema = z.object({
+  answer: z.string(),
+  citations: z.array(z.object({
+    doc_id: z.string(),
+    chunk_id: z.string(),
+    filename: z.string(),
+    score: z.number(),
+  })),
+  cache: z.enum(["hit", "miss"]),
+  vector_hits: z.number(),
+  search_hits: z.number(),
+});
+
 export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput> {
   const functions = getFunctions();
   const fn = httpsCallable<RagQueryInput, RagQueryOutput>(functions, "rag_query");
-  const result = await fn(input);
-  return result.data;
+  let result;
+  try {
+    result = await fn(input);
+  } catch (err) {
+    throw new Error(`callRagQuery failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return RagQueryOutputSchema.parse(result.data);
 }
 
 export async function callParseDocument(input: {
@@ -235,7 +255,11 @@ export async function callParseDocument(input: {
 }) {
   const functions = getFunctions();
   const fn = httpsCallable(functions, "parse_document");
-  return fn(input);
+  try {
+    return await fn(input);
+  } catch (err) {
+    throw new Error(`callParseDocument failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 ```
 

@@ -41,7 +41,7 @@
 ## Failure Branches
 
 - parse 失敗：RAG / Page / Task 全部跳過。
-- 無登入 user：Page 與 Task 不執行。
+- 未驗證 Actor：Page 與 Task 不執行。
 - draft page 建立失敗：Task 流程停止，不直接跨過 notion 邊界寫入 workspace。
 - task extraction 成功但沒有候選項：標記成功，但 `taskCount = 0`。
 
