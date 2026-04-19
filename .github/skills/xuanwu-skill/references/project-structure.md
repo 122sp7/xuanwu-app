@@ -293,7 +293,7 @@ packages/
     index.tsx (101 lines)
     README.md (87 lines)
   AGENTS.md (107 lines)
-  index.ts (15 lines)
+  index.ts (39 lines)
   README.md (137 lines)
 py_fn/
   .serena/
@@ -1497,25 +1497,25 @@ src/
             workspace-route-screens.tsx (82 lines)
             workspace-shell-interop.tsx (166 lines)
             workspace-ui-stubs.tsx (18 lines)
-            WorkspaceApprovalSection.tsx (17 lines)
+            WorkspaceApprovalSection.tsx (36 lines)
             WorkspaceAuditSection.tsx (22 lines)
             WorkspaceContext.tsx (47 lines)
             WorkspaceDailySection.tsx (90 lines)
             WorkspaceFilesSection.tsx (65 lines)
-            WorkspaceIssuesSection.tsx (29 lines)
+            WorkspaceIssuesSection.tsx (28 lines)
             WorkspaceMembersSection.tsx (17 lines)
             WorkspaceOverviewSection.tsx (72 lines)
-            WorkspaceQualitySection.tsx (17 lines)
+            WorkspaceQualitySection.tsx (30 lines)
             WorkspaceScheduleSection.tsx (19 lines)
             WorkspaceScopeProvider.tsx (39 lines)
             WorkspaceSettingsSection.tsx (26 lines)
-            WorkspaceSettlementSection.tsx (16 lines)
+            WorkspaceSettlementSection.tsx (31 lines)
             WorkspaceTaskFormationSection.tsx (66 lines)
-            WorkspaceTasksSection.tsx (26 lines)
+            WorkspaceTasksSection.tsx (34 lines)
           server-actions/
             approval-actions.ts (12 lines)
             audit-actions.ts (12 lines)
-            issue-actions.ts (12 lines)
+            issue-actions.ts (14 lines)
             quality-actions.ts (12 lines)
             schedule-actions.ts (15 lines)
             settlement-actions.ts (14 lines)
@@ -1772,6 +1772,7 @@ src/
             dto/
               OrchestrationDTO.ts (3 lines)
             machines/
+              settlement-lifecycle.machine.ts (12 lines)
               task-lifecycle.machine.ts (59 lines)
             sagas/
               TaskLifecycleSaga.ts (39 lines)
@@ -1935,7 +1936,7 @@ src/
               index.ts (0 lines)
             outbound/
               callable/
-                FirebaseCallableTaskCandidateExtractor.ts (37 lines)
+                FirebaseCallableTaskCandidateExtractor.ts (17 lines)
               firestore/
                 FirestoreTaskFormationJobRepository.ts (30 lines)
               genkit/

@@ -1,5 +1,126 @@
 # Files
 
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+#use skill serena-mcp
+#use skill repomix
+#use skill context7
+#use skill xuanwu-skill
+#use skill hexagonal-ddd
+#use skill xuanwu-markdown-skill
+#use skill occams-razor
+#use skill alistair-cockburn
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+### Mandatory Skills (Load Every Session, No Exceptions)
+
+These three skills **must be loaded at the start of every conversation** before any other action:
+
+| Order | Skill | Purpose |
+|---|---|---|
+| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
+| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
+| 3 | `context7` | Library/framework API verification gate |
+
+- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
+- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
+- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
+
+## Mandatory Compliance Rules
+
+These rules are **non-negotiable** and apply to every task, file, and decision. Any violation requires an immediate stop and explicit report before proceeding.
+
+1. **AI Operational Scope**: Without explicit authorization, do not create files, add modules, modify interface definitions, or make any changes beyond the scope of the current task description.
+2. **Bounded Context**: Every concept belongs to exactly one Context. When referencing a same-named concept across Contexts, an explicit mapping layer must be established. Sharing types or objects directly is not permitted.
+3. **Ubiquitous Language Governance**: All naming must derive from the defined Domain glossary. When encountering a name not in the glossary, halt implementation and report it. Self-naming is not permitted.
+4. **Contract / Schema**: All data entering the system must pass through a defined Schema validation. Accessing raw input outside the validation layer is not permitted. Assuming input is valid is not permitted.
+5. **Breaking Change Policy**: When modifying any externally exposed Schema, interface, or event structure, a new version must be added and the old version retained. Direct overwriting is not permitted.
+6. **Aggregate Design**: All modifications to an Aggregate's internal state must be executed through that Aggregate's own methods. Directly modifying an Aggregate's properties or child objects from outside is not permitted.
+7. **State Model / FSM**: Every state transition must exist in the defined list of legal transitions. Transition paths that are not defined must throw an error. Silent ignoring or self-inferred transitions are not permitted.
+8. **Consistency / Transaction Strategy**: Operations spanning Aggregates or Contexts must not be wrapped in a single transaction. A defined saga or outbox pattern must be used. Designing ad-hoc synchronous coupling solutions is not permitted.
+9. **Event Ordering / Causality Model**: All event handlers must implement idempotency. Assuming events arrive in send order is not permitted. Sequence must be determined using a causality token or version number.
+10. **Failure Strategy**: Every external call must define a failure handling path (retry / compensate / dead-letter). Silently swallowing exceptions is not permitted. Assuming external services always succeed is not permitted.
+11. **Authorization / Security**: Every operation must verify that the caller holds the required permission before execution. Relying on call order or upstream validation as implicit authorization is not permitted.
+12. **Hexagonal Architecture**: The Domain layer must not import any types from Infrastructure, Frameworks, or external services. All external dependencies must be accessed through defined Port interfaces.
+13. **Dependency Rule Enforcement**: Dependencies may only flow inward (Infrastructure → Application → Domain). Reverse dependencies are forbidden. Direct imports between Contexts at the same layer are forbidden.
+14. **Testability / Specification**: Every Domain behavior must have corresponding automated test coverage. Implementing logic structures that cannot be verified by the existing test framework is not permitted.
+15. **Observability**: All cross-layer calls, state changes, and errors must produce structured, traceable records. Replacing structured events with print statements or log strings is not permitted.
+16. **ADR / Design Rationale**: When multiple implementation options are technically viable, do not choose independently. Halt, list the options and their differences, and wait for a human decision before proceeding.
+17. **Minimum Necessary Design / YAGNI**: Do not create abstractions, interfaces, or extension points for future possibilities. Every new structure must correspond to a requirement that explicitly exists in the current task.
+18. **Single Responsibility / No Redundancy**: Every concept must be defined exactly once in exactly one layer. When the same semantic is found expressed in multiple places, report the conflict. Allowing both to coexist is not permitted.
+19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
+20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
+
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
+## Module Layer Routing（src-only）
+
+本 repo 已全面改為 `src/modules/` 單一模組層：
+
+| 路徑 | 職責 | 撰寫時機 |
+|---|---|---|
+| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
+
+- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
+- 新實作一律以 `src/modules/template` 骨架為基線。
+- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
+
+## Operating Rules
+
+> Dependency direction, domain purity, cross-module boundary, and planning discipline are governed by **Mandatory Compliance Rules 12–13, 16–17**. Items below are repo-specific structural decisions.
+
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+> Governed by **Mandatory Compliance Rule 3**. Authority: [docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
+
+## DDD Strategic Rules (Phase 1)
+
+- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
+- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
+- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
+- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+````
+
 ## File: docs/decisions/ai/.gitkeep
 ````
 
@@ -13753,14 +13874,38 @@ import { getFirestore } from 'firebase/firestore'
  * Import everything from this barrel:
  *   import { generateId, Button, firestoreApi } from '@packages'
  *
- * All named exports are flat — no namespace wrapping.
+ * All named exports are explicit — no wildcard re-exports.
  */
 ⋮----
-// ─── infra ────────────────────────────────────────────────────────────────────
+// ─── infra/client-state ───────────────────────────────────────────────────────
 ⋮----
-// ─── integration ──────────────────────────────────────────────────────────────
+// ─── infra/http ───────────────────────────────────────────────────────────────
 ⋮----
-// ─── ui ───────────────────────────────────────────────────────────────────────
+// ─── infra/serialization ──────────────────────────────────────────────────────
+⋮----
+// ─── infra/state ──────────────────────────────────────────────────────────────
+⋮----
+// ─── infra/trpc ───────────────────────────────────────────────────────────────
+⋮----
+// ─── infra/uuid ───────────────────────────────────────────────────────────────
+⋮----
+// ─── infra/zod ────────────────────────────────────────────────────────────────
+⋮----
+// ─── integration-ai ───────────────────────────────────────────────────────────
+⋮----
+// ─── integration-firebase ─────────────────────────────────────────────────────
+⋮----
+// ─── integration-queue ────────────────────────────────────────────────────────
+⋮----
+// ─── ui-components ────────────────────────────────────────────────────────────
+⋮----
+// ─── ui-editor ────────────────────────────────────────────────────────────────
+⋮----
+// ─── ui-markdown ─────────────────────────────────────────────────────────────
+⋮----
+// ─── ui-shadcn ────────────────────────────────────────────────────────────────
+⋮----
+// ─── ui-visualization ─────────────────────────────────────────────────────────
 ````
 
 ## File: packages/README.md
@@ -27232,18 +27377,37 @@ onOpenChange(false);
  */
 ⋮----
 import { Badge, Button } from "@packages";
-import { ClipboardList, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { ClipboardList, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+⋮----
+import {
+  listApprovalDecisionsAction,
+  createApprovalDecisionAction,
+  approveTaskAction,
+  rejectApprovalAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/approval-actions";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { openIssueAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
+import type { ApprovalDecisionSnapshot } from "@/src/modules/workspace/subdomains/approval/domain/entities/ApprovalDecision";
+import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
 ⋮----
 interface WorkspaceApprovalSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
 ⋮----
-{/* Header */}
+export function WorkspaceApprovalSection({
+  workspaceId,
+  accountId: _accountId,
+  currentUserId,
+}: WorkspaceApprovalSectionProps): React.ReactElement
 ⋮----
-{/* Stats */}
+const handleCreateDecision = (taskId: string) =>
 ⋮----
-{/* Approval queue — empty state */}
+const handleApprove = (decision: ApprovalDecisionSnapshot) =>
+⋮----
+const handleReject = (decision: ApprovalDecisionSnapshot) =>
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx
@@ -27496,8 +27660,7 @@ import { Badge, Button } from "@packages";
 import { AlertCircle, Plus, AlertTriangle, Info, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 ⋮----
-import { listIssuesByTaskAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
-import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { listIssuesByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
 import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
 import type { IssueStatus } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus";
 ⋮----
@@ -27623,18 +27786,31 @@ function EmptyState(
  */
 ⋮----
 import { Badge, Button } from "@packages";
-import { ShieldCheck, ClipboardCheck, ClipboardX } from "lucide-react";
+import { ShieldCheck, ClipboardCheck, ClipboardX, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+⋮----
+import {
+  listQualityReviewsAction,
+  passQualityReviewAction,
+  failQualityReviewAction,
+  startQualityReviewAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/quality-actions";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { openIssueAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
+import type { QualityReviewSnapshot } from "@/src/modules/workspace/subdomains/quality/domain/entities/QualityReview";
+import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
 ⋮----
 interface WorkspaceQualitySectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
 ⋮----
-{/* Header */}
+const handleStartReview = (task: TaskSnapshot) =>
 ⋮----
-{/* Stats */}
+const handlePass = (review: QualityReviewSnapshot) =>
 ⋮----
-{/* Review queue — empty state */}
+const handleFail = (review: QualityReviewSnapshot) =>
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx
@@ -27733,26 +27909,6 @@ export function WorkspaceSettingsSection({
 {/* Danger zone */}
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx
-````typescript
-/**
- * WorkspaceSettlementSection — workspace.settlement tab — invoice settlement.
- */
-⋮----
-import { Calculator } from "lucide-react";
-⋮----
-interface WorkspaceSettlementSectionProps { workspaceId: string; accountId: string }
-⋮----
-export function WorkspaceSettlementSection({
-  workspaceId: _workspaceId,
-  accountId: _accountId,
-}: WorkspaceSettlementSectionProps): React.ReactElement
-⋮----
-{/* Header */}
-⋮----
-{/* Empty state */}
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
 ````typescript
 /**
@@ -27830,27 +27986,35 @@ function handleReset()
  */
 ⋮----
 import { Badge, Button } from "@packages";
-import { CheckSquare, Plus, Loader2 } from "lucide-react";
+import { CheckSquare, Loader2, RefreshCw, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 ⋮----
-import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import {
+  listTasksByWorkspaceAction,
+  transitionTaskStatusAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { startQualityReviewAction } from "@/src/modules/workspace/adapters/inbound/server-actions/quality-actions";
 import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
 import type { TaskStatus } from "@/src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus";
 ⋮----
 interface WorkspaceTasksSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
 ⋮----
 type TaskFilter = "全部" | "待執行" | "進行中" | "已完成" | "已取消";
 ⋮----
 const handleRefresh = () =>
 ⋮----
-{/* Header */}
+const handleAdvance = (task: TaskSnapshot) =>
 ⋮----
-{/* Status filter */}
-⋮----
-{/* Task list */}
+const getActionConfig = (task: TaskSnapshot):
+    | { label: string; onClick: () => void; disabled?: boolean }
+    | { label: string; href: string }
+    | null => {
+if (task.status === "draft")
 ````
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/approval-actions.ts
@@ -27899,6 +28063,8 @@ export async function transitionIssueStatusAction(issueId: string, rawInput: unk
 export async function resolveIssueAction(issueId: string): Promise<CommandResult>
 ⋮----
 export async function listIssuesByTaskAction(taskId: string): Promise<IssueSnapshot[]>
+⋮----
+export async function listIssuesByWorkspaceAction(workspaceId: string): Promise<IssueSnapshot[]>
 ````
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/quality-actions.ts
@@ -30184,6 +30350,22 @@ import { z } from "zod";
 export type CreateJobDTO = z.infer<typeof CreateJobInputSchema>;
 ````
 
+## File: src/modules/workspace/subdomains/orchestration/application/machines/settlement-lifecycle.machine.ts
+````typescript
+import { setup } from "xstate";
+⋮----
+export interface SettlementLifecycleContext {
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+}
+⋮----
+export type SettlementLifecycleEvent =
+  | { type: "ADVANCE" }
+  | { type: "ROLLBACK" };
+⋮----
+export type SettlementLifecycleMachine = typeof settlementLifecycleMachine;
+````
+
 ## File: src/modules/workspace/subdomains/orchestration/application/machines/task-lifecycle.machine.ts
 ````typescript
 import { setup, assign } from "xstate";
@@ -31648,7 +31830,7 @@ export function isTerminalTaskStatus(status: TaskStatus): boolean
 /**
  * task-formation-actions — Server Actions for AI task candidate extraction and confirmation.
  *
- * startExtractionAction: Creates a TaskFormationJob, runs AI extraction via py_fn,
+ * startExtractionAction: Creates a TaskFormationJob, runs extractor in Firebase-side workflow,
  *   persists candidates to Firestore, and returns the job snapshot (with candidates).
  *
  * confirmCandidatesAction: Takes selected candidate indices, creates Tasks in the
@@ -31687,42 +31869,22 @@ export async function getTaskFormationJobSnapshotAction(rawInput: unknown)
 ## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts
 ````typescript
 import { z } from "zod";
-import { getFirebaseFunctions, httpsCallable } from "@packages";
 import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
 import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
 ⋮----
 /**
- * Input / output contracts for the py_fn `extract_task_candidates` callable.
- * This callable is expected to be implemented in py_fn when the backend is ready.
- * Until then, the adapter returns a structured mock response.
- */
-interface ExtractTaskCandidatesCallableInput {
-  readonly workspace_id: string;
-  readonly source_type: string;
-  readonly source_page_ids: string[];
-  readonly source_text?: string;
-}
-⋮----
-// Zod schema validates the callable output at the infrastructure boundary (Rule 4).
-// Unknown or malformed responses are rejected before reaching the application layer.
-⋮----
-/**
  * FirebaseCallableTaskCandidateExtractor — working implementation of
- * TaskCandidateExtractorPort using Firebase HTTPS Callable to py_fn.
+ * TaskCandidateExtractorPort with Firebase-only runtime behavior.
  *
- * While the py_fn `extract_task_candidates` function is not yet deployed,
- * this adapter falls back to a stub response so the UI pipeline remains testable.
+ * This adapter intentionally avoids py_fn callable dependency and generates
+ * candidates from workspace-side context (`sourceText`, `sourcePageIds`) so
+ * task-formation can be completed within Next.js + Firebase flow.
  *
  * ESLint: @integration-firebase is allowed here — outbound adapter layer.
  */
 export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort
 ⋮----
 async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
-⋮----
-// Validate output at infrastructure boundary before returning to use case (Rule 4)
-⋮----
-// py_fn function not yet deployed — return stub data so UI pipeline is testable.
-// Removal of this stub is pending ADR on GAP-04 transition strategy.
 ````
 
 ## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository.ts
@@ -33607,123 +33769,37 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 }
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-#use skill serena-mcp
-#use skill repomix
-#use skill context7
-#use skill xuanwu-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-markdown-skill
-#use skill occams-razor
-#use skill alistair-cockburn
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
-
-## Session Contract
-
-### Mandatory Skills (Load Every Session, No Exceptions)
-
-These three skills **must be loaded at the start of every conversation** before any other action:
-
-| Order | Skill | Purpose |
-|---|---|---|
-| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
-| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
-| 3 | `context7` | Library/framework API verification gate |
-
-- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
-- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
-- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
-- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
-
-## Mandatory Compliance Rules
-
-These rules are **non-negotiable** and apply to every task, file, and decision. Any violation requires an immediate stop and explicit report before proceeding.
-
-1. **AI Operational Scope**: Without explicit authorization, do not create files, add modules, modify interface definitions, or make any changes beyond the scope of the current task description.
-2. **Bounded Context**: Every concept belongs to exactly one Context. When referencing a same-named concept across Contexts, an explicit mapping layer must be established. Sharing types or objects directly is not permitted.
-3. **Ubiquitous Language Governance**: All naming must derive from the defined Domain glossary. When encountering a name not in the glossary, halt implementation and report it. Self-naming is not permitted.
-4. **Contract / Schema**: All data entering the system must pass through a defined Schema validation. Accessing raw input outside the validation layer is not permitted. Assuming input is valid is not permitted.
-5. **Breaking Change Policy**: When modifying any externally exposed Schema, interface, or event structure, a new version must be added and the old version retained. Direct overwriting is not permitted.
-6. **Aggregate Design**: All modifications to an Aggregate's internal state must be executed through that Aggregate's own methods. Directly modifying an Aggregate's properties or child objects from outside is not permitted.
-7. **State Model / FSM**: Every state transition must exist in the defined list of legal transitions. Transition paths that are not defined must throw an error. Silent ignoring or self-inferred transitions are not permitted.
-8. **Consistency / Transaction Strategy**: Operations spanning Aggregates or Contexts must not be wrapped in a single transaction. A defined saga or outbox pattern must be used. Designing ad-hoc synchronous coupling solutions is not permitted.
-9. **Event Ordering / Causality Model**: All event handlers must implement idempotency. Assuming events arrive in send order is not permitted. Sequence must be determined using a causality token or version number.
-10. **Failure Strategy**: Every external call must define a failure handling path (retry / compensate / dead-letter). Silently swallowing exceptions is not permitted. Assuming external services always succeed is not permitted.
-11. **Authorization / Security**: Every operation must verify that the caller holds the required permission before execution. Relying on call order or upstream validation as implicit authorization is not permitted.
-12. **Hexagonal Architecture**: The Domain layer must not import any types from Infrastructure, Frameworks, or external services. All external dependencies must be accessed through defined Port interfaces.
-13. **Dependency Rule Enforcement**: Dependencies may only flow inward (Infrastructure → Application → Domain). Reverse dependencies are forbidden. Direct imports between Contexts at the same layer are forbidden.
-14. **Testability / Specification**: Every Domain behavior must have corresponding automated test coverage. Implementing logic structures that cannot be verified by the existing test framework is not permitted.
-15. **Observability**: All cross-layer calls, state changes, and errors must produce structured, traceable records. Replacing structured events with print statements or log strings is not permitted.
-16. **ADR / Design Rationale**: When multiple implementation options are technically viable, do not choose independently. Halt, list the options and their differences, and wait for a human decision before proceeding.
-17. **Minimum Necessary Design / YAGNI**: Do not create abstractions, interfaces, or extension points for future possibilities. Every new structure must correspond to a requirement that explicitly exists in the current task.
-18. **Single Responsibility / No Redundancy**: Every concept must be defined exactly once in exactly one layer. When the same semantic is found expressed in multiple places, report the conflict. Allowing both to coexist is not permitted.
-19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
-20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
-
-## Read Order
-
-1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
-
-## Instruction Series (Phase 1)
-
-- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
-- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
-- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
-- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
-- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
-
-## Module Layer Routing（src-only）
-
-本 repo 已全面改為 `src/modules/` 單一模組層：
-
-| 路徑 | 職責 | 撰寫時機 |
-|---|---|---|
-| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
-
-- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
-- 新實作一律以 `src/modules/template` 骨架為基線。
-- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
-
-## Operating Rules
-
-> Dependency direction, domain purity, cross-module boundary, and planning discipline are governed by **Mandatory Compliance Rules 12–13, 16–17**. Items below are repo-specific structural decisions.
-
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
-
-## Governance Rules
-
-- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
-- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
-- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
-
-## Terminology
-
-> Governed by **Mandatory Compliance Rule 3**. Authority: [docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
-
-## DDD Strategic Rules (Phase 1)
-
-- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
-- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
-- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
-- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceSettlementSection.tsx
+````typescript
+/**
+ * WorkspaceSettlementSection — workspace.settlement tab — invoice settlement.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import { Calculator, Loader2, ArrowRightLeft, Wallet } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { createActor } from "xstate";
+⋮----
+import {
+  createInvoiceAction,
+  listInvoicesByWorkspaceAction,
+  transitionInvoiceStatusAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/settlement-actions";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import type { InvoiceSnapshot } from "@/src/modules/workspace/subdomains/settlement/domain/entities/Invoice";
+import type { InvoiceStatus } from "@/src/modules/workspace/subdomains/settlement/domain/value-objects/InvoiceStatus";
+import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
+import { settlementLifecycleMachine } from "@/src/modules/workspace/subdomains/orchestration/application/machines/settlement-lifecycle.machine";
+⋮----
+interface WorkspaceSettlementSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+function resolveNextStatus(invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROLLBACK"): InvoiceStatus | null
+⋮----
+const handleCreateInvoice = () =>
+⋮----
+const handleTransition = (invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROLLBACK") =>
 ````
