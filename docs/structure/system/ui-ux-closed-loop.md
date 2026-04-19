@@ -20,7 +20,7 @@
 │   • py_fn Storage Trigger 自動執行 parse + RAG index                        │ │
 │   └──────────────────────────────────────────────────────────────────────► │ │
 │                                                                             │ │
-│  [知識結構] notion.pages / notion.database                                  │ │
+│  [知識結構] notion.pages / notion.knowledge-database                               │ │
 │   • 從文件解析提取或手動撰寫的知識頁面                                         │ │
 │   • 結構化資料（需求清單、人員表、里程碑等）                                    │ │
 │   └──────────────────────────────────────────────────────────────────────► │ │
@@ -61,7 +61,7 @@
 | **下游** | → `notebooklm.notebook`（可查詢）<br>→ `notebooklm.research`（可合成）<br>→ `notion.pages`（知識頁面草稿）|
 | **閉環 CTA** | 上傳後提示「文件已索引，可前往 RAG 查詢或研究合成」 |
 
-### 2. notion.pages / notion.database（知識結構）
+### 2. notion.pages / notion.knowledge-database（知識結構）
 
 | 項目 | 說明 |
 |------|------|
@@ -82,7 +82,7 @@
 
 | 項目 | 說明 |
 |------|------|
-| **上游** | notion.pages / notion.database / notebooklm.research |
+| **上游** | notion.pages / notion.knowledge-database / notebooklm.research |
 | **處理** | AI 從選定來源萃取任務候選 → 使用者確認 → 任務建立 |
 | **下游** | → `workspace.tasks` |
 | **閉環 CTA** | 顯示來源選擇器；各來源 tab 快速導覽 |
@@ -110,7 +110,7 @@
 
 1. **每個 tab 都應顯示來源提示**：「此資料來自哪裡？」用輕量的 info banner 或 description 說明。
 2. **每個 tab 都應顯示下游 CTA**：「接下來可以做什麼？」用按鈕或 link 引導至下一步。
-3. **知識 → 任務的橋樑必須明確**：`notion.pages`、`notion.database`、`notebooklm.research` 都應有「→ 任務形成」的進入點。
+3. **知識 → 任務的橋樑必須明確**：`notion.pages`、`notion.knowledge-database`、`notebooklm.research` 都應有「→ 任務形成」的進入點。
 4. **任務形成的來源選擇器是閉環的入口**：讓使用者在 task-formation tab 能一眼看到可用的知識來源（頁面數量、資料庫數量、AI 研究狀態）。
 5. **上傳文件的處理狀態要可見**：`notebooklm.sources` 應顯示每份文件的處理鏈狀態（上傳 → 解析 → 索引 → 就緒）。
 
