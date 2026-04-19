@@ -535,6 +535,8 @@ interface CreateWorkspaceDialogRailProps {
   accountId: string | null;
   accountType: "user" | "organization" | null;
   creatorUserId?: string;
+  creatorDisplayName?: string;
+  creatorEmail?: string;
   onNavigate: (href: string) => void;
 }
 
@@ -544,9 +546,11 @@ export function CreateWorkspaceDialogRail({
   accountId,
   accountType,
   creatorUserId,
+  creatorDisplayName,
+  creatorEmail,
   onNavigate,
 }: CreateWorkspaceDialogRailProps): React.ReactElement {
-  const { createWorkspaceUseCase } = workspaceLifecycleUseCases;
+  const { createWorkspaceWithOwnerUseCase } = workspaceLifecycleUseCases;
   const [workspaceName, setWorkspaceName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -576,10 +580,17 @@ export function CreateWorkspaceDialogRail({
 
     setIsCreating(true);
     setError(null);
-    const result = await createWorkspaceUseCase.execute({
-      accountId,
-      accountType,
-      name,
+    const result = await createWorkspaceWithOwnerUseCase.execute({
+      workspace: {
+        accountId,
+        accountType,
+        name,
+      },
+      owner: {
+        actorId: creatorActorId,
+        displayName: creatorDisplayName?.trim() || "建立者",
+        email: creatorEmail?.trim() || undefined,
+      },
     });
     if (!result.success) {
       setError(result.error.message);

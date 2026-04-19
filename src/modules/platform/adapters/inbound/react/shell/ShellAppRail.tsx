@@ -336,6 +336,8 @@ export function AppRail({
         accountId={activeAccount?.id ?? null}
         accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
         creatorUserId={user?.id}
+        creatorDisplayName={user?.name ?? undefined}
+        creatorEmail={user?.email ?? undefined}
         onNavigate={(href: string) => { router.push(href); }}
       />
     </TooltipProvider>

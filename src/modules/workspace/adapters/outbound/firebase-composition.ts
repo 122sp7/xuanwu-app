@@ -25,9 +25,16 @@ import {
 } from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
 import {
   CreateWorkspaceUseCase,
+  CreateWorkspaceWithOwnerUseCase,
   ActivateWorkspaceUseCase,
   StopWorkspaceUseCase,
 } from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
+import {
+  AddMemberUseCase,
+  ChangeMemberRoleUseCase,
+  RemoveMemberUseCase,
+} from "../../subdomains/membership/application/use-cases/MembershipUseCases";
 import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
 import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
 import {
@@ -87,6 +94,7 @@ type FirestoreWhereOperator =
 
 let _workspaceQueryRepo: FirebaseWorkspaceQueryRepository | undefined;
 let _workspaceLifecycleRepo: FirestoreWorkspaceRepository | undefined;
+let _workspaceMemberRepo: FirestoreMemberRepository | undefined;
 
 function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository {
   if (!_workspaceQueryRepo) {
@@ -158,6 +166,13 @@ function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository {
   return _workspaceLifecycleRepo;
 }
 
+function getWorkspaceMemberRepo(): FirestoreMemberRepository {
+  if (!_workspaceMemberRepo) {
+    _workspaceMemberRepo = new FirestoreMemberRepository(createFirestoreLikeAdapter());
+  }
+  return _workspaceMemberRepo;
+}
+
 // ── Public subscriptions ───────────────────────────────────────────────────────
 
 /**
@@ -180,10 +195,22 @@ export function subscribeToWorkspacesForAccount(
 
 export function createClientWorkspaceLifecycleUseCases() {
   const repo = getWorkspaceLifecycleRepo();
+  const memberRepo = getWorkspaceMemberRepo();
   return {
     createWorkspaceUseCase: new CreateWorkspaceUseCase(repo),
+    createWorkspaceWithOwnerUseCase: new CreateWorkspaceWithOwnerUseCase(repo, memberRepo),
     activateWorkspaceUseCase: new ActivateWorkspaceUseCase(repo),
     stopWorkspaceUseCase: new StopWorkspaceUseCase(repo),
+  };
+}
+
+export function createClientMembershipUseCases() {
+  const repo = getWorkspaceMemberRepo();
+  return {
+    addMember: new AddMemberUseCase(repo),
+    changeMemberRole: new ChangeMemberRoleUseCase(repo),
+    removeMember: new RemoveMemberUseCase(repo),
+    listMembersByWorkspace: (workspaceId: string) => repo.findByWorkspaceId(workspaceId),
   };
 }
 

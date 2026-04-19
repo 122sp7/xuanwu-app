@@ -30,6 +30,7 @@ import { CreateUserAccountUseCase } from "../../subdomains/account/application/u
 import { CreateOrganizationUseCase } from "../../subdomains/organization/application/use-cases/OrganizationLifecycleUseCases";
 import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
 import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
+import type { MemberReference, Team } from "../../subdomains/organization/domain/entities/Organization";
 
 // ─── Singleton repositories ───────────────────────────────────────────────────
 
@@ -207,4 +208,12 @@ export function createClientOrganizationUseCases() {
   return {
     createOrganizationUseCase: new CreateOrganizationUseCase(getOrgRepo()),
   };
+}
+
+export async function listOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return getOrgRepo().getMembers(organizationId);
+}
+
+export async function listOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return getOrgRepo().getTeams(organizationId);
 }

@@ -13,7 +13,7 @@
  */
 
 import { Badge, Button } from "@packages";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   Bell,
@@ -44,6 +44,11 @@ import {
 
 import { ShellThemeToggle } from "./shell/ShellThemeToggle";
 import { ShellLanguageSwitcher } from "./shell/ShellLanguageSwitcher";
+import {
+  listOrganizationMembers,
+  listOrganizationTeams,
+} from "../../../../iam/adapters/outbound/firebase-composition";
+import { useAccountRouteContext } from "./useAccountRouteContext";
 
 // ── Real implementations (promoted from stubs) ────────────────────────────────
 
@@ -55,10 +60,8 @@ export { ShellThemeToggle, ShellLanguageSwitcher };
 
 // ── Account route context ─────────────────────────────────────────────────────
 
-export {
-  useAccountRouteContext,
-  type AccountRouteContextValue,
-} from "./useAccountRouteContext";
+export { useAccountRouteContext };
+export type { AccountRouteContextValue } from "./useAccountRouteContext";
 
 // ── Shell breadcrumbs ─────────────────────────────────────────────────────────
 
@@ -246,8 +249,35 @@ export function OrganizationOverviewRouteScreen(): React.ReactElement {
 // ── OrganizationMembersRouteScreen ────────────────────────────────────────────
 
 export function OrganizationMembersRouteScreen(): React.ReactElement {
+  const { resolvedAccountId, accountType } = useAccountRouteContext();
   const [roleFilter, setRoleFilter] = useState<string>("全部");
   const roles = ["全部", "owner", "admin", "member"] as const;
+  const [members, setMembers] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    presence: string;
+  }>>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (accountType !== "organization" || !resolvedAccountId) {
+      return () => { active = false; };
+    }
+    void listOrganizationMembers(resolvedAccountId).then((result) => {
+      if (active) setMembers(result);
+    }).catch(() => {
+      if (active) setMembers([]);
+    });
+    return () => { active = false; };
+  }, [accountType, resolvedAccountId]);
+
+  const visibleMembers = useMemo(() => {
+    if (accountType !== "organization" || !resolvedAccountId) return [];
+    if (roleFilter === "全部") return members;
+    return members.filter((member) => member.role.toLowerCase() === roleFilter);
+  }, [accountType, members, resolvedAccountId, roleFilter]);
 
   return (
     <div className="space-y-5">
@@ -280,18 +310,38 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
         ))}
       </div>
 
-      {/* Member list — empty state */}
-      <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-8 text-center">
-        <Users className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-muted-foreground">尚無組織成員</p>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          邀請成員加入組織後，可指派角色並管理存取範圍。
-        </p>
-        <Button size="sm" variant="outline" className="mt-4" disabled>
-          <UserPlus className="size-3.5" />
-          邀請成員
-        </Button>
-      </div>
+      {visibleMembers.length > 0 ? (
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/20 p-2">
+          {visibleMembers.map((member) => {
+            const role = member.role.toLowerCase();
+            const badgeVariant = role === "owner" ? "default" : role === "admin" ? "secondary" : "outline";
+            return (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-lg border border-border/30 bg-card/40 px-3 py-2.5"
+              >
+                <div>
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                </div>
+                <Badge variant={badgeVariant} className="capitalize">{role}</Badge>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-8 text-center">
+          <Users className="mx-auto mb-3 size-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium text-muted-foreground">尚無組織成員</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">
+            邀請成員加入組織後，可指派角色並管理存取範圍。
+          </p>
+          <Button size="sm" variant="outline" className="mt-4" disabled>
+            <UserPlus className="size-3.5" />
+            邀請成員
+          </Button>
+        </div>
+      )}
     </div>
   ) as React.ReactElement;
 }
@@ -299,6 +349,28 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
 // ── OrganizationTeamsRouteScreen ──────────────────────────────────────────────
 
 export function OrganizationTeamsRouteScreen(): React.ReactElement {
+  const { resolvedAccountId, accountType } = useAccountRouteContext();
+  const [teams, setTeams] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    type: "internal" | "external";
+    memberIds: string[];
+  }>>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (accountType !== "organization" || !resolvedAccountId) {
+      return () => { active = false; };
+    }
+    void listOrganizationTeams(resolvedAccountId).then((result) => {
+      if (active) setTeams(result);
+    }).catch(() => {
+      if (active) setTeams([]);
+    });
+    return () => { active = false; };
+  }, [accountType, resolvedAccountId]);
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -313,18 +385,38 @@ export function OrganizationTeamsRouteScreen(): React.ReactElement {
         </Button>
       </div>
 
-      {/* Teams list — empty state */}
-      <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-8 text-center">
-        <BriefcaseBusiness className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-muted-foreground">尚無團隊</p>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          建立功能性團隊（如工程、設計、業務），便於按團隊指派工作區與任務。
-        </p>
-        <Button size="sm" variant="outline" className="mt-4" disabled>
-          <Plus className="size-3.5" />
-          建立第一個團隊
-        </Button>
-      </div>
+      {teams.length > 0 ? (
+        <div className="space-y-2 rounded-xl border border-border/40 bg-card/20 p-2">
+          {teams.map((team) => (
+            <div
+              key={team.id}
+              className="flex items-center justify-between rounded-lg border border-border/30 bg-card/40 px-3 py-2.5"
+            >
+              <div>
+                <p className="text-sm font-medium">{team.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {team.description || "尚無描述"}
+                </p>
+              </div>
+              <Badge variant={team.type === "internal" ? "secondary" : "outline"}>
+                {team.type === "internal" ? "內部" : "外部"} · {team.memberIds.length}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-8 text-center">
+          <BriefcaseBusiness className="mx-auto mb-3 size-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium text-muted-foreground">尚無團隊</p>
+          <p className="mt-1 text-xs text-muted-foreground/70">
+            建立功能性團隊（如工程、設計、業務），便於按團隊指派工作區與任務。
+          </p>
+          <Button size="sm" variant="outline" className="mt-4" disabled>
+            <Plus className="size-3.5" />
+            建立第一個團隊
+          </Button>
+        </div>
+      )}
     </div>
   ) as React.ReactElement;
 }

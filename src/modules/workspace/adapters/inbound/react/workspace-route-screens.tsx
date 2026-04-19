@@ -302,7 +302,7 @@ export function WorkspaceHubScreen({
   accountType,
   accountsHydrated,
   isBootstrapSeeded,
-  currentUserId: _currentUserId,
+  currentUserId,
 }: WorkspaceHubScreenProps): React.ReactElement {
   const router = useRouter();
   const { state: workspaceState } = useWorkspaceContext();
@@ -405,6 +405,7 @@ export function WorkspaceHubScreen({
         onOpenChange={setCreateOpen}
         accountId={accountId}
         accountType={accountType}
+        creatorUserId={currentUserId ?? undefined}
         onNavigate={(href) => {
           router.push(href);
         }}
