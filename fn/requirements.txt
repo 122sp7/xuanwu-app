@@ -1,0 +1,23 @@
+# Firebase Functions runtime
+firebase-functions>=0.4.2,<1.0.0
+
+# Firebase Admin SDK - Firestore / Auth / Storage admin APIs
+firebase-admin>=6.5.0,<7.0.0
+
+# Google Cloud Document AI - synchronous & async document processing
+google-cloud-documentai<3.0.0
+
+# Google Cloud Firestore - explicit dependency for type hints & features
+google-cloud-firestore<3.0.0
+
+# GCS helper used by the storage service layer
+google-cloud-storage<3.0.0
+
+# OpenAI SDK for embeddings and LLM calls
+openai>=1.40.0,<2.0.0
+
+# Upstash Python SDKs (Vector/Redis used in RAG; QStash used for async audit event)
+upstash-vector>=0.8.0,<1.0.0
+upstash-redis>=1.0.0,<2.0.0
+upstash-search>=0.1.1,<1.0.0
+qstash>=3.0.0,<4.0.0
