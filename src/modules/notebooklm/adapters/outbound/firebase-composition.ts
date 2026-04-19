@@ -21,7 +21,7 @@ import {
   GenerateNotebookResponseUseCase,
 } from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
 import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, type RagQueryInput, type RagQueryOutput } from "./callable/FirebaseCallableAdapter";
+import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
 
 // ── Singleton repositories ────────────────────────────────────────────────────
 
@@ -81,8 +81,8 @@ export function createClientNotebooklmNotebookUseCases(accountId: string, worksp
   };
 }
 
-export { callRagQuery };
-export type { RagQueryInput, RagQueryOutput };
+export { callRagQuery, callParseDocument, callReindexDocument };
+export type { RagQueryInput, RagQueryOutput, ParseDocumentInput, ParseDocumentOutput, ReindexDocumentInput };
 
 // ── Storage upload helper ─────────────────────────────────────────────────────
 

@@ -43,6 +43,16 @@ export interface ParseDocumentInput {
   readonly gcs_uri: string;
   readonly doc_id?: string;
   readonly filename?: string;
+  readonly mime_type?: string;
+  readonly size_bytes?: number;
+  /** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
+  readonly run_rag?: boolean;
+}
+
+export interface ParseDocumentOutput {
+  readonly doc_id: string;
+  readonly account_scope: string;
+  readonly status: string;
 }
 
 export interface ReindexDocumentInput {
@@ -59,10 +69,11 @@ export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput
   return result.data;
 }
 
-export async function callParseDocument(input: ParseDocumentInput): Promise<void> {
+export async function callParseDocument(input: ParseDocumentInput): Promise<ParseDocumentOutput> {
   const functions = getFirebaseFunctions();
-  const fn = httpsCallable<ParseDocumentInput, void>(functions, "parse_document");
-  await fn(input);
+  const fn = httpsCallable<ParseDocumentInput, ParseDocumentOutput>(functions, "parse_document");
+  const result = await fn(input);
+  return result.data;
 }
 
 export async function callReindexDocument(input: ReindexDocumentInput): Promise<void> {

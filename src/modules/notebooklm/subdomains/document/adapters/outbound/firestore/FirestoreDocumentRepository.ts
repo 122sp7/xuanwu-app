@@ -42,6 +42,8 @@ interface PyFnDocumentRecord {
     page_count?: number;
     parsed_at?: { toDate?: () => Date };
     extraction_ms?: number;
+    chunk_count?: number;
+    entity_count?: number;
   };
   rag?: {
     status?: string;
@@ -87,6 +89,13 @@ function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap {
     storageUrl: raw.source?.gcs_uri,
     createdAtISO: uploadedAt.toISOString(),
     updatedAtISO: uploadedAt.toISOString(),
+    parsedPageCount: raw.parsed?.page_count,
+    parsedChunkCount: raw.parsed?.chunk_count,
+    parsedEntityCount: raw.parsed?.entity_count,
+    parsedJsonGcsUri: raw.parsed?.json_gcs_uri,
+    ragChunkCount: raw.rag?.chunk_count,
+    ragVectorCount: raw.rag?.vector_count,
+    ragStatus: raw.rag?.status,
   };
 }
 
