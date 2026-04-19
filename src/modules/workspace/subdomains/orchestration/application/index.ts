@@ -7,3 +7,9 @@ export { TaskLifecycleSaga } from "./sagas/TaskLifecycleSaga";
 export type { SagaTriggerEvent } from "./sagas/TaskLifecycleSaga";
 export { taskLifecycleMachine } from "./machines/task-lifecycle.machine";
 export type { TaskLifecycleContext, TaskLifecycleEvent, TaskLifecycleMachine } from "./machines/task-lifecycle.machine";
+export { settlementLifecycleMachine } from "./machines/settlement-lifecycle.machine";
+export type {
+  SettlementLifecycleContext,
+  SettlementLifecycleEvent,
+  SettlementLifecycleMachine,
+} from "./machines/settlement-lifecycle.machine";

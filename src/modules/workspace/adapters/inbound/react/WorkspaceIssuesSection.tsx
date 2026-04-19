@@ -8,8 +8,7 @@ import { Badge, Button } from "@packages";
 import { AlertCircle, Plus, AlertTriangle, Info, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
-import { listIssuesByTaskAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
-import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { listIssuesByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
 import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
 import type { IssueStatus } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus";
 
@@ -58,13 +57,7 @@ export function WorkspaceIssuesSection({
 
   const loadIssues = useCallback(
     (targetWorkspaceId: string) =>
-      listTasksByWorkspaceAction(targetWorkspaceId)
-        .then(async (tasks) => {
-          const issueArrays = await Promise.all(
-            tasks.map((t) => listIssuesByTaskAction(t.id)),
-          );
-          return issueArrays.flat();
-        })
+      listIssuesByWorkspaceAction(targetWorkspaceId)
         .then(setIssues)
         .catch(() => setIssues([]))
         .finally(() => setLoadedWorkspaceId(targetWorkspaceId)),
