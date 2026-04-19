@@ -11,6 +11,8 @@ import { z } from "zod";
 import {
   createClientNotebooklmDocumentUseCases,
 } from "../../outbound/firebase-composition";
+import { processSourceDocumentAction } from "./source-processing-actions";
+import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
 
 // ── Input schemas ─────────────────────────────────────────────────────────────
 
@@ -26,6 +28,19 @@ const UploadDocumentMetaSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.string().min(1),
   sizeBytes: z.number().int().nonnegative(),
+});
+
+const CreatePageFromDocumentInputSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().uuid(),
+  documentId: z.string().min(1),
+  documentTitle: z.string().min(1).max(500),
+});
+
+const CreateDatabaseFromDocumentInputSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().uuid(),
+  documentTitle: z.string().min(1).max(200),
 });
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -63,4 +78,37 @@ export async function registerUploadedDocumentAction(rawInput: unknown) {
     status: "processing",
     storageUrl: input.gcsPath,
   } as Parameters<typeof addDocument.execute>[0]);
+}
+
+/**
+ * createPageFromDocumentAction — create a Knowledge Page from a parsed document.
+ *
+ * Delegates to processSourceDocumentAction with shouldCreatePage=true only.
+ * The Knowledge Page title is set to the document name.
+ */
+export async function createPageFromDocumentAction(rawInput: unknown) {
+  const input = CreatePageFromDocumentInputSchema.parse(rawInput);
+  return processSourceDocumentAction({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    documentId: input.documentId,
+    documentTitle: input.documentTitle,
+    shouldCreateRag: false,
+    shouldCreatePage: true,
+    shouldCreateTasks: false,
+  });
+}
+
+/**
+ * createDatabaseFromDocumentAction — create a Notion Database named after the document.
+ *
+ * Useful as a container for Form Parser-extracted structured fields.
+ */
+export async function createDatabaseFromDocumentAction(rawInput: unknown) {
+  const input = CreateDatabaseFromDocumentInputSchema.parse(rawInput);
+  return createDatabaseAction({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name: input.documentTitle,
+  });
 }

@@ -100,6 +100,8 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
             account_id=schema.account_id,
+            chunk_count=len(parsed.chunks),
+            entity_count=len(parsed.entities),
         )
 
         if schema.run_rag:

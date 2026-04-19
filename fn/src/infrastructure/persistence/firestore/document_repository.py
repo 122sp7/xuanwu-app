@@ -111,6 +111,8 @@ def update_parsed(
     page_count: int,
     account_id: str,
     extraction_ms: int = 0,
+    chunk_count: int = 0,
+    entity_count: int = 0,
 ) -> None:
     """
     更新 document 的解析結果索引，標記為 completed 狀態。
@@ -123,6 +125,8 @@ def update_parsed(
         json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
         page_count:     頁數。
         extraction_ms:  解析耗時（毫秒），非必填。
+        chunk_count:    Layout Parser 語意分塊數量。
+        entity_count:   Form Parser 結構化欄位數量。
     """
     ref = _document_ref(doc_id, account_id)
 
@@ -134,6 +138,8 @@ def update_parsed(
             "page_count": page_count,
             "parsed_at": datetime.now(UTC),
             "extraction_ms": extraction_ms,
+            "chunk_count": chunk_count,
+            "entity_count": entity_count,
         },
     }
 
