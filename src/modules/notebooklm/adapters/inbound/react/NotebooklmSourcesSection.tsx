@@ -28,12 +28,12 @@ import {
   registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
+  parseDocumentAction,
+  reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
-  callParseDocument,
-  callReindexDocument,
 } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
@@ -177,15 +177,15 @@ export function NotebooklmSourcesSection({
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parse: "running", message: undefined });
     try {
-      await callParseDocument({
-        account_id: accountId,
-        workspace_id: workspaceId,
-        gcs_uri: doc.storageUrl,
-        doc_id: doc.id,
+      await parseDocumentAction({
+        accountId,
+        workspaceId,
+        docId: doc.id,
+        storageUrl: doc.storageUrl,
         filename: doc.name,
-        mime_type: doc.mimeType || "application/pdf",
-        size_bytes: doc.sizeBytes,
-        run_rag: runRag,
+        mimeType: doc.mimeType || "application/pdf",
+        sizeBytes: doc.sizeBytes,
+        runRag,
       });
       setDocAction(doc.id, { parse: "done", message: runRag ? "解析 + RAG 索引完成" : "解析完成，產出物已儲存" });
       // Reload list to pick up updated Firestore metadata
@@ -200,7 +200,7 @@ export function NotebooklmSourcesSection({
     if (!doc.id) return;
     setDocAction(doc.id, { reindex: "running", message: undefined });
     try {
-      await callReindexDocument({ account_id: accountId, doc_id: doc.id });
+      await reindexDocumentAction({ accountId, docId: doc.id });
       setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成" });
       const result = await queryDocumentsAction({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
@@ -352,10 +352,13 @@ export function NotebooklmSourcesSection({
                           ? "bg-green-500/10 text-green-600"
                           : doc.status === "processing"
                             ? "bg-yellow-500/10 text-yellow-600"
-                            : "bg-muted text-muted-foreground"
+                            : doc.status === "archived"
+                              ? "bg-red-500/10 text-red-600"
+                              : "bg-muted text-muted-foreground"
                       }`}
+                      title={doc.status === "archived" && doc.errorMessage ? doc.errorMessage : undefined}
                     >
-                      {STATUS_LABELS[doc.status] ?? doc.status}
+                      {doc.status === "archived" ? "解析失敗" : (STATUS_LABELS[doc.status] ?? doc.status)}
                     </span>
                     {/* Toggle actions panel */}
                     <Button
@@ -393,6 +396,11 @@ export function NotebooklmSourcesSection({
                     <span className="flex items-center gap-0.5 text-purple-600">
                       <BarChart2 className="size-3" />
                       RAG: {doc.ragChunkCount} 塊 / {doc.ragVectorCount ?? 0} 向量
+                    </span>
+                  )}
+                  {doc.errorMessage && doc.status === "archived" && (
+                    <span className="text-red-500/80 truncate max-w-xs" title={doc.errorMessage}>
+                      ⚠ {doc.errorMessage}
                     </span>
                   )}
                 </div>

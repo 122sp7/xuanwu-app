@@ -38,6 +38,8 @@ export interface DocumentSnapshot {
   readonly ragVectorCount?: number;
   /** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
   readonly ragStatus?: string;
+  /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
+  readonly errorMessage?: string;
 }
 
 export interface CreateDocumentInput {

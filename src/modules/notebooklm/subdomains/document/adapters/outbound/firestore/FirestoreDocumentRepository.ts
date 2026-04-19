@@ -70,6 +70,9 @@ function mapPyFnStatus(docStatus: string | undefined, ragStatus: string | undefi
   if (docStatus === "processing") return "processing";
   if (docStatus === "error") return "archived";
   if (ragStatus === "ready") return "active";
+  // fn sets status="completed" after a successful parse but before RAG indexing.
+  // Treat it as "active" — the document artifact is usable.
+  if (docStatus === "completed") return "active";
   return "processing";
 }
 
@@ -96,6 +99,7 @@ function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap {
     ragChunkCount: raw.rag?.chunk_count,
     ragVectorCount: raw.rag?.vector_count,
     ragStatus: raw.rag?.status,
+    errorMessage: raw.error?.message,
   };
 }
 

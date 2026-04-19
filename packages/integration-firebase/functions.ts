@@ -9,6 +9,6 @@ import { firebaseClientApp } from "./client";
 export type { Functions };
 export { httpsCallable };
 
-export function getFirebaseFunctions(): Functions {
-  return getFunctions(firebaseClientApp);
+export function getFirebaseFunctions(region = "asia-southeast1"): Functions {
+  return getFunctions(firebaseClientApp, region);
 }
