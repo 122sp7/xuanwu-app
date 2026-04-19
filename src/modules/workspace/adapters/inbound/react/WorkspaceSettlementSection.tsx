@@ -62,12 +62,12 @@ function resolveNextStatus(invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROL
     actor.send({ type: event });
   }
   const current = actor.getSnapshot();
-  const next = settlementLifecycleMachine.transition(current, { type: eventType });
-  const nextValue = next.value;
-  if (typeof nextValue !== "string" || nextValue === current.value) {
+  actor.send({ type: eventType });
+  const next = actor.getSnapshot();
+  if (typeof next.value !== "string" || next.value === current.value) {
     return null;
   }
-  return nextValue as InvoiceStatus;
+  return next.value as InvoiceStatus;
 }
 
 export function WorkspaceSettlementSection({
