@@ -433,8 +433,6 @@ export {
 // ─── ui-vis ───────────────────────────────────────────────────────────────────
 export {
   Network,
-  parseGephiNetwork,
-  parseDOTNetwork,
   DataSet,
   DataView,
   Timeline,

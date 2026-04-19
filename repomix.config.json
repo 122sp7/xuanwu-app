@@ -48,7 +48,7 @@
     "src/modules/template/**",
     "src/modules/workspace/**",
     "src/modules/iam/index.ts",
-    "packages/**",
+    "src/packages/index.ts",
     "py_fn/**",
     "AGENTS.md",
     "CLAUDE.md",

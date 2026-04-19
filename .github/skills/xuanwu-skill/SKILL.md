@@ -5,7 +5,7 @@ description: Reference codebase for Xuanwu App. Use this skill when you need to 
 
 # Xuanwu App Codebase Reference
 
-1123 files | 29312 lines | 309238 tokens
+1008 files | 26265 lines | 284886 tokens
 
 ## Overview
 
