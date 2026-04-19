@@ -5,15 +5,15 @@ description: Reference codebase for Xuanwu App. Use this skill when you need to 
 
 # Xuanwu App Codebase Reference
 
-388 files | 34534 lines | 340829 tokens
+388 files | 34569 lines | 341591 tokens
 
 ## Overview
 
 Use this skill when you need to:
-- Understand architecture decisions, bounded context docs, ADR records
-- Read instruction files, AGENTS.md, SKILL.md, or README files
-- Find governance rules, ubiquitous language, or context map entries
-- Search for design patterns, naming conventions, or configuration schemas in docs
+- Understand project structure and file organization
+- Find where specific functionality is implemented
+- Read source code for any file
+- Search for code patterns or keywords
 
 ## Files
 

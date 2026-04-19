@@ -35,10 +35,10 @@ T0  IAM                     BILLING                 AI
     access-control          subscription            orchestration
     tenant                  entitlement             distillation
     security-policy         referral                retrieval
-                                                     memory
-                                                     context
-                                                     safety
-                                                     tool-calling
+    account                                          memory
+    account-profile                                  context
+    organization                                     safety
+    team                                             tool-calling
                                                      reasoning
                                                      conversation
                                                      evaluation
@@ -53,13 +53,15 @@ T1  PLATFORM
     平台營運支撐
 ─────────────────────────────────────────────────────────────────────────────
 
-    account                 notification            audit-log
-    account-profile         background-job          observability
-    organization            content                 support
-    team                    search                  workflow
+    notification            audit-log
+    background-job          observability
+    content                 support
+    search                  workflow
     platform-config         compliance
     feature-flag            integration
     onboarding
+
+    > account / account-profile / organization / team → 已遷入 T0 iam
 
     [consent]               [secret-management]     [operational-catalog]
 
