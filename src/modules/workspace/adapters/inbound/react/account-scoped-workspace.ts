@@ -22,6 +22,6 @@ export function resolveAccountScopedWorkspaceId({
   ) {
     return activeWorkspaceId;
   }
-  accountWorkspaces.sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  accountWorkspaces.sort((a, b) => a.name.localeCompare(b.name));
   return accountWorkspaces[0]?.id ?? null;
 }

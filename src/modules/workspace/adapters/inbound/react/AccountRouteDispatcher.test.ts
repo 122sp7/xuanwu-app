@@ -7,11 +7,12 @@ function buildWorkspace(
   id: string,
   name: string,
   accountId: string,
+  accountType: "user" | "organization" = "organization",
 ): WorkspaceEntity {
   return {
     id,
     accountId,
-    accountType: "organization",
+    accountType,
     name,
     lifecycleState: "active",
     visibility: "private",
@@ -59,5 +60,18 @@ describe("resolveAccountScopedWorkspaceId", () => {
         workspaces: {},
       }),
     ).toBeNull();
+  });
+
+  it("also resolves workspaces for user account type", () => {
+    const workspaces: Record<string, WorkspaceEntity> = {
+      wsUser: buildWorkspace("wsUser", "Personal", "user-1", "user"),
+    };
+    expect(
+      resolveAccountScopedWorkspaceId({
+        accountId: "user-1",
+        activeWorkspaceId: "wsUser",
+        workspaces,
+      }),
+    ).toBe("wsUser");
   });
 });
