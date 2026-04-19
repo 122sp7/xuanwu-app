@@ -246,16 +246,32 @@ export function WorkspaceDetailRouteScreen({
           <WorkspaceTaskFormationSection workspaceId={workspaceId} accountId={accountId} currentUserId={currentUserId ?? undefined} />
         )}
         {activeTab === "Tasks" && (
-          <WorkspaceTasksSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceTasksSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Quality" && (
-          <WorkspaceQualitySection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceQualitySection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Approval" && (
-          <WorkspaceApprovalSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceApprovalSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Settlement" && (
-          <WorkspaceSettlementSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceSettlementSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Issues" && (
           <WorkspaceIssuesSection workspaceId={workspaceId} accountId={accountId} />

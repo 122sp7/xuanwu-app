@@ -56,3 +56,12 @@ export async function listIssuesByTaskAction(taskId: string): Promise<IssueSnaps
     return [];
   }
 }
+
+export async function listIssuesByWorkspaceAction(workspaceId: string): Promise<IssueSnapshot[]> {
+  try {
+    const { listIssuesByWorkspace } = createClientIssueUseCases();
+    return listIssuesByWorkspace(workspaceId);
+  } catch {
+    return [];
+  }
+}
