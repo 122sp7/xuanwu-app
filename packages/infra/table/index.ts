@@ -24,7 +24,6 @@ export { getFilteredRowModel } from "@tanstack/react-table";
 export { getPaginationRowModel } from "@tanstack/react-table";
 export { getGroupedRowModel } from "@tanstack/react-table";
 export { getExpandedRowModel } from "@tanstack/react-table";
-export { getSelectedRowModel } from "@tanstack/react-table";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
