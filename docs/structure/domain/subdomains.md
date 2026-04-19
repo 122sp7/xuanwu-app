@@ -13,7 +13,7 @@
 | platform | platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
 | workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
 | notion | knowledge, authoring, collaboration, database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning, taxonomy, relations, publishing | — |
-| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
+| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | —（Future Split Triggers；參見 notebooklm/subdomains.md） |
 
 ## Detailed Subdomain Catalog
 
@@ -195,14 +195,9 @@
 | synthesis | RAG 合成、摘要與洞察生成 |
 | conversation-versioning | 對話版本與快照策略 |
 
-#### Recommended Gap Subdomains
+#### Future Split Triggers（非獨立 Gap Subdomain）
 
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
+ingestion 已整合至 source；retrieval、grounding、evaluation 現為 synthesis 內部 facets。僅當語言分歧或演化速率差異觸發時才拆分為獨立子域。完整觸發條件見 `contexts/notebooklm/subdomains.md`。
 
 ## Strategic Notes
 

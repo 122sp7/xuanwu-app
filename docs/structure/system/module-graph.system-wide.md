@@ -97,12 +97,9 @@ T4  NOTEBOOKLM
     對話與推理輸出
 ─────────────────────────────────────────────────────────────────────────────
 
-    conversation            source
-    note                    synthesis
+    conversation            source（含 ingestion）
+    note                    synthesis（含 retrieval·grounding·evaluation）
     notebook                conversation-versioning
-
-    [ingestion]             [retrieval]
-    [grounding]             [evaluation]
 
 ─────────────────────────────────────────────────────────────────────────────
 SINK  ANALYTICS
