@@ -15,7 +15,7 @@
     "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
     "deploy:apphosting": "npx firebase deploy --only apphosting",
     "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:fn": "npx firebase deploy --only functions:fn",
     "deploy:functions:all": "npx firebase deploy --only functions",
     "deploy:firebase": "npx firebase deploy",
     "repomix:all": "npm run repomix:skill && npm run repomix:ai && npm run repomix:analytics && npm run repomix:billing && npm run repomix:iam && npm run repomix:platform && npm run repomix:src && npm run repomix:py_fn && npm run repomix:packages && npm run repomix:markdown && npm run repomix:notebooklm && npm run repomix:notion && npm run repomix:workspace",
