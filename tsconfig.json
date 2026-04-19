@@ -39,7 +39,12 @@
       "@ui-components": ["./packages/ui-components/index.ts"],
       "@ui-editor": ["./packages/ui-editor/index.ts"],
       "@ui-markdown": ["./packages/ui-markdown/index.tsx"],
-      "@ui-visualization": ["./packages/ui-visualization/index.tsx"]
+      "@ui-visualization": ["./packages/ui-visualization/index.tsx"],
+      "@infra/form": ["./packages/infra/form/index.ts"],
+      "@infra/table": ["./packages/infra/table/index.ts"],
+      "@infra/virtual": ["./packages/infra/virtual/index.ts"],
+      "@ui-dnd": ["./packages/ui-dnd/index.ts"],
+      "@ui-vis": ["./packages/ui-vis/index.ts"]
     }
   },
   "include": [

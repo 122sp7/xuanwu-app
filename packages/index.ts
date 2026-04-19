@@ -346,3 +346,103 @@ export {
   type PieDataPoint,
   type XuanwuPieChartProps,
 } from "./ui-visualization";
+
+// ─── infra/form ───────────────────────────────────────────────────────────────
+export {
+  useForm,
+  useField,
+  useStore,
+  createFormHook,
+  createFormHookContexts,
+  formOptions,
+  mergeForm,
+  type FormApi,
+  type FieldApi,
+  type FieldMeta,
+  type FormState,
+  type ValidationError,
+  type FormOptions,
+  type FieldOptions,
+  type UseFieldOptions,
+  type FormValidateOrFn,
+  type FieldValidateOrFn,
+} from "./infra/form";
+
+// ─── infra/table ──────────────────────────────────────────────────────────────
+export {
+  useReactTable,
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getGroupedRowModel,
+  getExpandedRowModel,
+  getSelectedRowModel,
+  type ColumnDef,
+  type SortingState,
+  type ColumnFiltersState,
+  type PaginationState,
+  type RowSelectionState,
+  type VisibilityState,
+  type ColumnOrderState,
+  type ColumnResizeMode,
+  type ColumnResizeDirection,
+  type Table as TanstackTable,
+  type Row as TanstackRow,
+  type Cell as TanstackCell,
+  type Header as TanstackHeader,
+  type HeaderGroup,
+  type CellContext,
+  type HeaderContext,
+  type ColumnHelper,
+  type OnChangeFn,
+  type Updater,
+  type TableOptions,
+  type FilterFn,
+  type SortingFn,
+} from "./infra/table";
+
+// ─── infra/virtual ────────────────────────────────────────────────────────────
+export {
+  useVirtualizer,
+  useWindowVirtualizer,
+  type VirtualItem,
+  type VirtualizerOptions,
+  type Virtualizer,
+  type Range,
+} from "./infra/virtual";
+
+// ─── ui-dnd ───────────────────────────────────────────────────────────────────
+export {
+  draggable,
+  dropTargetForElements,
+  monitorForElements,
+  combine,
+  reorder,
+  attachClosestEdge,
+  extractClosestEdge,
+  reorderWithEdge,
+  autoScrollForElements,
+  DropIndicator,
+  TreeDropIndicator,
+  type Edge,
+} from "./ui-dnd";
+
+// ─── ui-vis ───────────────────────────────────────────────────────────────────
+export {
+  Network,
+  parseGephiNetwork,
+  parseDOTNetwork,
+  DataSet,
+  DataView,
+  Timeline,
+  type VisNetworkOptions,
+  type VisNode,
+  type VisEdge,
+  type DataSetOptions,
+  type TimelineOptions,
+  type TimelineItem,
+  type TimelineGroup,
+} from "./ui-vis";

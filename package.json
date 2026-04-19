@@ -40,9 +40,10 @@
     "node": "24"
   },
   "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop": "^1.8.0",
+    "@atlaskit/pragmatic-drag-and-drop-auto-scroll": "^2.1.5",
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.15",
     "@base-ui/react": "^1.4.0",
     "@genkit-ai/google-genai": "^1.16.1",
     "@tanstack/react-form": "^1.28.5",
@@ -97,8 +98,6 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "eslint-plugin-functional": "^9.0.4",
-    "eslint-plugin-sonarjs": "^4.0.3",
     "@next/eslint-plugin-next": "^16.2.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.37",
@@ -111,11 +110,13 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.1.7",
     "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-functional": "^9.0.4",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsdoc": "^62.8.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-sonarjs": "^4.0.3",
     "repomix": "^1.12.0",
     "tailwindcss": "^4",
     "tailwindcss-animate": "^1.0.7",

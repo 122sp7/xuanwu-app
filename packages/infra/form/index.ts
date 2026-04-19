@@ -25,7 +25,6 @@ export { createFormHook, createFormHookContexts } from "@tanstack/react-form";
 
 export { formOptions } from "@tanstack/react-form";
 export { mergeForm } from "@tanstack/react-form";
-export { useTransform } from "@tanstack/react-form";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,7 +36,6 @@ export type {
   ValidationError,
   FormOptions,
   FieldOptions,
-  ReactFieldApi,
   UseFieldOptions,
   FormValidateOrFn,
   FieldValidateOrFn,
