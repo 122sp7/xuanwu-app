@@ -1,6 +1,6 @@
 ﻿---
 description: 'Unit testing rules for deterministic, isolated, and behavior-focused coverage.'
-applyTo: '{src/modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+applyTo: '{src/modules,packages,fn}/**/*.{ts,tsx,js,jsx,py}'
 ---
 
 # Testing Unit

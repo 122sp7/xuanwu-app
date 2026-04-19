@@ -1,6 +1,6 @@
 ﻿---
 description: 'Security rules guardrails for Firestore and Storage with least-privilege access.'
-applyTo: '{firestore.rules,storage.rules,src/modules/**/infrastructure/**/*.{ts,tsx,js,jsx},py_fn/**/*.py}'
+applyTo: '{firestore.rules,storage.rules,src/modules/**/infrastructure/**/*.{ts,tsx,js,jsx},fn/**/*.py}'
 ---
 
 # Security Rules
@@ -23,9 +23,9 @@ applyTo: '{firestore.rules,storage.rules,src/modules/**/infrastructure/**/*.{ts,
 - [ ] 每個 collection 有 organization / workspace isolation 條件？
 - [ ] 無寬泛 wildcard allow（`allow read, write: if true`）？
 
-### Cloud Functions（py_fn）
-- [ ] `py_fn/` 函式不包含 browser-facing auth / session logic？
-- [ ] `py_fn/` 的 Firestore 寫入使用 Admin SDK（非 client SDK）？
+### Cloud Functions（fn）
+- [ ] `fn/` 函式不包含 browser-facing auth / session logic？
+- [ ] `fn/` 的 Firestore 寫入使用 Admin SDK（非 client SDK）？
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill
 #use skill xuanwu-development-contracts

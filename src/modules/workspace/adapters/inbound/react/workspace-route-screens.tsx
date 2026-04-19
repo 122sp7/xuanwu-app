@@ -202,7 +202,7 @@ export function WorkspaceDetailRouteScreen({
           <NotionDatabaseSection workspaceId={workspaceId} accountId={accountId} />
         )}
         {activeTab === "Templates" && (
-          <NotionTemplatesSection workspaceId={workspaceId} accountId={accountId} />
+          <NotionTemplatesSection workspaceId={workspaceId} accountId={accountId} currentUserId={currentUserId ?? ""} />
         )}
 
         {/* ── notebooklm group ── */}
@@ -246,19 +246,39 @@ export function WorkspaceDetailRouteScreen({
           <WorkspaceTaskFormationSection workspaceId={workspaceId} accountId={accountId} currentUserId={currentUserId ?? undefined} />
         )}
         {activeTab === "Tasks" && (
-          <WorkspaceTasksSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceTasksSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Quality" && (
-          <WorkspaceQualitySection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceQualitySection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Approval" && (
-          <WorkspaceApprovalSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceApprovalSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Settlement" && (
-          <WorkspaceSettlementSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceSettlementSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
         {activeTab === "Issues" && (
-          <WorkspaceIssuesSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceIssuesSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
       </section>
     </div>
@@ -282,7 +302,7 @@ export function WorkspaceHubScreen({
   accountType,
   accountsHydrated,
   isBootstrapSeeded,
-  currentUserId: _currentUserId,
+  currentUserId,
 }: WorkspaceHubScreenProps): React.ReactElement {
   const router = useRouter();
   const { state: workspaceState } = useWorkspaceContext();
@@ -385,6 +405,7 @@ export function WorkspaceHubScreen({
         onOpenChange={setCreateOpen}
         accountId={accountId}
         accountType={accountType}
+        creatorUserId={currentUserId ?? undefined}
         onNavigate={(href) => {
           router.push(href);
         }}

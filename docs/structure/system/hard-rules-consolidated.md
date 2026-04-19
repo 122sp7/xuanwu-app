@@ -8,19 +8,49 @@
 
 ## 🗂️ Document Placement Strategy
 
-| Rule Category | Count | Primary Location | Secondary Location |
+| Rule Category | Rules | Primary Location | Secondary Location |
 |---|---|---|---|
-| **Strategic Ownership** (1, 5-10, 28) | 9 | `AGENTS.md` § Module Ownership | — |
-| **Dependency Direction** (2, 6-7, 49) | 4 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
-| **Layer Responsibility** (11-13, 21-23) | 7 | `.github/instructions/architecture-core.instructions.md` | Module AGENTS.md |
-| **Data Flow & Events** (4, 9, 34-36) | 5 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
-| **File / Storage / IO** (3, 29-32, 39) | 6 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
-| **Permission / Security** (37-38, 40) | 3 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** (24-27) | 4 | `docs/structure/system/context-map.md` | Module AGENTS.md |
-| **Feature Toggles / Independence** (17) | 1 | Platform feature-flag docs | — |
-| **Anti-Patterns** (46-51) | 6 | `AGENTS.md` § Anti-Patterns | Module AGENTS.md |
+| **Strategic Ownership** | 1, 5-10, 28 | `AGENTS.md` § Module Ownership | — |
+| **Dependency Direction** | 2, 6-7, 49 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
+| **Layer Responsibility** | 11-13, 16, 21-23 | `.github/instructions/architecture-core.instructions.md` | Module AGENTS.md |
+| **Data Flow & Events** | 4, 9, 34-36 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
+| **File / Storage / IO** | 3, 29-33, 39 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
+| **Permission / Security** | 37-38, 40 | `.github/instructions/security-rules.instructions.md` | Platform docs |
+| **Cross-Module Contracts** | 24-27 | `docs/structure/system/context-map.md` | Module AGENTS.md |
+| **Feature Toggles / Independence** | 17 | Platform feature-flag docs | — |
+| **Anti-Patterns** | 46-51 | `AGENTS.md` § Anti-Patterns | Module AGENTS.md |
+| **Module-Tactical** | 14-15, 18-20, 41-45 | Each `src/modules/<context>/AGENTS.md` | — |
 
-**Total**: 51 rules consolidated into 8 homes
+> Rules 14-15, 18-20, 41-45 are enforced at the module level. Each module AGENTS.md carries its own tactical subset. This document consolidates the cross-cutting rules only.
+
+---
+
+## Mapping to 20 Mandatory Compliance Rules
+
+Cross-reference between `.github/copilot-instructions.md` Mandatory Rules (1-20) and the Hard Rules in this document.
+
+| Mandatory Rule | Hard Rules | ESLint | Other Enforcement |
+|---|---|---|---|
+| 1. AI Operational Scope | — | — | Code Review |
+| 2. Bounded Context | 1, 6, 7, 24-27 | `no-restricted-imports` | Code Review |
+| 3. Ubiquitous Language | — | — | Docs Authority (`docs/structure/domain/ubiquitous-language.md`) |
+| 4. Contract / Schema | 11, 22 | — | Zod at boundary; Code Review |
+| 5. Breaking Change Policy | — | — | ADR + Code Review |
+| 6. Aggregate Design | 11-13, 23 | `functional/no-let` (domain) | Domain Tests |
+| 7. State Model / FSM | — | — | Code Review |
+| 8. Consistency / Transaction | 4, 9, 35 | — | Code Review |
+| 9. Event Ordering / Causality | 4, 36 | — | Event schema registry |
+| 10. Failure Strategy | 34-35 | — | Code Review |
+| 11. Authorization / Security | 37-40 | — | Firestore Security Rules |
+| 12. Hexagonal Architecture | 10-13 | `no-restricted-imports` (integration) | Code Review |
+| 13. Dependency Rule | 2, 6-7, 49 | `no-restricted-imports` (cross-module) | `eslint.config.mjs` |
+| 14. Testability / Specification | 22 | — | Code Review |
+| 15. Observability | 31-32 | — | Code Review |
+| 16. ADR / Design Rationale | — | — | `docs/decisions/` records |
+| 17. Minimum Necessary Design | — | `sonarjs/cognitive-complexity` | Code Review |
+| 18. Single Responsibility | 8, 12-13 | `max-lines` (ESLint smell) | Code Review |
+| 19. Design Activation Rules | — | — | Code Review |
+| 20. Lint / Policy as Code | ESLint guardrails | `npm run lint` | See §ESLint Design Smell Guardrails |
 
 ---
 

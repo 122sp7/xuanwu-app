@@ -23,10 +23,8 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 
 ## Baseline Subdomains
 
-- account
-- account-profile
-- organization
-- team
+> account / account-profile / organization / team → 已遷入 iam 主域。
+
 - platform-config
 - feature-flag
 - onboarding
@@ -80,7 +78,7 @@ platform 是帳號、組織與 shared operational services 主域。它的責任
 - `AccountType = "user" | "organization"` 是目前 platform account domain、workspace domain、Zod validators 與 route composition 共用的字串契約；`"user"` 表示 personal account scope，`"organization"` 表示 organization account scope。
 - business language 仍使用 personal account / organization account；只有 code-level string contract 才使用 `"user" | "organization"`，避免把 `user` 誤用成平台通用語言名詞。
 - organization governance route 在 shell 內應 flatten 到 account scope，例如 `/{accountId}/members`、`/{accountId}/teams`、`/{accountId}/permissions`；`/{accountId}/organization/*` 只應視為 legacy redirect surface。
-- platform 擁有 account 與 organization 的治理語意，但不擁有 workspace detail route；workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
+- iam 擁有 account 與 organization 的 domain governance；platform 承接 account scope 的 shell route composition surface，但不擁有這兩個子域的 domain model。workspace detail 仍由 workspace module route screen 承接，只是經過 account-scoped shell composition 進入。
 
 ## Anti-Pattern Rules
 

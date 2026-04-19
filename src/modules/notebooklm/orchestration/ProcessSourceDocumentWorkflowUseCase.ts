@@ -1,10 +1,10 @@
 /**
  * ProcessSourceDocumentWorkflowUseCase — orchestrates the full source processing flow.
  *
- * After a document is uploaded and parsed (by py_fn), this use case orchestrates
+ * After a document is uploaded and parsed (by fn), this use case orchestrates
  * the optional downstream steps the user selects in the processing dialog:
- *   1. Parse (already done by py_fn — this step validates parse status)
- *   2. RAG index (already done by py_fn — this step validates RAG status)
+ *   1. Parse (already done by fn — this step validates parse status)
+ *   2. RAG index (already done by fn — this step validates RAG status)
  *   3. Create Knowledge Page via notion boundary
  *   4. Extract task candidates + hand off via TaskMaterializationWorkflowPort
  *
@@ -119,13 +119,14 @@ export class ProcessSourceDocumentWorkflowUseCase {
     parsedText: string,
     pageId: string,
   ) {
-    const candidates = extractTaskCandidates(parsedText || input.documentTitle);
     const taskResult = await this.taskPort.materializeTasks({
       workspaceId: input.workspaceId,
       accountId: input.accountId,
       sourceDocumentId: input.documentId,
       knowledgePageId: pageId,
-      candidates,
+      candidates: [],
+      sourceText: parsedText || input.documentTitle,
+      actorId: input.requestedByUserId,
       requestedByUserId: input.requestedByUserId,
     });
     if (taskResult.ok) {
@@ -161,16 +162,4 @@ function buildResult(args: ResultArgs): ProcessSourceDocumentWorkflowResult {
     pageCount: args.pageCount ?? 0,
     errors: args.errors,
   };
-}
-
-function extractTaskCandidates(
-  text: string,
-): Array<{ title: string; description: string }> {
-  // Minimal heuristic extraction: split on sentence boundaries.
-  // In production, this should call an AI flow for proper extraction.
-  const sentences = text
-    .split(/[.!?。！？]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 10 && s.length < 200);
-  return sentences.slice(0, 5).map((s) => ({ title: s, description: "" }));
 }

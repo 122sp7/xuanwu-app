@@ -37,7 +37,7 @@ export async function assignWorkDemandAction(demandId: string, rawInput: unknown
 export async function listWorkDemandsByWorkspaceAction(workspaceId: string): Promise<WorkDemandSnapshot[]> {
   try {
     const { listWorkDemandsByWorkspace } = createClientScheduleUseCases();
-    return listWorkDemandsByWorkspace(workspaceId);
+    return listWorkDemandsByWorkspace.execute(workspaceId);
   } catch {
     return [];
   }

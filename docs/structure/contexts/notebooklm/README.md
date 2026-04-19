@@ -30,12 +30,9 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 - synthesis
 - conversation-versioning
 
-## Recommended Gap Subdomains
+## Future Split Triggers（非獨立 Gap Subdomain）
 
-- ingestion
-- retrieval
-- grounding
-- evaluation
+ingestion 已整合至 source；retrieval、grounding、evaluation 現為 synthesis 內部 facets。僅當語言分歧或演化速率差異觸發時才拆分為獨立子域。完整觸發條件見 [subdomains.md](./subdomains.md)。
 
 ## Key Relationships
 

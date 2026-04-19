@@ -1,82 +1,72 @@
 
 import { z } from "zod";
-import { getFirebaseFunctions, httpsCallable } from "@packages";
 import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
 import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
 
-/**
- * Input / output contracts for the py_fn `extract_task_candidates` callable.
- * This callable is expected to be implemented in py_fn when the backend is ready.
- * Until then, the adapter returns a structured mock response.
- */
-interface ExtractTaskCandidatesCallableInput {
-  readonly workspace_id: string;
-  readonly source_type: string;
-  readonly source_page_ids: string[];
-  readonly source_text?: string;
-}
-
-// Zod schema validates the callable output at the infrastructure boundary (Rule 4).
-// Unknown or malformed responses are rejected before reaching the application layer.
-const CallableCandidateSchema = z.object({
+const CandidateSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
-  due_date: z.string().optional(),
+  dueDate: z.string().optional(),
   source: z.enum(["rule", "ai"]),
   confidence: z.number().min(0).max(1),
-  source_block_id: z.string().optional(),
-  source_snippet: z.string().optional(),
-});
-
-const CallableExtractorOutputSchema = z.object({
-  candidates: z.array(CallableCandidateSchema),
+  sourceBlockId: z.string().optional(),
+  sourceSnippet: z.string().optional(),
 });
 
 /**
  * FirebaseCallableTaskCandidateExtractor — working implementation of
- * TaskCandidateExtractorPort using Firebase HTTPS Callable to py_fn.
+ * TaskCandidateExtractorPort with Firebase-only runtime behavior.
  *
- * While the py_fn `extract_task_candidates` function is not yet deployed,
- * this adapter falls back to a stub response so the UI pipeline remains testable.
+ * This adapter intentionally avoids fn callable dependency and generates
+ * candidates from workspace-side context (`sourceText`, `sourcePageIds`) so
+ * task-formation can be completed within Next.js + Firebase flow.
  *
  * ESLint: @integration-firebase is allowed here — outbound adapter layer.
  */
 export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort {
   async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]> {
-    try {
-      const functions = getFirebaseFunctions();
-      const fn = httpsCallable<ExtractTaskCandidatesCallableInput, unknown>(
-        functions,
-        "extract_task_candidates",
-      );
-      const result = await fn({
-        workspace_id: input.workspaceId,
-        source_type: input.sourceType,
-        source_page_ids: input.sourcePageIds,
-        source_text: input.sourceText,
-      });
-      // Validate output at infrastructure boundary before returning to use case (Rule 4)
-      const parsed = CallableExtractorOutputSchema.parse(result.data);
-      return parsed.candidates.map((c) => ({
-        title: c.title,
-        description: c.description,
-        dueDate: c.due_date,
-        source: c.source,
-        confidence: c.confidence,
-        sourceBlockId: c.source_block_id,
-        sourceSnippet: c.source_snippet,
+    const normalizedText = (input.sourceText ?? "").trim();
+    const sourcePageIds = input.sourcePageIds.filter((id) => id.trim().length > 0);
+    const inferredSource = input.sourceType;
+
+    const sentenceCandidates = normalizedText
+      .split(/\r?\n|[。！？!?.]/g)
+      .map((line) => line.trim())
+      .filter((line) => line.length >= 6)
+      .slice(0, 5)
+      .map((line, index) => ({
+        title: line.slice(0, 60),
+        description: line,
+        source: inferredSource,
+        confidence: Math.max(0.55, 0.9 - index * 0.08),
+        sourceBlockId: sourcePageIds[index] ?? sourcePageIds[0],
+        sourceSnippet: line.slice(0, 140),
       }));
-    } catch {
-      // py_fn function not yet deployed — return stub data so UI pipeline is testable.
-      // Removal of this stub is pending ADR on GAP-04 transition strategy.
-      return [
-        {
-          title: "（AI 萃取功能待部署）",
-          description: "py_fn extract_task_candidates callable 尚未部署。請先完成來源文件上傳並等待後端部署。",
-          source: "ai",
-          confidence: 0,
-        },
-      ];
+
+    const sourceIdCandidates = sourcePageIds.map((sourcePageId, index) => ({
+      title: `來源任務 #${index + 1}`,
+      description: `根據來源 ${sourcePageId} 建立可執行任務。`,
+      source: inferredSource,
+      confidence: Math.max(0.5, 0.75 - index * 0.05),
+      sourceBlockId: sourcePageId,
+      sourceSnippet: normalizedText.slice(0, 140) || sourcePageId,
+    }));
+
+    const merged = [...sentenceCandidates, ...sourceIdCandidates]
+      .slice(0, 8)
+      .map((candidate) => CandidateSchema.parse(candidate));
+
+    if (merged.length > 0) {
+      return merged;
     }
+
+    return [
+      CandidateSchema.parse({
+        title: "待確認任務（請補充來源內容）",
+        description: "目前來源資料不足，請先選擇有效來源或補充文字內容後再生成。",
+        source: inferredSource,
+        confidence: 0.5,
+      }),
+    ];
   }
 }

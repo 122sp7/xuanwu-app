@@ -542,7 +542,7 @@ ts-interface-writer     zod-validator
   # ── 架構層（全域 + 分層）──────────────────────────────────────
   architecture.instructions.md            ✅  相容入口 router；applyTo: "**"（只做 routing）
   architecture-core.instructions.md       ✅  Hexagonal DDD 模組邊界規則；applyTo: src/modules/**
-  architecture-runtime.instructions.md    ✅  runtime 分層規則；applyTo: src/app|src/modules|py_fn/**
+  architecture-runtime.instructions.md    ✅  runtime 分層規則；applyTo: src/app|src/modules|fn/**
 
   # ── DDD 戰略設計 ──────────────────────────────────────────────
   bounded-context-rules.instructions.md   ✅  Bounded Context 設計約束；applyTo: src/modules/**
@@ -565,14 +565,14 @@ ts-interface-writer     zod-validator
   # ── Firebase / 後端 ───────────────────────────────────────────
   firestore-schema.instructions.md        ✅  Firestore schema 規則；applyTo: src/modules/**/infrastructure/**
   security-rules.instructions.md          ✅  安全規則約束；applyTo: firestore.rules|storage.rules
-  cloud-functions.instructions.md         ✅  Cloud Functions 規則；applyTo: py_fn/**
+  cloud-functions.instructions.md         ✅  Cloud Functions 規則；applyTo: fn/**
   hosting-deploy.instructions.md          ✅  部署規則；applyTo: apphosting.yaml|firebase.json
   ci-cd.instructions.md                   ✅  CI/CD 規則；applyTo: .github/workflows/**
 
   # ── AI / Genkit ───────────────────────────────────────────────
   genkit-flow.instructions.md             ✅  Genkit flow 設計規則；applyTo: src/modules/**/infrastructure/**
-  embedding-pipeline.instructions.md      ✅  embedding pipeline 規則；applyTo: py_fn/**
-  rag-architecture.instructions.md        ✅  RAG 架構規則；applyTo: src/modules/**|py_fn/**
+  embedding-pipeline.instructions.md      ✅  embedding pipeline 規則；applyTo: fn/**
+  rag-architecture.instructions.md        ✅  RAG 架構規則；applyTo: src/modules/**|fn/**
   prompt-engineering.instructions.md      ✅  prompt 設計規則；applyTo: .github/prompts/**
 
   # ── Frontend ──────────────────────────────────────────────────
@@ -728,7 +728,7 @@ ts-interface-writer     zod-validator
   xuanwu-notion-skill/             ✅  notion module 代碼索引
   xuanwu-packages-skill/           ✅  packages/ 代碼索引
   xuanwu-platform-skill/           ✅  platform module 代碼索引
-  xuanwu-py_fn-skill/              ✅  py_fn/ 代碼索引
+  xuanwu-fn-skill/              ✅  fn/ 代碼索引
   xuanwu-workspace-skill/          ✅  workspace module 代碼索引
   xuanwu-markdown-skill/           ✅  markdown 相關代碼索引
 ```

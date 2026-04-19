@@ -2,6 +2,7 @@ import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { QualityReviewRepository } from "../../domain/repositories/QualityReviewRepository";
 import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
 import { QualityReview } from "../../domain/entities/QualityReview";
 import type { StartQualityReviewInput } from "../../domain/entities/QualityReview";
 import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
@@ -33,6 +34,7 @@ export class PassQualityReviewUseCase {
   constructor(
     private readonly reviewRepo: QualityReviewRepository,
     private readonly taskRepo: TaskRepository,
+    private readonly issueRepo: IssueRepository,
   ) {}
 
   async execute(reviewId: string, notes?: string): Promise<CommandResult> {
@@ -43,6 +45,10 @@ export class PassQualityReviewUseCase {
       if (!task) return commandFailureFrom("QA_TASK_NOT_FOUND", "Task not found.");
       if (!canTransitionTaskStatus(task.status, "acceptance")) {
         return commandFailureFrom("QA_INVALID_TRANSITION", `Cannot pass QA from '${task.status}'.`);
+      }
+      const openQaIssues = await this.issueRepo.countOpenByTaskIdAndStage(snapshot.taskId, "qa");
+      if (openQaIssues > 0) {
+        return commandFailureFrom("QA_HAS_OPEN_ISSUES", "Task has open QA-stage issues that must be resolved first.");
       }
       const review = QualityReview.reconstitute(snapshot);
       review.pass(notes);

@@ -12,8 +12,8 @@
 | analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
 | platform | platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
 | workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
-| notion | knowledge, authoring, collaboration, knowledge-database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
-| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
+| notion | knowledge, authoring, collaboration, database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning, taxonomy, relations, publishing | — |
+| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | —（Future Split Triggers；參見 notebooklm/subdomains.md） |
 
 ## Detailed Subdomain Catalog
 
@@ -166,7 +166,7 @@
 | knowledge | 頁面建立、組織、版本化與交付 |
 | authoring | 知識庫文章建立、驗證與分類 |
 | collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
+| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
 | knowledge-engagement | 知識使用行為量測 |
 | attachments | 附件與媒體關聯儲存 |
 | automation | 知識事件觸發自動化動作 |
@@ -174,14 +174,13 @@
 | notes | 個人輕量筆記與正式知識協作 |
 | templates | 頁面範本管理與套用 |
 | knowledge-versioning | 全域版本快照策略管理 |
+| taxonomy | 分類法與語義組織的正典邊界 |
+| relations | 內容之間關聯與 backlink 的正典邊界 |
+| publishing | 正式發布與對外交付的正典邊界 |
 
 #### Recommended Gap Subdomains
 
-| Subdomain | 功能註解 |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
+無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
 
 ### notebooklm
 
@@ -196,14 +195,9 @@
 | synthesis | RAG 合成、摘要與洞察生成 |
 | conversation-versioning | 對話版本與快照策略 |
 
-#### Recommended Gap Subdomains
+#### Future Split Triggers（非獨立 Gap Subdomain）
 
-| Subdomain | 功能註解 |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
+ingestion 已整合至 source；retrieval、grounding、evaluation 現為 synthesis 內部 facets。僅當語言分歧或演化速率差異觸發時才拆分為獨立子域。完整觸發條件見 `contexts/notebooklm/subdomains.md`。
 
 ## Strategic Notes
 

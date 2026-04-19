@@ -17,17 +17,23 @@ platform 是 account、organization 與 operational-service 主域。依 bounded
 | Cluster | Subdomains |
 |---|---|
 | Platform Governance and Configuration | platform-config, feature-flag, onboarding, compliance |
-| Delivery and Operations | integration, workflow, notification, background-job, secret-management |
+| Delivery and Operations | integration, workflow, notification, background-job |
 | Intelligence and Audit | content, search, audit-log, observability, support |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why Needed | Gap If Missing |
+|---|---|---|
+| secret-management | 將憑證、token、rotation 從 integration 中切開 | integration 容易承載過多敏感治理責任 |
+| consent | 將同意與偏好、資料使用授權從 compliance 中切開 | compliance 會被迫承接過細的授權決策 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 | 平台設定無統一語義層，難以治理 |
 
 ## Strategic Reinforcement Focus
 
 | Subdomain | Why It Stays A Focus | Risk If Under-Specified |
 |---|---|---|
-| tenant | 收斂多租戶隔離與 tenant-scoped 規則 | organization 會被迫承載過多租戶治理語義 |
-| entitlement | 收斂有效權益與功能可用性解算 | subscription、feature-flag、policy 難以一致決策 |
-| secret-management | 收斂憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
-| consent | 收斂同意、偏好、資料使用授權語義 | compliance 會被迫承接過細的授權決策 |
+| tenant | 收斂多租戶隔離與 tenant-scoped 規則（iam 正典，platform 必須正確消費）| organization 會被迫承載過多租戶治理語義 |
+| entitlement | 收斂有效權益與功能可用性解算（billing 正典，platform 必須正確路由）| subscription、feature-flag、policy 難以一致決策 |
 
 ## Domain Invariants
 
@@ -84,4 +90,4 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](../domain/bounded-contexts.md)
-- [subdomains.md](../domain/subdomains.md)
+- [subdomains.md](../domain/subdomains.md)

@@ -73,7 +73,7 @@ export class RejectApprovalUseCase {
       const decision = ApprovalDecision.reconstitute(snapshot);
       decision.reject(comments);
       await this.decisionRepo.save(decision.getSnapshot());
-      await this.taskRepo.updateStatus(snapshot.taskId, "qa", new Date().toISOString());
+      await this.taskRepo.updateStatus(snapshot.taskId, "in_progress", new Date().toISOString());
       return commandSuccess(decisionId, Date.now());
     } catch (err) {
       return commandFailureFrom("APPROVAL_REJECT_FAILED", err instanceof Error ? err.message : "Failed to reject approval.");

@@ -10,7 +10,7 @@
 import { Button } from "@packages";
 import { LayoutGrid, ListPlus } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
 import { queryDatabasesAction } from "../server-actions/database-actions";
@@ -40,6 +40,11 @@ export function NotionDatabaseSection({
     });
   };
 
+  // Auto-load on mount
+  useEffect(() => {
+    load();
+  }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -47,11 +52,6 @@ export function NotionDatabaseSection({
           <LayoutGrid className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">資料庫</h2>
         </div>
-        {!loaded && (
-          <Button size="sm" variant="ghost" onClick={load} disabled={isPending}>
-            {isPending ? "載入中…" : "載入資料庫"}
-          </Button>
-        )}
       </div>
 
       {loaded && (

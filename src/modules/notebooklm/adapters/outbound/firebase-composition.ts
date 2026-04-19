@@ -87,7 +87,7 @@ export type { RagQueryInput, RagQueryOutput };
 // ── Storage upload helper ─────────────────────────────────────────────────────
 
 /**
- * Upload a document to the GCS path expected by the py_fn Storage Trigger.
+ * Upload a document to the GCS path expected by the fn Storage Trigger.
  * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
  * The Storage Trigger automatically runs parse + RAG on this prefix.
  */

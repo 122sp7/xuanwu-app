@@ -17,7 +17,7 @@
 | 類型 | 正確位置 |
 |---|---|
 | 業務任務內容與邏輯 | `src/modules/<context>/application/` |
-| 背景工作處理 handler | `src/app/api/` 或 `py_fn/` |
+| 背景工作處理 handler | `src/app/api/` 或 `fn/` |
 
 ---
 

@@ -23,7 +23,7 @@
 
 > **實作層命名備注：** `src/modules/notion/` 以 `page`、`block`、`database`、`view`、`collaboration`、`template` 作為子域目錄名稱。
 > `view` 子域承接 `database` 的多視圖能力；`block` 是 `page` 的內容區塊子結構。
-> `knowledge-database` 已正式重命名為 `database`；戰略文件中的舊名視為 deprecated。
+> `knowledge-database` 已正式重命名為 `database`；所有戰略文件與實作路徑均已同步更新。
 
 ## Recommended Gap Subdomains
 

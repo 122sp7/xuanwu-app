@@ -11,7 +11,7 @@
   },
   "functions": [
     {
-      "codebase": "py-fn",
+      "codebase": "fn",
       "runtime": "python312",
       "ignore": [
         "venv",
@@ -24,7 +24,7 @@
         "firebase-debug.*.log",
         "*.local"
       ],
-      "source": "py_fn"
+      "source": "fn"
     }
   ],
   "apphosting": {

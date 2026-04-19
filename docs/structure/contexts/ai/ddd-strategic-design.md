@@ -83,7 +83,7 @@ Supporting Domain（服務核心域）
 
 Generic Domain（可外包／第三方替換）
   → models              — LLM Provider 適配（可替換 provider）
-  → embeddings          — Embedding 向量（py_fn 執行，schema 在此）
+  → embeddings          — Embedding 向量（fn 執行，schema 在此）
   → tokens              — 計費權重與配額（依 provider 計費模型）
 ```
 

@@ -1,6 +1,6 @@
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type { CreateTeamInput } from "../../domain/entities/Organization";
+import type { CreateTeamInput, Team } from "../../domain/entities/Organization";
 
 export class CreateTeamUseCase {
   constructor(private readonly orgRepo: OrganizationRepository) {}
@@ -47,5 +47,13 @@ export class RemoveMemberFromTeamUseCase {
     } catch (err) {
       return commandFailureFrom("REMOVE_TEAM_MEMBER_FAILED", err instanceof Error ? err.message : "Failed to remove member from team");
     }
+  }
+}
+
+export class ListOrganizationTeamsUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string): Promise<Team[]> {
+    return this.orgRepo.getTeams(organizationId);
   }
 }

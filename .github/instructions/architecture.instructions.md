@@ -21,7 +21,7 @@ applyTo: "**"
 - 跨模組協作只能透過 `src/modules/<context>/index.ts` 或事件契約
 - `domain/` 不得依賴框架、SDK、I/O 實作
 - `src/app/` 只做 composition；業務規則留在 modules
-- `py_fn/` 負責重度、可重試的 ingestion / embedding pipeline
+- `fn/` 負責重度、可重試的 ingestion / embedding pipeline
 
 ## Why this file is thin
 

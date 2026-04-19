@@ -4,12 +4,12 @@
  * WorkspaceDailySection — workspace.daily tab.
  *
  * IG-style daily post feed at the workspace level.
- * Members can post text and attach photos (by URL) for a given date.
+ * Members can post text and attach photos for a given date.
  * Future expansion: today's task completion summary, attendance check-in.
  *
  * Layout:
  *   ① Date navigation bar
- *   ② Post composer (text + photo URLs)
+ *   ② Post composer (text + photo upload)
  *   ③ Feed — chronological post cards
  */
 
@@ -19,11 +19,15 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Image as ImageIcon,
   Loader2,
   Send,
+  Upload,
   X,
 } from "lucide-react";
+import {
+  uploadWorkspaceFile,
+  getWorkspaceFileDownloadUrl,
+} from "@/src/modules/platform";
 
 import { createFeedPostAction, listFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
 import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
@@ -124,16 +128,46 @@ function PostComposer({
   onPosted: () => void;
 }) {
   const [content, setContent] = useState("");
-  const [photoInput, setPhotoInput] = useState("");
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
-  const [isPending, startTransition] = useTransition();
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isPosting, startPosting] = useTransition();
+  const [isUploading, startUploading] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function addPhoto() {
-    const url = photoInput.trim();
-    if (!url || photoUrls.length >= 9) return;
-    setPhotoUrls((prev) => [...prev, url]);
-    setPhotoInput("");
+  const isPending = isPosting || isUploading;
+
+  function handlePickPhotos() {
+    fileInputRef.current?.click();
+  }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    const validImageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const remainingSlots = Math.max(0, 9 - photoUrls.length);
+    const filesToUpload = validImageFiles.slice(0, remainingSlots);
+
+    if (filesToUpload.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setUploadError(null);
+    startUploading(async () => {
+      try {
+        const uploadedUrls = await Promise.all(
+          filesToUpload.map(async (file) => {
+            const storagePath = await uploadWorkspaceFile(file, accountId, workspaceId);
+            return getWorkspaceFileDownloadUrl(storagePath);
+          }),
+        );
+        setPhotoUrls((prev) => [...prev, ...uploadedUrls]);
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : "圖片上傳失敗，請稍後再試。");
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    });
   }
 
   function removePhoto(idx: number) {
@@ -142,7 +176,8 @@ function PostComposer({
 
   function handleSubmit() {
     if (!content.trim() && photoUrls.length === 0) return;
-    startTransition(async () => {
+    setUploadError(null);
+    startPosting(async () => {
       await createFeedPostAction({
         accountId,
         workspaceId,
@@ -152,7 +187,6 @@ function PostComposer({
       });
       setContent("");
       setPhotoUrls([]);
-      setPhotoInput("");
       onPosted();
     });
   }
@@ -174,30 +208,34 @@ function PostComposer({
         }}
       />
 
-      {/* Photo URL input */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <ImageIcon className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
-          <input
-            type="url"
-            value={photoInput}
-            onChange={(e) => setPhotoInput(e.target.value)}
-            placeholder="貼上圖片網址…"
-            className="h-8 w-full rounded-md border border-border/50 bg-transparent pl-7 pr-3 text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-            disabled={isPending || photoUrls.length >= 9}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPhoto(); } }}
-          />
-        </div>
+      {/* Photo upload */}
+      <div className="flex items-center justify-between gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handlePhotoChange}
+        />
         <Button
           size="sm"
           variant="outline"
           className="h-8 px-3 text-xs"
-          onClick={addPhoto}
-          disabled={isPending || !photoInput.trim() || photoUrls.length >= 9}
+          onClick={handlePickPhotos}
+          disabled={isPending || photoUrls.length >= 9}
         >
-          加入
+          {isUploading ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
+          {isUploading ? "上傳中…" : "加入圖片"}
         </Button>
+        <span className="text-xs text-muted-foreground/70">{photoUrls.length}/9</span>
       </div>
+
+      {uploadError && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-1.5 text-xs text-destructive">
+          {uploadError}
+        </p>
+      )}
 
       {/* Photo previews */}
       {photoUrls.length > 0 && (

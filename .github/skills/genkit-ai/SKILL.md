@@ -47,7 +47,7 @@ Genkit AI Orchestration in Xuanwu means:
 | Retrieval flow semantics | `notebooklm/infrastructure/ai/` |
 | Synthesis flow semantics | `notebooklm/infrastructure/ai/` |
 | Evaluation flow | `notebooklm/infrastructure/ai/` |
-| Embedding pipeline | `py_fn/` (async worker) |
+| Embedding pipeline | `fn/` (async worker) |
 
 ### Who May Call Genkit
 

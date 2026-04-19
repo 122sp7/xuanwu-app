@@ -3,7 +3,7 @@
 /**
  * task-formation-actions — Server Actions for AI task candidate extraction and confirmation.
  *
- * startExtractionAction: Creates a TaskFormationJob, runs AI extraction via py_fn,
+ * startExtractionAction: Creates a TaskFormationJob, runs extractor in Firebase-side workflow,
  *   persists candidates to Firestore, and returns the job snapshot (with candidates).
  *
  * confirmCandidatesAction: Takes selected candidate indices, creates Tasks in the
@@ -48,4 +48,3 @@ export async function getTaskFormationJobSnapshotAction(rawInput: unknown) {
   const { getJobSnapshot } = createClientTaskFormationUseCases();
   return getJobSnapshot(jobId);
 }
-

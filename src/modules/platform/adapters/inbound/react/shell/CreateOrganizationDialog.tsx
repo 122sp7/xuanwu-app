@@ -77,6 +77,8 @@ export function CreateOrganizationDialog({
 
       onOrganizationCreated?.(newAccount);
       setName("");
+      setError(null);
+      onOpenChange(false);
 
       if (onNavigate) {
         onNavigate(`/${orgId}`);
@@ -89,7 +91,16 @@ export function CreateOrganizationDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          setName("");
+          setError(null);
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">

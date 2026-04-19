@@ -35,8 +35,8 @@ T0  IAM                     BILLING                 AI
     access-control          subscription            orchestration
     tenant                  entitlement             distillation
     security-policy         referral                retrieval
-                                                     memory
-                                                     context
+    account                                          memory
+    organization                                     context
                                                      safety
                                                      tool-calling
                                                      reasoning
@@ -53,13 +53,15 @@ T1  PLATFORM
     平台營運支撐
 ─────────────────────────────────────────────────────────────────────────────
 
-    account                 notification            audit-log
-    account-profile         background-job          observability
-    organization            content                 support
-    team                    search                  workflow
+    notification            audit-log
+    background-job          observability
+    content                 support
+    search                  workflow
     platform-config         compliance
     feature-flag            integration
     onboarding
+
+    > account（含 account-profile）/ organization（含 team）→ 已遷入 T0 iam
 
     [consent]               [secret-management]     [operational-catalog]
 
@@ -84,23 +86,20 @@ T3  NOTION
     knowledge               automation
     authoring               external-knowledge-sync
     collaboration           notes
-    knowledge-database      templates
+    database                templates
     knowledge-engagement     knowledge-versioning
     attachments
 
-    [taxonomy]              [relations]             [publishing]
+    taxonomy                relations               publishing
 
 ─────────────────────────────────────────────────────────────────────────────
 T4  NOTEBOOKLM
     對話與推理輸出
 ─────────────────────────────────────────────────────────────────────────────
 
-    conversation            source
-    note                    synthesis
+    conversation            source（含 ingestion）
+    note                    synthesis（含 retrieval·grounding·evaluation）
     notebook                conversation-versioning
-
-    [ingestion]             [retrieval]
-    [grounding]             [evaluation]
 
 ─────────────────────────────────────────────────────────────────────────────
 SINK  ANALYTICS

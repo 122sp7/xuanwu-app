@@ -1,5 +1,5 @@
 /**
- * FirebaseCallableAdapter — HTTPS Callable bridge to py_fn.
+ * FirebaseCallableAdapter — HTTPS Callable bridge to fn.
  *
  * Wraps Firebase Cloud Function callables for:
  *   - rag_query  (RAG retrieval + generation)

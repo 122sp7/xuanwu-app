@@ -39,7 +39,7 @@
     "docs/**/*.md",
     "src/**/*.md",
     "packages/**/*.md",
-    "py_fn/**/*.md"
+    "fn/**/*.md"
   ],
   "ignore": {
     "useGitignore": true,
@@ -93,7 +93,7 @@
 
       "*.sqlite",
       "*.db",
-      ".github/skills/xuanwu-*/**"
+      ".github/skills/**"
     ]
   },
   "security": {

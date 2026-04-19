@@ -26,7 +26,12 @@
 | Quality & Safety | safety、evaluation、tracing |
 | Extended Capability | tool-calling、reasoning、conversation |
 
-## Active Baseline
+## Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
 
 - generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
 - 其餘子域為骨架狀態，依需求逐步實作。

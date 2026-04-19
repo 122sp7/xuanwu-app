@@ -17,10 +17,10 @@
 │  [入口] 來源文件 ──────────────────────────────────────────────────────────┐ │
 │   notebooklm.sources                                                       │ │
 │   • 用戶上傳 PDF / 圖片                                                     │ │
-│   • py_fn Storage Trigger 自動執行 parse + RAG index                        │ │
+│   • fn Storage Trigger 自動執行 parse + RAG index                        │ │
 │   └──────────────────────────────────────────────────────────────────────► │ │
 │                                                                             │ │
-│  [知識結構] notion.pages / notion.database                                  │ │
+│  [知識結構] notion.pages / notion.database                               │ │
 │   • 從文件解析提取或手動撰寫的知識頁面                                         │ │
 │   • 結構化資料（需求清單、人員表、里程碑等）                                    │ │
 │   └──────────────────────────────────────────────────────────────────────► │ │
@@ -57,7 +57,7 @@
 | 項目 | 說明 |
 |------|------|
 | **上游** | 使用者手動上傳，或從外部系統匯入 |
-| **處理** | py_fn Storage Trigger → `parse_document` → `rag_reindex_document` |
+| **處理** | fn Storage Trigger → `parse_document` → `rag_reindex_document` |
 | **下游** | → `notebooklm.notebook`（可查詢）<br>→ `notebooklm.research`（可合成）<br>→ `notion.pages`（知識頁面草稿）|
 | **閉環 CTA** | 上傳後提示「文件已索引，可前往 RAG 查詢或研究合成」 |
 

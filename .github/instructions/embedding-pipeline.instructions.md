@@ -1,6 +1,6 @@
 ﻿---
 description: 'Ingestion and embedding pipeline contract for worker-side RAG preparation.'
-applyTo: '{py_fn/**/*.py,docs/**/*.md}'
+applyTo: '{fn/**/*.py,docs/**/*.md}'
 ---
 
 # Embedding Pipeline

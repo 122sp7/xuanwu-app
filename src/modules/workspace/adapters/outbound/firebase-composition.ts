@@ -25,9 +25,17 @@ import {
 } from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
 import {
   CreateWorkspaceUseCase,
+  CreateWorkspaceWithOwnerUseCase,
   ActivateWorkspaceUseCase,
   StopWorkspaceUseCase,
 } from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
+import {
+  AddMemberUseCase,
+  ChangeMemberRoleUseCase,
+  ListWorkspaceMembersUseCase,
+  RemoveMemberUseCase,
+} from "../../subdomains/membership/application/use-cases/MembershipUseCases";
 import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
 import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
 import {
@@ -46,6 +54,7 @@ import {
   OpenIssueUseCase,
   TransitionIssueStatusUseCase,
   ResolveIssueUseCase,
+  CloseIssueUseCase,
 } from "../../subdomains/issue/application/use-cases/IssueUseCases";
 import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
 import {
@@ -64,9 +73,16 @@ import {
 import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
 import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
 import { FirestoreDemandRepository } from "../../subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository";
-import { CreateWorkDemandUseCase, AssignWorkDemandUseCase } from "../../subdomains/schedule/application/use-cases/ScheduleUseCases";
+import {
+  AssignWorkDemandUseCase,
+  CreateWorkDemandUseCase,
+  ListWorkspaceDemandsUseCase,
+} from "../../subdomains/schedule/application/use-cases/ScheduleUseCases";
 import { FirestoreAuditRepository } from "../../subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository";
-import { RecordAuditEntryUseCase } from "../../subdomains/audit/application/use-cases/AuditUseCases";
+import {
+  ListWorkspaceAuditEntriesUseCase,
+  RecordAuditEntryUseCase,
+} from "../../subdomains/audit/application/use-cases/AuditUseCases";
 import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
 import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
 
@@ -86,6 +102,7 @@ type FirestoreWhereOperator =
 
 let _workspaceQueryRepo: FirebaseWorkspaceQueryRepository | undefined;
 let _workspaceLifecycleRepo: FirestoreWorkspaceRepository | undefined;
+let _workspaceMemberRepo: FirestoreMemberRepository | undefined;
 
 function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository {
   if (!_workspaceQueryRepo) {
@@ -94,7 +111,7 @@ function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository {
   return _workspaceQueryRepo;
 }
 
-function createFirestoreLikeAdapter() {
+export function createFirestoreLikeAdapter() {
   const {
     doc,
     getDoc,
@@ -157,6 +174,13 @@ function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository {
   return _workspaceLifecycleRepo;
 }
 
+function getWorkspaceMemberRepo(): FirestoreMemberRepository {
+  if (!_workspaceMemberRepo) {
+    _workspaceMemberRepo = new FirestoreMemberRepository(createFirestoreLikeAdapter());
+  }
+  return _workspaceMemberRepo;
+}
+
 // ── Public subscriptions ───────────────────────────────────────────────────────
 
 /**
@@ -179,10 +203,22 @@ export function subscribeToWorkspacesForAccount(
 
 export function createClientWorkspaceLifecycleUseCases() {
   const repo = getWorkspaceLifecycleRepo();
+  const memberRepo = getWorkspaceMemberRepo();
   return {
     createWorkspaceUseCase: new CreateWorkspaceUseCase(repo),
+    createWorkspaceWithOwnerUseCase: new CreateWorkspaceWithOwnerUseCase(repo, memberRepo),
     activateWorkspaceUseCase: new ActivateWorkspaceUseCase(repo),
     stopWorkspaceUseCase: new StopWorkspaceUseCase(repo),
+  };
+}
+
+export function createClientMembershipUseCases() {
+  const repo = getWorkspaceMemberRepo();
+  return {
+    addMember: new AddMemberUseCase(repo),
+    changeMemberRole: new ChangeMemberRoleUseCase(repo),
+    removeMember: new RemoveMemberUseCase(repo),
+    listMembersByWorkspace: new ListWorkspaceMembersUseCase(repo),
   };
 }
 
@@ -220,6 +256,7 @@ export function createClientIssueUseCases() {
     openIssue: new OpenIssueUseCase(issueRepo),
     transitionIssueStatus: new TransitionIssueStatusUseCase(issueRepo),
     resolveIssue: new ResolveIssueUseCase(issueRepo),
+    closeIssue: new CloseIssueUseCase(issueRepo),
     listIssuesByTask: (taskId: string) => issueRepo.findByTaskId(taskId),
     listIssuesByWorkspace: (workspaceId: string) => issueRepo.findByWorkspaceId(workspaceId),
   };
@@ -229,9 +266,10 @@ export function createClientQualityUseCases() {
   const db = createFirestoreLikeAdapter();
   const reviewRepo = new FirestoreQualityReviewRepository(db);
   const taskRepo = new FirestoreTaskRepository(db);
+  const issueRepo = new FirestoreIssueRepository(db);
   return {
     startQualityReview: new StartQualityReviewUseCase(reviewRepo, taskRepo),
-    passQualityReview: new PassQualityReviewUseCase(reviewRepo, taskRepo),
+    passQualityReview: new PassQualityReviewUseCase(reviewRepo, taskRepo, issueRepo),
     failQualityReview: new FailQualityReviewUseCase(reviewRepo, taskRepo),
     listQualityReviews: new ListQualityReviewsUseCase(reviewRepo),
   };
@@ -265,7 +303,7 @@ export function createClientScheduleUseCases() {
   return {
     createWorkDemand: new CreateWorkDemandUseCase(demandRepo),
     assignWorkDemand: new AssignWorkDemandUseCase(demandRepo),
-    listWorkDemandsByWorkspace: (workspaceId: string) => demandRepo.listByWorkspace(workspaceId),
+    listWorkDemandsByWorkspace: new ListWorkspaceDemandsUseCase(demandRepo),
   };
 }
 
@@ -274,7 +312,7 @@ export function createClientAuditUseCases() {
   const auditRepo = new FirestoreAuditRepository(db);
   return {
     recordAuditEntry: new RecordAuditEntryUseCase(auditRepo),
-    listAuditEntriesByWorkspace: (workspaceId: string) => auditRepo.findByWorkspaceId(workspaceId),
+    listAuditEntriesByWorkspace: new ListWorkspaceAuditEntriesUseCase(auditRepo),
   };
 }
 

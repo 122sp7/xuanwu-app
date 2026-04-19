@@ -158,7 +158,7 @@ Use before merging any change touching `src/modules/` or `src/app/`.
 
 ### Runtime Boundary
 - [ ] Next.js does not execute parsing / chunking / embedding pipelines directly?
-- [ ] `py_fn/` contains no browser-facing auth / session / chat logic?
+- [ ] `fn/` contains no browser-facing auth / session / chat logic?
 
 ## Validation
 

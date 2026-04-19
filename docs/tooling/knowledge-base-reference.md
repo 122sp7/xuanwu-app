@@ -26,7 +26,7 @@
 - `src/app/`: Next.js route composition, shell UX, providers, and orchestration
 - `src/modules/`: bounded-context and subdomain implementations
 - `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
-- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
+- `fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
 
 ## Typical Module Shape
 
