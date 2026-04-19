@@ -3,6 +3,51 @@
 這份規範重點是「看完整路徑判斷依賴」，不是看資料夾名稱。
 例如 services 這個名字在 application 和 domain 都存在，但它們是不同層，規則不同。
 
+## 0. Document AI 雙通道設計（US Region）
+
+⚠️ 兩個 processor 均位於 **US region**，`DOCAI_API_ENDPOINT` 必須為 `us-documentai.googleapis.com`。
+
+| Processor | 用途 | Resource Name |
+|---|---|---|
+| Layout Parser（主） | 語意分塊：標題、段落、表格各自成 chunk，保留溯源引用鏈 | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
+| Form Parser（副） | 結構化欄位擷取：PO號、金額、日期、供應商等 KV entity | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
+
+### 問題對應
+
+| 問題 | Layout Parser 解法 |
+|---|---|
+| 表格打散 | Table block 成獨立 chunk，含完整行列 |
+| 工程細節與條款混淆 | Heading+paragraph 結構分離成 section chunks |
+| 字元切分破壞完整性 | 使用 Document AI 原生 chunk boundaries |
+
+### 雙通道流程
+
+```text
+GCS Document
+    ├─ Layout Parser  → ParsedDocument.chunks   → RAG 語意分塊（chunking_strategy="layout-v1"）
+    └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
+```
+
+副通道失敗時記錄 WARNING 並繼續（不阻斷主流程）。
+
+### 入口函式
+
+```python
+# infrastructure/external/documentai/client.py
+from infrastructure.external.documentai.client import process_document_gcs_with_form
+
+parsed = process_document_gcs_with_form(gcs_uri="gs://bucket/file.pdf")
+# parsed.chunks   → Layout Parser 語意分塊
+# parsed.entities → Form Parser 結構化欄位
+```
+
+### 環境變數
+
+| 變數 | 預設值 |
+|---|---|
+| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
+| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
+
 ## 1. 全域依賴方向
 
 ```text

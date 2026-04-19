@@ -16,23 +16,32 @@ UPLOAD_BUCKET: str = os.environ.get(
 
 # ── Document AI ──────────────────────────────────────────────────────────────
 # 格式： projects/{project}/locations/{location}/processors/{processor_id}
-DOCAI_PROCESSOR_NAME: str = (
-    "projects/65970295651/locations/asia-southeast1/processors/ce1eedab7b277f54"
-)
-DOCAI_LOCATION: str = "asia-southeast1"
-DOCAI_API_ENDPOINT: str = "asia-southeast1-documentai.googleapis.com"
+#
+# ⚠️  兩個 processor 均位於 US region，endpoint 必須使用 us-documentai.googleapis.com
+# Layout Parser  → https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/929c4719f45b1eee:process
+# Form Parser    → https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/7318076ba71e0758:process
+
+DOCAI_LOCATION: str = "us"
+DOCAI_API_ENDPOINT: str = "us-documentai.googleapis.com"
 
 # Layout Parser — 保留表格結構與段落語意邊界的主要 Processor（混合文件首選）
-# 若未設定，退回 DOCAI_PROCESSOR_NAME（向下相容）
+# AP8 採購訂購單：多層嵌套表格 + 大量段落文字，Layout Parser 輸出 context-aware chunks
 DOCAI_LAYOUT_PROCESSOR_NAME: str = os.environ.get(
-    "DOCAI_LAYOUT_PROCESSOR_NAME", DOCAI_PROCESSOR_NAME
+    "DOCAI_LAYOUT_PROCESSOR_NAME",
+    "projects/65970295651/locations/us/processors/929c4719f45b1eee",
 ).strip()
 
 # Form Parser — 結構化欄位擷取副通道（PO號、金額、日期、供應商等 KV entity）
-# 若未設定則不啟用 Form Parser 副通道
+# 若未設定則使用預設 US Form Parser；設為空字串可停用副通道
 DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
-    "DOCAI_FORM_PROCESSOR_NAME", ""
+    "DOCAI_FORM_PROCESSOR_NAME",
+    "projects/65970295651/locations/us/processors/7318076ba71e0758",
 ).strip()
+
+# 舊版 asia-southeast1 processor — 已棄用，保留供向下相容
+_DOCAI_PROCESSOR_NAME_LEGACY: str = (
+    "projects/65970295651/locations/asia-southeast1/processors/ce1eedab7b277f54"
+)
 
 # ── OpenAI (Embeddings / LLM) ───────────────────────────────────────────────
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "").strip()
