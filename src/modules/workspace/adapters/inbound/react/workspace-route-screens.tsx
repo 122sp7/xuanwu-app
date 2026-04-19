@@ -274,7 +274,11 @@ export function WorkspaceDetailRouteScreen({
           />
         )}
         {activeTab === "Issues" && (
-          <WorkspaceIssuesSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceIssuesSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? undefined}
+          />
         )}
       </section>
     </div>

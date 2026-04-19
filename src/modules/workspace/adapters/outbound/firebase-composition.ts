@@ -46,6 +46,7 @@ import {
   OpenIssueUseCase,
   TransitionIssueStatusUseCase,
   ResolveIssueUseCase,
+  CloseIssueUseCase,
 } from "../../subdomains/issue/application/use-cases/IssueUseCases";
 import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
 import {
@@ -220,6 +221,7 @@ export function createClientIssueUseCases() {
     openIssue: new OpenIssueUseCase(issueRepo),
     transitionIssueStatus: new TransitionIssueStatusUseCase(issueRepo),
     resolveIssue: new ResolveIssueUseCase(issueRepo),
+    closeIssue: new CloseIssueUseCase(issueRepo),
     listIssuesByTask: (taskId: string) => issueRepo.findByTaskId(taskId),
     listIssuesByWorkspace: (workspaceId: string) => issueRepo.findByWorkspaceId(workspaceId),
   };

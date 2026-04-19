@@ -48,6 +48,15 @@ export async function resolveIssueAction(issueId: string): Promise<CommandResult
   }
 }
 
+export async function closeIssueAction(issueId: string): Promise<CommandResult> {
+  try {
+    const { closeIssue } = createClientIssueUseCases();
+    return closeIssue.execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Failed to close issue.");
+  }
+}
+
 export async function listIssuesByTaskAction(taskId: string): Promise<IssueSnapshot[]> {
   try {
     const { listIssuesByTask } = createClientIssueUseCases();
