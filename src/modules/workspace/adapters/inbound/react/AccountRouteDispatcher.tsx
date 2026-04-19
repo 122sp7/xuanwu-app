@@ -32,6 +32,10 @@ import {
   WorkspaceDetailRouteScreen,
   WorkspaceHubScreen,
 } from "./workspace-ui-stubs";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
+import { useWorkspaceContext } from "./WorkspaceContext";
+import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
 
 export interface AccountRouteDispatcherProps {
   accountId: string;
@@ -66,6 +70,9 @@ export function AccountRouteDispatcher({
   const {
     state: { activeAccount, accounts, bootstrapPhase },
   } = useApp();
+  const {
+    state: { activeWorkspaceId, workspaces },
+  } = useWorkspaceContext();
   const { state: authState } = useAuth();
 
   const effectiveAccountId =
@@ -73,6 +80,11 @@ export function AccountRouteDispatcher({
   const query = searchParams.toString();
   const querySuffix = query.length > 0 ? `?${query}` : "";
   const isLegacyWorkspaceAlias = routeAccountId === "workspace";
+  const accountScopedWorkspaceId = resolveAccountScopedWorkspaceId({
+    accountId: effectiveAccountId || null,
+    activeWorkspaceId,
+    workspaces,
+  });
 
   if (isLegacyWorkspaceAlias && activeAccount?.id) {
     return (
@@ -162,10 +174,26 @@ export function AccountRouteDispatcher({
       case "workspaces":
         return <OrganizationWorkspacesRouteScreen />;
       case "schedule":
+        if (accountType === "organization" && accountScopedWorkspaceId) {
+          return (
+            <WorkspaceScheduleSection
+              workspaceId={accountScopedWorkspaceId}
+              accountId={effectiveAccountId}
+            />
+          );
+        }
         return <OrganizationScheduleRouteScreen />;
       case "daily":
         return <OrganizationDailyRouteScreen />;
       case "audit":
+        if (accountType === "organization" && accountScopedWorkspaceId) {
+          return (
+            <WorkspaceAuditSection
+              workspaceId={accountScopedWorkspaceId}
+              accountId={effectiveAccountId}
+            />
+          );
+        }
         return <OrganizationAuditRouteScreen />;
       case "settings":
         return (
