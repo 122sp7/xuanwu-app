@@ -97,7 +97,7 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 
 - `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
 - If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
 - Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
 
 ## Governance Rules

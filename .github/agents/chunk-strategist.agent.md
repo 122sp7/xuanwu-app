@@ -21,7 +21,7 @@ handoffs:
 
 ## Target Scope
 
-- `py_fn/**`
+- `fn/**`
 - `src/modules/notebooklm/**`
 - `src/modules/notion/**` when source segmentation depends on canonical content structure
 - `src/modules/platform/**` when chunk metadata or model constraints depend on shared `platform.ai` capability

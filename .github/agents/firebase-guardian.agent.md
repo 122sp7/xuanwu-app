@@ -25,7 +25,7 @@ handoffs:
 - `firestore.rules`
 - `storage.rules`
 - `firestore.indexes.json`
-- `py_fn/**/*.py` — Cloud Functions 邊界
+- `fn/**/*.py` — Cloud Functions 邊界
 
 ## 使命 (Mission)
 

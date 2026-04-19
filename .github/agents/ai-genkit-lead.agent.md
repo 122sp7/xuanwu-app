@@ -1,7 +1,7 @@
 ﻿---
 name: AI Genkit Lead
-description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
-argument-hint: Provide AI flow name, target runtime (Next.js/py_fn), orchestration goal, and any retrieval or grounding concerns.
+description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and fn pipelines.
+argument-hint: Provide AI flow name, target runtime (Next.js/fn), orchestration goal, and any retrieval or grounding concerns.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
 handoffs:
@@ -25,7 +25,7 @@ handoffs:
 - `src/modules/platform/**`
 - `src/modules/notebooklm/**`
 - `src/modules/notion/**` when content use cases consume shared AI capability
-- `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
+- `fn/**` when coordinating runtime boundaries and worker handoff contracts
 
 ## Focus
 
@@ -36,7 +36,7 @@ handoffs:
 
 - Keep shared provider, quota, and safety policy in `platform.ai`.
 - Keep auth and chat orchestration in Next.js.
-- Keep parsing, chunking, embedding in py_fn workers.
+- Keep parsing, chunking, embedding in fn workers.
 - Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill

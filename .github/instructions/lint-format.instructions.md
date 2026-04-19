@@ -1,6 +1,6 @@
 ﻿---
 description: 'Lint and formatting expectations for TypeScript and Python changes.'
-applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+applyTo: '{src/app,src/modules,packages,providers,debug,fn}/**/*.{ts,tsx,js,jsx,py}'
 ---
 
 # Lint Format
@@ -9,7 +9,7 @@ applyTo: '{src/app,src/modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,j
 
 - `npm run lint`
 - `npm run build` when types or exports changed
-- `cd py_fn && python -m compileall -q .`
+- `cd fn && python -m compileall -q .`
 
 ## Rules
 

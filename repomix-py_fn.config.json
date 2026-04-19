@@ -4,7 +4,7 @@
     "maxFileSize": 52428800
   },
   "output": {
-    "filePath": "repomix-output-py_fn.json",
+    "filePath": "repomix-output-fn.json",
     "style": "json",
     "parsableStyle": true,
 
@@ -35,7 +35,7 @@
     }
   },
   "include": [
-    "py_fn/**/*"
+    "fn/**/*"
   ],
   "ignore": {
     "useGitignore": true,

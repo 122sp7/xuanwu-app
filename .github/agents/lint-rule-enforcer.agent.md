@@ -25,7 +25,7 @@ handoffs:
 - `src/modules/**`
 - `packages/**`
 - `providers/**`
-- `py_fn/**`
+- `fn/**`
 
 ## Mission
 

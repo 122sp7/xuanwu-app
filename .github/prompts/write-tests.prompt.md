@@ -1,7 +1,7 @@
 ﻿---
 name: write-tests
 description: Write deterministic unit/integration tests based on risk and behavior contracts.
-applyTo: '{src/modules,packages,py_fn}/**/*.{ts,tsx,py}'
+applyTo: '{src/modules,packages,fn}/**/*.{ts,tsx,py}'
 agent: Quality Lead
 argument-hint: Provide module scope, behaviors to verify, and known regression risks.
 ---

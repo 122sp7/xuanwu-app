@@ -1,4 +1,4 @@
-# py_fn 架構規範（路徑級依賴版）
+# fn 架構規範（路徑級依賴版）
 
 這份規範重點是「看完整路徑判斷依賴」，不是看資料夾名稱。
 例如 services 這個名字在 application 和 domain 都存在，但它們是不同層，規則不同。
@@ -61,7 +61,7 @@ domain -> only core
 ## 2. 目錄基準（含子資料夾）
 
 ```text
-py_fn/src
+fn/src
 ├─ app
 │  ├─ config
 │  ├─ bootstrap
@@ -150,7 +150,7 @@ py_fn/src
 - 外部服務供應商回傳模型。
 - 例如：`ParsedDocument` 屬於 Document AI adapter 的回傳型別，保留在 infrastructure/external。
 
-### 目前 py_fn 的落點範例
+### 目前 fn 的落點範例
 - `domain/value_objects/rag.py`: `RagQueryInput`, `RagCitation`, `RagQueryResult`
 - `domain/repositories/rag.py`: `RagQueryGateway`, `RagIngestionGateway`, `DocumentPipelineGateway`
 - `application/dto/rag.py`: `RagIngestionResult`

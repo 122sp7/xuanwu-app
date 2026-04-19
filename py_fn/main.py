@@ -1,5 +1,5 @@
 """
-py_fn — Firebase Functions (Python) 入口檔
+fn — Firebase Functions (Python) 入口檔
 ==========================================
 
 所有 Firebase Function 都在這裡用裝飾器宣告；

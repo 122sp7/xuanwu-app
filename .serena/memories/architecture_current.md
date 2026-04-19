@@ -3,7 +3,7 @@
 - Cross-module rule: synchronous collaboration must go through the target module's `index.ts` public boundary; do not reach into peer internals directly.
 - In-module rule: use relative imports within a module; avoid self-import through the module's own public surface unless intentionally consuming an external contract.
 - Shared boundaries live in `packages/*` behind `@shared-*`, `@integration-*`, `@ui-*`, and `@lib-*` aliases; legacy `@/shared/*`, `@/libs/*`, and similar paths are blocked.
-- Runtime split: Next.js owns browser-facing UX, auth/session, and orchestration; `py_fn` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Runtime split: Next.js owns browser-facing UX, auth/session, and orchestration; `fn` owns ingestion, parsing, chunking, embedding, and worker jobs.
 - Current topology baseline: `src/modules/` 是唯一模組實作層（`modules/` 根目錄已於 2026-04-17 刪除）。
 - Account + Organization 聚合根 ownership：已完全從 platform 遷入 iam/subdomains/account/ 與 iam/subdomains/organization/。所有系統文件（architecture-overview、context-map、module-graph、bounded-contexts、subdomains、ubiquitous-language）皆已更新，platform 不再宣稱 Account/Organization 正典所有權。
 

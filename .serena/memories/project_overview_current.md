@@ -2,8 +2,8 @@
 - Purpose: bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into governable workspaces so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
 - Main runtimes:
   - Next.js App Router in `src/app/` owns user-facing UI, auth/session, orchestration, uploads, and streaming AI responses.
-  - Python worker in `py_fn/` owns ingestion, parsing, chunking, embedding, and background processing.
-- Key directories: `src/app/`, `src/modules/`, `packages/`, `py_fn/`, `docs/`, `.github/`
+  - Python worker in `fn/` owns ingestion, parsing, chunking, embedding, and background processing.
+- Key directories: `src/app/`, `src/modules/`, `packages/`, `fn/`, `docs/`, `.github/`
 - Documentation entrypoints: `docs/README.md`, `docs/architecture-overview.md`
 
 ## Single-Layer Module & App Structure (2026-04-17+)

@@ -1,7 +1,7 @@
 ﻿---
 name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
-argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/py_fn), and quality constraints.
+argument-hint: Provide document sources, retrieval goal, runtime context (Next.js/fn), and quality constraints.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
 handoffs:
@@ -21,7 +21,7 @@ handoffs:
 
 ## Target Scope
 
-- `py_fn/**`
+- `fn/**`
 - `src/modules/notebooklm/**`
 - `src/modules/notion/**` when canonical source contracts or source references change
 - `src/modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
@@ -36,7 +36,7 @@ handoffs:
 ## Guardrails
 
 - Validate contract alignment before changing ingestion shape.
-- Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
+- Keep Next.js orchestration and `fn` ingestion responsibilities separated.
 - Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill repomix #use skill xuanwu-skill 

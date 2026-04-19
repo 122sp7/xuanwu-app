@@ -1,6 +1,6 @@
 ﻿---
 description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
-applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt}'
+applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,fn/requirements.txt}'
 ---
 
 # CI CD
@@ -9,8 +9,8 @@ applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt
 
 - `npm run lint`
 - `npm run build`
-- `cd py_fn && python -m compileall -q .`
-- `cd py_fn && python -m pytest tests/ -v`
+- `cd fn && python -m compileall -q .`
+- `cd fn && python -m pytest tests/ -v`
 
 ## Rules
 

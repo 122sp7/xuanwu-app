@@ -1,5 +1,5 @@
 """
-Firebase Admin SDK 初始化 — 整個 py_fn 只 initialize_app() 一次，
+Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 其他模組直接 import firebase_admin 即可取得已初始化的 app。
 """
 

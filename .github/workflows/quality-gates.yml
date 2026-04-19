@@ -7,7 +7,7 @@ on:
       - "app/**"
       - "modules/**"
       - "packages/**"
-      - "py_fn/**"
+      - "fn/**"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -22,7 +22,7 @@ on:
       - "app/**"
       - "modules/**"
       - "packages/**"
-      - "py_fn/**"
+      - "fn/**"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -72,12 +72,12 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r py_fn/requirements-dev.txt
+          python -m pip install -r fn/requirements-dev.txt
 
       - name: Compile Python worker
-        working-directory: py_fn
+        working-directory: fn
         run: python -m compileall -q .
 
       - name: Run Python tests
-        working-directory: py_fn
+        working-directory: fn
         run: python -m pytest tests/ -v

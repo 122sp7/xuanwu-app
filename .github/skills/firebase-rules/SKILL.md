@@ -2,7 +2,7 @@
 name: firebase-rules
 description: >-
   Firebase architecture skillbook for Xuanwu. Use when designing or reviewing Firebase SDK boundaries,
-  Firestore collection ownership, Storage path patterns, Security Rules, Cloud Functions vs py_fn split,
+  Firestore collection ownership, Storage path patterns, Security Rules, Cloud Functions vs fn split,
   and domain adapter patterns. Covers Authentication, Firestore, Cloud Storage, and Cloud Functions governance.
 user-invocable: true
 disable-model-invocation: false
@@ -11,7 +11,7 @@ disable-model-invocation: false
 # Firebase Architecture Rules
 
 Use this skill when the task involves Firebase service boundaries, Firestore schema, Storage path design,
-security rules, or the split between Next.js Cloud Functions and py_fn worker pipelines.
+security rules, or the split between Next.js Cloud Functions and fn worker pipelines.
 
 ## Research Basis
 
@@ -20,7 +20,7 @@ Context7-verified + Xuanwu-specific:
 - Firebase SDK is an infrastructure concern — it must never appear in domain or application layers.
 - Firestore is a NoSQL document store; collection ownership must map 1:1 to a bounded context.
 - Security Rules are the authoritative access control layer for Firestore and Storage — they are not a secondary fallback.
-- Cloud Functions (TS) and py_fn (Python) serve different runtime profiles and must not be mixed.
+- Cloud Functions (TS) and fn (Python) serve different runtime profiles and must not be mixed.
 
 ## Working Synthesis
 
@@ -29,7 +29,7 @@ Firebase in Xuanwu means:
 1. Every Firebase service is wrapped in an infrastructure adapter; `domain/` and `application/` never import Firebase SDK.
 2. Firestore collection ownership maps to bounded context boundaries — non-owners read via API or events, never direct queries.
 3. Security Rules enforce tenant and workspace isolation at the storage layer, independent of application-layer checks.
-4. Cloud Functions (TS) handle lightweight triggers; py_fn handles heavy, retryable computation pipelines.
+4. Cloud Functions (TS) handle lightweight triggers; fn handles heavy, retryable computation pipelines.
 
 ---
 
@@ -200,19 +200,19 @@ match /workspace_workspaces/{workspaceId} {
 
 ---
 
-## Cloud Functions (TS) vs py_fn Split
+## Cloud Functions (TS) vs fn Split
 
 | Task | Runtime |
 |---|---|
 | Auth trigger (new user onboarding) | Cloud Functions (TS) |
 | Firestore onCreate/onUpdate (lightweight side effect) | Cloud Functions (TS) |
 | HTTP webhook (integration callback) | Cloud Functions (TS) |
-| Large file parsing / cleaning / chunking | py_fn |
-| Embedding generation | py_fn |
-| Vector index maintenance | py_fn |
-| Requires Python ecosystem (NLTK, spaCy, PyMuPDF) | py_fn |
+| Large file parsing / cleaning / chunking | fn |
+| Embedding generation | fn |
+| Vector index maintenance | fn |
+| Requires Python ecosystem (NLTK, spaCy, PyMuPDF) | fn |
 
-Next.js accepts requests and triggers events; py_fn handles heavy computation and writes results to Firestore; Next.js or Firestore triggers handle downstream processing. Next.js never blocks waiting for py_fn completion.
+Next.js accepts requests and triggers events; fn handles heavy computation and writes results to Firestore; Next.js or Firestore triggers handle downstream processing. Next.js never blocks waiting for fn completion.
 
 ---
 
@@ -234,7 +234,7 @@ Next.js accepts requests and triggers events; py_fn handles heavy computation an
 3. Verify Firestore reads use Zod validation before mapping to domain.
 4. Verify Storage path follows `{tenantId}/{workspaceId}/{ownerId}/{fileId}`.
 5. Verify Security Rules enforce actor identity and workspace/tenant scope.
-6. Verify Cloud Functions vs py_fn split follows the runtime responsibility table.
+6. Verify Cloud Functions vs fn split follows the runtime responsibility table.
 
 ## Output Contract
 

@@ -1,7 +1,7 @@
 ﻿---
 name: chunk-docs
 description: Define and execute document chunking strategy for retrieval quality and context efficiency.
-applyTo: 'py_fn/**/*.py'
+applyTo: 'fn/**/*.py'
 agent: RAG Lead
 argument-hint: Provide source docs, target chunk policy, and constraints.
 ---

@@ -54,7 +54,7 @@ An extra abstraction, document, layer, or module should usually exist only if it
 
 | Pressure | Examples | When It Applies |
 |----------|----------|---|
-| **Runtime or process boundary** | Main → worker, sync → async, browser ↔ server | Firebase functions, py_fn, Server Actions |
+| **Runtime or process boundary** | Main → worker, sync → async, browser ↔ server | Firebase functions, fn, Server Actions |
 | **Bounded-context ownership boundary** | platform owns AI; notion owns knowledge | AGENTS.md rules; imported from other modules |
 | **Volatile external dependency** | Firebase SDK, Next.js, Genkit versions | Hide behind port to support swaps |
 | **Materially different behavior** | Template search vs. fuzzy search; draft vs. published | Two subdomain implementations needed now |

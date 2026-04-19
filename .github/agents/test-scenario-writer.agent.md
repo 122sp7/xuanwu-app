@@ -23,7 +23,7 @@ handoffs:
 
 - `src/app/**`
 - `src/modules/**`
-- `py_fn/tests/**`
+- `fn/tests/**`
 
 ## Scope
 
