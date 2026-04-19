@@ -6,9 +6,10 @@
 
 import { Badge, Button } from "@packages";
 import { CalendarRange, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
 import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
+const scheduleUseCases = createClientScheduleUseCases();
 
 interface WorkspaceScheduleSectionProps {
   workspaceId: string;
@@ -19,13 +20,13 @@ export function WorkspaceScheduleSection({
   workspaceId,
   accountId: _accountId,
 }: WorkspaceScheduleSectionProps): React.ReactElement {
-  const { listWorkDemandsByWorkspace } = useMemo(() => createClientScheduleUseCases(), []);
+  const { listWorkDemandsByWorkspace } = scheduleUseCases;
   const [period, setPeriod] = useState("本週");
   const [demands, setDemands] = useState<WorkDemandSnapshot[]>([]);
 
   useEffect(() => {
     let active = true;
-    void listWorkDemandsByWorkspace(workspaceId).then((result) => {
+    void listWorkDemandsByWorkspace.execute(workspaceId).then((result) => {
       if (active) setDemands(result);
     }).catch(() => {
       if (active) setDemands([]);

@@ -20,18 +20,19 @@ const ROLE_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
   admin: "secondary",
   member: "outline",
 };
+const membershipUseCases = createClientMembershipUseCases();
 
 export function WorkspaceMembersSection({
   workspaceId,
   accountId: _accountId,
 }: WorkspaceMembersSectionProps): React.ReactElement {
-  const { listMembersByWorkspace } = useMemo(() => createClientMembershipUseCases(), []);
+  const { listMembersByWorkspace } = membershipUseCases;
   const [roleFilter, setRoleFilter] = useState<string>("全部");
   const [members, setMembers] = useState<WorkspaceMemberSnapshot[]>([]);
 
   useEffect(() => {
     let active = true;
-    void listMembersByWorkspace(workspaceId).then((result) => {
+    void listMembersByWorkspace.execute(workspaceId).then((result) => {
       if (active) {
         setMembers(result.filter((member) => member.status === "active"));
       }

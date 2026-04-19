@@ -6,9 +6,10 @@
 
 import { Badge, Button } from "@packages";
 import { Activity, Filter } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClientAuditUseCases } from "../../outbound/firebase-composition";
 import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+const auditUseCases = createClientAuditUseCases();
 
 interface WorkspaceAuditSectionProps {
   workspaceId: string;
@@ -21,12 +22,12 @@ export function WorkspaceAuditSection({
   workspaceId,
   accountId: _accountId,
 }: WorkspaceAuditSectionProps): React.ReactElement {
-  const { listAuditEntriesByWorkspace } = useMemo(() => createClientAuditUseCases(), []);
+  const { listAuditEntriesByWorkspace } = auditUseCases;
   const [auditEntries, setAuditEntries] = useState<AuditEntrySnapshot[]>([]);
 
   useEffect(() => {
     let active = true;
-    void listAuditEntriesByWorkspace(workspaceId).then((result) => {
+    void listAuditEntriesByWorkspace.execute(workspaceId).then((result) => {
       if (active) setAuditEntries(result);
     }).catch(() => {
       if (active) setAuditEntries([]);

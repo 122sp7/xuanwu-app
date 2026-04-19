@@ -39,15 +39,19 @@ export class CreateWorkspaceWithOwnerUseCase {
     try {
       const workspace = Workspace.create(uuid(), input.workspace);
       await this.workspaceRepo.save(workspace.getSnapshot());
-
-      const ownerMember = WorkspaceMember.add(uuid(), {
-        workspaceId: workspace.id,
-        actorId: input.owner.actorId,
-        role: "owner",
-        displayName: input.owner.displayName,
-        email: input.owner.email,
-      });
-      await this.memberRepo.save(ownerMember.getSnapshot());
+      try {
+        const ownerMember = WorkspaceMember.add(uuid(), {
+          workspaceId: workspace.id,
+          actorId: input.owner.actorId,
+          role: "owner",
+          displayName: input.owner.displayName,
+          email: input.owner.email,
+        });
+        await this.memberRepo.save(ownerMember.getSnapshot());
+      } catch (memberErr) {
+        await this.workspaceRepo.delete(workspace.id);
+        throw memberErr;
+      }
 
       return commandSuccess(workspace.id, Date.now());
     } catch (err) {

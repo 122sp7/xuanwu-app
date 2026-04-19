@@ -565,12 +565,13 @@ export function CreateWorkspaceDialogRail({
     event.preventDefault();
     const name = workspaceName.trim();
     const creatorActorId = creatorUserId ?? accountId;
+    const ownerDisplayName = creatorDisplayName?.trim();
     if (!name) {
       setError("請輸入工作區名稱。");
       return;
     }
-    if (!creatorActorId) {
-      setError("建立者資訊缺失，請重新登入後再試。");
+    if (!creatorActorId || !ownerDisplayName) {
+      setError("建立者名稱缺失，請重新登入後再試。");
       return;
     }
     if (!accountId || !accountType) {
@@ -588,7 +589,7 @@ export function CreateWorkspaceDialogRail({
       },
       owner: {
         actorId: creatorActorId,
-        displayName: creatorDisplayName?.trim() || "建立者",
+        displayName: ownerDisplayName,
         email: creatorEmail?.trim() || undefined,
       },
     });

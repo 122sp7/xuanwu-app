@@ -51,3 +51,11 @@ export class RemoveMemberUseCase {
     }
   }
 }
+
+export class ListWorkspaceMembersUseCase {
+  constructor(private readonly memberRepo: WorkspaceMemberRepository) {}
+
+  async execute(workspaceId: string) {
+    return this.memberRepo.findByWorkspaceId(workspaceId);
+  }
+}

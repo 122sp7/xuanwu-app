@@ -28,6 +28,12 @@ import {
 } from "../../subdomains/identity/application/use-cases/IdentityUseCases";
 import { CreateUserAccountUseCase } from "../../subdomains/account/application/use-cases/AccountUseCases";
 import { CreateOrganizationUseCase } from "../../subdomains/organization/application/use-cases/OrganizationLifecycleUseCases";
+import {
+  ListOrganizationMembersUseCase,
+} from "../../subdomains/organization/application/use-cases/OrganizationMemberUseCases";
+import {
+  ListOrganizationTeamsUseCase,
+} from "../../subdomains/organization/application/use-cases/OrganizationTeamUseCases";
 import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
 import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
 import type { MemberReference, Team } from "../../subdomains/organization/domain/entities/Organization";
@@ -211,9 +217,9 @@ export function createClientOrganizationUseCases() {
 }
 
 export async function listOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return getOrgRepo().getMembers(organizationId);
+  return new ListOrganizationMembersUseCase(getOrgRepo()).execute(organizationId);
 }
 
 export async function listOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return getOrgRepo().getTeams(organizationId);
+  return new ListOrganizationTeamsUseCase(getOrgRepo()).execute(organizationId);
 }

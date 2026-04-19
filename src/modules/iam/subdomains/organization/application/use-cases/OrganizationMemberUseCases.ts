@@ -1,6 +1,10 @@
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type { InviteMemberInput, UpdateMemberRoleInput } from "../../domain/entities/Organization";
+import type {
+  InviteMemberInput,
+  MemberReference,
+  UpdateMemberRoleInput,
+} from "../../domain/entities/Organization";
 
 export class InviteMemberUseCase {
   constructor(private readonly orgRepo: OrganizationRepository) {}
@@ -47,5 +51,13 @@ export class UpdateMemberRoleUseCase {
     } catch (err) {
       return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Failed to update member role");
     }
+  }
+}
+
+export class ListOrganizationMembersUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string): Promise<MemberReference[]> {
+    return this.orgRepo.getMembers(organizationId);
   }
 }
