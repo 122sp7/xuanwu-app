@@ -11,7 +11,7 @@
 | 力導向圖 | `Network` — 節點邊緣互動式視覺化 |
 | 反應式資料集 | `DataSet`, `DataView` — 觸發自動重繪 |
 | 時間軸 | `Timeline` — 水平事件與時間範圍呈現 |
-| 匯入工具 | `parseGephiNetwork`, `parseDOTNetwork` |
+| 匯入工具 | 不支援 — `parseGephiNetwork`、`parseDOTNetwork` 僅在 UMD global build (`vis.parseGephiNetwork`)，不是 ESM named export |
 | 型別 | `VisNode`, `VisEdge`, `VisNetworkOptions`, `TimelineItem` 等 |
 
 ## Route Elsewhere

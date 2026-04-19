@@ -20,8 +20,6 @@
 // ─── Network (Graph Visualization) ───────────────────────────────────────────
 
 export { Network } from "vis-network";
-export { parseGephiNetwork } from "vis-network";
-export { parseDOTNetwork } from "vis-network";
 
 // ─── Data Collections ────────────────────────────────────────────────────────
 
@@ -30,7 +28,7 @@ export { DataView } from "vis-data";
 
 // ─── Timeline ────────────────────────────────────────────────────────────────
 
-export { Timeline } from "vis-timeline";
+export { Timeline } from "vis-timeline/peer";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,4 +46,4 @@ export type {
   TimelineOptions,
   TimelineItem,
   TimelineGroup,
-} from "vis-timeline";
+} from "vis-timeline/peer";
