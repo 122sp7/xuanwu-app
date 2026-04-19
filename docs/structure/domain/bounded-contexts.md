@@ -14,7 +14,7 @@
 | analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
 | platform | 平台營運支撐 | notification、search、audit-log、observability、platform-config、feature-flag、onboarding | consent、secret-management、operational-catalog |
 | workspace | 協作容器與 scope | audit、feed、scheduling、approve、issue、orchestration、quality、settlement、task、task-formation | lifecycle、membership、sharing、presence |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、knowledge-database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning | taxonomy、relations、publishing |
 | notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
 
 ## Subdomain Inventory By Main Domain
@@ -168,7 +168,7 @@
 | knowledge | 頁面建立、組織、版本化與交付 |
 | authoring | 知識庫文章建立、驗證與分類 |
 | collaboration | 協作留言、細粒度權限與版本快照 |
-| knowledge-database | 結構化資料多視圖管理 |
+| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
 | knowledge-engagement | 知識使用行為量測 |
 | attachments | 附件與媒體關聯儲存 |
 | automation | 知識事件觸發自動化動作 |

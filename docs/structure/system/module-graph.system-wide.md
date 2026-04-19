@@ -86,7 +86,7 @@ T3  NOTION
     knowledge               automation
     authoring               external-knowledge-sync
     collaboration           notes
-    knowledge-database      templates
+    database                templates
     knowledge-engagement     knowledge-versioning
     attachments
 
