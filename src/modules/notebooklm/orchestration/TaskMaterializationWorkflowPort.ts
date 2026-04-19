@@ -19,6 +19,10 @@ export interface MaterializeTasksInput {
   readonly sourceDocumentId: string;
   readonly knowledgePageId: string;
   readonly candidates: readonly TaskCandidate[];
+  /** Source text forwarded to workspace AI extraction when candidates is empty. */
+  readonly sourceText?: string;
+  /** Actor performing the materialization (defaults to requestedByUserId). */
+  readonly actorId?: string;
   readonly requestedByUserId?: string;
 }
 

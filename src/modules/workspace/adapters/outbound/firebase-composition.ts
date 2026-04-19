@@ -95,7 +95,7 @@ function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository {
   return _workspaceQueryRepo;
 }
 
-function createFirestoreLikeAdapter() {
+export function createFirestoreLikeAdapter() {
   const {
     doc,
     getDoc,
