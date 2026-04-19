@@ -1,9 +1,11 @@
 """
 Document AI 服務層 — 封裝 google-cloud-documentai 的 process_document 呼叫。
 
+⚠️  兩個 processor 均位於 US region，client 須使用 us-documentai.googleapis.com
+
 用法：
-    from infrastructure.external.documentai.client import process_document_bytes
-    result = process_document_bytes(content=pdf_bytes, mime_type="application/pdf")
+    from infrastructure.external.documentai.client import process_document_gcs_with_form
+    result = process_document_gcs_with_form(gcs_uri="gs://bucket/file.pdf")
     print(result.text)
     print(result.chunks)    # Layout Parser chunks（結構感知分塊）
     print(result.entities)  # Form Parser entities（結構化欄位）
@@ -15,11 +17,11 @@ from typing import Any
 
 from google.cloud import documentai_v1 as documentai
 
-from core.config import DOCAI_API_ENDPOINT, DOCAI_LAYOUT_PROCESSOR_NAME
+from core.config import DOCAI_API_ENDPOINT, DOCAI_FORM_PROCESSOR_NAME, DOCAI_LAYOUT_PROCESSOR_NAME
 
 logger = logging.getLogger(__name__)
 
-# 模組層級 client — 使用 asia-southeast1 regional endpoint
+# 模組層級 client — 使用 us regional endpoint（兩個 processor 均位於 US region）
 _client: documentai.DocumentProcessorServiceClient | None = None
 
 
@@ -205,3 +207,57 @@ def process_document_gcs(
         chunks=chunks,
         entities=entities,
     )
+
+
+def process_document_gcs_with_form(
+    gcs_uri: str,
+    mime_type: str = "application/pdf",
+) -> ParsedDocument:
+    """
+    Layout Parser（主）+ Form Parser（副）雙通道解析。
+
+    1. 呼叫 Layout Parser（DOCAI_LAYOUT_PROCESSOR_NAME）取得語意分塊（chunks）。
+    2. 若 DOCAI_FORM_PROCESSOR_NAME 已設定，額外呼叫 Form Parser 取得結構化欄位（entities）。
+    3. 合併為單一 ParsedDocument 回傳。
+
+    Form Parser 副通道為 best-effort：失敗時記錄 warning 並以空 entities 繼續，
+    不阻斷主流程（Rule 10 — Failure Strategy）。
+
+    Args:
+        gcs_uri:   GCS 檔案路徑，格式為 gs://bucket-name/path/to/file。
+        mime_type: 文件的 MIME 類型，預設 application/pdf。
+
+    Returns:
+        ParsedDocument: chunks 來自 Layout Parser，entities 來自 Form Parser（或空 list）。
+    """
+    parsed = process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+
+    form_name = DOCAI_FORM_PROCESSOR_NAME
+    if not form_name:
+        return parsed
+
+    try:
+        form_parsed = process_document_gcs(
+            gcs_uri=gcs_uri,
+            mime_type=mime_type,
+            processor_name=form_name,
+        )
+        logger.info(
+            "DocumentAI: Form Parser extracted %d entities for %s",
+            len(form_parsed.entities),
+            gcs_uri,
+        )
+        return ParsedDocument(
+            text=parsed.text,
+            page_count=parsed.page_count,
+            mime_type=parsed.mime_type,
+            chunks=parsed.chunks,
+            entities=form_parsed.entities,
+        )
+    except Exception as exc:
+        logger.warning(
+            "DocumentAI: Form Parser failed for %s, continuing without entities: %s",
+            gcs_uri,
+            exc,
+        )
+        return parsed

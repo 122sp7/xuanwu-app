@@ -205,6 +205,7 @@ def handle_object_finalized(
                 page_count=parsed.page_count,
                 account_id=account_id,
                 workspace_id=workspace_id,
+                layout_chunks=parsed.chunks or None,
             )
             runtime.mark_rag_ready(
                 doc_id=doc_id,

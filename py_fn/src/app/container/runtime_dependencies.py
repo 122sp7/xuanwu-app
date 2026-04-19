@@ -9,7 +9,7 @@ from domain.repositories import (
 )
 from infrastructure.audit.qstash import publish_query_audit
 from infrastructure.cache.rag_query_cache import build_query_cache_key, get_query_cache, save_query_cache
-from infrastructure.external.documentai.client import process_document_gcs
+from infrastructure.external.documentai.client import process_document_gcs_with_form
 from infrastructure.external.openai.embeddings import embed_texts
 from infrastructure.external.openai.rag_query import generate_answer, to_query_vector
 from infrastructure.external.upstash.clients import (
@@ -87,7 +87,7 @@ class InfraRagIngestionGateway:
 
 class InfraDocumentPipelineGateway:
     def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> Any:
-        return process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        return process_document_gcs_with_form(gcs_uri=gcs_uri, mime_type=mime_type)
 
     def redis_fixed_window_allow(
         self,
