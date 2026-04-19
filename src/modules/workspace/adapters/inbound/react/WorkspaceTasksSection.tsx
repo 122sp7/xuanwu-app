@@ -14,6 +14,7 @@ import {
   transitionTaskStatusAction,
 } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
 import { startQualityReviewAction } from "@/src/modules/workspace/adapters/inbound/server-actions/quality-actions";
+import { listApprovalDecisionsAction } from "@/src/modules/workspace/adapters/inbound/server-actions/approval-actions";
 import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
 import type { TaskStatus } from "@/src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus";
 
@@ -61,23 +62,45 @@ export function WorkspaceTasksSection({
 }: WorkspaceTasksSectionProps): React.ReactElement {
   const [filter, setFilter] = useState<TaskFilter>("全部");
   const [tasks, setTasks] = useState<TaskSnapshot[]>([]);
+  const [rejectedTaskIds, setRejectedTaskIds] = useState<ReadonlySet<string>>(new Set());
   const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const isLoading = loadedWorkspaceId !== workspaceId;
 
-  const loadTasks = useCallback(
-    (targetWorkspaceId: string) =>
-      listTasksByWorkspaceAction(targetWorkspaceId)
-        .then(setTasks)
-        .catch(() => setTasks([]))
-        .finally(() => setLoadedWorkspaceId(targetWorkspaceId)),
+  const loadData = useCallback(
+    async (targetWorkspaceId: string) => {
+      try {
+        const [nextTasks, decisions] = await Promise.all([
+          listTasksByWorkspaceAction(targetWorkspaceId),
+          listApprovalDecisionsAction(targetWorkspaceId),
+        ]);
+        setTasks(nextTasks);
+        // A task is in "rejection-rework" mode when it has at least one rejected
+        // decision and no currently-pending decision (pending would mean it is
+        // already back in the acceptance review queue).
+        const pendingIds = new Set(
+          decisions.filter((d) => d.status === "pending").map((d) => d.taskId),
+        );
+        const rejectedIds = new Set(
+          decisions
+            .filter((d) => d.status === "rejected" && !pendingIds.has(d.taskId))
+            .map((d) => d.taskId),
+        );
+        setRejectedTaskIds(rejectedIds);
+      } catch {
+        setTasks([]);
+        setRejectedTaskIds(new Set());
+      } finally {
+        setLoadedWorkspaceId(targetWorkspaceId);
+      }
+    },
     [],
   );
 
   useEffect(() => {
-    loadTasks(workspaceId);
-  }, [loadTasks, workspaceId]);
+    loadData(workspaceId);
+  }, [loadData, workspaceId]);
 
   const filteredTasks = tasks.filter((t) =>
     STATUS_FILTER_MAP[filter].includes(t.status),
@@ -85,7 +108,7 @@ export function WorkspaceTasksSection({
 
   const handleRefresh = () => {
     startTransition(() => {
-      loadTasks(workspaceId);
+      loadData(workspaceId);
     });
   };
 
@@ -97,15 +120,22 @@ export function WorkspaceTasksSection({
         if (task.status === "draft") {
           await transitionTaskStatusAction(task.id, { to: "in_progress" });
         } else if (task.status === "in_progress") {
-          await startQualityReviewAction({
-            taskId: task.id,
-            workspaceId,
-            reviewerId: currentUserId,
-          });
+          if (rejectedTaskIds.has(task.id)) {
+            // Post-rejection rework: approval previously rejected this task.
+            // Skip re-QA and send directly back to acceptance for re-review.
+            await transitionTaskStatusAction(task.id, { to: "acceptance" });
+          } else {
+            // Normal first-pass or post-QA-failure path: send through QA.
+            await startQualityReviewAction({
+              taskId: task.id,
+              workspaceId,
+              reviewerId: currentUserId,
+            });
+          }
         }
       } finally {
         setPendingTaskId(null);
-        loadTasks(workspaceId);
+        loadData(workspaceId);
       }
     });
   };
@@ -123,8 +153,11 @@ export function WorkspaceTasksSection({
       };
     }
     if (task.status === "in_progress") {
+      // Show "重新送驗" when approval was previously rejected (bypass re-QA);
+      // show "送交質檢" for the normal first-pass or post-QA-failure path.
+      const isRejectionRework = rejectedTaskIds.has(task.id);
       return {
-        label: "送交質檢",
+        label: isRejectionRework ? "重新送驗" : "送交質檢",
         onClick: () => handleAdvance(task),
         disabled: !currentUserId || pendingTaskId === task.id,
       };
