@@ -38,7 +38,11 @@ import {
   resolveIssueAction,
   closeIssueAction,
 } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
-import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import {
+  listTasksByWorkspaceAction,
+  transitionTaskStatusAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { startQualityReviewAction } from "@/src/modules/workspace/adapters/inbound/server-actions/quality-actions";
 import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
 import type { IssueStatus } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus";
 import type { IssueStage } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStage";
@@ -276,6 +280,7 @@ interface IssueRowProps {
   currentUserId?: string;
   pendingIssueId: string | null;
   onTransition: (issueId: string, targetStatus: IssueStatus) => void;
+  onReroute: (issue: IssueSnapshot) => void;
 }
 
 function IssueRow({
@@ -284,9 +289,18 @@ function IssueRow({
   currentUserId,
   pendingIssueId,
   onTransition,
+  onReroute,
 }: IssueRowProps): React.ReactElement {
   const isPending = pendingIssueId === issue.id;
   const transitions = getIssueTransitionEvents(issue.status);
+
+  // Resolved issues with a qa/acceptance stage get a re-route shortcut
+  const rerouteLabel =
+    issue.status === "resolved" && issue.stage === "qa"
+      ? "送回質檢"
+      : issue.status === "resolved" && issue.stage === "acceptance"
+        ? "送回驗收"
+        : null;
 
   return (
     <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
@@ -311,32 +325,47 @@ function IssueRow({
         </div>
       </div>
 
-      {/* Transition buttons — only shown when currentUserId is set and issue not closed */}
-      {currentUserId && transitions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {transitions.map((event) => {
-            const targetStatus = ISSUE_EVENT_TO_STATUS[event];
-            if (!targetStatus) return null;
-            return (
-              <Button
-                key={event}
-                size="sm"
-                variant="outline"
-                className="h-7 px-2 text-xs"
-                disabled={isPending}
-                onClick={() => onTransition(issue.id, targetStatus)}
-              >
-                {isPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <ChevronRight className="size-3.5" />
-                )}
-                {ISSUE_EVENT_LABEL[event]}
-              </Button>
-            );
-          })}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-1.5">
+        {/* Lifecycle transition buttons */}
+        {currentUserId && transitions.length > 0 && transitions.map((event) => {
+          const targetStatus = ISSUE_EVENT_TO_STATUS[event];
+          if (!targetStatus) return null;
+          return (
+            <Button
+              key={event}
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              disabled={isPending}
+              onClick={() => onTransition(issue.id, targetStatus)}
+            >
+              {isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <ChevronRight className="size-3.5" />
+              )}
+              {ISSUE_EVENT_LABEL[event]}
+            </Button>
+          );
+        })}
+
+        {/* Re-route CTA: send resolved issue's task back to QA or acceptance */}
+        {currentUserId && rerouteLabel && (
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isPending}
+            onClick={() => onReroute(issue)}
+          >
+            {isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
+            {rerouteLabel}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -396,6 +425,27 @@ export function WorkspaceIssuesSection({
           await closeIssueAction(issueId);
         } else {
           await transitionIssueStatusAction(issueId, { to: targetStatus });
+        }
+      } finally {
+        setPendingIssueId(null);
+        loadData(workspaceId);
+      }
+    });
+  };
+
+  const handleReroute = (issue: IssueSnapshot) => {
+    if (!currentUserId) return;
+    setPendingIssueId(issue.id);
+    startTransition(async () => {
+      try {
+        if (issue.stage === "qa") {
+          await startQualityReviewAction({
+            taskId: issue.taskId,
+            workspaceId,
+            reviewerId: currentUserId,
+          });
+        } else if (issue.stage === "acceptance") {
+          await transitionTaskStatusAction(issue.taskId, { to: "acceptance" });
         }
       } finally {
         setPendingIssueId(null);
@@ -496,6 +546,7 @@ export function WorkspaceIssuesSection({
               currentUserId={currentUserId}
               pendingIssueId={pendingIssueId}
               onTransition={handleTransition}
+              onReroute={handleReroute}
             />
           ))}
         </div>

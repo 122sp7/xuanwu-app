@@ -15,9 +15,10 @@ import {
   rejectApprovalAction,
 } from "@/src/modules/workspace/adapters/inbound/server-actions/approval-actions";
 import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
-import { openIssueAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
+import { openIssueAction, listIssuesByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
 import type { ApprovalDecisionSnapshot } from "@/src/modules/workspace/subdomains/approval/domain/entities/ApprovalDecision";
 import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
+import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
 
 interface WorkspaceApprovalSectionProps {
   workspaceId: string;
@@ -32,6 +33,7 @@ export function WorkspaceApprovalSection({
 }: WorkspaceApprovalSectionProps): React.ReactElement {
   const [decisions, setDecisions] = useState<ApprovalDecisionSnapshot[]>([]);
   const [tasks, setTasks] = useState<TaskSnapshot[]>([]);
+  const [issues, setIssues] = useState<IssueSnapshot[]>([]);
   const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [pendingDecisionId, setPendingDecisionId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -40,15 +42,18 @@ export function WorkspaceApprovalSection({
   const loadData = useCallback(
     async (targetWorkspaceId: string) => {
       try {
-        const [nextDecisions, nextTasks] = await Promise.all([
+        const [nextDecisions, nextTasks, nextIssues] = await Promise.all([
           listApprovalDecisionsAction(targetWorkspaceId),
           listTasksByWorkspaceAction(targetWorkspaceId),
+          listIssuesByWorkspaceAction(targetWorkspaceId),
         ]);
         setDecisions(nextDecisions);
         setTasks(nextTasks);
+        setIssues(nextIssues);
       } catch {
         setDecisions([]);
         setTasks([]);
+        setIssues([]);
       } finally {
         setLoadedWorkspaceId(targetWorkspaceId);
       }
@@ -64,6 +69,23 @@ export function WorkspaceApprovalSection({
     () => new Map(tasks.map((task) => [task.id, task])),
     [tasks],
   );
+
+  // Count open acceptance-stage issues per taskId for block guard UI
+  const openAcceptanceIssueCountByTaskId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const issue of issues) {
+      if (
+        issue.stage === "acceptance" &&
+        (issue.status === "open" ||
+          issue.status === "investigating" ||
+          issue.status === "fixing" ||
+          issue.status === "retest")
+      ) {
+        counts.set(issue.taskId, (counts.get(issue.taskId) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [issues]);
 
   const pendingDecisions = useMemo(
     () => decisions.filter((decision) => decision.status === "pending"),
@@ -199,14 +221,22 @@ export function WorkspaceApprovalSection({
 
           {pendingDecisions.map((decision) => {
             const task = taskMap.get(decision.taskId);
+            const openIssueCount = openAcceptanceIssueCountByTaskId.get(decision.taskId) ?? 0;
+            const hasOpenIssues = openIssueCount > 0;
             return (
               <div key={decision.id} className="rounded-xl border border-border/40 bg-card/30 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium">{task?.title ?? decision.taskId}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Approver: {decision.approverId}
                     </p>
+                    {hasOpenIssues && (
+                      <p className="mt-1.5 flex items-center gap-1 text-xs text-amber-500">
+                        <span>⚠</span>
+                        <span>{openIssueCount} 個問題單未關閉，請先處理後再通過驗收</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -226,7 +256,8 @@ export function WorkspaceApprovalSection({
                     <Button
                       size="sm"
                       className="h-7 px-2 text-xs"
-                      disabled={pendingDecisionId === decision.id}
+                      disabled={pendingDecisionId === decision.id || hasOpenIssues}
+                      title={hasOpenIssues ? `尚有 ${openIssueCount} 個未關閉問題單` : undefined}
                       onClick={() => handleApprove(decision)}
                     >
                       {pendingDecisionId === decision.id ? (

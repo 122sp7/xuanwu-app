@@ -231,9 +231,10 @@ export function createClientQualityUseCases() {
   const db = createFirestoreLikeAdapter();
   const reviewRepo = new FirestoreQualityReviewRepository(db);
   const taskRepo = new FirestoreTaskRepository(db);
+  const issueRepo = new FirestoreIssueRepository(db);
   return {
     startQualityReview: new StartQualityReviewUseCase(reviewRepo, taskRepo),
-    passQualityReview: new PassQualityReviewUseCase(reviewRepo, taskRepo),
+    passQualityReview: new PassQualityReviewUseCase(reviewRepo, taskRepo, issueRepo),
     failQualityReview: new FailQualityReviewUseCase(reviewRepo, taskRepo),
     listQualityReviews: new ListQualityReviewsUseCase(reviewRepo),
   };
