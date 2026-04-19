@@ -27,7 +27,10 @@ ai 是共享 AI capability 主域。它負責 generation、orchestration、disti
 - conversation — AI 互動輪次管理
 - evaluation — 輸出品質評估
 - tracing — AI 執行觀測與追蹤
+## Recommended Gap Subdomains
 
+- provider-routing — 模型供應商選擇與路由治理
+- model-policy — 模型能力、版本與使用政策
 ## Key Relationships
 
 - 與 iam：消費 actor reference 與 access decision。

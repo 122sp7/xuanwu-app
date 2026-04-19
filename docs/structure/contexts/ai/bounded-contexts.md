@@ -17,8 +17,8 @@ ai 是共享能力 bounded context。它封裝所有 AI 執行能力——從 ge
 
 | Subdomain | Why Needed | Gap If Missing |
 |---|---|---|
-| evaluation | 建立 AI 輸出品質的正式評估邊界 | 輸出品質只能靠人工驗收，無回歸基準 |
-| tracing | 建立 AI 執行成本與 span 的觀測邊界 | 無法量測 LLM 使用量與偵錯 AI 流程 |
+| provider-routing | 建立模型供應商選擇與路由治理邊界 | 供應商切換邏輯分散於 generation，難以統一管理 |
+| model-policy | 建立模型能力、版本與使用政策邊界 | 模型版本更新或限制難以集中決策 |
 
 ## Domain Invariants
 
