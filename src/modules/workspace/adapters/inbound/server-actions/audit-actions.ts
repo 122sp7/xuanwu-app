@@ -22,7 +22,7 @@ export async function recordAuditEntryAction(rawInput: unknown): Promise<Command
 export async function listAuditEntriesByWorkspaceAction(workspaceId: string): Promise<AuditEntrySnapshot[]> {
   try {
     const { listAuditEntriesByWorkspace } = createClientAuditUseCases();
-    return listAuditEntriesByWorkspace(workspaceId);
+    return listAuditEntriesByWorkspace.execute(workspaceId);
   } catch {
     return [];
   }

@@ -2,7 +2,7 @@ import { v4 as uuid } from "uuid";
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
 import type { DemandRepository } from "../../domain/repositories/DemandRepository";
 import { WorkDemand } from "../../domain/entities/WorkDemand";
-import type { CreateWorkDemandInput } from "../../domain/entities/WorkDemand";
+import type { CreateWorkDemandInput, WorkDemandSnapshot } from "../../domain/entities/WorkDemand";
 
 export class CreateWorkDemandUseCase {
   constructor(private readonly demandRepo: DemandRepository) {}
@@ -32,5 +32,13 @@ export class AssignWorkDemandUseCase {
     } catch (err) {
       return commandFailureFrom("SCHEDULE_ASSIGN_FAILED", err instanceof Error ? err.message : "Failed to assign demand.");
     }
+  }
+}
+
+export class ListWorkspaceDemandsUseCase {
+  constructor(private readonly demandRepo: DemandRepository) {}
+
+  async execute(workspaceId: string): Promise<WorkDemandSnapshot[]> {
+    return this.demandRepo.listByWorkspace(workspaceId);
   }
 }

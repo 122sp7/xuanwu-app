@@ -3,6 +3,17 @@ import { commandSuccess, commandFailureFrom, type CommandResult } from "../../..
 import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
 import { Workspace } from "../../domain/entities/Workspace";
 import type { CreateWorkspaceInput } from "../../domain/entities/Workspace";
+import { WorkspaceMember } from "../../../membership/domain/entities/WorkspaceMember";
+import type { WorkspaceMemberRepository } from "../../../membership/domain/repositories/WorkspaceMemberRepository";
+
+interface CreateWorkspaceWithOwnerInput {
+  readonly workspace: CreateWorkspaceInput;
+  readonly owner: {
+    readonly actorId: string;
+    readonly displayName: string;
+    readonly email?: string;
+  };
+}
 
 export class CreateWorkspaceUseCase {
   constructor(private readonly workspaceRepo: WorkspaceRepository) {}
@@ -11,6 +22,37 @@ export class CreateWorkspaceUseCase {
     try {
       const workspace = Workspace.create(uuid(), input);
       await this.workspaceRepo.save(workspace.getSnapshot());
+      return commandSuccess(workspace.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom("WORKSPACE_CREATE_FAILED", err instanceof Error ? err.message : "Failed to create workspace.");
+    }
+  }
+}
+
+export class CreateWorkspaceWithOwnerUseCase {
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly memberRepo: WorkspaceMemberRepository,
+  ) {}
+
+  async execute(input: CreateWorkspaceWithOwnerInput): Promise<CommandResult> {
+    try {
+      const workspace = Workspace.create(uuid(), input.workspace);
+      await this.workspaceRepo.save(workspace.getSnapshot());
+      try {
+        const ownerMember = WorkspaceMember.add(uuid(), {
+          workspaceId: workspace.id,
+          actorId: input.owner.actorId,
+          role: "owner",
+          displayName: input.owner.displayName,
+          email: input.owner.email,
+        });
+        await this.memberRepo.save(ownerMember.getSnapshot());
+      } catch (memberErr) {
+        await this.workspaceRepo.delete(workspace.id);
+        throw memberErr;
+      }
+
       return commandSuccess(workspace.id, Date.now());
     } catch (err) {
       return commandFailureFrom("WORKSPACE_CREATE_FAILED", err instanceof Error ? err.message : "Failed to create workspace.");

@@ -535,6 +535,8 @@ interface CreateWorkspaceDialogRailProps {
   accountId: string | null;
   accountType: "user" | "organization" | null;
   creatorUserId?: string;
+  creatorDisplayName?: string;
+  creatorEmail?: string;
   onNavigate: (href: string) => void;
 }
 
@@ -544,9 +546,11 @@ export function CreateWorkspaceDialogRail({
   accountId,
   accountType,
   creatorUserId,
+  creatorDisplayName,
+  creatorEmail,
   onNavigate,
 }: CreateWorkspaceDialogRailProps): React.ReactElement {
-  const { createWorkspaceUseCase } = workspaceLifecycleUseCases;
+  const { createWorkspaceWithOwnerUseCase } = workspaceLifecycleUseCases;
   const [workspaceName, setWorkspaceName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -561,12 +565,13 @@ export function CreateWorkspaceDialogRail({
     event.preventDefault();
     const name = workspaceName.trim();
     const creatorActorId = creatorUserId ?? accountId;
+    const ownerDisplayName = creatorDisplayName?.trim();
     if (!name) {
       setError("請輸入工作區名稱。");
       return;
     }
-    if (!creatorActorId) {
-      setError("建立者資訊缺失，請重新登入後再試。");
+    if (!creatorActorId || !ownerDisplayName) {
+      setError("建立者名稱缺失，請重新登入後再試。");
       return;
     }
     if (!accountId || !accountType) {
@@ -576,10 +581,17 @@ export function CreateWorkspaceDialogRail({
 
     setIsCreating(true);
     setError(null);
-    const result = await createWorkspaceUseCase.execute({
-      accountId,
-      accountType,
-      name,
+    const result = await createWorkspaceWithOwnerUseCase.execute({
+      workspace: {
+        accountId,
+        accountType,
+        name,
+      },
+      owner: {
+        actorId: creatorActorId,
+        displayName: ownerDisplayName,
+        email: creatorEmail?.trim() || undefined,
+      },
     });
     if (!result.success) {
       setError(result.error.message);
