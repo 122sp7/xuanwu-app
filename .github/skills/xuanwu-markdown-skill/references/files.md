@@ -20084,9 +20084,9 @@ T0  IAM                     BILLING                 AI
     tenant                  entitlement             distillation
     security-policy         referral                retrieval
     account                                          memory
-    account-profile                                  context
-    organization                                     safety
-    team                                             tool-calling
+    organization                                     context
+                                                     safety
+                                                     tool-calling
                                                      reasoning
                                                      conversation
                                                      evaluation
@@ -20109,7 +20109,7 @@ T1  PLATFORM
     feature-flag            integration
     onboarding
 
-    > account / account-profile / organization / team → 已遷入 T0 iam
+    > account（含 account-profile）/ organization（含 team）→ 已遷入 T0 iam
 
     [consent]               [secret-management]     [operational-catalog]
 
