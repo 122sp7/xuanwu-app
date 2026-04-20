@@ -17,6 +17,10 @@ const CandidateSchema = z.object({
 const LINE_ITEM_PATTERN = /^(\d{2,3})\s+/;
 // Dense AP8 PO format: item number + 3RDTW product code + price block ending in 小計
 // followed by Chinese section header （numeral） and task description.
+// Capture groups:
+//   1 — item number (10–540, step 10)
+//   2 — section numeral character(s) (e.g., "伍" for Section 5 / 雜項費用)
+//   3 — task description text (max 120 chars)
 const PO_DENSE_PATTERN =
   /(?<!\d)(\d{2,3})\s+3RDTW\S+.*?小計[\d,，.]+\s*（([\u4e00-\u9fff]+)\s*）([^（\n]{1,120})/gs;
 

@@ -19,8 +19,9 @@ interface ExtractFlowOutput {
 
 function buildExtractionPrompt(sourceText: string, pageRefs: string): string {
   return [
-    "你是工作任務分析助理，專門處理 AP8 SCADA 專案的採購訂單（PO 4510250181）。",
-    "請從以下文件內容中識別所有可執行的任務項目，共應有 54 個任務（項次 10–540，步進 10）。",
+    "你是工作任務分析助理，專門處理建設工程、電氣設備與 SCADA 專案的採購訂單（Purchase Order）。",
+    "請從以下文件內容中識別所有可執行的任務項目。",
+    "若文件為採購訂單（格式：項次 10/20/30…，步進 10），請逐項輸出，不可任意合併或省略。",
     sourceText ? `文件內容：\n${sourceText}` : "",
     pageRefs ? `來源頁面 ID：${pageRefs}` : "",
     "",

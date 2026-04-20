@@ -155,7 +155,8 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                     "page_count": parsed.page_count,
                     "extraction_ms": extraction_ms,
                     "text": parsed.text,
-                    # OCR does not return semantic chunks; downstream uses char-split.
+                    # OCR does not return semantic chunks; `ingest_document_for_rag`
+                    # will apply char-split-v2 chunking when layout_chunks=None.
                     "chunk_count": 0,
                     "chunks": [],
                 },

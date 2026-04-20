@@ -14,7 +14,7 @@ Dependency: stdlib only.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Literal
 
 # ── Chinese numeral character class used in section headers ─────────────────
 _CHINESE_NUMERALS = "一二三四五六七八九十壹貳參肆伍陸柒捌玖拾"
@@ -32,7 +32,9 @@ _SECTION_HEADER_PATTERN = re.compile(
 
 # ── Classification rules ─────────────────────────────────────────────────────
 
-# Section numerals whose entire section is 費用管銷
+# Section numerals whose entire section is 費用管銷.
+# 伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
+# 玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
 _COST_SECTION_CHARS: frozenset[str] = frozenset(["伍", "玖"])
 
 # Section numerals whose entire section is 施工作業 (overridden per-item if needed)
@@ -58,7 +60,7 @@ _COST_DESCRIPTION_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 
-def classify_po_task(description: str, section_char: str = "") -> str:
+def classify_po_task(description: str, section_char: str = "") -> Literal["施工作業", "費用管銷"]:
     """Classify a PO line item as 施工作業 or 費用管銷.
 
     Args:
