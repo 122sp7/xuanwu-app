@@ -76,7 +76,6 @@ const ParseDocumentActionInputSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.string().default("application/pdf"),
   sizeBytes: z.number().int().nonnegative().default(0),
-  runRag: z.boolean().default(false),
 });
 
 const ReindexDocumentActionInputSchema = z.object({
@@ -157,8 +156,8 @@ export async function createDatabaseFromDocumentAction(rawInput: unknown) {
 }
 
 /**
- * parseDocumentAction — trigger Document AI parse (and optionally RAG ingestion)
- * for a specific document.
+ * parseDocumentAction — trigger Document AI parse (Layout Parser + Form Parser)
+ * for a specific document. Always a pure parse; RAG indexing is a separate step.
  *
  * Calls the fn `parse_document` HTTPS callable function from the server side,
  * which avoids browser CORS restrictions entirely.  Functions are deployed in
@@ -175,7 +174,7 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
       filename: string;
       mime_type: string;
       size_bytes: number;
-      run_rag: boolean;
+      run_rag: false;
     },
     ParseDocumentOutput
   >("parse_document", {
@@ -186,7 +185,7 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
     filename: input.filename,
     mime_type: input.mimeType,
     size_bytes: input.sizeBytes,
-    run_rag: input.runRag,
+    run_rag: false,
   });
 }
 

@@ -68,6 +68,7 @@ type DocActionStatus = "idle" | "running" | "done" | "error";
 
 interface DocActionState {
   parse: DocActionStatus;
+  index: DocActionStatus;
   reindex: DocActionStatus;
   page: DocActionStatus;
   database: DocActionStatus;
@@ -167,13 +168,13 @@ export function NotebooklmSourcesSection({
   const setDocAction = (docId: string, patch: Partial<DocActionState>) => {
     setActionState((prev) => {
       const current: DocActionState = prev[docId] ?? {
-        parse: "idle", reindex: "idle", page: "idle", database: "idle",
+        parse: "idle", index: "idle", reindex: "idle", page: "idle", database: "idle",
       };
       return { ...prev, [docId]: { ...current, ...patch } };
     });
   };
 
-  const handleParse = async (doc: DocumentSnapshot, runRag: boolean) => {
+  const handleParse = async (doc: DocumentSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parse: "running", message: undefined });
     try {
@@ -185,14 +186,30 @@ export function NotebooklmSourcesSection({
         filename: doc.name,
         mimeType: doc.mimeType || "application/pdf",
         sizeBytes: doc.sizeBytes,
-        runRag,
       });
-      setDocAction(doc.id, { parse: "done", message: runRag ? "解析 + RAG 索引完成" : "解析完成，產出物已儲存" });
+      setDocAction(doc.id, { parse: "done", message: "解析完成，產出物已儲存" });
       // Reload list to pick up updated Firestore metadata
       const result = await queryDocumentsAction({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parse: "error", message: err instanceof Error ? err.message : "解析失敗" });
+    }
+  };
+
+  const handleIndex = async (doc: DocumentSnapshot) => {
+    if (!doc.id) return;
+    if (!doc.parsedJsonGcsUri) {
+      setDocAction(doc.id, { index: "error", message: "文件尚未解析，請先執行「解析文件」後再建立索引" });
+      return;
+    }
+    setDocAction(doc.id, { index: "running", message: undefined });
+    try {
+      await reindexDocumentAction({ accountId, docId: doc.id, jsonGcsUri: doc.parsedJsonGcsUri });
+      setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成" });
+      const result = await queryDocumentsAction({ accountId, workspaceId });
+      setDocuments(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setDocAction(doc.id, { index: "error", message: err instanceof Error ? err.message : "建立索引失敗" });
     }
   };
 
@@ -331,7 +348,7 @@ export function NotebooklmSourcesSection({
             const state = actionState[doc.id];
             const isExpanded = expandedId === doc.id;
             const anyRunning = state && (
-              state.parse === "running" || state.reindex === "running" ||
+              state.parse === "running" || state.index === "running" || state.reindex === "running" ||
               state.page === "running" || state.database === "running"
             );
 
@@ -419,26 +436,26 @@ export function NotebooklmSourcesSection({
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
                           disabled={!doc.storageUrl || state?.parse === "running" || !!anyRunning}
-                          onClick={() => void handleParse(doc, false)}
+                          onClick={() => void handleParse(doc)}
                         >
                           {state?.parse === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
                             <ScanText className="size-3" />
                           )}
-                          解析文件（僅產出物）
+                          解析文件
                         </Button>
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-                          disabled={!doc.storageUrl || state?.parse === "running" || !!anyRunning}
-                          onClick={() => void handleParse(doc, true)}
+                          disabled={state?.index === "running" || !!anyRunning}
+                          onClick={() => void handleIndex(doc)}
                         >
-                          {state?.parse === "running" ? (
+                          {state?.index === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <ScanText className="size-3 text-purple-600" />
+                            <RefreshCw className="size-3 text-purple-600" />
                           )}
-                          解析 + 建立 RAG 索引
+                          建立 RAG 索引
                         </Button>
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
@@ -448,7 +465,7 @@ export function NotebooklmSourcesSection({
                           {state?.reindex === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <RefreshCw className="size-3 text-purple-600" />
+                            <RefreshCw className="size-3 text-orange-600" />
                           )}
                           重建 RAG 索引
                         </Button>
@@ -511,7 +528,7 @@ export function NotebooklmSourcesSection({
                     {/* Action status message */}
                     {state?.message && (
                       <p className={`text-xs px-2 py-1 rounded ${
-                        (state.parse === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
+                        (state.parse === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
                           ? "bg-destructive/10 text-destructive"
                           : "bg-muted text-muted-foreground"
                       }`}>
