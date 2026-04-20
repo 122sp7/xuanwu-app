@@ -16,10 +16,10 @@ export const ISSUE_STATUSES = [
 ] as const satisfies readonly IssueStatus[];
 
 const ISSUE_NEXT: Readonly<Record<IssueStatus, readonly IssueStatus[]>> = {
-  open: ["investigating"],
-  investigating: ["fixing"],
-  fixing: ["retest"],
-  retest: ["resolved", "fixing"],
+  open: ["resolved"],
+  investigating: ["resolved"],
+  fixing: ["resolved"],
+  retest: ["resolved"],
   resolved: ["closed"],
   closed: [],
 };
