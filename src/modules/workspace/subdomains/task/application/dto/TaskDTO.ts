@@ -7,6 +7,8 @@ export const CreateTaskInputSchema = z.object({
   description: z.string().optional(),
   assigneeId: z.string().optional(),
   dueDateISO: z.string().datetime().optional(),
+  unitPrice: z.number().nonnegative().optional(),
+  contractQuantity: z.number().positive().optional(),
 });
 
 export const UpdateTaskInputSchema = z.object({
@@ -14,6 +16,8 @@ export const UpdateTaskInputSchema = z.object({
   description: z.string().optional(),
   assigneeId: z.string().nullable().optional(),
   dueDateISO: z.string().datetime().nullable().optional(),
+  unitPrice: z.number().nonnegative().nullable().optional(),
+  contractQuantity: z.number().positive().nullable().optional(),
 });
 
 export const TransitionTaskInputSchema = z.object({

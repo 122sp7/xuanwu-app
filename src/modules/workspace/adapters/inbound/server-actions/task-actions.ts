@@ -11,6 +11,8 @@ const CreateTaskSchema = z.object({
   description: z.string().max(2000).optional(),
   assigneeId: z.string().optional(),
   dueDateISO: z.string().datetime({ offset: true }).optional(),
+  unitPrice: z.number().nonnegative().optional(),
+  contractQuantity: z.number().positive().optional(),
 });
 
 const UpdateTaskSchema = z.object({
@@ -18,6 +20,8 @@ const UpdateTaskSchema = z.object({
   description: z.string().max(2000).optional(),
   assigneeId: z.string().nullable().optional(),
   dueDateISO: z.string().nullable().optional(),
+  unitPrice: z.number().nonnegative().nullable().optional(),
+  contractQuantity: z.number().positive().nullable().optional(),
 });
 
 const TransitionTaskSchema = z.object({

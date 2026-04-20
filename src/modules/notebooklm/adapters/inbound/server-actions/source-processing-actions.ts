@@ -121,7 +121,7 @@ export async function processSourceDocumentAction(rawInput: unknown) {
       return {
         ok: true as const,
         pageId: result.aggregateId,
-        pageHref: `/workspace/${pageInput.workspaceId}/pages/${result.aggregateId}`,
+        pageHref: `/${pageInput.accountId}/${pageInput.workspaceId}?tab=Pages`,
       };
     },
   };

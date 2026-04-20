@@ -16,7 +16,7 @@
 
 ```mermaid
 flowchart LR
-    User[User] --> SourceUI[notebooklm source dialog]
+    Actor[Actor] --> SourceUI[notebooklm source dialog]
     SourceUI --> Parse[Parse source document]
     Parse --> RAG[Optional RAG indexing]
     Parse --> Draft[Create Knowledge Page draft]

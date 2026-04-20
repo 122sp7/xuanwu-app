@@ -130,6 +130,8 @@ class InfraDocumentPipelineGateway:
         page_count: int,
         extraction_ms: int,
         account_id: str,
+        chunk_count: int = 0,
+        entity_count: int = 0,
     ) -> None:
         update_parsed(
             doc_id=doc_id,
@@ -137,6 +139,8 @@ class InfraDocumentPipelineGateway:
             page_count=page_count,
             extraction_ms=extraction_ms,
             account_id=account_id,
+            chunk_count=chunk_count,
+            entity_count=entity_count,
         )
 
     def mark_rag_ready(

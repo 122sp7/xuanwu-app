@@ -70,8 +70,8 @@ subdomains/
 | **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
 | **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
 | **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
-| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Genkit wiring |
-| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Cloud Storage wiring |
+| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment（gap：Genkit wiring 尚未完成）|
+| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment（gap：Cloud Storage wiring 尚未完成）|
 | **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
 | **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
 

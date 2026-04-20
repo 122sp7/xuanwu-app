@@ -2,12 +2,19 @@ import { v4 as uuid } from "uuid";
 import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
 import { canTransitionInvoiceStatus } from "../value-objects/InvoiceStatus";
 import type { InvoiceDomainEventType } from "../events/InvoiceDomainEvent";
+import type { LineItem } from "../value-objects/LineItem";
+import { InvoiceCalculationService } from "../services/InvoiceCalculationService";
 
 export interface InvoiceSnapshot {
   readonly id: string;
   readonly workspaceId: string;
   readonly taskIds: ReadonlyArray<string>;
   readonly status: InvoiceStatus;
+  readonly lineItems: ReadonlyArray<LineItem>;
+  readonly currency: string;
+  readonly subtotal: number;
+  readonly taxRate: number;
+  readonly taxAmount: number;
   readonly totalAmount: number;
   readonly submittedAtISO: string | null;
   readonly approvedAtISO: string | null;
@@ -39,6 +46,11 @@ export class Invoice {
       workspaceId: input.workspaceId,
       taskIds: input.taskIds ?? [],
       status: "draft",
+      lineItems: [],
+      currency: "TWD",
+      subtotal: 0,
+      taxRate: 0.05,
+      taxAmount: 0,
       totalAmount: 0,
       submittedAtISO: null,
       approvedAtISO: null,
@@ -80,6 +92,22 @@ export class Invoice {
       occurredAt: now,
       payload: { invoiceId: this._props.id, workspaceId: this._props.workspaceId, to },
     });
+  }
+
+  setLineItems(items: ReadonlyArray<LineItem>): void {
+    const { subtotal, taxAmount, totalAmount } = InvoiceCalculationService.fromLineItems(
+      items,
+      this._props.taxRate,
+    );
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      lineItems: [...items],
+      subtotal,
+      taxAmount,
+      totalAmount,
+      updatedAtISO: now,
+    };
   }
 
   get id(): string { return this._props.id; }

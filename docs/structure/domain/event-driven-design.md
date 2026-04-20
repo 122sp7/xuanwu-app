@@ -23,6 +23,8 @@ export const DomainEventBaseSchema = z.object({
   type: z.string(),              // discriminant，格式：<module-name>.<action>
   eventId: z.string().uuid(),    // 每次發出唯一 ID（用於去重與 idempotency key）
   occurredAt: z.string().datetime(), // ISO 8601 字串，不使用 Date 物件
+  correlationId: z.string().uuid().optional(), // 關聯追蹤 ID，用於跨上下文因果鏈
+  causationId: z.string().uuid().optional(),   // 觸發本事件的前因事件 ID
 });
 
 export type DomainEventBase = z.infer<typeof DomainEventBaseSchema>;
@@ -50,7 +52,7 @@ export const WorkspaceCreatedEventSchema = DomainEventBaseSchema.extend({
   type: z.literal('workspace.created'),
   payload: z.object({
     workspaceId: z.string().uuid(),
-    organizationId: z.string().uuid(),
+    organizationId: z.string().uuid().optional(), // personal account workspaces（AccountType = "user"）無 organizationId
     name: z.string(),
     ownerId: z.string(),
     createdAt: z.string().datetime(),

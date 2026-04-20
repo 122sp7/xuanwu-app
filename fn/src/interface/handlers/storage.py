@@ -178,6 +178,8 @@ def handle_object_finalized(
             "page_count": parsed.page_count,
             "extraction_ms": extraction_ms,
             "text": parsed.text,
+            "chunk_count": len(parsed.chunks),
+            "entities": parsed.entities,
         }
         json_gcs_uri = runtime.upload_json(
             bucket_name=bucket_name,
@@ -192,6 +194,8 @@ def handle_object_finalized(
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
             account_id=account_id,
+            chunk_count=len(parsed.chunks),
+            entity_count=len(parsed.entities),
         )
 
         # ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────

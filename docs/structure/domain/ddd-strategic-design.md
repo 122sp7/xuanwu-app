@@ -57,6 +57,9 @@
 49. 模型依賴方向必須單向流動（Dependency Direction Rule），領域層不得依賴基礎設施層。
 50. 防腐層（ACL）內部轉換必須顯式建模，禁止隱性映射或魔法轉換。
 51. 上下文契約必須顯式化（Explicit Contract Principle），所有跨上下文互動需具備明確 schema 與語意版本控制。
+
+> 以下規則為進階參考，僅在觸發條件出現時適用：
+
 52. 契約變更必須遵守向後相容性（Backward Compatibility First），避免破壞既有上下文整合。
 53. 語意版本控制必須獨立於技術版本控制（Semantic Versioning of Domain Contracts）。
 54. 模型演化必須支援漸進式遷移（Strangler Pattern for Domain Evolution），避免一次性重構。
@@ -96,7 +99,7 @@ Integration Patterns（整合模式）
 
 ---
 
-# 🔥 四、你這種 AI 系統的映射（直接對應）
+# 🔥 四、Xuanwu ai Context 的子域映射
 
 ```
 Core Domain
@@ -203,7 +206,7 @@ Generic Domain
 
 ---
 
-# 🎯 五（補）、Evans 核心原則總覽
+# 🎯 十二、Evans 核心原則總覽
 
 | 原則 | 一句話 |
 |------|--------|

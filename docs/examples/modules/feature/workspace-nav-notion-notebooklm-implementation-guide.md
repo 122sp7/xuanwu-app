@@ -24,7 +24,7 @@
 
 | 層次 | 內容 |
 |---|---|
-| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`documentIds[]`、`model`、status）；`Document` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: user / assistant / system；`content`）|
+| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`documentIds[]`、`model`、status）；`Document` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: `"user"` / `"assistant"` / `"system"`，此處 `"user"` 為 AI message role 術語，非 `Actor` 身份語意；`content`）|
 | **行為層 (Behavior / Capability Layer)** | Notebook: `CreateNotebook`、`AddDocumentToNotebook`、`RemoveDocument`、`GenerateNotebookResponse`、`ArchiveNotebook`；Document: `CreateDocument`（upload trigger）、`ArchiveDocument`、`DeleteDocument`；Conversation: `StartConversation`、`AddMessage`（user message → RAG grounding → assistant reply）|
 | **UI / Navigation 層** | `notebooklm.notebook` → RAG 查詢（notebook 列表 + 執行 grounding query）；`notebooklm.ai-chat` → AI 對話（Conversation thread UI）；`notebooklm.sources` → 來源文件（Document 上傳 / 狀態追蹤）；`notebooklm.research` → 研究摘要（Conversation synthesis / summary 視圖）|
 
@@ -99,33 +99,7 @@ Legacy aliases（`NotionPages`、`NotionDatabase`、`NotionTemplates`、`Noteboo
 | `Sources` | `NotebooklmSourcesSection` | `src/modules/notebooklm/adapters/inbound/react/` |
 | `Research` | `NotebooklmResearchSection` | `src/modules/notebooklm/adapters/inbound/react/` |
 
-### 3.2 `workspace-shell-interop.tsx` — Quick Access 補齊
-
-目前 `WORKSPACE_QUICK_ACCESS_TEMPLATES` 只有 `knowledge`、`notebook`、`ai-chat` 的快捷鍵。
-需要補上 `pages`、`database`、`templates`、`sources`、`research`：
-
-```typescript
-// 範例（加入 pages）
-{
-  id: "pages",
-  href: "{workspaceBaseHref}?tab=Pages",
-  label: "頁面",
-  icon: <FileText className="size-3.5" />,
-  isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Pages",
-},
-```
-
-對應 lucide-react icon 建議：
-
-| Tab | Icon |
-|---|---|
-| `Pages` | `FileText` (已 import) |
-| `Database` | `Table2` |
-| `Templates` | `LayoutTemplate` |
-| `Sources` | `FileStack` |
-| `Research` | `BookOpen` |
-
-### 3.3 Server Actions（notion）
+### 3.2 Server Actions（notion）
 
 在 `src/modules/notion/adapters/inbound/server-actions/` 建立各 tab 所需的 server action 檔案。
 必須遵守「先 Zod parse → 呼叫 use case → 回傳 CommandResult」的三段式：
@@ -155,7 +129,7 @@ export async function queryPagesAction(rawInput: unknown) {
 - `RenamePageUseCase` → 重命名
 - `ArchivePageUseCase` → 封存
 
-### 3.4 Server Actions（notebooklm）
+### 3.3 Server Actions（notebooklm）
 
 ```typescript
 // src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts
@@ -192,7 +166,7 @@ export async function listNotebooksAction(rawInput: unknown) {
 3. 建立 section component            → src/modules/<context>/adapters/inbound/react/
 4. 在 workspace-route-screens.tsx 加入 tab branch
 5. 在 workspace-shell-interop.tsx 補 quick access item
-6. lint + build 驗證
+6. lint + build + unit test 驗證
 ```
 
 ---

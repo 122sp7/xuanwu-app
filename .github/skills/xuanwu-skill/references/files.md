@@ -1362,72 +1362,7 @@ Firestore document schema for these is owned by `src/modules/platform/subdomains
 ````markdown
 # DDD 戰略設計規則 — AI Context
 
-本文件整理 Domain-Driven Design 的核心戰略概念，並直接對應 `ai` bounded context 的設計決策。
-
----
-
-## 一、核心戰略概念（Strategic Design Rules）
-
-1. 通用語言（Ubiquitous Language）必須在團隊內部與程式碼中保持一致，任何領域概念的命名都應直接反映業務語意。
-
-2. 界限上下文（Bounded Context）必須明確定義語言與模型的邊界，不同上下文之間不得共享模型語意。
-
-3. 每個界限上下文內的模型必須保持一致性（Consistency），跨上下文則允許語意轉換（Translation）。
-
-4. 子域（Subdomain）應依業務價值分類為核心域（Core）、支撐域（Supporting）、通用域（Generic），並依此分配設計與資源優先級。
-
-5. 核心域（Core Domain）必須集中最強設計能力與抽象，避免被基礎設施或通用邏輯污染。
-
-6. 支撐域（Supporting Subdomain）應服務核心域需求，但不承載關鍵競爭優勢。
-
-7. 通用域（Generic Subdomain）應優先採用現成方案（如第三方服務），避免自行重複建造。
-
-8. 上下文映射（Context Mapping）必須明確描述各界限上下文之間的關係與整合方式。
-
-9. 不同上下文之間的整合必須選擇適當模式（如 Anti-Corruption Layer、Conformist、Open Host Service 等）。
-
-10. 反腐層（Anti-Corruption Layer）必須用於隔離外部模型，防止污染內部核心模型。
-
-11. 開放主機服務（Open Host Service）應提供穩定、公開的契約，供其他上下文整合使用。
-
-12. 發佈語言（Published Language）應定義跨上下文共享的標準資料格式與語意。
-
-13. 共享核心（Shared Kernel）僅應在高度信任的團隊之間使用，並需嚴格控制變更。
-
-14. 客戶-供應者（Customer-Supplier）關係應明確定義需求與交付責任，以維持演進穩定。
-
-15. 順從者（Conformist）模式應在無法影響上游模型時採用，接受其語意限制。
-
-16. 分離方式（Separate Ways）應在整合成本過高時採用，允許上下文完全獨立演化。
-
-17. 大泥球（Big Ball of Mud）應被避免，若存在則需逐步以界限上下文重構。
-
-18. 戰略設計必須優先於戰術設計，先定義邊界與關係，再設計內部模型與程式結構。
-
----
-
-## 二、戰略地圖（概念關係）
-
-```
-Subdomain（業務問題空間）
-        ↓ 對應
-Bounded Context（解決方案邊界）
-        ↓
-Context Mapping（上下文關係）
-        ↓
-Integration Patterns（整合模式）
-```
-
----
-
-## 三、關鍵對照
-
-| 概念 | 本質 |
-|------|------|
-| Subdomain | 業務問題分類（商業視角） |
-| Bounded Context | 技術模型邊界（系統視角） |
-| Ubiquitous Language | 語意一致性 |
-| Context Mapping | 上下文關係圖 |
+DDD 全域戰略概念規則見 [docs/structure/domain/ddd-strategic-design.md](../../domain/ddd-strategic-design.md)。本文件只記錄 `ai` bounded context 的子域分類映射與整合模式選擇。
 
 ---
 
@@ -5073,7 +5008,7 @@ flowchart LR
 
 ## Strategic Bounded Context Model
 
-系統目前以八個主域 / bounded context 構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
+系統目前以八個主域 / bounded context 構成。子域完整清單（baseline + recommended gap）見 [subdomains.md](./subdomains.md)。
 
 ## Main Domain Map
 
@@ -5087,190 +5022,6 @@ flowchart LR
 | workspace | 協作容器與 scope | audit、feed、scheduling、approve、issue、orchestration、quality、settlement、task、task-formation | lifecycle、membership、sharing、presence |
 | notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning、taxonomy、relations、publishing | — |
 | notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | —（Future Split Triggers；參見 notebooklm/subdomains.md） |
-
-## Subdomain Inventory By Main Domain
-
-### iam
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
-| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
-| security-policy | 安全規則定義、版本化與發佈 |
-| account | 帳號聚合根與帳號生命週期（從 platform 遷入） |
-| organization | 組織、成員與角色邊界（從 platform 遷入） |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| session | 將 session 與 token lifecycle 收斂為獨立能力 |
-| consent | 將同意與授權治理從泛用平台設定中切開 |
-| secret-governance | 將 secret access policy 收斂為明確治理邊界 |
-
-### billing
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、配額與續期治理 |
-| entitlement | 有效權益與功能可用性統一解算 |
-| referral | 推薦關係與獎勵追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| pricing | 價格模型與方案矩陣治理 |
-| invoice | 帳單、請款與對帳流程 |
-| quota-policy | 將可量化商業限制收斂成單一政策語言 |
-
-### ai
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| generation | AI 驅動的文本生成與回覆輸出（Genkit 接縫） |
-| orchestration | 執行圖與多步驟 AI workflow 協調 |
-| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
-| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
-| memory | 對話歷史與跨輪次狀態保存 |
-| context | prompt 上下文組裝與 token 預算管理 |
-| safety | 安全護欄、有害內容過濾與合規保護 |
-| tool-calling | 外部工具調用協調與結果回注 |
-| reasoning | 推理步驟管理（chain-of-thought、反思） |
-| conversation | AI 互動輪次追蹤與歷史管理 |
-| evaluation | 輸出品質評估與回歸基準 |
-| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-### analytics
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| reporting | 報表輸出與查詢整理 |
-| metrics | 指標定義與聚合 |
-| dashboards | 儀表板呈現語義 |
-| telemetry-projection | 事件投影與 read model 匯總 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| experimentation | 實驗分析與對照觀測 |
-| decision-support | 決策輔助與洞察輸出 |
-
-### workspace
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| audit | 工作區操作日誌與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| approve | 任務驗收與問題單覆核審批流程 |
-| issue | 問題單生命週期與追蹤管理 |
-| orchestration | 知識頁面→任務物化批次作業編排 |
-| quality | 任務 QA 審查與質檢流程 |
-| settlement | 請款發票生命週期與財務對帳 |
-| task | 任務建立、指派與狀態轉換 |
-| task-formation | AI 輔助任務候選抽取與批次匯入 |
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
-| presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
-
-### platform
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、日誌與法規執行 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久日誌軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| support | 客服工單、支援知識與處理流程 |
-
-> **遷出子域：** `account` / `account-profile` → `iam/subdomains/account/`；`organization` / `team` → `iam/subdomains/organization/`
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
-| secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
-
-### notion
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-| taxonomy | 分類法與語義組織的正典邊界 |
-| relations | 內容之間關聯與 backlink 的正典邊界 |
-| publishing | 正式發布與對外交付的正典邊界 |
-
-#### Recommended Gap Subdomains
-
-無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
-
-### notebooklm
-
-#### Baseline Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-#### Future Split Triggers（非獨立 Gap Subdomain）
-
-ingestion 已整合至 source；retrieval、grounding、evaluation 現為 synthesis 內部 facets。僅當語言分歧或演化速率差異觸發時才拆分。完整觸發條件見 `contexts/notebooklm/subdomains.md`。
 
 ## Ownership Rules
 
@@ -15818,13 +15569,13 @@ src/modules/notebooklm/
  * milestones, personnel). Each database can be sent to workspace.task-formation.
  */
 ⋮----
-import { Button } from "@packages";
-import { LayoutGrid, ListPlus } from "lucide-react";
+import { Button, Input } from "@packages";
+import { LayoutGrid, ListPlus, Plus } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 ⋮----
 import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
-import { queryDatabasesAction } from "../server-actions/database-actions";
+import { queryDatabasesAction, createDatabaseAction } from "../server-actions/database-actions";
 ⋮----
 interface NotionDatabaseSectionProps {
   workspaceId: string;
@@ -15834,6 +15585,12 @@ interface NotionDatabaseSectionProps {
 function taskFormationHref(accountId: string, workspaceId: string)
 ⋮----
 const load = () =>
+⋮----
+// Auto-load on mount
+⋮----
+}, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleCreate = () =>
 ⋮----
 href=
 ````
@@ -15875,7 +15632,7 @@ export function NotionKnowledgeSection(
 import { Button, Input } from "@packages";
 import { FileText, Plus, ListPlus } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 ⋮----
 import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
 import { queryPagesAction, createPageAction } from "../server-actions/page-actions";
@@ -15890,6 +15647,10 @@ function taskFormationHref(accountId: string, workspaceId: string)
 ⋮----
 const load = () =>
 ⋮----
+// Auto-load on mount
+⋮----
+}, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
 const handleCreate = () =>
 ⋮----
 href=
@@ -15899,21 +15660,29 @@ href=
 ````typescript
 /**
  * NotionTemplatesSection — notion.templates tab — template library.
+ * Auto-loads on mount. Supports creating new workspace-scoped templates.
  */
 ⋮----
-import { Button } from "@packages";
-import { Layout } from "lucide-react";
-import { useState, useTransition } from "react";
+import { Button, Input } from "@packages";
+import { Layout, Plus } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 ⋮----
-import type { Template } from "../../../subdomains/template/domain/entities/Template";
-import { queryTemplatesAction } from "../server-actions/template-actions";
+import type { Template, TemplateCategory } from "../../../subdomains/template/domain/entities/Template";
+import { queryTemplatesAction, createTemplateAction } from "../server-actions/template-actions";
 ⋮----
 interface NotionTemplatesSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId: string;
 }
 ⋮----
 const load = () =>
+⋮----
+// Auto-load on mount
+⋮----
+}, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleCreate = () =>
 ````
 
 ## File: src/modules/notion/adapters/inbound/server-actions/database-actions.ts
@@ -15922,10 +15691,13 @@ const load = () =>
  * database-actions — notion database server actions.
  */
 ⋮----
+import { v4 as uuid } from "uuid";
 import { z } from "zod";
 import { createClientNotionDatabaseUseCases } from "../../outbound/firebase-composition";
 ⋮----
 // ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+/** pageId is optional; a new UUID is auto-generated when omitted. */
 ⋮----
 // ── Actions ───────────────────────────────────────────────────────────────────
 ⋮----
@@ -15959,18 +15731,20 @@ export async function archivePageAction(rawInput: unknown)
 ## File: src/modules/notion/adapters/inbound/server-actions/template-actions.ts
 ````typescript
 /**
- * template-actions — notion template server actions (stub).
- *
- * Templates use case is not yet implemented. These actions return empty
- * results until TemplateUseCases are implemented.
+ * template-actions — notion template server actions.
  */
 ⋮----
 import { z } from "zod";
 import type { Template } from "../../../subdomains/template/domain/entities/Template";
+import { createClientNotionTemplateUseCases } from "../../outbound/firebase-composition";
+⋮----
+// ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+// ── Actions ───────────────────────────────────────────────────────────────────
 ⋮----
 export async function queryTemplatesAction(rawInput: unknown): Promise<Template[]>
 ⋮----
-// TODO: implement when TemplateUseCases are available
+export async function createTemplateAction(rawInput: unknown)
 ````
 
 ## File: src/modules/notion/adapters/outbound/firebase-composition.ts
@@ -15989,6 +15763,7 @@ export async function queryTemplatesAction(rawInput: unknown): Promise<Template[
 ⋮----
 import { InMemoryPageRepository } from "../../subdomains/page/adapters/outbound/memory/InMemoryPageRepository";
 import { InMemoryDatabaseRepository } from "../../subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository";
+import { InMemoryTemplateRepository } from "../../subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository";
 import {
   CreatePageUseCase,
   RenamePageUseCase,
@@ -15999,6 +15774,10 @@ import {
   CreateDatabaseUseCase,
   AddPropertyUseCase,
 } from "../../subdomains/database/application/use-cases/DatabaseUseCases";
+import {
+  QueryTemplatesUseCase,
+  CreateTemplateUseCase,
+} from "../../subdomains/template/application/use-cases/TemplateUseCases";
 ⋮----
 // ── Singleton repositories ────────────────────────────────────────────────────
 ⋮----
@@ -16006,11 +15785,15 @@ function getPageRepo(): InMemoryPageRepository
 ⋮----
 function getDatabaseRepo(): InMemoryDatabaseRepository
 ⋮----
+function getTemplateRepo(): InMemoryTemplateRepository
+⋮----
 // ── Factory functions ─────────────────────────────────────────────────────────
 ⋮----
 export function createClientNotionPageUseCases()
 ⋮----
 export function createClientNotionDatabaseUseCases()
+⋮----
+export function createClientNotionTemplateUseCases()
 ````
 
 ## File: src/modules/notion/adapters/outbound/notion-page-stub.ts
@@ -16620,6 +16403,23 @@ delete(id: string): Promise<void>;
 // TODO: export server actions / route handlers
 ````
 
+## File: src/modules/notion/subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository.ts
+````typescript
+import type { Template, TemplateCategory, TemplateScope, TemplateRepository } from "../../../domain/entities/Template";
+⋮----
+export class InMemoryTemplateRepository implements TemplateRepository
+⋮----
+async save(template: Template): Promise<void>
+⋮----
+async findById(id: string): Promise<Template | null>
+⋮----
+async findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>
+⋮----
+async listByCategory(category: TemplateCategory): Promise<Template[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
 ## File: src/modules/notion/subdomains/template/adapters/outbound/index.ts
 ````typescript
 // template — outbound adapters placeholder
@@ -16633,7 +16433,27 @@ delete(id: string): Promise<void>;
 
 ## File: src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts
 ````typescript
-// TODO: implement template management use-cases
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { Template, TemplateCategory, TemplateScope, TemplateRepository } from "../../domain/entities/Template";
+⋮----
+export interface CreateTemplateInput {
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly category: TemplateCategory;
+  readonly createdByUserId: string;
+  readonly description?: string;
+}
+⋮----
+export class QueryTemplatesUseCase
+⋮----
+constructor(private readonly repo: TemplateRepository)
+⋮----
+async execute(workspaceId: string): Promise<Template[]>
+⋮----
+export class CreateTemplateUseCase
+⋮----
+async execute(input: CreateTemplateInput): Promise<CommandResult>
 ````
 
 ## File: src/modules/notion/subdomains/template/application/index.ts
@@ -21292,8 +21112,8 @@ subdomains/
 | **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
 | **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
 | **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
-| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Genkit wiring |
-| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment，待 Cloud Storage wiring |
+| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment（gap：Genkit wiring 尚未完成）|
+| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment（gap：Cloud Storage wiring 尚未完成）|
 | **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
 | **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
 
@@ -21740,6 +21560,15 @@ if (accountType === "organization")
  */
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/workspace-audit-filter.ts
+````typescript
+import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+⋮----
+export type EventTypeFilter = (typeof AUDIT_EVENT_TYPES)[number];
+⋮----
+export function matchesAuditEventType(entry: AuditEntrySnapshot, eventType: EventTypeFilter): boolean
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts
 ````typescript
 /**
@@ -21997,6 +21826,8 @@ const tabHref = (tab: WorkspaceTabValue)
 ⋮----
 {/* ── workspace group ── */}
 ⋮----
+{/* ── notebooklm group ── */}
+⋮----
 // ── WorkspaceHubScreen ────────────────────────────────────────────────────────
 ⋮----
 onClick=
@@ -22241,6 +22072,16 @@ const handleReject = (decision: ApprovalDecisionSnapshot) =>
 onClick=
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+⋮----
+import { matchesAuditEventType } from "./workspace-audit-filter";
+import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+⋮----
+function buildEntry(partial: Partial<AuditEntrySnapshot>): AuditEntrySnapshot
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx
 ````typescript
 /**
@@ -22249,9 +22090,14 @@ onClick=
 ⋮----
 import { Badge, Button } from "@packages";
 import { Activity, Filter } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClientAuditUseCases } from "../../outbound/firebase-composition";
 import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+import {
+  AUDIT_EVENT_TYPES,
+  matchesAuditEventType,
+  type EventTypeFilter,
+} from "./workspace-audit-filter";
 ⋮----
 interface WorkspaceAuditSectionProps {
   workspaceId: string;
@@ -22320,12 +22166,12 @@ export function useWorkspaceContext(): WorkspaceContextValue
  * WorkspaceDailySection — workspace.daily tab.
  *
  * IG-style daily post feed at the workspace level.
- * Members can post text and attach photos (by URL) for a given date.
+ * Members can post text and attach photos for a given date.
  * Future expansion: today's task completion summary, attendance check-in.
  *
  * Layout:
  *   ① Date navigation bar
- *   ② Post composer (text + photo URLs)
+ *   ② Post composer (text + photo upload)
  *   ③ Feed — chronological post cards
  */
 ⋮----
@@ -22335,11 +22181,15 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Image as ImageIcon,
   Loader2,
   Send,
+  Upload,
   X,
 } from "lucide-react";
+import {
+  uploadWorkspaceFile,
+  getWorkspaceFileDownloadUrl,
+} from "@/src/modules/platform";
 ⋮----
 import { createFeedPostAction, listFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
 import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
@@ -22377,15 +22227,15 @@ function formatTime(isoString: string): string
 ⋮----
 // ── Composer ──────────────────────────────────────────────────────────────────
 ⋮----
-function addPhoto()
+function handlePickPhotos()
+⋮----
+function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>)
 ⋮----
 function removePhoto(idx: number)
 ⋮----
 function handleSubmit()
 ⋮----
-{/* Photo URL input */}
-⋮----
-onChange=
+{/* Photo upload */}
 ⋮----
 {/* Photo previews */}
 ⋮----

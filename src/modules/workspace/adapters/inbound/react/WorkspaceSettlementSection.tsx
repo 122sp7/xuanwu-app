@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { createActor } from "xstate";
 
 import {
-  createInvoiceAction,
+  createInvoiceFromAcceptedTasksAction,
   listInvoicesByWorkspaceAction,
   transitionInvoiceStatusAction,
 } from "@/src/modules/workspace/adapters/inbound/server-actions/settlement-actions";
@@ -111,10 +111,14 @@ export function WorkspaceSettlementSection({
   );
 
   const handleCreateInvoice = () => {
+    if (acceptedTasks.length === 0) return;
     setPendingInvoiceId("creating");
     startTransition(async () => {
       try {
-        await createInvoiceAction({ workspaceId });
+        await createInvoiceFromAcceptedTasksAction({
+          workspaceId,
+          taskIds: acceptedTasks.map((t) => t.id),
+        });
       } finally {
         setPendingInvoiceId(null);
         loadData(workspaceId);
@@ -147,7 +151,7 @@ export function WorkspaceSettlementSection({
           <Calculator className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">結算</h2>
         </div>
-        <Button size="sm" onClick={handleCreateInvoice} disabled={pendingInvoiceId === "creating"}>
+        <Button size="sm" onClick={handleCreateInvoice} disabled={pendingInvoiceId === "creating" || acceptedTasks.length === 0}>
           {pendingInvoiceId === "creating" ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
@@ -190,6 +194,32 @@ export function WorkspaceSettlementSection({
                   <p className="mt-1 text-xs text-muted-foreground">
                     建立時間：{new Date(invoice.createdAtISO).toLocaleString("zh-TW")}
                   </p>
+                  <p className="mt-0.5 text-xs font-medium text-foreground">
+                    金額：{invoice.totalAmount.toLocaleString("zh-TW")} {invoice.currency}
+                    {invoice.lineItems.length > 0 && (
+                      <span className="ml-1 text-muted-foreground">
+                        （{invoice.lineItems.length} 項）
+                      </span>
+                    )}
+                  </p>
+                  {invoice.lineItems.length > 0 && (
+                    <div className="mt-2 space-y-1 rounded-lg border border-border/30 bg-muted/20 px-2.5 py-2">
+                      {invoice.lineItems.map((li) => (
+                        <div key={li.taskId} className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="truncate">{li.description}</span>
+                          <span className="shrink-0 font-medium text-foreground">
+                            {li.unitPrice.toLocaleString("zh-TW")} × {li.quantity} = {li.netAmount.toLocaleString("zh-TW")}
+                          </span>
+                        </div>
+                      ))}
+                      {invoice.taxRate > 0 && (
+                        <div className="flex items-center justify-between gap-2 border-t border-border/30 pt-1 text-xs text-muted-foreground">
+                          <span>稅額（{(invoice.taxRate * 100).toFixed(0)}%）</span>
+                          <span className="font-medium text-foreground">+{invoice.taxAmount.toLocaleString("zh-TW")}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <Badge variant={STATUS_BADGE[invoice.status]} className="text-xs">
                   {STATUS_LABEL[invoice.status]}

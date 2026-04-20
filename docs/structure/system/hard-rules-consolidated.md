@@ -77,9 +77,10 @@ Cross-reference between `.github/copilot-instructions.md` Mandatory Rules (1-20)
 - ✅ `index.ts` exposes only public surface; hides internals
 - ❌ NO imports from internal module paths outside module
 
-### Rule 8: Platform Provides Shared Infrastructure Services
-- ✅ Firebase Auth, File Storage, Genkit AI routing, Permission API: platform coordinates and governs
-- ✅ Cross-domain coordination, routing, governance: platform owns
+### Rule 8: Platform Provides Shared Operational Services
+- ✅ **iam** owns the canonical `account` and `organization` aggregates; `platform` does NOT own auth governance
+- ✅ File Storage lifecycle, Genkit AI routing, Permission API: platform coordinates as operational services
+- ✅ Cross-domain coordination, routing, audit-log, notification, search: platform owns
 - ❌ notion and notebooklm NEVER bypass FileAPI for operations involving file ownership, entitlement, or multi-tenant isolation
 - ❌ notion and notebooklm DO own domain-local persistence adapters (Firestore reads/writes for their own domain data)
 

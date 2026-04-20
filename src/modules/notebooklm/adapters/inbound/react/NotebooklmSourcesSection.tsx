@@ -2,22 +2,39 @@
 
 /**
  * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
- * Uploads via Firebase Storage (fn Storage Trigger auto-runs parse + RAG).
  *
- * Closed-loop design: uploaded documents are the entry point of the data loop.
- * After upload → fn parses → RAG index → available in notebook/research → task formation.
+ * Manual Document AI pipeline controls:
+ *   ① 上傳文件  — upload to Firebase Storage (fn Storage Trigger auto-runs parse+RAG)
+ *   ② 解析文件  — manually trigger Layout Parser + Form Parser via callable
+ *   ③ RAG 索引  — manually trigger RAG reindex via callable
+ *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
+ *   ⑤ 建立資料庫 — create Notion Database named after document (for Form Parser entities)
  *
- * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
+ * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
 import { Button } from "@packages";
-import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
+import {
+  Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
+  Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
+  Layers, Braces, BarChart2, CheckCircle2,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
-import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
-import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";
+import {
+  queryDocumentsAction,
+  registerUploadedDocumentAction,
+  createPageFromDocumentAction,
+  createDatabaseFromDocumentAction,
+  parseDocumentAction,
+  reindexDocumentAction,
+} from "../server-actions/document-actions";
+import {
+  uploadDocumentToStorage,
+  getDocumentDownloadUrl,
+} from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -45,6 +62,23 @@ function googleDocViewerUrl(downloadUrl: string): string {
   return `https://docs.google.com/viewer?url=${encodeURIComponent(downloadUrl)}&embedded=true`;
 }
 
+// ── Per-document action state ─────────────────────────────────────────────────
+
+type DocActionStatus = "idle" | "running" | "done" | "error";
+
+interface DocActionState {
+  parse: DocActionStatus;
+  index: DocActionStatus;
+  reindex: DocActionStatus;
+  page: DocActionStatus;
+  database: DocActionStatus;
+  message?: string;
+  pageHref?: string;
+  databaseHref?: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
@@ -61,6 +95,10 @@ export function NotebooklmSourcesSection({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Per-document expanded / action state
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
 
   const load = () => {
     startRefresh(async () => {
@@ -89,7 +127,6 @@ export function NotebooklmSourcesSection({
           mimeType: file.type || "application/octet-stream",
           sizeBytes: file.size,
         });
-        // reload list after upload
         const result = await queryDocumentsAction({ accountId, workspaceId });
         setDocuments(Array.isArray(result) ? result : []);
         setLoaded(true);
@@ -126,13 +163,113 @@ export function NotebooklmSourcesSection({
     setPreviewLoading(false);
   };
 
+  // ── Per-document action helpers ─────────────────────────────────────────────
+
+  const setDocAction = (docId: string, patch: Partial<DocActionState>) => {
+    setActionState((prev) => {
+      const current: DocActionState = prev[docId] ?? {
+        parse: "idle", index: "idle", reindex: "idle", page: "idle", database: "idle",
+      };
+      return { ...prev, [docId]: { ...current, ...patch } };
+    });
+  };
+
+  const handleParse = async (doc: DocumentSnapshot) => {
+    if (!doc.storageUrl) return;
+    setDocAction(doc.id, { parse: "running", message: undefined });
+    try {
+      await parseDocumentAction({
+        accountId,
+        workspaceId,
+        docId: doc.id,
+        storageUrl: doc.storageUrl,
+        filename: doc.name,
+        mimeType: doc.mimeType || "application/pdf",
+        sizeBytes: doc.sizeBytes,
+      });
+      setDocAction(doc.id, { parse: "done", message: "解析完成，產出物已儲存" });
+      // Reload list to pick up updated Firestore metadata
+      const result = await queryDocumentsAction({ accountId, workspaceId });
+      setDocuments(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setDocAction(doc.id, { parse: "error", message: err instanceof Error ? err.message : "解析失敗" });
+    }
+  };
+
+  const handleIndex = async (doc: DocumentSnapshot) => {
+    if (!doc.id) return;
+    if (!doc.parsedJsonGcsUri) {
+      setDocAction(doc.id, { index: "error", message: "文件尚未解析，請先執行「解析文件」後再建立索引" });
+      return;
+    }
+    setDocAction(doc.id, { index: "running", message: undefined });
+    try {
+      await reindexDocumentAction({ accountId, docId: doc.id, jsonGcsUri: doc.parsedJsonGcsUri });
+      setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成" });
+      const result = await queryDocumentsAction({ accountId, workspaceId });
+      setDocuments(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setDocAction(doc.id, { index: "error", message: err instanceof Error ? err.message : "建立索引失敗" });
+    }
+  };
+
+  const handleReindex = async (doc: DocumentSnapshot) => {
+    if (!doc.id) return;
+    if (!doc.parsedJsonGcsUri) {
+      setDocAction(doc.id, { reindex: "error", message: "文件尚未解析，請先執行「解析文件」後再重建索引" });
+      return;
+    }
+    setDocAction(doc.id, { reindex: "running", message: undefined });
+    try {
+      await reindexDocumentAction({ accountId, docId: doc.id, jsonGcsUri: doc.parsedJsonGcsUri });
+      setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成" });
+      const result = await queryDocumentsAction({ accountId, workspaceId });
+      setDocuments(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setDocAction(doc.id, { reindex: "error", message: err instanceof Error ? err.message : "重建索引失敗" });
+    }
+  };
+
+  const handleCreatePage = async (doc: DocumentSnapshot) => {
+    setDocAction(doc.id, { page: "running", message: undefined });
+    try {
+      const result = await createPageFromDocumentAction({
+        accountId,
+        workspaceId,
+        documentId: doc.id,
+        documentTitle: doc.name,
+      });
+      const href = result?.pageHref;
+      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: href ?? undefined });
+    } catch (err) {
+      setDocAction(doc.id, { page: "error", message: err instanceof Error ? err.message : "建立頁面失敗" });
+    }
+  };
+
+  const handleCreateDatabase = async (doc: DocumentSnapshot) => {
+    setDocAction(doc.id, { database: "running", message: undefined });
+    try {
+      await createDatabaseFromDocumentAction({
+        accountId,
+        workspaceId,
+        documentTitle: doc.name,
+      });
+      const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
+      setDocAction(doc.id, { database: "done", message: "資料庫已建立", databaseHref: `${base}?tab=Database` });
+    } catch (err) {
+      setDocAction(doc.id, { database: "error", message: err instanceof Error ? err.message : "建立資料庫失敗" });
+    }
+  };
+
+  // ── Render helpers ───────────────────────────────────────────────────────────
+
   const isPending = isRefreshing || isUploading;
   const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
-
   const hasReadyDocs = documents.some((d) => d.status === "active");
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Upload className="size-4 text-primary" />
@@ -148,19 +285,14 @@ export function NotebooklmSourcesSection({
             <FileUp className={`size-3.5 ${isUploading ? "animate-pulse" : ""}`} />
             {isUploading ? "上傳中…" : "上傳文件"}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={load}
-            disabled={isPending}
-          >
+          <Button size="sm" variant="ghost" onClick={load} disabled={isPending}>
             <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             重新整理
           </Button>
         </div>
       </div>
 
-      {/* hidden file input */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -182,17 +314,20 @@ export function NotebooklmSourcesSection({
         </p>
       )}
 
-      {/* Processing chain banner — always visible once loaded */}
+      {/* Processing chain banner */}
       {loaded && (
-        <div className="flex items-center gap-1.5 overflow-x-auto rounded-xl border border-border/40 bg-muted/20 px-4 py-3 text-xs">
-          <span className="shrink-0 text-muted-foreground font-medium">處理鏈：</span>
+        <div className="flex items-center gap-1 overflow-x-auto rounded-xl border border-border/40 bg-muted/20 px-4 py-3 text-xs">
+          <span className="shrink-0 text-muted-foreground font-medium">解析鏈：</span>
           <span className="shrink-0 rounded bg-orange-500/10 px-2 py-0.5 text-orange-600">① 上傳</span>
           <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
-          <span className="shrink-0 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600">② fn 解析</span>
+          <span className="shrink-0 rounded bg-sky-500/10 px-2 py-0.5 text-sky-600">② Layout Parser</span>
+          <span className="shrink-0 rounded bg-indigo-500/10 px-2 py-0.5 text-indigo-600 ml-0.5">+ Form Parser</span>
           <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
           <span className="shrink-0 rounded bg-purple-500/10 px-2 py-0.5 text-purple-600">③ RAG 索引</span>
           <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
           <span className="shrink-0 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600">④ 就緒</span>
+          <ArrowRight className="size-3 shrink-0 text-muted-foreground/50" />
+          <span className="shrink-0 rounded bg-amber-500/10 px-2 py-0.5 text-amber-600">⑤ Pages / DB</span>
         </div>
       )}
 
@@ -206,45 +341,205 @@ export function NotebooklmSourcesSection({
         </p>
       )}
 
+      {/* Document list */}
       {loaded && documents.length > 0 && (
         <ul className="space-y-2">
-          {documents.map((doc) => (
-            <li
-              key={doc.id}
-              className="rounded-lg border border-border/40 px-3 py-2 text-sm"
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{doc.name}</span>
-                <div className="flex items-center gap-2">
-                  {doc.storageUrl && PREVIEWABLE_TYPES.has(doc.mimeType) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => void handlePreview(doc)}
+          {documents.map((doc) => {
+            const state = actionState[doc.id];
+            const isExpanded = expandedId === doc.id;
+            const anyRunning = state && (
+              state.parse === "running" || state.index === "running" || state.reindex === "running" ||
+              state.page === "running" || state.database === "running"
+            );
+
+            return (
+              <li key={doc.id} className="rounded-lg border border-border/40 text-sm overflow-hidden">
+                {/* Document header row */}
+                <div className="flex items-center justify-between px-3 py-2">
+                  <span className="font-medium truncate max-w-[200px]">{doc.name}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {doc.storageUrl && PREVIEWABLE_TYPES.has(doc.mimeType) && (
+                      <Button
+                        size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                        onClick={() => void handlePreview(doc)}
+                      >
+                        <Eye className="size-3 mr-1" />
+                        預覽
+                      </Button>
+                    )}
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-xs ${
+                        doc.status === "active"
+                          ? "bg-green-500/10 text-green-600"
+                          : doc.status === "processing"
+                            ? "bg-yellow-500/10 text-yellow-600"
+                            : doc.status === "archived"
+                              ? "bg-red-500/10 text-red-600"
+                              : "bg-muted text-muted-foreground"
+                      }`}
+                      title={doc.status === "archived" && doc.errorMessage ? doc.errorMessage : undefined}
                     >
-                      <Eye className="size-3 mr-1" />
-                      預覽
+                      {doc.status === "archived" ? "解析失敗" : (STATUS_LABELS[doc.status] ?? doc.status)}
+                    </span>
+                    {/* Toggle actions panel */}
+                    <Button
+                      size="sm" variant="ghost" className="h-6 w-6 p-0"
+                      aria-label={isExpanded ? "收起動作" : "展開動作"}
+                      onClick={() => setExpandedId(isExpanded ? null : doc.id)}
+                    >
+                      {isExpanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
                     </Button>
-                  )}
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-xs ${
-                      doc.status === "active"
-                        ? "bg-green-500/10 text-green-600"
-                        : doc.status === "processing"
-                          ? "bg-yellow-500/10 text-yellow-600"
-                          : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {STATUS_LABELS[doc.status] ?? doc.status}
-                  </span>
+                  </div>
                 </div>
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {doc.mimeType} · {(doc.sizeBytes / 1024).toFixed(1)} KB
-              </p>
-            </li>
-          ))}
+
+                {/* Meta row */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pb-1.5 text-xs text-muted-foreground">
+                  <span>{doc.mimeType} · {(doc.sizeBytes / 1024).toFixed(1)} KB</span>
+                  {doc.parsedPageCount != null && (
+                    <span className="flex items-center gap-0.5 text-sky-600">
+                      <Layers className="size-3" />
+                      {doc.parsedPageCount} 頁
+                    </span>
+                  )}
+                  {doc.parsedChunkCount != null && (
+                    <span className="flex items-center gap-0.5 text-sky-600">
+                      <FileText className="size-3" />
+                      Layout: {doc.parsedChunkCount} 塊
+                    </span>
+                  )}
+                  {doc.parsedEntityCount != null && doc.parsedEntityCount > 0 && (
+                    <span className="flex items-center gap-0.5 text-indigo-600">
+                      <Braces className="size-3" />
+                      Form: {doc.parsedEntityCount} 欄位
+                    </span>
+                  )}
+                  {doc.ragChunkCount != null && (
+                    <span className="flex items-center gap-0.5 text-purple-600">
+                      <BarChart2 className="size-3" />
+                      RAG: {doc.ragChunkCount} 塊 / {doc.ragVectorCount ?? 0} 向量
+                    </span>
+                  )}
+                  {doc.errorMessage && doc.status === "archived" && (
+                    <span className="text-red-500/80 truncate max-w-xs" title={doc.errorMessage}>
+                      ⚠ {doc.errorMessage}
+                    </span>
+                  )}
+                </div>
+
+                {/* Expandable actions panel */}
+                {isExpanded && (
+                  <div className="border-t border-border/30 bg-muted/10 px-3 py-3 space-y-3">
+                    {/* Section: Document AI parse */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Document AI 解析</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={!doc.storageUrl || state?.parse === "running" || !!anyRunning}
+                          onClick={() => void handleParse(doc)}
+                        >
+                          {state?.parse === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <ScanText className="size-3" />
+                          )}
+                          解析文件
+                        </Button>
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={state?.index === "running" || !!anyRunning}
+                          onClick={() => void handleIndex(doc)}
+                        >
+                          {state?.index === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="size-3 text-purple-600" />
+                          )}
+                          建立 RAG 索引
+                        </Button>
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={state?.reindex === "running" || !!anyRunning}
+                          onClick={() => void handleReindex(doc)}
+                        >
+                          {state?.reindex === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="size-3 text-orange-600" />
+                          )}
+                          重建 RAG 索引
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Section: Generate downstream artifacts */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">產出物生成</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={state?.page === "running" || !!anyRunning}
+                          onClick={() => void handleCreatePage(doc)}
+                        >
+                          {state?.page === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : state?.page === "done" ? (
+                            <CheckCircle2 className="size-3 text-green-600" />
+                          ) : (
+                            <BookOpen className="size-3 text-sky-600" />
+                          )}
+                          建立知識頁 (Page)
+                        </Button>
+                        {state?.page === "done" && state.pageHref && (
+                          <Link
+                            href={state.pageHref}
+                            className="inline-flex items-center gap-1 rounded border border-green-500/30 bg-green-500/5 px-2 py-1 text-xs text-green-700 hover:bg-green-500/10"
+                          >
+                            <ArrowRight className="size-3" />
+                            前往頁面
+                          </Link>
+                        )}
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={state?.database === "running" || !!anyRunning}
+                          onClick={() => void handleCreateDatabase(doc)}
+                        >
+                          {state?.database === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : state?.database === "done" ? (
+                            <CheckCircle2 className="size-3 text-green-600" />
+                          ) : (
+                            <Database className="size-3 text-indigo-600" />
+                          )}
+                          建立資料庫 (Database)
+                        </Button>
+                        {state?.database === "done" && state.databaseHref && (
+                          <Link
+                            href={state.databaseHref}
+                            className="inline-flex items-center gap-1 rounded border border-green-500/30 bg-green-500/5 px-2 py-1 text-xs text-green-700 hover:bg-green-500/10"
+                          >
+                            <ArrowRight className="size-3" />
+                            前往資料庫
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action status message */}
+                    {state?.message && (
+                      <p className={`text-xs px-2 py-1 rounded ${
+                        (state.parse === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {state.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -287,7 +582,6 @@ export function NotebooklmSourcesSection({
           onKeyDown={(e) => { if (e.key === "Escape") closePreview(); }}
         >
           <div className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
-            {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <Eye className="size-4 text-primary" />
@@ -298,8 +592,6 @@ export function NotebooklmSourcesSection({
                 <X className="size-4" />
               </Button>
             </div>
-
-            {/* Body */}
             <div className="relative flex-1 overflow-hidden">
               {previewLoading && (
                 <div className="absolute inset-0 flex items-center justify-center">

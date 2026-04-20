@@ -7,10 +7,6 @@ export interface IssueLifecycleContext {
 }
 
 export type IssueLifecycleEvent =
-  | { type: "INVESTIGATE" }
-  | { type: "START_FIX" }
-  | { type: "SUBMIT_RETEST" }
-  | { type: "REOPEN_FIX" }
   | { type: "RESOLVE" }
   | { type: "CLOSE" };
 
@@ -18,7 +14,7 @@ export type IssueLifecycleEvent =
  * issueLifecycleMachine — XState FSM modelling the Issue status lifecycle.
  *
  * Matches the domain FSM in IssueStatus.ts:
- *   open → investigating → fixing → retest → resolved / fixing(reopen)
+ *   open / investigating / fixing / retest → resolved
  *   resolved → closed
  */
 export const issueLifecycleMachine = setup({
@@ -33,19 +29,16 @@ export const issueLifecycleMachine = setup({
   initial: "open",
   states: {
     open: {
-      on: { INVESTIGATE: { target: "investigating" } },
+      on: { RESOLVE: { target: "resolved" } },
     },
     investigating: {
-      on: { START_FIX: { target: "fixing" } },
+      on: { RESOLVE: { target: "resolved" } },
     },
     fixing: {
-      on: { SUBMIT_RETEST: { target: "retest" } },
+      on: { RESOLVE: { target: "resolved" } },
     },
     retest: {
-      on: {
-        RESOLVE: { target: "resolved" },
-        REOPEN_FIX: { target: "fixing" },
-      },
+      on: { RESOLVE: { target: "resolved" } },
     },
     resolved: {
       on: { CLOSE: { target: "closed" } },
@@ -74,13 +67,10 @@ export function getIssueTransitionEvents(
 ): IssueLifecycleEvent["type"][] {
   switch (status) {
     case "open":
-      return ["INVESTIGATE"];
     case "investigating":
-      return ["START_FIX"];
     case "fixing":
-      return ["SUBMIT_RETEST"];
     case "retest":
-      return ["RESOLVE", "REOPEN_FIX"];
+      return ["RESOLVE"];
     case "resolved":
       return ["CLOSE"];
     case "closed":
@@ -93,20 +83,12 @@ export const ISSUE_EVENT_TO_STATUS: Record<
   IssueLifecycleEvent["type"],
   IssueStatus | null
 > = {
-  INVESTIGATE: "investigating",
-  START_FIX: "fixing",
-  SUBMIT_RETEST: "retest",
-  REOPEN_FIX: "fixing",
   RESOLVE: "resolved",
   CLOSE: "closed",
 };
 
 /** Human-readable label for each transition event */
 export const ISSUE_EVENT_LABEL: Record<IssueLifecycleEvent["type"], string> = {
-  INVESTIGATE: "開始調查",
-  START_FIX: "開始修復",
-  SUBMIT_RETEST: "提交重測",
-  REOPEN_FIX: "重新修復",
   RESOLVE: "標記已解決",
   CLOSE: "關閉問題",
 };

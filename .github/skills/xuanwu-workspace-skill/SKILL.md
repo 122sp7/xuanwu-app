@@ -1,11 +1,11 @@
 ---
-name: xuanwu-skill
+name: xuanwu-workspace-skill
 description: Reference codebase for Xuanwu App. Use this skill when you need to understand the structure, implementation patterns, or code details of the Xuanwu App project.
 ---
 
 # Xuanwu App Codebase Reference
 
-984 files | 24802 lines | 257485 tokens
+265 files | 5927 lines | 59549 tokens
 
 ## Overview
 
@@ -22,7 +22,6 @@ Use this skill when you need to:
 | `references/summary.md` | **Start here** - Purpose, format explanation, and statistics |
 | `references/project-structure.md` | Directory tree with line counts per file |
 | `references/files.md` | All file contents (search with `## File: <path>`) |
-| `references/tech-stack.md` | Languages, frameworks, and dependencies |
 
 ## How to Use
 
@@ -72,7 +71,6 @@ function calculateTotal
 - Use line counts in `project-structure.md` to estimate file complexity
 - Search `## File:` pattern to jump between files
 - Check `summary.md` for excluded files, format details, and file statistics
-- Check `tech-stack.md` for languages, frameworks, and dependencies
 
 ---
 

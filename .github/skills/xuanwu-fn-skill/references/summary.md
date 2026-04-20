@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-78 files | 2,128 lines
+78 files | 2,130 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Python | 74 | 1,753 |
+| Python | 74 | 1,755 |
 | Text | 2 | 26 |
 | Markdown | 2 | 349 |
 
@@ -55,7 +55,7 @@ This skill contains the following reference files:
 - `fn/src/infrastructure/external/documentai/client.py` (138 lines)
 - `fn/AGENTS.md` (137 lines)
 - `fn/src/interface/handlers/storage.py` (100 lines)
-- `fn/src/infrastructure/persistence/firestore/document_repository.py` (89 lines)
+- `fn/src/infrastructure/persistence/firestore/document_repository.py` (91 lines)
 - `fn/src/infrastructure/external/upstash/search_client.py` (73 lines)
 - `fn/src/core/config.py` (71 lines)
 - `fn/src/interface/schemas/rag_query.py` (71 lines)
