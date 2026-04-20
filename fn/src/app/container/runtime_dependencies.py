@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from domain.repositories import (
@@ -35,6 +36,8 @@ from infrastructure.persistence.storage.client import (
     form_json_path,
     upload_json,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class InfraRagQueryGateway:
@@ -98,7 +101,7 @@ class InfraDocumentPipelineGateway:
     def _looks_like_empty_layout(parsed: ParsedDocument) -> bool:
         return (
             parsed.page_count <= 0
-            or (len(parsed.chunks) == 0 and len((parsed.text or "").strip()) == 0)
+            or (len(parsed.chunks) == 0 and not (parsed.text or "").strip())
         )
 
     @staticmethod
@@ -117,6 +120,7 @@ class InfraDocumentPipelineGateway:
                     "page_start": 0,
                     "page_end": 0,
                     "source_block_indices": [],
+                    "synthetic": True,
                 }
             )
         return chunks
@@ -156,6 +160,10 @@ class InfraDocumentPipelineGateway:
 
         fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
         if not fallback_processor:
+            logger.warning(
+                "DocumentAI: layout output empty for %s but no OCR/Form fallback processor configured",
+                gcs_uri,
+            )
             return layout_parsed
 
         fallback_parsed = process_document_gcs(
@@ -163,8 +171,17 @@ class InfraDocumentPipelineGateway:
             mime_type=mime_type,
             processor_name=fallback_processor,
         )
-        fallback_text = (layout_parsed.text or fallback_parsed.text or "").strip()
-        fallback_chunks = layout_parsed.chunks or self._synthesize_chunks_from_text(fallback_text)
+        fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
+        # Layout path may return [] when processor yields no semantic chunks.
+        fallback_chunks = (
+            layout_parsed.chunks
+            if layout_parsed.chunks is not None and len(layout_parsed.chunks) > 0
+            else (
+                fallback_parsed.chunks
+                if fallback_parsed.chunks is not None and len(fallback_parsed.chunks) > 0
+                else self._synthesize_chunks_from_text(fallback_text)
+            )
+        )
 
         return ParsedDocument(
             text=fallback_text,

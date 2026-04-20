@@ -13,6 +13,9 @@ const CandidateSchema = z.object({
   sourceSnippet: z.string().optional(),
 });
 
+const LINE_ITEM_PATTERN = /^(\d{2,3})\s+/;
+const MAX_TITLE_BODY_CHARS = 100;
+
 /**
  * FirebaseCallableTaskCandidateExtractor — working implementation of
  * TaskCandidateExtractorPort with Firebase-only runtime behavior.
@@ -26,7 +29,7 @@ const CandidateSchema = z.object({
 export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort {
   private _inferCategory(text: string): "施工作業" | "費用管銷" {
     const normalized = text.toLowerCase();
-    const costKeywords = [
+    const costKeywords: readonly string[] = [
       "費",
       "折扣",
       "稅",
@@ -41,9 +44,22 @@ export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtr
       "tax",
       "discount",
     ];
-    return costKeywords.some((keyword) => normalized.includes(keyword.toLowerCase()))
-      ? "費用管銷"
-      : "施工作業";
+    const workKeywords: readonly string[] = [
+      "施工",
+      "配線",
+      "安裝",
+      "架設",
+      "熔接",
+      "搬運",
+      "建置",
+      "作業",
+      "工程",
+      "線槽",
+      "定位",
+    ];
+    const costScore = costKeywords.filter((keyword) => normalized.includes(keyword)).length;
+    const workScore = workKeywords.filter((keyword) => normalized.includes(keyword)).length;
+    return costScore >= workScore ? "費用管銷" : "施工作業";
   }
 
   async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]> {
@@ -59,21 +75,23 @@ export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtr
 
     const lineItemCandidates = lines
       .map((line, index) => ({ line, index }))
-      .filter(({ line }) => /^\d{2,3}\s+/.test(line))
+      .filter(({ line }) => LINE_ITEM_PATTERN.test(line))
       .map(({ line, index }) => {
-        const itemNo = (line.match(/^(\d{2,3})\s+/)?.[1] ?? "").trim();
-        const body = line.replace(/^\d{2,3}\s+/, "").trim();
-        const titleBody = body.slice(0, 100) || `項次 ${itemNo}`;
+        const itemNo = (line.match(LINE_ITEM_PATTERN)?.[1] ?? "").trim();
+        const body = line.replace(LINE_ITEM_PATTERN, "").trim();
+        const titleBody = body.slice(0, MAX_TITLE_BODY_CHARS);
+        if (!titleBody) return null;
         const category = this._inferCategory(titleBody);
         return {
           title: `[${category}] ${itemNo} ${titleBody}`.trim(),
           description: `[分類] ${category}\n${line}`,
           source: inferredSource,
-          confidence: Math.max(0.6, 0.96 - index * 0.002),
+          confidence: 0.9,
           sourceBlockId: primarySource,
           sourceSnippet: line.slice(0, 240),
         };
-      });
+      })
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null);
 
     const sentenceCandidates = normalizedText
       .split(/\r?\n|[。！？!?.]/g)
