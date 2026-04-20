@@ -1,5 +1,133 @@
 # Files
 
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+#use skill serena-mcp
+#use skill repomix
+#use skill context7
+#use skill xuanwu-skill
+#use skill hexagonal-ddd
+#use skill xuanwu-markdown-skill
+#use skill occams-razor
+#use skill alistair-cockburn
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+### Mandatory Skills (Load Every Session, No Exceptions)
+
+These three skills **must be loaded at the start of every conversation** before any other action:
+
+| Order | Skill | Purpose |
+|---|---|---|
+| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
+| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
+| 3 | `context7` | Library/framework API verification gate |
+
+- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
+- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
+- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
+
+## Mandatory Compliance Rules
+
+These rules are **non-negotiable** and apply to every task, file, and decision. Any violation requires an immediate stop and explicit report before proceeding.
+
+1. **AI Operational Scope**: Without explicit authorization, do not create files, add modules, modify interface definitions, or make any changes beyond the scope of the current task description.
+2. **Bounded Context**: Every concept belongs to exactly one Context. When referencing a same-named concept across Contexts, an explicit mapping layer must be established. Sharing types or objects directly is not permitted.
+3. **Ubiquitous Language Governance**: All naming must derive from the defined Domain glossary. When encountering a name not in the glossary, halt implementation and report it. Self-naming is not permitted.
+4. **Contract / Schema**: All data entering the system must pass through a defined Schema validation. Accessing raw input outside the validation layer is not permitted. Assuming input is valid is not permitted.
+5. **Breaking Change Policy**: When modifying any externally exposed Schema, interface, or event structure, a new version must be added and the old version retained. Direct overwriting is not permitted.
+6. **Aggregate Design**: All modifications to an Aggregate's internal state must be executed through that Aggregate's own methods. Directly modifying an Aggregate's properties or child objects from outside is not permitted.
+7. **State Model / FSM**: Every state transition must exist in the defined list of legal transitions. Transition paths that are not defined must throw an error. Silent ignoring or self-inferred transitions are not permitted.
+8. **Consistency / Transaction Strategy**: Operations spanning Aggregates or Contexts must not be wrapped in a single transaction. A defined saga or outbox pattern must be used. Designing ad-hoc synchronous coupling solutions is not permitted.
+9. **Event Ordering / Causality Model**: All event handlers must implement idempotency. Assuming events arrive in send order is not permitted. Sequence must be determined using a causality token or version number.
+10. **Failure Strategy**: Every external call must define a failure handling path (retry / compensate / dead-letter). Silently swallowing exceptions is not permitted. Assuming external services always succeed is not permitted.
+11. **Authorization / Security**: Every operation must verify that the caller holds the required permission before execution. Relying on call order or upstream validation as implicit authorization is not permitted.
+12. **Hexagonal Architecture**: The Domain layer must not import any types from Infrastructure, Frameworks, or external services. All external dependencies must be accessed through defined Port interfaces.
+13. **Dependency Rule Enforcement**: Dependencies may only flow inward (Infrastructure → Application → Domain). Reverse dependencies are forbidden. Direct imports between Contexts at the same layer are forbidden.
+14. **Testability / Specification**: Every Domain behavior must have corresponding automated test coverage. Implementing logic structures that cannot be verified by the existing test framework is not permitted.
+15. **Observability**: All cross-layer calls, state changes, and errors must produce structured, traceable records. Replacing structured events with print statements or log strings is not permitted.
+16. **ADR / Design Rationale**: When multiple implementation options are technically viable, do not choose independently. Halt, list the options and their differences, and wait for a human decision before proceeding.
+17. **Minimum Necessary Design / YAGNI**: Do not create abstractions, interfaces, or extension points for future possibilities. Every new structure must correspond to a requirement that explicitly exists in the current task.
+18. **Single Responsibility / No Redundancy**: Every concept must be defined exactly once in exactly one layer. When the same semantic is found expressed in multiple places, report the conflict. Allowing both to coexist is not permitted.
+19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
+20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
+
+> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
+
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
+## Module Layer Routing（src-only）
+
+本 repo 已全面改為 `src/modules/` 單一模組層：
+
+| 路徑 | 職責 | 撰寫時機 |
+|---|---|---|
+| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
+
+- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
+- 新實作一律以 `src/modules/template` 骨架為基線。
+- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
+
+## Operating Rules
+
+> Dependency direction, domain purity, cross-module boundary, and planning discipline are governed by **Mandatory Compliance Rules 12–13, 16–17**. Items below are repo-specific structural decisions.
+
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+> Governed by **Mandatory Compliance Rule 3**. Authority: [docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
+
+## DDD Strategic Rules (Phase 1)
+
+- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
+- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
+- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
+- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+````
+
+## File: docs/decisions/ai/.gitkeep
+````
+
+````
+
 ## File: docs/decisions/ai/0001-ai-chunk-embedding-pipeline-ownership.md
 ````markdown
 # ADR 0001 — ai module chunk/embedding/pipeline 子域歸屬
@@ -549,6 +677,11 @@ response = client.models.generate_content(
 - [docs/structure/contexts/notebooklm/README.md](../../structure/contexts/notebooklm/README.md)
 ````
 
+## File: docs/decisions/architecture/.gitkeep
+````
+
+````
+
 ## File: docs/decisions/architecture/0001-ddd-subdomain-boundary-governance.md
 ````markdown
 # ADR 0001 — DDD Subdomain Boundary Governance
@@ -777,6 +910,11 @@ const { workspace } = useWorkspaceContext(); // 在 notion/ components 裡
 - `.github/instructions/architecture-core.instructions.md` — index.ts 公開入口規則
 - `eslint.config.mjs` — no-restricted-imports 現有配置
 - `src/modules/<context>/index.ts` — 待審查文件
+````
+
+## File: docs/decisions/data/.gitkeep
+````
+
 ````
 
 ## File: docs/decisions/data/0001-firestore-subdomain-collection-boundaries.md
@@ -1199,6 +1337,11 @@ match /po_extraction_categories/{sourceId}/categories/{categoryCode} {
 - PDF 驗證文件：PO #4510250181（ABB Ltd.，配電盤 SCADA 工程，TWD 85,575,001）
 - Context7 驗證：`/websites/cloud_google_document-ai` → Firestore BigQuery integration
 - Firestore data model design: [firestore-schema.instructions.md](../../../../.github/instructions/firestore-schema.instructions.md)
+````
+
+## File: docs/decisions/domain/.gitkeep
+````
+
 ````
 
 ## File: docs/decisions/domain/0001-notebooklm-document-to-source-rename.md
@@ -1813,6 +1956,11 @@ export interface SourceStructuredExtractionCompleted {
 - [src/modules/notebooklm/AGENTS.md](../../../../src/modules/notebooklm/AGENTS.md)
 ````
 
+## File: docs/decisions/meta/.gitkeep
+````
+
+````
+
 ## File: docs/decisions/meta/0001-adr-format-and-numbering.md
 ````markdown
 # ADR 0001 — ADR 格式與編號規範
@@ -1889,6 +2037,11 @@ Accepted
 
 - `.github/copilot-instructions.md` — Mandatory Compliance Rule 16
 - `docs/README.md` — Conflict Resolution Rules
+````
+
+## File: docs/decisions/platform/.gitkeep
+````
+
 ````
 
 ## File: docs/decisions/platform/0001-platform-audit-log-vs-workspace-audit.md
@@ -2137,434 +2290,6 @@ packages/infra/cache/
 - `src/modules/platform/subdomains/cache/` — 待評估遷移的現有子域
 - `packages/infra/` — 目標位置
 - ADR architecture/0001 — subdomain boundary governance（extra subdomains evaluation 規則）
-````
-
-## File: fn/src/domain/services/po_extraction.py
-````python
-"""
-Domain Service — Purchase Order (PO) line item extraction and classification.
-
-Pure business logic — no infrastructure dependency.
-
-Supports the ABB 訂購單 AP8 format (document 4510250181-AP8_v0-8150.PDF):
-  - 54 line items numbered 10–540 in steps of 10
-  - Two task categories: 施工作業 (construction) / 費用管銷 (expense management)
-  - Dense text format produced by Document AI OCR / Layout Parser
-
-Dependency: stdlib only.
-"""
-⋮----
-# ── Chinese numeral character class used in section headers ─────────────────
-_CHINESE_NUMERALS = "一二三四五六七八九十壹貳參肆伍陸柒捌玖拾"
-⋮----
-# Pattern: item number (10–540, step 10) at word boundary
-_ITEM_NO_PATTERN = re.compile(r"(?<!\d)(\d{2,3})(?=\s)")
-⋮----
-# Pattern: 小計 + amount signals end of price data; description follows.
-# The space between 小計 and the amount is optional — items crossing page
-# breaks in the AP8 PDF produce "小計 721,619" (with space).
-_SUBTOTAL_PATTERN = re.compile(r"小計\s*[\d,，.]+\s*")
-⋮----
-# Pattern: section header 「（中文数字）」
-_SECTION_HEADER_PATTERN = re.compile(
-⋮----
-# Pattern to truncate description at noise boundaries within a single OCR line:
-# next-item anchor (e.g. "330 3RDTW"), summary totals, or ABB page footer.
-# Note: "ABB Ltd." is intentionally vendor-specific — this service is scoped to
-# the ABB AP8 訂購單 format (document 4510250181); see module docstring.
-_DESCRIPTION_STOP_PATTERN = re.compile(r"\d{2,3}\s+3RDTW|未稅總計|ABB Ltd\.")
-⋮----
-# ── Classification rules ─────────────────────────────────────────────────────
-⋮----
-# Section numerals whose entire section is 費用管銷.
-# Specific to the ABB AP8 訂購單 4510250181 section structure:
-#   伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
-#   玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
-# Sections 一–肆 and 柒–捌 contain a mix; classification falls through to
-# _COST_DESCRIPTION_PATTERNS for per-item discrimination.
-_COST_SECTION_CHARS: frozenset[str] = frozenset(["伍", "玖"])
-⋮----
-# Description-level patterns that force 費用管銷, regardless of section
-_COST_DESCRIPTION_PATTERNS: list[re.Pattern[str]] = [
-⋮----
-re.compile(r"費$"),           # ends with 費 (e.g., 高空作業費, 工程衛生費)
-re.compile(r"費用"),          # 費用 anywhere
-re.compile(r"管理\d*人"),     # management headcount (e.g., 管理1人*4個月)
-re.compile(r"監工"),          # supervision
-re.compile(r"工安費"),        # safety fee
-re.compile(r"保險"),          # insurance
-re.compile(r"分攤"),          # cost allocation
-re.compile(r"廢棄物"),        # waste disposal
-re.compile(r"5D"),            # 5D cost
-re.compile(r"利潤"),          # profit
-re.compile(r"圖控與軟體"),    # SCADA software deliverable (cost item)
-re.compile(r"圖面製作"),      # drawing / document fee
-re.compile(r"工務所"),        # site office
-⋮----
-def classify_po_task(description: str, section_char: str = "") -> Literal["施工作業", "費用管銷"]
-⋮----
-"""Classify a PO line item as 施工作業 or 費用管銷.
-
-    Args:
-        description: Chinese task description text.
-        section_char: Chinese numeral from the section header (e.g., "伍").
-
-    Returns:
-        "施工作業" or "費用管銷"
-    """
-# Section-level override takes precedence
-⋮----
-# Description-level pattern matching
-⋮----
-def extract_po_line_items(text: str) -> list[dict[str, Any]]
-⋮----
-"""Extract structured line items from AP8 PO raw text.
-
-    Document AI (OCR / Layout Parser) produces dense text where each line item
-    is formatted as::
-
-        "{item_no} {product_code} SET {price}... 小計{total}（{section}）{description}"
-
-    This function locates each item's Chinese section header and description
-    after the price block and returns a structured list.
-
-    Args:
-        text: Raw text from Document AI output for the PO document.
-
-    Returns:
-        Sorted list (by item_no) of dicts with keys:
-            item_no (int): 10, 20, … 540
-            section (str): e.g., "（一）SCADA站內工程"
-            section_char (str): e.g., "一"
-            description (str): task description text
-            category (str): "施工作業" or "費用管銷"
-            raw_snippet (str): first 200 chars of the matched segment
-    """
-# Normalize horizontal whitespace for reliable pattern matching
-normalized = re.sub(r"[ \t]+", " ", text)
-⋮----
-items: list[dict[str, Any]] = []
-⋮----
-# Split on item boundaries: digit(s) followed by the ABB product code prefix
-# or a Chinese description marker so we get one segment per line item.
-segment_pattern = re.compile(
-segments = list(segment_pattern.finditer(normalized))
-⋮----
-item_no_str = match.group(1)
-⋮----
-item_no = int(item_no_str)
-⋮----
-# Validate item number is in the expected AP8 range (10–540, step 10)
-⋮----
-# Extract the text segment for this item
-start = match.start()
-end = segments[idx + 1].start() if idx + 1 < len(segments) else len(normalized)
-segment = normalized[start:end]
-⋮----
-# Find 小計 to locate where the price block ends
-subtotal_match = _SUBTOTAL_PATTERN.search(segment)
-description_zone = segment[subtotal_match.end():] if subtotal_match else segment
-⋮----
-# Extract section header + leading description from the description zone
-header_match = _SECTION_HEADER_PATTERN.search(description_zone)
-⋮----
-section_char = header_match.group(1).strip()
-description_raw = (header_match.group(2) or "").strip()
-# Truncate at noise boundaries (next-item anchor or summary totals)
-description_raw = _DESCRIPTION_STOP_PATTERN.split(description_raw, maxsplit=1)[0].strip()
-⋮----
-# Collect any remaining text after the section header (may continue on next line)
-after_header = description_zone[header_match.end():].strip()
-# Limit to first sentence/clause; stop at new section, page-break, next item, or totals
-extra = re.split(r"[（\n]|ABB Ltd\.|(?=\d{2,3}\s+3RDTW)|未稅總計", after_header, maxsplit=1)[0].strip()
-# Only append extra if it starts with Chinese text (genuine description continuation).
-# ASCII-leading text (e.g., "Ref: 6591401)折扣…") is leaked price data — discard.
-# Known limitation: descriptions that legitimately start with English terms
-# (e.g., "RTU盤內…") will not be extended by extra; they are however already
-# fully captured by _SECTION_HEADER_PATTERN group 2 in practice.
-⋮----
-description_raw = (description_raw + " " + extra).strip()
-⋮----
-description = re.sub(r"\s+", " ", description_raw).strip()
-⋮----
-section_label = f"（{section_char}）"
-category = classify_po_task(description, section_char)
-⋮----
-# De-duplicate: the PDF's multi-page layout causes identical items to appear
-# more than once in the OCR text.  Keep the first occurrence per item_no
-# because it tends to come from the main table (cleaner formatting).
-seen: set[int] = set()
-deduped: list[dict[str, Any]] = []
-⋮----
-"""Convert extracted PO line items to RAG chunk format.
-
-    Each line item becomes one chunk, preserving category metadata so the
-    RAG pipeline can filter by 施工作業 / 費用管銷.
-
-    Args:
-        line_items: Output of extract_po_line_items().
-
-    Returns:
-        list of dicts compatible with the RAG ingestion pipeline.
-    """
-result: list[dict[str, Any]] = []
-⋮----
-text = (
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
-````typescript
-import { Badge } from "@packages";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { listAccountFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
-import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
-import { useWorkspaceContext } from "./WorkspaceContext";
-⋮----
-interface WorkspaceAccountDailySectionProps {
-  accountId: string;
-}
-⋮----
-function toDateKey(date: Date): string
-⋮----
-function formatDateLabel(date: Date): string
-⋮----
-function addDays(date: Date, delta: number): Date
-⋮----
-setLoading(true);
-setActiveDate((d)
-````
-
-## File: src/modules/workspace/adapters/inbound/server-actions/membership-actions.ts
-````typescript
-import { z } from "zod";
-import { commandFailureFrom, type CommandResult } from "../../../../shared";
-import { createClientMembershipController, createClientMembershipUseCases } from "../../outbound/firebase-composition";
-import { MEMBER_ROLES } from "../../../subdomains/membership/domain/entities/WorkspaceMember";
-⋮----
-export async function addMemberAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function changeMemberRoleAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function removeMemberAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function listMembersAction(rawInput: unknown)
-````
-
-## File: src/modules/workspace/subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter.ts
-````typescript
-import type { PermissionCheckInput, PermissionCheckPort } from "../../../application/ports/PermissionCheckPort";
-import type { WorkspaceMemberRepository } from "../../../domain/repositories/WorkspaceMemberRepository";
-import { WorkspaceRolePolicy, type WorkspaceMembershipAction } from "../../../domain/value-objects/WorkspaceRolePolicy";
-import type { FirestoreLike } from "../firestore/FirestoreMemberRepository";
-⋮----
-interface AccessPolicyRecord {
-  readonly action: string;
-  readonly effect: "allow" | "deny";
-  readonly isActive?: boolean;
-}
-⋮----
-export class FirestorePermissionCheckAdapter implements PermissionCheckPort
-⋮----
-constructor(
-⋮----
-async can(input: PermissionCheckInput): Promise<boolean>
-⋮----
-private async resolveDynamicDecision(input: PermissionCheckInput): Promise<boolean | null>
-⋮----
-private toAccessPolicyRecord(record: Record<string, unknown>): AccessPolicyRecord | null
-⋮----
-private matchesAction(policyAction: string, action: WorkspaceMembershipAction): boolean
-````
-
-## File: src/modules/workspace/subdomains/membership/application/ports/PermissionCheckPort.ts
-````typescript
-import type { MemberRole } from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceMembershipAction } from "../../domain/value-objects/WorkspaceRolePolicy";
-⋮----
-export interface PermissionCheckInput {
-  readonly actorId: string;
-  readonly workspaceId: string;
-  readonly action: WorkspaceMembershipAction;
-  readonly targetMemberRole?: MemberRole;
-  readonly nextRole?: MemberRole;
-}
-⋮----
-export interface PermissionCheckPort {
-  can(input: PermissionCheckInput): Promise<boolean>;
-}
-⋮----
-can(input: PermissionCheckInput): Promise<boolean>;
-````
-
-## File: src/modules/workspace/subdomains/membership/domain/value-objects/WorkspaceRolePolicy.ts
-````typescript
-import type { MemberRole } from "../entities/WorkspaceMember";
-⋮----
-export type WorkspaceMembershipAction = typeof WORKSPACE_MEMBERSHIP_ACTIONS[number];
-⋮----
-export class WorkspaceRolePolicy
-⋮----
-constructor(
-⋮----
-can(role: MemberRole, action: WorkspaceMembershipAction): boolean
-⋮----
-canChangeRole(actorRole: MemberRole, targetRole: MemberRole, nextRole: MemberRole): boolean
-⋮----
-canRemove(actorRole: MemberRole, targetRole: MemberRole): boolean
-````
-
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-#use skill serena-mcp
-#use skill repomix
-#use skill context7
-#use skill xuanwu-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-markdown-skill
-#use skill occams-razor
-#use skill alistair-cockburn
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
-
-## Session Contract
-
-### Mandatory Skills (Load Every Session, No Exceptions)
-
-These three skills **must be loaded at the start of every conversation** before any other action:
-
-| Order | Skill | Purpose |
-|---|---|---|
-| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
-| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
-| 3 | `context7` | Library/framework API verification gate |
-
-- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
-- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
-- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
-- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
-
-## Mandatory Compliance Rules
-
-These rules are **non-negotiable** and apply to every task, file, and decision. Any violation requires an immediate stop and explicit report before proceeding.
-
-1. **AI Operational Scope**: Without explicit authorization, do not create files, add modules, modify interface definitions, or make any changes beyond the scope of the current task description.
-2. **Bounded Context**: Every concept belongs to exactly one Context. When referencing a same-named concept across Contexts, an explicit mapping layer must be established. Sharing types or objects directly is not permitted.
-3. **Ubiquitous Language Governance**: All naming must derive from the defined Domain glossary. When encountering a name not in the glossary, halt implementation and report it. Self-naming is not permitted.
-4. **Contract / Schema**: All data entering the system must pass through a defined Schema validation. Accessing raw input outside the validation layer is not permitted. Assuming input is valid is not permitted.
-5. **Breaking Change Policy**: When modifying any externally exposed Schema, interface, or event structure, a new version must be added and the old version retained. Direct overwriting is not permitted.
-6. **Aggregate Design**: All modifications to an Aggregate's internal state must be executed through that Aggregate's own methods. Directly modifying an Aggregate's properties or child objects from outside is not permitted.
-7. **State Model / FSM**: Every state transition must exist in the defined list of legal transitions. Transition paths that are not defined must throw an error. Silent ignoring or self-inferred transitions are not permitted.
-8. **Consistency / Transaction Strategy**: Operations spanning Aggregates or Contexts must not be wrapped in a single transaction. A defined saga or outbox pattern must be used. Designing ad-hoc synchronous coupling solutions is not permitted.
-9. **Event Ordering / Causality Model**: All event handlers must implement idempotency. Assuming events arrive in send order is not permitted. Sequence must be determined using a causality token or version number.
-10. **Failure Strategy**: Every external call must define a failure handling path (retry / compensate / dead-letter). Silently swallowing exceptions is not permitted. Assuming external services always succeed is not permitted.
-11. **Authorization / Security**: Every operation must verify that the caller holds the required permission before execution. Relying on call order or upstream validation as implicit authorization is not permitted.
-12. **Hexagonal Architecture**: The Domain layer must not import any types from Infrastructure, Frameworks, or external services. All external dependencies must be accessed through defined Port interfaces.
-13. **Dependency Rule Enforcement**: Dependencies may only flow inward (Infrastructure → Application → Domain). Reverse dependencies are forbidden. Direct imports between Contexts at the same layer are forbidden.
-14. **Testability / Specification**: Every Domain behavior must have corresponding automated test coverage. Implementing logic structures that cannot be verified by the existing test framework is not permitted.
-15. **Observability**: All cross-layer calls, state changes, and errors must produce structured, traceable records. Replacing structured events with print statements or log strings is not permitted.
-16. **ADR / Design Rationale**: When multiple implementation options are technically viable, do not choose independently. Halt, list the options and their differences, and wait for a human decision before proceeding.
-17. **Minimum Necessary Design / YAGNI**: Do not create abstractions, interfaces, or extension points for future possibilities. Every new structure must correspond to a requirement that explicitly exists in the current task.
-18. **Single Responsibility / No Redundancy**: Every concept must be defined exactly once in exactly one layer. When the same semantic is found expressed in multiple places, report the conflict. Allowing both to coexist is not permitted.
-19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
-20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
-
-> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
-
-## Read Order
-
-1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
-
-## Instruction Series (Phase 1)
-
-- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
-- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
-- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
-- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
-- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
-
-## Module Layer Routing（src-only）
-
-本 repo 已全面改為 `src/modules/` 單一模組層：
-
-| 路徑 | 職責 | 撰寫時機 |
-|---|---|---|
-| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
-
-- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
-- 新實作一律以 `src/modules/template` 骨架為基線。
-- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
-
-## Operating Rules
-
-> Dependency direction, domain purity, cross-module boundary, and planning discipline are governed by **Mandatory Compliance Rules 12–13, 16–17**. Items below are repo-specific structural decisions.
-
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
-
-## Governance Rules
-
-- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
-- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
-- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
-
-## Terminology
-
-> Governed by **Mandatory Compliance Rule 3**. Authority: [docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
-
-## DDD Strategic Rules (Phase 1)
-
-- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
-- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
-- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
-- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
-````
-
-## File: docs/decisions/ai/.gitkeep
-````
-
-````
-
-## File: docs/decisions/architecture/.gitkeep
-````
-
-````
-
-## File: docs/decisions/data/.gitkeep
-````
-
-````
-
-## File: docs/decisions/domain/.gitkeep
-````
-
-````
-
-## File: docs/decisions/meta/.gitkeep
-````
-
-````
-
-## File: docs/decisions/platform/.gitkeep
-````
-
 ````
 
 ## File: docs/examples/ai/.gitkeep
@@ -11160,6 +10885,179 @@ def get_document_pipeline_gateway() -> DocumentPipelineGateway
 """Domain services."""
 ⋮----
 __all__ = [
+````
+
+## File: fn/src/domain/services/po_extraction.py
+````python
+"""
+Domain Service — Purchase Order (PO) line item extraction and classification.
+
+Pure business logic — no infrastructure dependency.
+
+Supports the ABB 訂購單 AP8 format (document 4510250181-AP8_v0-8150.PDF):
+  - 54 line items numbered 10–540 in steps of 10
+  - Two task categories: 施工作業 (construction) / 費用管銷 (expense management)
+  - Dense text format produced by Document AI OCR / Layout Parser
+
+Dependency: stdlib only.
+"""
+⋮----
+# ── Chinese numeral character class used in section headers ─────────────────
+_CHINESE_NUMERALS = "一二三四五六七八九十壹貳參肆伍陸柒捌玖拾"
+⋮----
+# Pattern: item number (10–540, step 10) at word boundary
+_ITEM_NO_PATTERN = re.compile(r"(?<!\d)(\d{2,3})(?=\s)")
+⋮----
+# Pattern: 小計 + amount signals end of price data; description follows.
+# The space between 小計 and the amount is optional — items crossing page
+# breaks in the AP8 PDF produce "小計 721,619" (with space).
+_SUBTOTAL_PATTERN = re.compile(r"小計\s*[\d,，.]+\s*")
+⋮----
+# Pattern: section header 「（中文数字）」
+_SECTION_HEADER_PATTERN = re.compile(
+⋮----
+# Pattern to truncate description at noise boundaries within a single OCR line:
+# next-item anchor (e.g. "330 3RDTW"), summary totals, or ABB page footer.
+# Note: "ABB Ltd." is intentionally vendor-specific — this service is scoped to
+# the ABB AP8 訂購單 format (document 4510250181); see module docstring.
+_DESCRIPTION_STOP_PATTERN = re.compile(r"\d{2,3}\s+3RDTW|未稅總計|ABB Ltd\.")
+⋮----
+# ── Classification rules ─────────────────────────────────────────────────────
+⋮----
+# Section numerals whose entire section is 費用管銷.
+# Specific to the ABB AP8 訂購單 4510250181 section structure:
+#   伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
+#   玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
+# Sections 一–肆 and 柒–捌 contain a mix; classification falls through to
+# _COST_DESCRIPTION_PATTERNS for per-item discrimination.
+_COST_SECTION_CHARS: frozenset[str] = frozenset(["伍", "玖"])
+⋮----
+# Description-level patterns that force 費用管銷, regardless of section
+_COST_DESCRIPTION_PATTERNS: list[re.Pattern[str]] = [
+⋮----
+re.compile(r"費$"),           # ends with 費 (e.g., 高空作業費, 工程衛生費)
+re.compile(r"費用"),          # 費用 anywhere
+re.compile(r"管理\d*人"),     # management headcount (e.g., 管理1人*4個月)
+re.compile(r"監工"),          # supervision
+re.compile(r"工安費"),        # safety fee
+re.compile(r"保險"),          # insurance
+re.compile(r"分攤"),          # cost allocation
+re.compile(r"廢棄物"),        # waste disposal
+re.compile(r"5D"),            # 5D cost
+re.compile(r"利潤"),          # profit
+re.compile(r"圖控與軟體"),    # SCADA software deliverable (cost item)
+re.compile(r"圖面製作"),      # drawing / document fee
+re.compile(r"工務所"),        # site office
+⋮----
+def classify_po_task(description: str, section_char: str = "") -> Literal["施工作業", "費用管銷"]
+⋮----
+"""Classify a PO line item as 施工作業 or 費用管銷.
+
+    Args:
+        description: Chinese task description text.
+        section_char: Chinese numeral from the section header (e.g., "伍").
+
+    Returns:
+        "施工作業" or "費用管銷"
+    """
+# Section-level override takes precedence
+⋮----
+# Description-level pattern matching
+⋮----
+def extract_po_line_items(text: str) -> list[dict[str, Any]]
+⋮----
+"""Extract structured line items from AP8 PO raw text.
+
+    Document AI (OCR / Layout Parser) produces dense text where each line item
+    is formatted as::
+
+        "{item_no} {product_code} SET {price}... 小計{total}（{section}）{description}"
+
+    This function locates each item's Chinese section header and description
+    after the price block and returns a structured list.
+
+    Args:
+        text: Raw text from Document AI output for the PO document.
+
+    Returns:
+        Sorted list (by item_no) of dicts with keys:
+            item_no (int): 10, 20, … 540
+            section (str): e.g., "（一）SCADA站內工程"
+            section_char (str): e.g., "一"
+            description (str): task description text
+            category (str): "施工作業" or "費用管銷"
+            raw_snippet (str): first 200 chars of the matched segment
+    """
+# Normalize horizontal whitespace for reliable pattern matching
+normalized = re.sub(r"[ \t]+", " ", text)
+⋮----
+items: list[dict[str, Any]] = []
+⋮----
+# Split on item boundaries: digit(s) followed by the ABB product code prefix
+# or a Chinese description marker so we get one segment per line item.
+segment_pattern = re.compile(
+segments = list(segment_pattern.finditer(normalized))
+⋮----
+item_no_str = match.group(1)
+⋮----
+item_no = int(item_no_str)
+⋮----
+# Validate item number is in the expected AP8 range (10–540, step 10)
+⋮----
+# Extract the text segment for this item
+start = match.start()
+end = segments[idx + 1].start() if idx + 1 < len(segments) else len(normalized)
+segment = normalized[start:end]
+⋮----
+# Find 小計 to locate where the price block ends
+subtotal_match = _SUBTOTAL_PATTERN.search(segment)
+description_zone = segment[subtotal_match.end():] if subtotal_match else segment
+⋮----
+# Extract section header + leading description from the description zone
+header_match = _SECTION_HEADER_PATTERN.search(description_zone)
+⋮----
+section_char = header_match.group(1).strip()
+description_raw = (header_match.group(2) or "").strip()
+# Truncate at noise boundaries (next-item anchor or summary totals)
+description_raw = _DESCRIPTION_STOP_PATTERN.split(description_raw, maxsplit=1)[0].strip()
+⋮----
+# Collect any remaining text after the section header (may continue on next line)
+after_header = description_zone[header_match.end():].strip()
+# Limit to first sentence/clause; stop at new section, page-break, next item, or totals
+extra = re.split(r"[（\n]|ABB Ltd\.|(?=\d{2,3}\s+3RDTW)|未稅總計", after_header, maxsplit=1)[0].strip()
+# Only append extra if it starts with Chinese text (genuine description continuation).
+# ASCII-leading text (e.g., "Ref: 6591401)折扣…") is leaked price data — discard.
+# Known limitation: descriptions that legitimately start with English terms
+# (e.g., "RTU盤內…") will not be extended by extra; they are however already
+# fully captured by _SECTION_HEADER_PATTERN group 2 in practice.
+⋮----
+description_raw = (description_raw + " " + extra).strip()
+⋮----
+description = re.sub(r"\s+", " ", description_raw).strip()
+⋮----
+section_label = f"（{section_char}）"
+category = classify_po_task(description, section_char)
+⋮----
+# De-duplicate: the PDF's multi-page layout causes identical items to appear
+# more than once in the OCR text.  Keep the first occurrence per item_no
+# because it tends to come from the main table (cleaner formatting).
+seen: set[int] = set()
+deduped: list[dict[str, Any]] = []
+⋮----
+"""Convert extracted PO line items to RAG chunk format.
+
+    Each line item becomes one chunk, preserving category metadata so the
+    RAG pipeline can filter by 施工作業 / 費用管銷.
+
+    Args:
+        line_items: Output of extract_po_line_items().
+
+    Returns:
+        list of dicts compatible with the RAG ingestion pipeline.
+    """
+result: list[dict[str, Any]] = []
+⋮----
+text = (
 ````
 
 ## File: fn/src/domain/services/rag_ingestion_text.py
@@ -24672,6 +24570,29 @@ onOpenChange(false);
  */
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
+````typescript
+import { Badge } from "@packages";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { listAccountFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
+import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
+import { useWorkspaceContext } from "./WorkspaceContext";
+⋮----
+interface WorkspaceAccountDailySectionProps {
+  accountId: string;
+}
+⋮----
+function toDateKey(date: Date): string
+⋮----
+function formatDateLabel(date: Date): string
+⋮----
+function addDays(date: Date, delta: number): Date
+⋮----
+setLoading(true);
+setActiveDate((d)
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceApprovalSection.tsx
 ````typescript
 /**
@@ -25534,6 +25455,22 @@ export async function closeIssueAction(issueId: string): Promise<CommandResult>
 export async function listIssuesByTaskAction(taskId: string): Promise<IssueSnapshot[]>
 ⋮----
 export async function listIssuesByWorkspaceAction(workspaceId: string): Promise<IssueSnapshot[]>
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/membership-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientMembershipController, createClientMembershipUseCases } from "../../outbound/firebase-composition";
+import { MEMBER_ROLES } from "../../../subdomains/membership/domain/entities/WorkspaceMember";
+⋮----
+export async function addMemberAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function changeMemberRoleAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function removeMemberAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function listMembersAction(rawInput: unknown)
 ````
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/quality-actions.ts
@@ -27753,6 +27690,32 @@ async save(member: WorkspaceMemberSnapshot): Promise<void>
 async delete(memberId: string): Promise<void>
 ````
 
+## File: src/modules/workspace/subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter.ts
+````typescript
+import type { PermissionCheckInput, PermissionCheckPort } from "../../../application/ports/PermissionCheckPort";
+import type { WorkspaceMemberRepository } from "../../../domain/repositories/WorkspaceMemberRepository";
+import { WorkspaceRolePolicy, type WorkspaceMembershipAction } from "../../../domain/value-objects/WorkspaceRolePolicy";
+import type { FirestoreLike } from "../firestore/FirestoreMemberRepository";
+⋮----
+interface AccessPolicyRecord {
+  readonly action: string;
+  readonly effect: "allow" | "deny";
+  readonly isActive?: boolean;
+}
+⋮----
+export class FirestorePermissionCheckAdapter implements PermissionCheckPort
+⋮----
+constructor(
+⋮----
+async can(input: PermissionCheckInput): Promise<boolean>
+⋮----
+private async resolveDynamicDecision(input: PermissionCheckInput): Promise<boolean | null>
+⋮----
+private toAccessPolicyRecord(record: Record<string, unknown>): AccessPolicyRecord | null
+⋮----
+private matchesAction(policyAction: string, action: WorkspaceMembershipAction): boolean
+````
+
 ## File: src/modules/workspace/subdomains/membership/adapters/outbound/index.ts
 ````typescript
 
@@ -27770,6 +27733,26 @@ import { MEMBER_ROLES } from "../../domain/entities/WorkspaceMember";
 ⋮----
 export type AddMemberDTO = z.infer<typeof AddMemberInputSchema>;
 export type ChangeMemberRoleDTO = z.infer<typeof ChangeMemberRoleSchema>;
+````
+
+## File: src/modules/workspace/subdomains/membership/application/ports/PermissionCheckPort.ts
+````typescript
+import type { MemberRole } from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceMembershipAction } from "../../domain/value-objects/WorkspaceRolePolicy";
+⋮----
+export interface PermissionCheckInput {
+  readonly actorId: string;
+  readonly workspaceId: string;
+  readonly action: WorkspaceMembershipAction;
+  readonly targetMemberRole?: MemberRole;
+  readonly nextRole?: MemberRole;
+}
+⋮----
+export interface PermissionCheckPort {
+  can(input: PermissionCheckInput): Promise<boolean>;
+}
+⋮----
+can(input: PermissionCheckInput): Promise<boolean>;
 ````
 
 ## File: src/modules/workspace/subdomains/membership/application/use-cases/MembershipUseCases.ts
@@ -27898,6 +27881,23 @@ findByWorkspaceId(workspaceId: string): Promise<WorkspaceMemberSnapshot[]>;
 findByActorAndWorkspace(actorId: string, workspaceId: string): Promise<WorkspaceMemberSnapshot | null>;
 save(member: WorkspaceMemberSnapshot): Promise<void>;
 delete(memberId: string): Promise<void>;
+````
+
+## File: src/modules/workspace/subdomains/membership/domain/value-objects/WorkspaceRolePolicy.ts
+````typescript
+import type { MemberRole } from "../entities/WorkspaceMember";
+⋮----
+export type WorkspaceMembershipAction = typeof WORKSPACE_MEMBERSHIP_ACTIONS[number];
+⋮----
+export class WorkspaceRolePolicy
+⋮----
+constructor(
+⋮----
+can(role: MemberRole, action: WorkspaceMembershipAction): boolean
+⋮----
+canChangeRole(actorRole: MemberRole, targetRole: MemberRole, nextRole: MemberRole): boolean
+⋮----
+canRemove(actorRole: MemberRole, targetRole: MemberRole): boolean
 ````
 
 ## File: src/modules/workspace/subdomains/membership/domain/index.ts
@@ -31483,7 +31483,7 @@ import tailwindcssAnimate from 'tailwindcss-animate';
 ````json
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2018",
     "lib": [
       "dom",
       "dom.iterable",
