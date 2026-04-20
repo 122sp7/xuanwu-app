@@ -24,13 +24,15 @@ function buildExtractionPrompt(sourceText: string, pageRefs: string): string {
     pageRefs ? `來源頁面 ID：${pageRefs}` : "",
     "",
     "請以 JSON 格式回應，輸出 candidates 陣列，每個項目包含：",
-    "- title: 任務標題（必填，最多 120 字）",
+    "- title: 任務標題（必填，最多 120 字）。標題必須以分類前綴開頭，格式：[施工作業] ... 或 [費用管銷] ...",
     "- description: 詳細說明（選填）",
     "- dueDate: 截止日期，ISO 8601 格式（選填，若無則省略）",
     "- confidence: 信心分數 0.0–1.0",
     "- sourceSnippet: 原文片段（選填）",
     "",
-    "只輸出高品質、具體可執行的任務，最多 8 個，不含泛泛管理性項目。",
+    "分類只能使用兩種：施工作業、費用管銷。",
+    "若來源含有項次/明細（例如 10, 20, ...），請逐項輸出，不可任意合併或省略。",
+    "只輸出高品質、具體可執行的任務，不含泛泛管理性項目。",
   ]
     .filter(Boolean)
     .join("\n");

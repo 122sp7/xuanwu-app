@@ -38,6 +38,13 @@ DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
     "projects/65970295651/locations/us/processors/7318076ba71e0758",
 ).strip()
 
+# OCR Processor（選配）— 當 Layout Parser 無有效輸出時的文字擷取後備通道。
+# 預設留空（不啟用）；若提供值，需填入 US region processor resource name。
+DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
+    "DOCAI_OCR_PROCESSOR_NAME",
+    "",
+).strip()
+
 # 舊版 asia-southeast1 processor — 已棄用，保留供向下相容
 _DOCAI_PROCESSOR_NAME_LEGACY: str = (
     "projects/65970295651/locations/asia-southeast1/processors/ce1eedab7b277f54"

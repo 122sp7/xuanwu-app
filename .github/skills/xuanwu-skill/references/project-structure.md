@@ -7,16 +7,36 @@ docs/
   decisions/
     ai/
       .gitkeep (0 lines)
+      0001-ai-chunk-embedding-pipeline-ownership.md (77 lines)
+      0002-ai-safety-subdomain.md (85 lines)
+      0003-ai-orchestration-formalization.md (76 lines)
+      0004-ai-tracing-strategy.md (76 lines)
+      0005-sap-po-structured-extraction-strategy.md (215 lines)
     architecture/
       .gitkeep (0 lines)
+      0001-ddd-subdomain-boundary-governance.md (70 lines)
+      0002-cross-runtime-nextjs-fn-bridge.md (71 lines)
+      0003-module-public-api-surface.md (77 lines)
     data/
       .gitkeep (0 lines)
+      0001-firestore-subdomain-collection-boundaries.md (101 lines)
+      0002-upstash-vector-rag-storage.md (106 lines)
+      0003-purchase-order-source-schema.md (203 lines)
     domain/
       .gitkeep (0 lines)
+      0001-notebooklm-document-to-source-rename.md (67 lines)
+      0002-notion-subdomain-expansion.md (96 lines)
+      0003-notebooklm-synthesis-subdomain.md (92 lines)
+      0004-workspace-presence-deferral.md (54 lines)
+      0005-purchase-order-source-domain-model.md (283 lines)
     meta/
       .gitkeep (0 lines)
+      0001-adr-format-and-numbering.md (74 lines)
     platform/
       .gitkeep (0 lines)
+      0001-platform-audit-log-vs-workspace-audit.md (82 lines)
+      0002-feature-flag-subdomain.md (84 lines)
+      0003-platform-cache-classification.md (70 lines)
   examples/
     ai/
       .gitkeep (0 lines)
@@ -148,7 +168,7 @@ fn/
         __init__.py (7 lines)
       container/
         __init__.py (0 lines)
-        runtime_dependencies.py (41 lines)
+        runtime_dependencies.py (64 lines)
       __init__.py (0 lines)
     application/
       dto/
@@ -173,7 +193,7 @@ fn/
       __init__.py (0 lines)
     core/
       __init__.py (0 lines)
-      config.py (71 lines)
+      config.py (75 lines)
     domain/
       events/
         __init__.py (0 lines)
@@ -181,7 +201,7 @@ fn/
         __init__.py (0 lines)
       repositories/
         __init__.py (3 lines)
-        rag.py (61 lines)
+        rag.py (65 lines)
       services/
         __init__.py (3 lines)
         rag_ingestion_text.py (63 lines)
@@ -220,10 +240,10 @@ fn/
       persistence/
         firestore/
           __init__.py (0 lines)
-          document_repository.py (91 lines)
+          document_repository.py (118 lines)
         storage/
           __init__.py (0 lines)
-          client.py (68 lines)
+          client.py (86 lines)
         __init__.py (0 lines)
       __init__.py (0 lines)
     interface/
@@ -233,24 +253,18 @@ fn/
         https.py (12 lines)
         parse_document.py (39 lines)
         rag_query_handler.py (23 lines)
-        rag_reindex_handler.py (48 lines)
+        rag_reindex_handler.py (42 lines)
         storage.py (100 lines)
       schemas/
         __init__.py (0 lines)
-        parse_document.py (58 lines)
+        parse_document.py (61 lines)
         rag_query.py (71 lines)
         rag_reindex.py (42 lines)
       __init__.py (0 lines)
-  tests/
-    __init__.py (0 lines)
-    conftest.py (1 lines)
-    test_domain_repository_gateways.py (47 lines)
-    test_input_schemas.py (59 lines)
-    test_rag_ingestion_text.py (24 lines)
   .env.example (65 lines)
   AGENTS.md (137 lines)
   main.py (41 lines)
-  README.md (212 lines)
+  README.md (214 lines)
   requirements-dev.txt (3 lines)
   requirements.txt (23 lines)
 src/
@@ -710,9 +724,9 @@ src/
             NotebooklmAiChatSection.tsx (25 lines)
             NotebooklmNotebookSection.tsx (18 lines)
             NotebooklmResearchSection.tsx (28 lines)
-            NotebooklmSourcesSection.tsx (122 lines)
+            NotebooklmSourcesSection.tsx (131 lines)
           server-actions/
-            document-actions.ts (74 lines)
+            document-actions.ts (75 lines)
             notebook-actions.ts (27 lines)
             source-processing-actions.ts (43 lines)
         outbound/
@@ -761,7 +775,7 @@ src/
               index.ts (2 lines)
             outbound/
               firestore/
-                FirestoreDocumentRepository.ts (99 lines)
+                FirestoreDocumentRepository.ts (106 lines)
               memory/
                 InMemoryDocumentRepository.ts (14 lines)
               index.ts (2 lines)
@@ -772,7 +786,7 @@ src/
             index.ts (0 lines)
           domain/
             entities/
-              Document.ts (94 lines)
+              Document.ts (98 lines)
             repositories/
               DocumentRepository.ts (24 lines)
             index.ts (0 lines)
@@ -957,7 +971,7 @@ src/
             AccountScopeProvider.tsx (28 lines)
             AppContext.tsx (106 lines)
             index.ts (6 lines)
-            platform-ui-stubs.tsx (190 lines)
+            platform-ui-stubs.tsx (188 lines)
             PlatformBootstrap.tsx (21 lines)
             ShellFrame.tsx (6 lines)
             useAccountRouteContext.ts (77 lines)
@@ -1285,7 +1299,6 @@ src/
             index.ts (2 lines)
           domain/
             entities/
-              template-state-model.test.ts (5 lines)
               TemplateWorkflow.ts (59 lines)
             events/
               WorkflowEvents.ts (40 lines)
@@ -1304,7 +1317,6 @@ src/
         inbound/
           react/
             account-scoped-workspace.ts (13 lines)
-            AccountRouteDispatcher.test.ts (11 lines)
             AccountRouteDispatcher.tsx (67 lines)
             index.ts (6 lines)
             useWorkspaceScope.ts (8 lines)
@@ -1314,7 +1326,6 @@ src/
             workspace-shell-interop.tsx (166 lines)
             workspace-ui-stubs.tsx (18 lines)
             WorkspaceApprovalSection.tsx (41 lines)
-            WorkspaceAuditSection.test.ts (6 lines)
             WorkspaceAuditSection.tsx (23 lines)
             WorkspaceContext.tsx (47 lines)
             WorkspaceDailySection.tsx (94 lines)
@@ -1333,12 +1344,13 @@ src/
             approval-actions.ts (12 lines)
             audit-actions.ts (12 lines)
             issue-actions.ts (16 lines)
+            membership-actions.ts (12 lines)
             quality-actions.ts (12 lines)
             schedule-actions.ts (15 lines)
-            settlement-actions.ts (14 lines)
+            settlement-actions.ts (17 lines)
             task-actions.ts (14 lines)
         outbound/
-          firebase-composition.ts (159 lines)
+          firebase-composition.ts (166 lines)
           FirebaseWorkspaceQueryRepository.ts (61 lines)
       orchestration/
         index.ts (4 lines)
@@ -1510,7 +1522,6 @@ src/
             dto/
               IssueDTO.ts (6 lines)
             machines/
-              issueLifecycle.machine.test.ts (7 lines)
               issueLifecycle.machine.ts (32 lines)
             use-cases/
               IssueUseCases.ts (23 lines)
@@ -1542,8 +1553,7 @@ src/
             dto/
               WorkspaceDTO.ts (4 lines)
             use-cases/
-              WorkspaceLifecycleUseCases.test.ts (30 lines)
-              WorkspaceLifecycleUseCases.ts (36 lines)
+              WorkspaceLifecycleUseCases.ts (46 lines)
             index.ts (0 lines)
           domain/
             entities/
@@ -1557,18 +1567,22 @@ src/
           adapters/
             inbound/
               http/
-                MembershipController.ts (6 lines)
+                MembershipController.ts (18 lines)
               index.ts (0 lines)
             outbound/
               firestore/
                 FirestoreMemberRepository.ts (28 lines)
+              permission/
+                FirestorePermissionCheckAdapter.ts (22 lines)
               index.ts (0 lines)
             index.ts (0 lines)
           application/
             dto/
               MembershipDTO.ts (5 lines)
+            ports/
+              PermissionCheckPort.ts (16 lines)
             use-cases/
-              MembershipUseCases.ts (23 lines)
+              MembershipUseCases.ts (26 lines)
             index.ts (0 lines)
           domain/
             entities/
@@ -1577,6 +1591,8 @@ src/
               MembershipDomainEvent.ts (20 lines)
             repositories/
               WorkspaceMemberRepository.ts (15 lines)
+            value-objects/
+              WorkspaceRolePolicy.ts (13 lines)
             index.ts (0 lines)
         orchestration/
           adapters/
@@ -1682,25 +1698,28 @@ src/
               index.ts (0 lines)
             outbound/
               firestore/
-                FirestoreInvoiceRepository.ts (29 lines)
+                FirestoreInvoiceRepository.ts (33 lines)
               index.ts (0 lines)
             index.ts (0 lines)
           application/
             dto/
               SettlementDTO.ts (5 lines)
             use-cases/
-              CreateInvoiceFromAcceptedTasksUseCase.ts (17 lines)
+              CreateInvoiceFromAcceptedTasksUseCase.ts (20 lines)
               SettlementUseCases.ts (17 lines)
             index.ts (0 lines)
           domain/
             entities/
-              Invoice.ts (45 lines)
+              Invoice.ts (54 lines)
             events/
               InvoiceDomainEvent.ts (20 lines)
             repositories/
-              InvoiceRepository.ts (16 lines)
+              InvoiceRepository.ts (13 lines)
+            services/
+              InvoiceCalculationService.ts (29 lines)
             value-objects/
               InvoiceStatus.ts (5 lines)
+              LineItem.ts (15 lines)
             index.ts (0 lines)
         share/
           adapters/
@@ -1740,7 +1759,7 @@ src/
             index.ts (0 lines)
           domain/
             entities/
-              Task.ts (65 lines)
+              Task.ts (71 lines)
             events/
               TaskDomainEvent.ts (41 lines)
             repositories/
@@ -1757,7 +1776,7 @@ src/
               index.ts (0 lines)
             outbound/
               callable/
-                FirebaseCallableTaskCandidateExtractor.ts (17 lines)
+                FirebaseCallableTaskCandidateExtractor.ts (19 lines)
               firestore/
                 FirestoreTaskFormationJobRepository.ts (30 lines)
               genkit/

@@ -128,9 +128,788 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 
 ````
 
+## File: docs/decisions/ai/0001-ai-chunk-embedding-pipeline-ownership.md
+````markdown
+# ADR 0001 — ai module chunk/embedding/pipeline 子域歸屬
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`src/modules/ai/subdomains/` 目前包含以下不在 baseline 定義的子域：
+
+```
+chunk / citation / embedding / pipeline
+```
+
+`docs/structure/domain/subdomains.md` 的 ai baseline 定義為：
+
+```
+generation / orchestration / distillation / retrieval / memory /
+context / safety / tool-calling / reasoning / conversation /
+evaluation / tracing
+```
+
+問題：`chunk`、`embedding`、`pipeline` 描述的是 **文件 ingestion 的 ETL 步驟**，這些能力：
+
+1. **在 `fn/` Python runtime 執行**：`fn/src/` 實際做 chunking（分塊）和 embedding（向量化），TypeScript ai module 不能執行這些操作。
+2. **不是通用 AI 能力**：它們是 notebooklm source 處理流程的具體步驟，不是跨主域共享的 AI capability。
+3. **命名違反 ai module 語意**：`ai` module 擁有的應是 `AICapability`（generation、retrieval、safety 等通用能力），而不是特定 pipeline 步驟。
+
+`citation` 問題另論（見 domain/0003）：citation 是 notebooklm 合成結果的引用追蹤，屬於 `synthesis` 子域的 value object，不是通用 ai capability。
+
+## Decision
+
+### 各子域處置方案
+
+| 子域 | 現有位置 | 決定 |
+|---|---|---|
+| `chunk` | `ai/subdomains/chunk/` | 若只有 TypeScript 型別契約 → 移至 `notebooklm/subdomains/source/domain/value-objects/`；若有 runtime 邏輯 → 刪除（fn/ 負責執行） |
+| `embedding` | `ai/subdomains/embedding/` | 同 chunk 處置原則 |
+| `pipeline` | `ai/subdomains/pipeline/` | 若描述 orchestration schema → 移至 fn/ interface/schemas；若無，刪除 |
+| `citation` | `ai/subdomains/citation/` | 移至 `notebooklm/subdomains/synthesis/domain/value-objects/Citation.ts` |
+
+### 驗證步驟
+
+1. 讀取 `ai/subdomains/chunk/`、`embedding/`、`pipeline/` 的現有程式碼。
+2. 若只有空骨架（README + .gitkeep）→ 直接移除目錄。
+3. 若有 domain types/schemas → 依上表歸屬目標遷移。
+4. 若有 runtime 執行邏輯 → 記錄 VIOLATION，立即重構移至 fn/。
+
+### ai module 缺失但應建立的子域
+
+以下是 ai baseline 中**實際缺失**且應補建的子域：
+
+| 缺失子域 | 說明 | 優先級 |
+|---|---|---|
+| `safety` | Genkit 安全護欄、有害內容過濾 | P1 |
+| `tracing` | AI 執行 span、成本追蹤、可觀測性 | P1 |
+| `reasoning` | Chain-of-thought、反思步驟管理 | P2 |
+| `distillation` | 長輸出濃縮為精煉知識片段 | P2 |
+| `orchestration` | 正式化為子域（現為 AiFacade.ts）| P1 |
+
+## Consequences
+
+**正面：** ai module 僅保留真正通用的 AI 能力；ETL 步驟回歸 fn/ 所有權。  
+**負面：** 需要審查現有 chunk/embedding/pipeline 程式碼，確認是否有消費端 import。  
+**中性：** `pipeline` 概念可能跨越 fn/ 和 TypeScript 層（QStash 訊息格式），需仔細分離型別契約與執行邏輯。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — ai baseline 定義
+- `fn/src/` — Python 側的 chunking/embedding 實作
+- `src/modules/ai/subdomains/` — 待審查目錄
+- ADR domain/0003 — synthesis subdomain（citation 遷移目標）
+- ADR architecture/0002 — cross-runtime bridge 決策
+````
+
+## File: docs/decisions/ai/0002-ai-safety-subdomain.md
+````markdown
+# ADR 0002 — ai `safety` 子域建立
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`docs/structure/domain/subdomains.md` 的 ai baseline 包含 `safety`：
+
+> safety — 安全護欄、有害內容過濾與合規保護
+
+目前 `ai/subdomains/` 沒有 `safety`。相關能力散落狀況：
+
+1. **Genkit flow 層**：Genkit 提供 `dotprompt` 的 safety settings，但這是 provider 配置，非業務規則。
+2. **無 SafetyGuardrail 型別**：`docs/structure/domain/ubiquitous-language.md` 定義的 `SafetyGuardrail` published language token 目前無對應實作。
+3. **platform 可能混淆**：`platform/compliance` 子域負責法規執行，但 AI 輸出的有害內容過濾是 ai 自身的能力，不應委託 platform 判斷。
+
+Genkit AI 安全機制分兩層：
+- **Provider-level**：Google AI Safety Settings（在 Genkit model config 設定）
+- **Application-level**：業務層的安全政策（如：哪些 prompt 類型被允許、哪些輸出需要後處理）
+
+Application-level 安全規則屬於 **ai bounded context 的 domain 責任**，不是 infrastructure 配置。
+
+## Decision
+
+### 建立 `safety` 子域
+
+```
+src/modules/ai/subdomains/safety/
+  README.md
+  domain/
+    value-objects/
+      SafetyGuardrail.ts       # SafetyGuardrail published language token
+      SafetyLevel.ts           # none / low / medium / high
+      ContentPolicy.ts         # 允許/禁止的內容類型規則
+    services/
+      SafetyEvaluator.ts       # 評估輸出是否符合安全政策（pure domain logic）
+    events/
+      SafetyViolationDetected.ts
+  application/
+    use-cases/
+      evaluate-ai-output-safety.use-case.ts
+    dtos/
+      SafetyEvaluationInput.ts
+      SafetyEvaluationResult.ts
+```
+
+### SafetyGuardrail 作為 Published Language Token
+
+ai module 對下游（notion、notebooklm）暴露的 safety token：
+
+```typescript
+// ai/index.ts 暴露的 published language
+export type { SafetyGuardrail, SafetyLevel, SafetyEvaluationResult };
+export { evaluateAiOutputSafetyUseCase };
+```
+
+notion 和 notebooklm 消費此 token，不自行定義安全規則。
+
+### 邊界澄清
+
+| 責任 | 所屬 |
+|---|---|
+| 有害內容過濾（業務規則） | ✅ ai/safety |
+| Genkit model safety settings | ✅ ai/infrastructure（adapter 配置） |
+| 法規資料保留合規 | ❌ platform/compliance |
+| IAM 授權決策 | ❌ iam/access-control |
+
+## Consequences
+
+**正面：** `SafetyGuardrail` 有明確的業務語言定義；下游模組不需各自實作安全邏輯。  
+**負面：** 需要定義具體的 `ContentPolicy` 規則，這依賴業務決策（目前未知）。  
+**中性：** Provider-level safety settings 維持在 Genkit 配置層，不需動 domain 模型。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — ai safety baseline
+- `docs/structure/domain/ubiquitous-language.md` — SafetyGuardrail published language token
+- `packages/integration-ai/genkit.ts` — Genkit 現有配置
+- ADR ai/0003 — ai orchestration 正式化（safety 將由 orchestration 子域呼叫）
+````
+
+## File: docs/decisions/ai/0003-ai-orchestration-formalization.md
+````markdown
+# ADR 0003 — ai `orchestration` 子域正式化
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`docs/structure/domain/subdomains.md` 定義 ai baseline 的 `orchestration`：
+
+> orchestration — 執行圖與多步驟 AI workflow 協調
+
+目前 `ai/` module root 有一個 `AiFacade.ts`（或類似命名），承接跨 subdomain 的 AI 能力協調。問題：
+
+1. **不是正式子域**：`AiFacade.ts` 在 module root，不在 `subdomains/orchestration/`，沒有完整的 domain/application 分層。
+2. **Facade 反模式**：若 `AiFacade.ts` 只是轉發呼叫（pass-through），它是過度設計；若它有流程決策邏輯，它的業務規則沒有對應的 domain model。
+3. **Genkit Flow 歸屬**：Genkit 的 multi-step flow（如 RAG → summarize → cite）應由 `orchestration` 子域定義 flow 合約，而非分散在各 adapter 或 use case。
+
+ai module 的 baseline 預期：`orchestration` 負責「執行圖與多步驟 AI workflow 協調」，這是一個有明確業務邏輯的子域，需要正式的 domain 邊界。
+
+## Decision
+
+### 建立 `orchestration` 子域，替代 AiFacade 模式
+
+```
+src/modules/ai/subdomains/orchestration/
+  README.md
+  domain/
+    entities/
+      AiWorkflow.ts            # 多步驟 AI 工作流定義
+    value-objects/
+      WorkflowStep.ts          # 單一步驟（type、input schema、output schema）
+      WorkflowStatus.ts        # pending / running / completed / failed
+    events/
+      AiWorkflowCompleted.ts
+      AiWorkflowFailed.ts
+    services/
+      WorkflowPlanner.ts       # 依 input 決定執行哪些 step（純業務邏輯）
+  application/
+    use-cases/
+      run-ai-workflow.use-case.ts     # 主工作流執行入口
+    dtos/
+      AiWorkflowInput.ts
+      AiWorkflowOutput.ts
+```
+
+### AiFacade 處置方案
+
+確認現有 `AiFacade.ts` 的內容性質後二擇一：
+
+| 情況 | 處置 |
+|---|---|
+| 只是 re-export / pass-through | 刪除 AiFacade，讓消費端直接 import 對應 subdomain |
+| 有流程決策邏輯 | 將邏輯遷移至 `orchestration/domain/services/WorkflowPlanner.ts` |
+
+### Genkit Flow 合約
+
+Genkit flow 定義（`packages/integration-ai/genkit.ts`）保持在 integration package，但 **flow 的執行步驟合約**（哪些步驟、什麼順序、失敗策略）在 `orchestration/domain/` 定義。infrastructure adapter 在 `ai/infrastructure/orchestration/` 實作 Genkit 呼叫。
+
+## Consequences
+
+**正面：** 多步驟 AI 工作流有明確的業務語言定義；Genkit 細節被隔離在 adapter 層。  
+**負面：** 需要評估 AiFacade 現有邏輯量，決定遷移或刪除。  
+**中性：** 若目前只有 1-2 個 Genkit flow，`orchestration` 子域可以從最小骨架開始，隨需求成長。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — ai orchestration baseline
+- `packages/integration-ai/genkit.ts` — 現有 Genkit 配置
+- `src/modules/ai/` — AiFacade 現有位置（待確認）
+- ADR ai/0002 — safety subdomain（orchestration 將呼叫 safety evaluator）
+- ADR architecture/0002 — cross-runtime bridge（fn/ pipeline 不走 orchestration 子域）
+````
+
+## File: docs/decisions/ai/0004-ai-tracing-strategy.md
+````markdown
+# ADR 0004 — ai `tracing` 子域策略
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`docs/structure/domain/subdomains.md` 定義 ai baseline 的 `tracing`：
+
+> tracing — AI 執行觀測、span 紀錄與成本追蹤
+
+目前 `ai/subdomains/` 無 `tracing`。問題：
+
+1. **AI 成本不透明**：每次 Genkit flow 呼叫的 token 用量、模型名稱、延遲時間無結構化記錄。
+2. **analytics 混淆**：`analytics` module 擁有 `metrics` / `reporting` / `telemetry-projection`，但這些是**下游投影**；ai 執行的結構化 span 紀錄是**上游 source**，兩者職責不同。
+3. **observability 邊界**：`platform/observability` 是平台層的健康量測（服務是否正常），不是 AI 執行語義的追蹤（哪個 flow、哪個 model、多少 token）。
+
+Genkit 原生支援 OpenTelemetry tracing，但需要定義：
+- 哪些 span 屬性是業務語言（flowName、modelId、inputTokens、outputTokens）
+- 哪些是 infrastructure 雜訊（request headers、internal retry count）
+
+## Decision
+
+### 建立 `tracing` 子域
+
+```
+src/modules/ai/subdomains/tracing/
+  README.md
+  domain/
+    value-objects/
+      AiSpan.ts               # 單次 AI 呼叫的語義 span（業務語言層面）
+      AiCostRecord.ts         # 成本記錄（model、inputTokens、outputTokens、estimatedCost）
+      TraceId.ts              # brand type
+    events/
+      AiSpanRecorded.ts       # 供 analytics 消費的 domain event
+    repositories/
+      AiTraceRepository.ts    # 介面定義（infrastructure 實作）
+  application/
+    use-cases/
+      record-ai-span.use-case.ts
+    dtos/
+      RecordAiSpanInput.ts
+```
+
+### 責任邊界
+
+| 責任 | 所屬 |
+|---|---|
+| 記錄 AI 呼叫的業務語義 span | ✅ ai/tracing |
+| 投影 span 為報表或成本儀表板 | ❌ analytics（消費 AiSpanRecorded event） |
+| 服務健康、可用性告警 | ❌ platform/observability |
+| Genkit OpenTelemetry 配置 | ✅ ai/infrastructure（adapter 配置）|
+
+### analytics 整合方式
+
+`AiSpanRecorded` domain event 發布後，`analytics/event-ingestion` 訂閱並寫入投影，再由 `analytics/metrics` 形成成本儀表板數據。
+
+ai/tracing 不直接依賴 analytics，只發布事件。
+
+## Consequences
+
+**正面：** AI 成本與執行品質可被結構化追蹤；`analytics` 有清楚的 source event。  
+**負面：** 需要在 Genkit flow 的 infrastructure adapter 中插入 span 記錄點。  
+**中性：** 若 Genkit OpenTelemetry 配置已自動收集 span，此子域主要做業務語義層轉換，程式碼量不大。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — ai tracing baseline
+- `packages/integration-ai/genkit.ts` — Genkit 現有配置（OpenTelemetry 開關）
+- `src/modules/analytics/subdomains/event-ingestion/` — analytics 消費端
+- ADR ai/0003 — orchestration（tracing 將在 workflow 執行前後記錄 span）
+````
+
+## File: docs/decisions/ai/0005-sap-po-structured-extraction-strategy.md
+````markdown
+# ADR 0005 — SAP PO 結構化提取策略：Gemini Multimodal PDF + Zod Schema
+
+## Status
+
+Proposed
+
+## Date
+
+2025-07-14
+
+## Context
+
+系統必須處理由 **SAP NetWeaver 750** 生成的工程採購訂單 PDF（如 PO #4510250181，配電盤 SCADA 工程，ABB Ltd.）。此類文件具有以下特徵：
+
+### SAP PO PDF 結構特徵
+
+| 特徵 | 說明 | 挑戰程度 |
+|---|---|---|
+| **無語意標記** | `IsAcroFormPresent: false`、`IsXFAPresent: false`，純視覺 layout | 高 |
+| **多列品項 pattern** | 每個 line item = 4 row（主資料、折扣、小計、描述） | 高 |
+| **混合內容類型** | 表格（品項）+ prose（條款）+ checkbox list（工安申報） | 中 |
+| **繁體中文 + 技術術語** | RTU、FO box、SM-24C 光纖、電壓等級（161kV/22.8kV/4.16kV） | 中 |
+| **低信心度表格解析** | Document AI Layout Parser 信心度 30-74%（平均 ~50%） | 高 |
+| **多層工程分類** | 9 大類（（一）SCADA站內工程…（玖）利潤及雜費），每類多品項 | 中 |
+
+### 現行 fn/ pipeline 的不足
+
+現行 Document AI pipeline（Layout Parser `929c4719f45b1eee` + Form Parser `7318076ba71e0758`）：
+- 提取頁面 layout 元素（文字區塊、表格、列表）
+- **不具備** multi-row line item 合併能力（4 rows → 1 LineItem）
+- **不具備** 工程分類 hierarchy 提取
+- **不具備** 財務數字正規化（折扣、小計、含稅計算）
+- **不具備** 針對特定文件類型的 domain schema 對應
+
+### Context7 驗證結果（Genkit 官方文件）
+
+1. **Gemini multimodal PDF 處理**（已驗證）：
+   ```typescript
+   const response = await ai.generate({
+     model: googleAI.model('gemini-flash-latest'),
+     prompt: [
+       { text: 'Extract structured data' },
+       { media: { contentType: 'application/pdf', url: 'gs://...' } },
+     ],
+   });
+   ```
+
+2. **Zod schema 結構化輸出**（已驗證）：
+   ```typescript
+   const response = await ai.generate({
+     output: { schema: PurchaseOrderSchema },  // Zod schema
+     prompt: [{ media: { contentType: 'application/pdf', url: gcsPdfUrl } }],
+   });
+   ```
+
+3. **Genkit Flow 封裝**（已驗證）：可定義 `inputSchema` / `outputSchema` 的可追蹤 flow，整合進現有 fn/ Genkit 架構
+
+## Decision
+
+採用 **雙層提取策略**：
+
+### Layer 1 — Document AI Layout Parser（保留，用於 pre-processing）
+
+- 功能：提取全文 text、識別頁面分區（header / body / footer）、粗提取表格 bounding box
+- 目的：為 Layer 2 提供分頁、分區輸入；不期待其精確解析 SAP 表格結構
+- 觸發條件：所有進入 fn/ 的 PDF source
+
+### Layer 2 — Gemini Multimodal PDF Extraction（新增，用於 SAP PO）
+
+- 功能：理解多列品項語意、提取工程分類 hierarchy、正規化財務數字
+- 實作：Genkit Flow + Zod schema（見 data/0003）
+- 觸發條件：source 被分類為 `PurchaseOrder` 類型時激活（source type routing）
+- 模型選擇：`gemini-2.5-flash`（速度與精度平衡；複雜表格可升級至 `gemini-2.5-pro`）
+
+### Extraction Flow 設計（fn/ 層）
+
+```python
+# fn/src/application/flows/extract_purchase_order.py
+async def extract_purchase_order(gcs_pdf_uri: str) -> PurchaseOrderExtraction:
+    """
+    Layer 1: Document AI Layout Parser → 分頁文字 + 頁面數
+    Layer 2: Gemini PDF extraction → structured PurchaseOrder schema
+    """
+    # Step 1: Layout parse for page count + basic text
+    layout_result = await document_ai_client.process(gcs_pdf_uri)
+    
+    # Step 2: Gemini structured extraction
+    genkit_result = await genkit_flow.run('extractPurchaseOrder', {
+        'pdfUri': gcs_pdf_uri,
+        'pageCount': layout_result.page_count,
+    })
+    
+    return PurchaseOrderExtraction(
+        header=genkit_result.header,
+        line_items=genkit_result.lineItems,
+        work_categories=genkit_result.workCategories,
+        financial_summary=genkit_result.financialSummary,
+        terms_text=genkit_result.termsText,
+    )
+```
+
+### Zod Schema（TypeScript side，供 Genkit Flow 使用）
+
+```typescript
+// packages/integration-ai/schemas/purchase-order.schema.ts
+import { z } from 'genkit';
+
+export const LineItemSchema = z.object({
+  itemNo: z.number().describe('項次（步進 10）'),
+  partNo: z.string().describe('料號（如 3RDTW5BD）'),
+  description: z.string().describe('工程描述'),
+  quantity: z.number(),
+  unit: z.string().default('SET'),
+  unitPrice: z.number().describe('單價 TWD'),
+  discount: z.number().describe('折扣金額（負值）'),
+  subtotal: z.number().describe('小計 TWD'),
+  deliveryDate: z.string().describe('交貨日期 YYYY-MM-DD'),
+  workCategoryCode: z.string().describe('所屬工程大類代碼'),
+});
+
+export const WorkCategorySchema = z.object({
+  code: z.string().describe('（一）〜（玖）或 （壹）〜（玖）等'),
+  name: z.string().describe('工程大類名稱'),
+  subtotal: z.number().describe('該大類合計金額'),
+  itemNos: z.array(z.number()).describe('包含的項次清單'),
+});
+
+export const PurchaseOrderSchema = z.object({
+  poNumber: z.string(),
+  poDate: z.string(),
+  version: z.string().default('0'),
+  buyerName: z.string(),
+  buyerTaxId: z.string(),
+  vendorName: z.string(),
+  vendorId: z.string(),
+  projectName: z.string(),
+  costRef: z.string(),
+  deliveryDate: z.string(),
+  paymentTerms: z.string(),
+  lineItems: z.array(LineItemSchema),
+  workCategories: z.array(WorkCategorySchema),
+  subtotalExcludingTax: z.number(),
+  taxAmount: z.number(),
+  totalIncludingTax: z.number(),
+  taxRate: z.number().default(0.05),
+  termsAndConditions: z.string().describe('採購條款全文'),
+});
+```
+
+### Content Type Segmentation（新增規則）
+
+SAP PO PDF 的三種內容區域必須分開處理：
+
+| 區域 | 頁面 | 處理策略 |
+|---|---|---|
+| **品項表格** | P1-7（訂單主體） | Gemini structured extraction |
+| **條款文字** | P8-12（採購條款） | Layout Parser text → prose chunk |
+| **Checkbox 清單** | P7（工安申報） | Form Parser checkbox extraction |
+
+## Consequences
+
+### 正面
+
+- Gemini 原生理解 SAP multi-row line item 語意，不需 custom row-grouping logic
+- Zod schema 確保提取結果型別安全，符合 Mandatory Compliance Rule 4
+- 雙層架構保留 Layout Parser 作為 fallback 和全文索引，維持現有 RAG pipeline
+- content type routing 讓各區域使用最適合的解析策略
+
+### 負面
+
+- Gemini API 呼叫成本高於 Document AI（~10-20x per page）
+- 單頁 PDF 限制：Gemini Flash 支援最多 300 頁 PDF（SAP PO 通常 < 20 頁，安全）
+- 需要 GCS URI（`gs://`）作為 Gemini PDF 輸入；不能直接傳 binary buffer
+
+### 中性
+
+- 需為 fn/ 新增 Genkit JS 或保持 Python + Google Gen AI SDK（路徑擇一，見 Consequences）
+- `fn/` 是 Python 層；Genkit 官方 JS SDK 整合需透過 Cloud Functions HTTP call 或 Python Vertex AI SDK 替代
+
+### fn/ 技術約束
+
+`fn/` 使用 Python，Genkit 官方 SDK 是 JavaScript/Go。解決方案：
+
+**選項 A（推薦）**: Python `google-genai` SDK（`pip install google-genai`）直接呼叫 Gemini，搭配 Pydantic schema
+```python
+from google import genai
+from pydantic import BaseModel
+
+client = genai.Client()
+response = client.models.generate_content(
+    model='gemini-2.5-flash',
+    contents=[
+        types.Part.from_uri(file_uri=gcs_uri, mime_type='application/pdf'),
+        'Extract purchase order as JSON per schema',
+    ],
+    config=types.GenerateContentConfig(
+        response_mime_type='application/json',
+        response_schema=PurchaseOrderPydanticModel,
+    ),
+)
+```
+
+**選項 B（備選）**: 建立獨立 Cloud Function（Node.js/TypeScript + Genkit），fn/ Python 透過 HTTP 呼叫
+
+**決策**: 採用選項 A，保持 fn/ 語言統一性，降低運維複雜度。
+
+## References
+
+- Context7 驗證：`/websites/genkit_dev_js` → PDF Document Understanding with Gemini
+- Context7 驗證：`/websites/cloud_google_document-ai` → Layout Parser + Form Parser capabilities
+- PDF 驗證文件：`4510250181-AP8_v0-8150.PDF`（SAP NetWeaver 750, PO #4510250181）
+- [data/0003-purchase-order-source-schema.md](../data/0003-purchase-order-source-schema.md)
+- [domain/0005-purchase-order-source-domain-model.md](../domain/0005-purchase-order-source-domain-model.md)
+- [fn/AGENTS.md](../../../../fn/AGENTS.md)
+- [docs/structure/contexts/notebooklm/README.md](../../structure/contexts/notebooklm/README.md)
+````
+
 ## File: docs/decisions/architecture/.gitkeep
 ````
 
+````
+
+## File: docs/decisions/architecture/0001-ddd-subdomain-boundary-governance.md
+````markdown
+# ADR 0001 — DDD Subdomain Boundary Governance
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+Codebase analysis (xuanwu-skill, Feb 2025) 顯示 8 個主域的 subdomain 實作存在系統性缺口：
+
+1. **notebooklm**：`document` 違反 ubiquitous language，與 notion 的 `KnowledgeArtifact` 命名衝突。缺少 `synthesis`、`note`、`conversation-versioning`。
+2. **notion**：目前只有 `block`、`collaboration`、`database`、`page`、`template`、`view`，缺少 baseline 要求的 `knowledge`、`authoring`、`taxonomy`、`relations`、`publishing` 等 11 個子域。
+3. **platform**：缺少 `feature-flag`、`audit-log`、`observability`、`onboarding`、`compliance`。
+4. **ai**：`orchestration` 只作為 `AiFacade.ts` 存在於 module root，未正式化為子域。`safety`、`tracing`、`reasoning`、`distillation` 缺失。
+5. **billing**：缺少 core `billing`、`referral`、`pricing`、`invoice`。
+6. **analytics**：`insights` 命名偏離 baseline 定義的 `reporting`；`dashboards` 缺失。
+7. **workspace**：只缺 `presence`（gap subdomain，可延遲）。
+8. **iam**：gap subdomains `consent`、`secret-governance` 仍待建立。
+
+核心問題：**subdomain 邊界未對齊 `docs/structure/domain/subdomains.md` 的 baseline 定義。**
+
+## Decision
+
+### 原則
+
+1. `docs/structure/domain/subdomains.md` 的 **baseline subdomains** 是強制交付清單，不是可選目標。
+2. **Recommended gap subdomains** 是可延遲但需 ADR 記錄的待建缺口。
+3. Subdomain 命名必須 100% 對齊 `docs/structure/domain/ubiquitous-language.md`。
+4. 不符合 baseline 的現有 subdomain 目錄名稱必須以獨立 ADR 記錄並限期修正。
+
+### 修正優先順序
+
+| 優先級 | 主域 | 必要行動 |
+|---|---|---|
+| P0 | notebooklm | 建立 `synthesis`、`note`、`conversation-versioning`；重命名 `document` → `source` |
+| P0 | notion | 建立 `knowledge`、`authoring`、`taxonomy`、`relations`、`publishing`；評估現有 `view` 歸屬 |
+| P1 | platform | 建立 `feature-flag`、`audit-log`、`observability`、`onboarding` |
+| P1 | ai | 正式化 `orchestration` 為子域；建立 `safety`、`tracing` |
+| P2 | billing | 建立 core `billing`、`referral`；評估 `pricing`、`invoice` |
+| P2 | analytics | 確認 `insights` 是否等同 `reporting`，或需補 `reporting`、`dashboards` |
+| P3 | iam | 評估 `consent`、`secret-governance` 建立時機 |
+| P3 | workspace | 評估 `presence` 建立條件 |
+
+### Extra Subdomains 評估規則
+
+以下現有 subdomain 不在 baseline 定義中，需 ADR 決定保留或移除：
+
+| 主域 | Extra subdomain | 處置方向 |
+|---|---|---|
+| ai | `chunk`, `citation`, `embedding`, `pipeline` | 評估是否應移至 notebooklm/source 子域 |
+| platform | `cache`, `file-storage` | 評估是否對應 platform 的 operational service 語意 |
+| notion | `view` | 評估是否為 `database` 或 `collaboration` 的子能力 |
+
+## Consequences
+
+**正面：** 防止 subdomain 命名漂移與 bounded context 語言污染。  
+**負面：** 需要多個重命名 PR 並更新所有 import 路徑。  
+**中性：** 現有功能不中斷，但 index.ts 的 public surface 需同步更新。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — baseline subdomain 清單
+- `docs/structure/domain/bounded-contexts.md` — 主域所有權規則
+- `docs/structure/domain/ubiquitous-language.md` — 命名權威
+- ADR domain/0001 — notebooklm source 重命名
+- ADR domain/0002 — notion subdomain 缺口補充
+````
+
+## File: docs/decisions/architecture/0002-cross-runtime-nextjs-fn-bridge.md
+````markdown
+# ADR 0002 — Cross-Runtime Bridge：Next.js ↔ fn/ Python Worker
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+Repo 有兩個分開的 runtime：
+
+1. **`src/`（Next.js + TypeScript）**：App Router、Server Actions、使用者互動、模組業務邏輯。
+2. **`fn/`（Python Cloud Functions）**：文件 ingestion、DocumentAI 解析、chunking、embedding、Upstash Vector/Redis/Search 更新。
+
+問題：`src/modules/ai/` 目前包含 `chunk`、`citation`、`embedding`、`pipeline` 子域，這些能力**在概念上屬於 fn/ Python pipeline**，卻被建在 TypeScript 模組層。這造成：
+
+- 邊界混淆：TypeScript `ai` module 聲稱擁有只有 Python 才能執行的能力
+- 重複定義：fn/ 與 ai/ 都試圖描述同一個 chunking/embedding 語言
+- 部署耦合風險：fn/ pipeline 的 schema 變更無法在 TypeScript 層同步驗證
+
+此外，Next.js runtime 與 fn/ runtime 之間**沒有共享程式碼**，只能透過：
+- **Firestore events**（fn/ 寫入，Next.js 讀取）
+- **QStash 訊息**（Next.js enqueue，fn/ consume）
+- **GCS / Storage URLs**（fn/ 寫入路徑，Next.js 讀取 URL）
+
+## Decision
+
+### 固定邊界
+
+| 責任 | 所屬 runtime | 禁止 |
+|---|---|---|
+| Upload UX、瀏覽器互動、Server Action | Next.js (`src/`) | 不得執行 parse/chunk/embed |
+| DocumentAI 解析、chunking、embedding、RAG 寫入 | fn/ (Python) | 不得包含 browser auth / session / chat logic |
+| 跨 runtime 通訊 | Firestore event + QStash | 不得直接呼叫彼此的 API |
+
+### ai module TypeScript subdomain 重分類
+
+以下 TypeScript `ai/` 子域需重新評估歸屬：
+
+| 子域 | 當前位置 | 正確歸屬 |
+|---|---|---|
+| `chunk` | `ai/subdomains/chunk/` | fn/ Python pipeline（概念）；若需 TypeScript 契約則移至 `notebooklm/source/` |
+| `embedding` | `ai/subdomains/embedding/` | 同上 |
+| `pipeline` | `ai/subdomains/pipeline/` | 同上 |
+| `citation` | `ai/subdomains/citation/` | notebooklm/synthesis 的引用追蹤能力 |
+| `generation` | `ai/subdomains/generation/` | ✅ 保留，AI 文本生成屬於 shared ai capability |
+| `retrieval` | `ai/subdomains/retrieval/` | ✅ 保留，向量搜尋是 shared ai capability |
+| `context` | `ai/subdomains/context/` | ✅ 保留，prompt 上下文組裝屬於 shared ai |
+| `memory` | `ai/subdomains/memory/` | ✅ 保留，跨輪次記憶屬於 shared ai |
+| `evaluation` | `ai/subdomains/evaluation/` | ✅ 保留，AI 輸出品質評估屬於 shared ai |
+| `tool-calling` | `ai/subdomains/tool-calling/` | ✅ 保留 |
+
+### QStash 訊息契約
+
+fn/ pipeline 的 trigger 格式必須在 fn/src/interface/schemas/ 定義並版本化。Next.js 只能以 QStash client 發送已定義格式，不得 hardcode JSON key。
+
+## Consequences
+
+**正面：** 防止 TypeScript ai 模組膨脹為 ETL 模組；fn/ 保有 Python pipeline 語意所有權。  
+**負面：** 需要評估 `chunk`/`embedding`/`pipeline` 的現有 TypeScript 程式碼，確認是否只有 type/contract（可保留）或有 runtime 邏輯（需移除/遷移）。  
+**中性：** QStash 訊息契約是兩個 runtime 的唯一耦合點，需維護版本化 schema。
+
+## References
+
+- `fn/AGENTS.md` — Python worker 架構規則
+- `fn/src/interface/schemas/` — QStash 訊息入口 schema
+- `docs/structure/system/architecture-overview.md` — 全域架構敘事
+- ADR ai/0001 — ai chunk/embedding/pipeline 子域歸屬決策
+````
+
+## File: docs/decisions/architecture/0003-module-public-api-surface.md
+````markdown
+# ADR 0003 — Module Public API Surface Contract
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+`src/modules/<context>/index.ts` 是每個 bounded context 對外的唯一公開入口。然而目前多個模組的 `index.ts` 現況不明，潛在問題包括：
+
+1. **過度暴露**：直接 re-export domain entities、repository factories、infrastructure wiring，讓外部可繞過邊界。
+2. **查詢氣味**：存在 `GetXxxUseCase` 直接放在 public surface，而非分流至 query handler。
+3. **平行直連**：部分 `src/app/` route components 可能直接 import 模組內部路徑（`/domain/`、`/infrastructure/`），而非只用 `index.ts`。
+4. **Context provider 跨模組消費**：route components 可能呼叫其他模組的 Context Provider（如 `useWorkspaceContext()`）而非透過 props 傳遞 scope。
+
+這些都直接違反 Hexagonal Architecture 的邊界規則（AGENTS.md Rule 6、Rule 7、Rule 49、Rule 51）。
+
+## Decision
+
+### index.ts 允許暴露的內容
+
+| 類別 | 允許 | 禁止 |
+|---|---|---|
+| Use cases | ✅ 可暴露 execute 函數或 use case class | ❌ 不得暴露 domain entity constructor |
+| Query handlers | ✅ 可暴露 query function | ❌ 不得暴露 repository instance |
+| DTOs / schemas | ✅ 可暴露 input/output types | ❌ 不得暴露 Firestore document shape |
+| Domain events | ✅ 可暴露 event type discriminant | ❌ 不得暴露 aggregate class |
+| Application services | ✅ 可暴露 service interface | ❌ 不得暴露 DI container 或 factory function |
+
+### GetXxxUseCase 規則
+
+- `GetXxxUseCase` 視同 **query smell**：純讀取不含業務邏輯者，改用 query handler（`queries/` 目錄）。
+- 若需業務決策（如 access check）則允許保留為 use case，但命名應反映業務意圖（如 `GetAccessibleWorkspaceUseCase`）。
+
+### 跨模組呼叫規則
+
+```typescript
+// ✅ 正確：只從模組 root index.ts import
+import { createWorkspace } from "@/modules/workspace";
+
+// ❌ 錯誤：直接 import 內部路徑
+import { Workspace } from "@/modules/workspace/domain/entities/Workspace";
+import { FirestoreWorkspaceRepository } from "@/modules/workspace/infrastructure/...";
+```
+
+### Route Component Scope 傳遞規則
+
+跨模組 route components 必須由 composition owner（`src/app/`）透過 props 傳入 scope：
+
+```typescript
+// ✅ 正確：composition owner 傳 scope props
+<NotionPageView accountId={accountId} workspaceId={workspaceId} />
+
+// ❌ 錯誤：直接消費他模組的 context provider
+const { workspace } = useWorkspaceContext(); // 在 notion/ components 裡
+```
+
+### 執行驗證
+
+`eslint.config.mjs` 的 `no-restricted-imports` 規則必須涵蓋所有跨模組內部路徑，確保違規在 CI 層攔截。
+
+## Consequences
+
+**正面：** 邊界穩定，模組可安全重構內部結構而不影響外部消費者。  
+**負面：** 需要審查現有 `index.ts` 並移除過度暴露的 export；需更新 ESLint 規則覆蓋範圍。  
+**中性：** query handler 與 use case 的分界需每個模組逐一決策，不能一刀切。
+
+## References
+
+- `AGENTS.md` — Rule 6、Rule 7、Rule 49、Rule 51
+- `.github/instructions/architecture-core.instructions.md` — index.ts 公開入口規則
+- `eslint.config.mjs` — no-restricted-imports 現有配置
+- `src/modules/<context>/index.ts` — 待審查文件
 ````
 
 ## File: docs/decisions/data/.gitkeep
@@ -138,9 +917,1043 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 
 ````
 
+## File: docs/decisions/data/0001-firestore-subdomain-collection-boundaries.md
+````markdown
+# ADR 0001 — Firestore 子域 Collection 邊界
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+系統使用 Firebase Firestore 作為主要持久化層。隨著 8 個 bounded context 各自擁有子域，需要明確定義：
+
+1. **哪個模組擁有哪個 Firestore collection**
+2. **Collection 命名規則是否與子域對齊**
+3. **跨模組是否可直接讀取對方的 collection**
+4. **多租戶隔離（tenantId）如何在 collection 路徑中表達**
+
+目前風險：
+- 多個模組可能操作同一 collection（如 `notebooks` 被 notebooklm 和 workspace 同時讀取）
+- Collection 命名不統一（有的用 camelCase，有的用 kebab-case）
+- tenantId 隔離未在所有 collection 一致應用
+
+## Decision
+
+### Collection 命名規則
+
+所有 Firestore collection 路徑遵循：
+
+```
+<module>/<subdomain>/<entity-plural>
+```
+
+例：
+- `notebooklm/notebook/notebooks/{notebookId}`
+- `workspace/task/tasks/{taskId}`
+- `notion/knowledge/pages/{pageId}`
+- `iam/account/accounts/{accountId}`
+
+**根層 collection 允許例外**（Firebase 慣例）：
+- `users/{userId}` — iam/identity 的 Identity 聚合根，路徑保持 Firebase Auth 慣例
+- `tenants/{tenantId}` — iam/tenant 的 Tenant 聚合根
+
+### 多租戶隔離策略
+
+對需要租戶隔離的 collection，在路徑中加入 tenantId segment：
+
+```
+tenants/{tenantId}/<module>/<subdomain>/<entity-plural>/{entityId}
+```
+
+例：
+- `tenants/{tenantId}/notebooklm/notebook/notebooks/{notebookId}`
+- `tenants/{tenantId}/workspace/task/tasks/{taskId}`
+
+**哪些需要 tenant 隔離：**
+- notebooklm（所有 collection）
+- workspace（所有 collection）
+- notion（所有 collection）
+- billing（subscription、entitlement）
+
+**哪些不需要：**
+- iam/account — account 是 tenant 的上層，不需 tenant 前綴
+- platform/audit-log — 系統層面，不分 tenant
+
+### 跨模組 Collection 存取規則
+
+| 規則 | 說明 |
+|---|---|
+| **禁止直接跨模組 collection 存取** | module A 的 repository 不得讀取 module B 的 collection |
+| **跨模組資料需走 API boundary** | module A 需要 module B 的資料，透過 `@/modules/b` 的 use case 或 query |
+| **Denormalized 讀取例外** | 若 module A 需要大量讀取 module B 的輕量欄位（如 workspace name），可建立 read model projection，但需透過 domain event 更新，不直接連結 B 的 collection |
+
+### Firestore Security Rules 對齊
+
+每個 collection 的讀寫規則對應其 owning module 的 domain 邊界：
+
+```
+match /tenants/{tenantId}/workspace/task/tasks/{taskId} {
+  // workspace/task module 擁有此 collection
+  // 其他 module 的 service account 不得直接讀寫
+  allow read: if request.auth.uid == resource.data.assignedUserId 
+              || hasWorkspaceMembership(tenantId, request.auth.uid);
+  allow write: if isWorkspaceAdmin(tenantId, request.auth.uid);
+}
+```
+
+## Consequences
+
+**正面：** Collection 所有權明確；Security Rules 可系統性對應 module 邊界；跨模組耦合透過 API 控制。  
+**負面：** 遷移現有 collection 路徑需要 Firestore 資料遷移腳本（Firestore 不支援 rename collection）。  
+**中性：** 路徑格式較長（`tenants/{tenantId}/notebooklm/notebook/notebooks/{notebookId}`），但 repository adapter 隱藏路徑細節，domain 不感知。
+
+## References
+
+- `firestore.rules` — 現有 Security Rules（待對齊）
+- `firestore.indexes.json` — 現有 index 定義
+- `docs/structure/domain/bounded-contexts.md` — 各 module 所有權
+- `.github/instructions/firestore-schema.instructions.md` — Firestore 設計規則
+- ADR platform/0001 — audit-log（append-only collection 需特殊 rules）
+````
+
+## File: docs/decisions/data/0002-upstash-vector-rag-storage.md
+````markdown
+# ADR 0002 — Upstash Vector RAG 儲存策略
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+系統使用 Upstash Vector 作為 RAG（Retrieval-Augmented Generation）的向量儲存。需要明確定義：
+
+1. **哪個層擁有 Upstash Vector 的讀寫權**
+2. **notebooklm/synthesis 如何取得 retrieval 結果**
+3. **TypeScript 模組是否應直接呼叫 Upstash Vector SDK**
+4. **embedding 向量的 metadata schema 是誰定義**
+
+目前架構：
+- `fn/` Python 負責 ingestion pipeline（parse → chunk → embed → write to Upstash Vector）
+- `ai/subdomains/retrieval/` 負責向量搜尋邏輯（TypeScript）
+- `ai/subdomains/embedding/` 負責 embedding 模型呼叫（TypeScript）
+
+風險：若 TypeScript 和 Python 都直接操作 Upstash Vector，vector namespace 命名和 metadata schema 可能出現版本漂移。
+
+## Decision
+
+### 所有權分層
+
+| 層 | 對 Upstash Vector 的關係 | 說明 |
+|---|---|---|
+| `fn/` (Python) | **Write Owner** | ingestion pipeline 的 upsert 操作 |
+| `ai/subdomains/retrieval/` (TypeScript) | **Read via Port** | 透過 `VectorStorePort` interface 查詢，不直接呼叫 SDK |
+| `notebooklm/subdomains/synthesis/` | **Consumer** | 呼叫 `ai/retrieval` 的 use case，不感知 Upstash Vector |
+| Next.js (TypeScript) | **Forbidden** | 禁止在 Next.js App Router 或 Server Action 直接呼叫 Upstash Vector SDK |
+
+### VectorStorePort 定義
+
+```typescript
+// ai/subdomains/retrieval/domain/ports/VectorStorePort.ts
+export interface VectorStorePort {
+  query(params: {
+    namespaceId: string;     // sourceId or notebookId
+    vector: number[];        // 已 embed 的查詢向量
+    topK: number;
+    filter?: Record<string, string>;
+  }): Promise<VectorMatch[]>;
+}
+
+export interface VectorMatch {
+  id: string;
+  score: number;
+  metadata: ChunkMetadata;  // fn/ 寫入時定義的 metadata schema
+}
+```
+
+### Metadata Schema 所有權
+
+向量的 metadata schema 由 **`fn/` 側定義並維護**，TypeScript 側的 `ChunkMetadata` 型別是 **消費端映射**，不是正典：
+
+```python
+# fn/src/domain/value_objects/chunk_metadata.py (正典)
+@dataclass
+class ChunkMetadata:
+    source_id: str
+    notebook_id: str
+    chunk_index: int
+    page_number: Optional[int]
+    section_title: Optional[str]
+    content_type: str        # text / table / image_caption
+    language: str
+```
+
+TypeScript 端的 `ChunkMetadata` 必須與 Python 側保持同步（版本化 schema 合約，未來可用 JSON Schema 共享）。
+
+### Namespace 命名規則
+
+Upstash Vector namespace 對應 source（document）：
+
+```
+namespace = sourceId   # notebooklm/source 的 SourceId
+```
+
+不使用 notebookId 作為 namespace，避免同一 source 在多個 notebook 中重複存儲。
+
+### 禁止事項
+
+- ❌ Next.js Server Action 直接 `import { Index } from '@upstash/vector'`
+- ❌ TypeScript 模組直接 upsert 向量（write 只屬於 fn/）
+- ❌ Python fn/ 呼叫 TypeScript retrieval 邏輯（反向依賴）
+
+## Consequences
+
+**正面：** Write 路徑集中在 fn/；TypeScript 側透過 port 隔離，可換成其他向量資料庫；schema 漂移問題可被偵測。  
+**負面：** TypeScript 的 `ChunkMetadata` 需要手動與 Python 側同步（未來可考慮 JSON Schema 生成）。  
+**中性：** `ai/subdomains/retrieval/infrastructure/` 實作 `VectorStorePort`，使用 `@upstash/vector` SDK，這是唯一允許引用 SDK 的位置。
+
+## References
+
+- `fn/src/infrastructure/persistence/` — fn/ 的向量寫入 adapter
+- `src/modules/ai/subdomains/retrieval/` — TypeScript retrieval 子域
+- `src/modules/notebooklm/subdomains/` — 消費端
+- `packages/integration-ai/` — 現有 AI 整合套件
+- ADR ai/0001 — chunk/embedding pipeline 所有權（fn/ 負責 write）
+- ADR domain/0003 — notebooklm synthesis subdomain（retrieval 的消費端）
+````
+
+## File: docs/decisions/data/0003-purchase-order-source-schema.md
+````markdown
+# ADR 0003 — Purchase Order Source Schema（Firestore + Pydantic）
+
+## Status
+
+Proposed
+
+## Date
+
+2025-07-14
+
+## Context
+
+[ADR ai/0005](../ai/0005-sap-po-structured-extraction-strategy.md) 決定採用 Gemini multimodal PDF 提取 SAP PO 結構化資料。提取結果需要：
+
+1. **持久化**：以 Firestore 文件儲存 PO 提取結果（與 `notebooklm/source` 連結）
+2. **可查詢**：支援按工程分類（WorkCategory）、金額範圍、交貨日期查詢
+3. **可追溯**：Line Item 必須能回溯至原始 PDF 頁碼和 Gemini extraction confidence
+4. **與現行 source schema 相容**：需與 `notebooklm/source` Firestore schema 整合，不替換現有機制
+
+### 現行 Firestore Source Schema（notebooklm context）
+
+根據現有程式碼（`fn/src/infrastructure/persistence/firestore/`），source 文件已有：
+- `parsed.*`：Document AI 解析結果（`chunk_count`, `entity_count`, `page_count`）
+- `rag.*`：向量化狀態（`status`, `chunk_count`, `vector_count`）
+- `status`：處理狀態（pending / processing / done / error）
+
+**缺口**：無 PO-specific structured extraction 欄位；無 line item 子集合；無財務摘要。
+
+### 驗證文件（PO #4510250181）資料規模
+
+- 54 個 line items（品項）
+- 9 個 work categories（工程大類）
+- 每個 line item：~8 個欄位 + 1 個描述字串
+- 採購條款：~5 頁純文字
+
+## Decision
+
+### 1. Firestore Collection Structure
+
+```
+notebooklm_sources/{sourceId}
+  ├─ [現有欄位保留不變]
+  ├─ structured_type: "purchase_order" | null   ← 新增：文件類型路由
+  └─ po_extraction_ref: string | null           ← 新增：指向 po_extractions 集合
+
+po_extractions/{sourceId}                       ← 新增集合（sourceId 與 source 對應）
+  ├─ po_number: string                          "4510250181"
+  ├─ po_date: string                            "2025-02-11"
+  ├─ version: string                            "0"
+  ├─ buyer_name: string
+  ├─ buyer_tax_id: string
+  ├─ vendor_name: string
+  ├─ vendor_id: string
+  ├─ project_name: string                       "配電盤SCADA工程"
+  ├─ cost_ref: string                           "6591401"
+  ├─ delivery_date: string                      "2025-04-30"
+  ├─ payment_terms: string
+  ├─ subtotal_excl_tax: number                  81500000
+  ├─ tax_amount: number                         4075001
+  ├─ total_incl_tax: number                     85575001
+  ├─ tax_rate: number                           0.05
+  ├─ terms_text: string                         [採購條款全文]
+  ├─ extraction_model: string                   "gemini-2.5-flash"
+  ├─ extraction_confidence: number              0.0 ~ 1.0
+  ├─ extracted_at: timestamp
+  └─ line_items: array<LineItemDocument>        ← 內嵌陣列（54 items < Firestore 1MB limit）
+
+po_extraction_categories/{sourceId}/categories/{categoryCode}
+  ├─ code: string                               "（一）"、"（壹）" 等
+  ├─ name: string                               "SCADA站內工程"
+  ├─ subtotal: number
+  └─ item_nos: array<number>
+```
+
+### 2. LineItemDocument（內嵌於 po_extractions）
+
+```typescript
+interface LineItemDocument {
+  item_no: number;          // 10, 20, 30 ... 540
+  part_no: string;          // "3RDTW5BD"
+  description: string;      // 工程描述文字
+  quantity: number;
+  unit: string;             // "SET"
+  unit_price: number;       // TWD
+  discount: number;         // 折扣金額（負值）
+  subtotal: number;         // 小計 TWD
+  delivery_date: string;    // "2025-04-30"
+  work_category_code: string; // "（一）" 等
+}
+```
+
+**選擇內嵌陣列（vs. 子集合）的原因**：
+- 54 個 line items × ~200 bytes/item ≈ 10KB，遠低於 Firestore 1MB 文件限制
+- 整個 PO 需要原子性讀取（計算 category subtotal 需要全部 items）
+- 子集合需要 N 次讀取，增加延遲和成本
+
+### 3. Pydantic Schema（fn/ Python 層）
+
+```python
+# fn/src/domain/entities/purchase_order.py
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import date
+
+class LineItem(BaseModel):
+    item_no: int = Field(description="項次")
+    part_no: str = Field(description="料號")
+    description: str = Field(description="工程描述")
+    quantity: float
+    unit: str = "SET"
+    unit_price: float = Field(description="單價 TWD")
+    discount: float = Field(description="折扣（通常為負值）")
+    subtotal: float = Field(description="小計 TWD")
+    delivery_date: str = Field(description="交貨日期 YYYY-MM-DD")
+    work_category_code: str = Field(description="所屬工程大類代碼")
+
+class WorkCategory(BaseModel):
+    code: str = Field(description="大類代碼，如（一）、（壹）")
+    name: str = Field(description="工程大類名稱")
+    subtotal: float
+    item_nos: list[int]
+
+class PurchaseOrderExtraction(BaseModel):
+    po_number: str
+    po_date: str
+    version: str = "0"
+    buyer_name: str
+    buyer_tax_id: Optional[str] = None
+    vendor_name: str
+    vendor_id: Optional[str] = None
+    project_name: str
+    cost_ref: Optional[str] = None
+    delivery_date: str
+    payment_terms: str
+    line_items: list[LineItem]
+    work_categories: list[WorkCategory]
+    subtotal_excl_tax: float
+    tax_amount: float
+    total_incl_tax: float
+    tax_rate: float = 0.05
+    terms_and_conditions: str = ""
+```
+
+### 4. Source Type Routing（fn/ pipeline 修改）
+
+```python
+# fn/src/application/use_cases/process_source.py
+async def route_structured_extraction(source_id: str, gcs_uri: str, mime_type: str) -> None:
+    """決定是否觸發 PO 結構化提取"""
+    if mime_type == 'application/pdf':
+        # Heuristic: SAP PO 文件通常有 "採購訂單" 或 "Purchase Order" 在第一頁
+        first_page_text = await get_first_page_text(gcs_uri)
+        if is_purchase_order(first_page_text):
+            await extract_purchase_order_flow(source_id, gcs_uri)
+            await update_source_structured_type(source_id, 'purchase_order')
+
+def is_purchase_order(text: str) -> bool:
+    keywords = ['採購訂單', 'Purchase Order', '買方', '賣方', '料號', '單價']
+    return sum(1 for kw in keywords if kw in text) >= 3
+```
+
+### 5. Firestore Security Rules（新增）
+
+```javascript
+// firestore.rules 新增
+match /po_extractions/{sourceId} {
+  allow read: if isAuthenticated() && hasWorkspaceAccess(sourceId);
+  allow write: if isCloudFunction();  // 只允許 fn/ 寫入
+}
+
+match /po_extraction_categories/{sourceId}/categories/{categoryCode} {
+  allow read: if isAuthenticated() && hasWorkspaceAccess(sourceId);
+  allow write: if isCloudFunction();
+}
+```
+
+## Consequences
+
+### 正面
+
+- `po_extractions` 集合獨立於現有 `notebooklm_sources`，不破壞現行 schema（Mandatory Compliance Rule 5 相容）
+- `structured_type` 欄位提供清晰的類型路由，未來可擴展至 `invoice`、`contract`、`spec_sheet` 等
+- LineItem 內嵌設計使整個 PO 可以一次讀取，支援 synthesis 的 category aggregation 查詢
+- Pydantic schema 與 Gemini structured output 對齊，實現 end-to-end 型別安全
+
+### 負面
+
+- `po_extractions` 是新集合，需更新 `firestore.indexes.json` 和 `firestore.rules`
+- `is_purchase_order()` 啟發式函數可能有誤判；需 confidence threshold 和 fallback
+
+### 中性
+
+- `terms_and_conditions` 欄位可能超大（5 頁條款文字）；若超過 100KB 應移至 Cloud Storage
+- 現有 `parsed.*` / `rag.*` 欄位仍用於 RAG chunking；`po_extractions` 是額外的結構化 overlay
+
+## References
+
+- [ai/0005-sap-po-structured-extraction-strategy.md](../ai/0005-sap-po-structured-extraction-strategy.md)
+- [domain/0005-purchase-order-source-domain-model.md](../domain/0005-purchase-order-source-domain-model.md)
+- [data/0002-upstash-vector-rag-storage.md](./0002-upstash-vector-rag-storage.md)
+- PDF 驗證文件：PO #4510250181（ABB Ltd.，配電盤 SCADA 工程，TWD 85,575,001）
+- Context7 驗證：`/websites/cloud_google_document-ai` → Firestore BigQuery integration
+- Firestore data model design: [firestore-schema.instructions.md](../../../../.github/instructions/firestore-schema.instructions.md)
+````
+
 ## File: docs/decisions/domain/.gitkeep
 ````
 
+````
+
+## File: docs/decisions/domain/0001-notebooklm-document-to-source-rename.md
+````markdown
+# ADR 0001 — notebooklm `document` 重命名為 `source`
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+`src/modules/notebooklm/subdomains/document/` 是 notebooklm 的核心 subdomain，負責上傳來源文件、追蹤解析狀態、持有 DocumentSnapshot。
+
+問題：**`document` 這個名稱在系統中存在嚴重衝突：**
+
+1. **notion 層級衝突**：notion 模組的核心語言是 `KnowledgeArtifact`、`page`、`block`；其中 `page` 在 Notion 產品中就是「document」的直覺對應，造成語意混淆。
+2. **ubiquitous language 違規**：`docs/structure/domain/subdomains.md` 明確定義 notebooklm 的 baseline subdomain 為 `source`，不是 `document`。
+3. **published language token 衝突**：跨模組通訊時 `document` 這個 token 會讓接收方不知道指的是 notebooklm 來源文件、notion 知識頁面、還是 Firestore document。
+
+對應的 `Document` entity、`DocumentSnapshot`、Firestore collection path 都以「document」命名，造成全域命名污染。
+
+## Decision
+
+### 重命名對照表
+
+| 現有名稱 | 新名稱 |
+|---|---|
+| `subdomains/document/` | `subdomains/source/` |
+| `Document` entity | `Source` entity |
+| `DocumentId` | `SourceId` |
+| `DocumentSnapshot` | `SourceSnapshot` |
+| `DocumentRepository` | `SourceRepository` |
+| `FirestoreDocumentRepository` | `FirestoreSourceRepository` |
+| Firestore collection: `documents/` | `sources/` （或保持舊 collection 並 alias） |
+| `parsedPageCount`, `parsedChunkCount` 等 snapshot fields | 保持欄位名稱，僅重命名型別容器 |
+
+### 遷移策略（Strangler Pattern）
+
+1. 新建 `subdomains/source/` 目錄結構。
+2. 在新目錄建立 `Source` entity 與 `SourceRepository`，完整複製現有業務規則。
+3. 更新 `notebooklm/index.ts` 的 public surface 改暴露 `Source` 相關類型。
+4. 遷移 `src/app/` 中所有對 notebooklm document 的消費端改用新名稱。
+5. 確認 Firestore Security Rules 更新（若 collection 重命名）。
+6. 移除舊 `subdomains/document/` 目錄。
+
+### Firestore Collection 決策
+
+保留 Firestore 實際 collection path（`notebooklm/notebooks/{notebookId}/documents/{documentId}`）避免資料遷移成本，在 infrastructure adapter 層做名稱映射：
+
+```typescript
+// FirestoreSourceRepository — 使用 Firestore 舊路徑，但 TypeScript 介面是 Source
+const col = db.collection(`notebooklm/notebooks/${notebookId}/documents`);
+```
+
+## Consequences
+
+**正面：** 消除跨模組語言衝突；`source` 語意清晰（來源文件 = 可 grounding 的輸入）。  
+**負面：** 需要大量重命名 PR，會觸發 TypeScript compiler 錯誤直到完成。  
+**中性：** 如果選擇 Firestore collection 重命名，需要資料遷移腳本。目前建議在 adapter 做映射以避免遷移成本。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — notebooklm baseline: `source` subdomain
+- `docs/structure/domain/ubiquitous-language.md` — published language token 規則
+- `src/modules/notebooklm/subdomains/document/` — 待遷移目錄
+- `fn/src/infrastructure/persistence/firestore/document_repository.py` — fn/ 側的對應
+````
+
+## File: docs/decisions/domain/0002-notion-subdomain-expansion.md
+````markdown
+# ADR 0002 — notion Subdomain 缺口補充計畫
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`src/modules/notion/subdomains/` 目前只有 6 個子域：
+
+```
+block / collaboration / database / page / template / view
+```
+
+`docs/structure/domain/subdomains.md` 的 notion baseline 定義 **14 個子域**：
+
+```
+knowledge / authoring / collaboration / database /
+knowledge-engagement / attachments / automation /
+external-knowledge-sync / notes / templates /
+knowledge-versioning / taxonomy / relations / publishing
+```
+
+缺口分析：
+
+| 狀態 | 子域 |
+|---|---|
+| ✅ 已有（對應 baseline） | `collaboration`, `database`, `template` |
+| ⚠️ 命名偏離 | `block` ≠ baseline（page/block 是技術實作概念，非業務子域） |
+| ⚠️ 命名偏離 | `page` — 對應 baseline 的 `knowledge`（頁面是知識內容載體，`page` 是技術術語） |
+| ❌ baseline 但不存在 | `knowledge`, `authoring`, `knowledge-engagement`, `attachments`, `automation`, `external-knowledge-sync`, `notes`, `knowledge-versioning`, `taxonomy`, `relations`, `publishing` |
+| ❓ 不在 baseline | `view` — 需評估 |
+
+`view` 子域：可能是 `database` 的呈現模式（多視圖管理），若是則應合併到 `database/` 子域，而非獨立存在。
+
+## Decision
+
+### 命名修正（需獨立 PR）
+
+| 現有 subdomain | 對應修正 | 理由 |
+|---|---|---|
+| `page` | 重命名 → `knowledge` | `knowledge` 是正典語言；`page` 是技術實作術語 |
+| `block` | 移至 `knowledge/domain/` 內部的 BlockContent value object | `block` 是頁面內容模型，非獨立子域 |
+| `view` | 合併至 `database/` 或建立 ADR 評估獨立性 | baseline 未定義 `view` 為獨立子域 |
+
+### 子域建立優先順序
+
+**Phase 1（P0 — 核心知識能力）：**
+- `authoring` — 知識庫文章建立、驗證、分類
+- `taxonomy` — 分類法與語義組織（其他子域依賴）
+- `relations` — 內容關聯與 backlink
+
+**Phase 2（P1 — 知識生命週期）：**
+- `knowledge-versioning` — 版本快照策略
+- `publishing` — 正式發布與對外交付
+- `attachments` — 附件與媒體儲存
+
+**Phase 3（P2 — 知識增強）：**
+- `knowledge-engagement` — 知識使用行為量測
+- `notes` — 個人輕量筆記
+- `automation` — 知識事件觸發自動化
+- `external-knowledge-sync` — 外部系統雙向整合
+
+### 子域骨架基線
+
+每個新子域依 `bounded-context-subdomain-template.md` 建立：
+
+```
+subdomains/<name>/
+  README.md
+  domain/
+    entities/
+    value-objects/
+    events/
+    repositories/
+  application/
+    use-cases/
+    dtos/
+```
+
+## Consequences
+
+**正面：** notion 取得完整的知識管理能力語言；避免 `page`/`block` 這類技術術語滲透到 published language。  
+**負面：** `page` → `knowledge` 重命名影響 `src/app/` 所有 notion 路由與消費端。  
+**中性：** Phase 3 子域可視業務需求延遲建立，但必須預留目錄位置與 README.md 說明。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — notion baseline 清單
+- `src/modules/notion/subdomains/` — 現有子域目錄
+- `docs/structure/domain/bounded-context-subdomain-template.md` — 子域骨架模板
+- ADR architecture/0001 — 整體子域邊界治理
+````
+
+## File: docs/decisions/domain/0003-notebooklm-synthesis-subdomain.md
+````markdown
+# ADR 0003 — notebooklm `synthesis` 子域建立
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`docs/structure/domain/subdomains.md` 定義 notebooklm 的 baseline 包含 `synthesis` 子域：
+
+> synthesis — RAG 合成、摘要與洞察生成
+
+目前 `synthesis` 完全缺失。相關能力散落於：
+
+- `conversation` 子域：處理對話輪次，但也含摘要生成邏輯
+- `document`（待改名 `source`）子域：儲存 `parsedJsonGcsUri`、`ragChunkCount`、`ragVectorCount` 等 RAG 輸出欄位
+
+問題：
+1. **RAG grounding 無明確所有權**：從向量搜尋結果到組裝回答的 grounding 邏輯，應屬 `synthesis`，但目前沒有歸宿。
+2. **摘要生成混在 `conversation`**：`conversation` 子域負責 Thread/Message 生命週期，不應同時承接 RAG 合成邏輯。
+3. **`citation` 歸屬不清**：`ai/subdomains/citation/` 追蹤引用，但引用是 synthesis 的輸出結果，理應屬於 notebooklm。
+
+未來 split triggers（見 `docs/structure/contexts/notebooklm/subdomains.md`）：
+- `retrieval`（向量搜尋）
+- `grounding`（context 組裝）
+- `evaluation`（品質評估）
+
+目前這三個仍作為 `synthesis` 的內部 facets，不獨立為子域。
+
+## Decision
+
+### 建立 `synthesis` 子域
+
+```
+src/modules/notebooklm/subdomains/synthesis/
+  README.md
+  domain/
+    entities/
+      SynthesisResult.ts       # 合成輸出聚合根
+    value-objects/
+      Citation.ts              # 引用值對象（從 ai/ 遷移）
+      GroundingContext.ts       # context 組裝結果
+      SynthesisStatus.ts       # 合成狀態（pending/completed/failed）
+    events/
+      SynthesisCompleted.ts
+      SynthesisFailed.ts
+    repositories/
+      SynthesisResultRepository.ts
+  application/
+    use-cases/
+      synthesize-notebook-answer.use-case.ts   # 主 RAG 合成流程
+      summarize-source.use-case.ts             # 單一來源摘要
+    dtos/
+      SynthesisInput.ts
+      SynthesisOutput.ts
+```
+
+### 責任邊界
+
+| 行為 | synthesis 負責 | 不負責 |
+|---|---|---|
+| 組裝 RAG 上下文（grounding） | ✅ | — |
+| 呼叫 AI 生成 API | ✅（透過 ai module port） | ❌ 不直接 import ai infrastructure |
+| 追蹤引用來源 | ✅（Citation value object） | — |
+| 品質評估 | ✅（內部 facet，未來可獨立） | — |
+| 對話輪次管理 | ❌ | 屬 conversation 子域 |
+| 向量搜尋執行 | ❌ | 屬 ai/retrieval 子域 |
+
+### Citation 歸屬遷移
+
+`ai/subdomains/citation/` 追蹤的是 notebooklm 合成結果的引用，**不是通用 AI 能力**。決定：
+
+- `Citation` 型別與邏輯移至 `notebooklm/subdomains/synthesis/domain/value-objects/Citation.ts`
+- `ai/subdomains/citation/` 廢棄並在下一輪 ai 模組清理中移除
+
+## Consequences
+
+**正面：** RAG grounding 取得明確所有權；`conversation` 子域職責單純化。  
+**負面：** 需要從 `conversation` 中分離現有摘要邏輯；`Citation` 遷移需更新 ai/index.ts export。  
+**中性：** `retrieval`、`grounding`、`evaluation` 作為 synthesis 的 facets，未來觸發 split 時可獨立為子域，但現在不預建。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — notebooklm synthesis baseline
+- `docs/structure/contexts/notebooklm/subdomains.md` — split trigger 條件
+- `src/modules/notebooklm/subdomains/conversation/` — 待分離摘要邏輯
+- `src/modules/ai/subdomains/citation/` — 待遷移 Citation 概念
+- ADR domain/0001 — document → source 重命名
+````
+
+## File: docs/decisions/domain/0004-workspace-presence-deferral.md
+````markdown
+# ADR 0004 — workspace `presence` 子域延遲決策
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`docs/structure/domain/subdomains.md` 將 `presence` 列為 workspace 的 **Recommended Gap Subdomain**：
+
+> presence — 即時協作存在感、共同編輯訊號收斂為本地語言
+
+目前 workspace 模組已有 18 個子域（baseline 覆蓋完整），`presence` 是唯一缺失的 gap subdomain。
+
+評估現況：
+1. 目前 workspace 無任何即時協作功能（co-cursor、co-editing、online indicator）。
+2. `feed` 子域提供非即時的活動摘要，不是 presence 的替代。
+3. 現有技術棧（Firebase Realtime Database / Firestore onSnapshot）支援 presence，但無對應業務需求。
+4. 若加入 presence，需要：WebSocket 或 SSE channel、presence heartbeat、cursor sync 協定。
+
+## Decision
+
+### 延遲建立 `presence` 子域
+
+`presence` 不在當前交付範圍，延遲至以下任一條件成立時重新評估：
+
+| 觸發條件 | 說明 |
+|---|---|
+| 多人即時編輯 | 使用者同時編輯同一 Task 或 Page |
+| Online indicator | 工作區顯示哪些成員在線 |
+| Co-cursor | 顯示其他成員游標位置 |
+| Collaborative conflict | 需要 CRDT / OT 解決即時編輯衝突 |
+
+### 預留措施
+
+1. 在 `workspace/subdomains/` 目錄不建立 `presence/` 資料夾（避免空骨架）。
+2. 本 ADR 作為「已知缺口」記錄，下一輪規劃時直接引用。
+3. 若需要 presence 的 proof-of-concept，可在 `workspace/subdomains/feed/` 或實驗分支中驗證，確認後再提升為正式子域。
+
+## Consequences
+
+**正面：** 避免過早建立無業務需求的子域骨架（YAGNI 原則）。  
+**負面：** 若即時協作需求突然加速，需要一次性補建骨架和業務語言定義。  
+**中性：** Gap subdomain 本就是「已知但未驗證的缺口」，延遲是合理的 DDD 實踐。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — workspace gap subdomain 清單
+- `src/modules/workspace/subdomains/` — 現有 18 個子域
+- ADR architecture/0001 — 整體子域邊界治理
+````
+
+## File: docs/decisions/domain/0005-purchase-order-source-domain-model.md
+````markdown
+# ADR 0005 — PurchaseOrder Source Domain Model（notebooklm bounded context）
+
+## Status
+
+Proposed
+
+## Date
+
+2025-07-14
+
+## Context
+
+### 業務場景
+
+系統必須能夠處理工程採購訂單（Purchase Order, PO）作為 notebooklm 的知識來源（Source）。典型文件如 ABB Ltd. PO #4510250181（配電盤 SCADA 工程，含稅 NTD 85,575,001，54 個品項，9 個工程大類）。
+
+使用者期望能夠：
+- 「SCADA 站內工程的總金額是多少？」→ 需要 WorkCategory aggregation
+- 「RTU 機櫃的規格是什麼？」→ 需要 line item semantic search
+- 「交貨日期是什麼？付款條件？」→ 需要 PO header extraction
+- 「防火填塞的工程描述是什麼？」→ 需要 line item description retrieval
+
+### 現行 notebooklm Source 模型的限制
+
+現有 `notebooklm/source` subdomain 將所有 Source 視為同質的「文件 + RAG chunks」：
+- `DocumentSnapshot`（見 `src/modules/notebooklm/subdomains/document/domain/entities/Document.ts`）提供：
+  - `parsedPageCount`, `parsedChunkCount`, `parsedEntityCount`
+  - `ragChunkCount`, `ragVectorCount`, `ragStatus`
+- **缺口**：無法表達「這個 source 是 PurchaseOrder，有 54 個 line items」
+- 現有 synthesis 流程：純 RAG → 無法做 WorkCategory 加總（aggregation）
+
+### Ubiquitous Language 確認
+
+依 [ubiquitous-language.md](../../../../docs/structure/domain/ubiquitous-language.md)：
+- `notebooklm` bounded context 擁有：Notebook, Ingestion, Retrieval, Grounding, **Synthesis**, Evaluation
+- Source 屬於 `source` subdomain（前身為 `document`，已在 domain/0001 正式更名）
+- `PurchaseOrder` 不在現有詞彙表中 → **需要在本 ADR 中引入新術語**
+
+### Naming Review（Rule 3 合規）
+
+| 術語 | 歸屬 | 理由 |
+|---|---|---|
+| `PurchaseOrder` | notebooklm/source | PO 是一種 Source 類型，notebooklm 擁有 Source lifecycle |
+| `LineItem` | notebooklm/source (local VO) | Line item 是 PO 的組成部分，與其他 bounded context 無交集 |
+| `WorkCategory` | notebooklm/source (local VO) | 工程分類是 PO-specific 概念，不是跨域概念 |
+| `StructuredSourceType` | notebooklm/source | 表達 source 的語意類型，用於 synthesis routing |
+
+## Decision
+
+### 1. StructuredSourceType — Source 類型辨識
+
+在 `notebooklm/subdomains/source/domain` 引入 `StructuredSourceType` value object：
+
+```typescript
+// src/modules/notebooklm/subdomains/source/domain/value-objects/StructuredSourceType.ts
+import { z } from 'zod';
+
+export const StructuredSourceTypeSchema = z.enum([
+  'unstructured',      // 一般文件（現有預設）
+  'purchase_order',    // 採購訂單（SAP PO）
+  'invoice',           // 發票（future）
+  'contract',          // 合約（future）
+  'specification',     // 技術規格書（future）
+]).brand('StructuredSourceType');
+
+export type StructuredSourceType = z.infer<typeof StructuredSourceTypeSchema>;
+```
+
+### 2. PurchaseOrderSummary — Source Aggregate 的擴展屬性
+
+在 `Source` aggregate 新增可選的結構化摘要欄位（不替換現有 RAG 欄位）：
+
+```typescript
+// src/modules/notebooklm/subdomains/source/domain/entities/Source.ts（擴展）
+export interface SourceSnapshot {
+  // [現有欄位保留]
+  id: SourceId;
+  notebookId: NotebookId;
+  status: SourceStatus;
+  parsedPageCount?: number;
+  parsedChunkCount?: number;
+  ragStatus?: RagStatus;
+  
+  // 新增：結構化類型路由
+  structuredType: StructuredSourceType;
+  
+  // 新增：PO 摘要（僅 structuredType === 'purchase_order' 時有值）
+  purchaseOrderSummary?: PurchaseOrderSummarySnapshot;
+}
+
+export interface PurchaseOrderSummarySnapshot {
+  poNumber: string;
+  projectName: string;
+  vendorName: string;
+  deliveryDate: string;
+  totalInclTax: number;
+  lineItemCount: number;
+  workCategoryCount: number;
+  workCategories: WorkCategorySummary[];
+}
+
+export interface WorkCategorySummary {
+  code: string;       // （一）〜（玖）
+  name: string;       // "SCADA站內工程"
+  subtotal: number;   // TWD
+  itemCount: number;
+}
+```
+
+### 3. PurchaseOrder — 獨立 Domain Entity（詳細查詢用）
+
+當 synthesis 需要詳細品項資料時，使用獨立 entity：
+
+```typescript
+// src/modules/notebooklm/subdomains/source/domain/entities/PurchaseOrder.ts
+import { z } from 'zod';
+
+export const LineItemSchema = z.object({
+  itemNo: z.number(),
+  partNo: z.string(),
+  description: z.string(),
+  quantity: z.number(),
+  unit: z.string(),
+  unitPrice: z.number(),
+  discount: z.number(),
+  subtotal: z.number(),
+  deliveryDate: z.string(),
+  workCategoryCode: z.string(),
+});
+
+export const WorkCategorySchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  subtotal: z.number(),
+  itemNos: z.array(z.number()),
+});
+
+export const PurchaseOrderSnapshotSchema = z.object({
+  sourceId: z.string().uuid().brand('SourceId'),
+  poNumber: z.string(),
+  poDate: z.string(),
+  buyerName: z.string(),
+  buyerTaxId: z.string().optional(),
+  vendorName: z.string(),
+  vendorId: z.string().optional(),
+  projectName: z.string(),
+  costRef: z.string().optional(),
+  deliveryDate: z.string(),
+  paymentTerms: z.string(),
+  lineItems: z.array(LineItemSchema),
+  workCategories: z.array(WorkCategorySchema),
+  subtotalExclTax: z.number(),
+  taxAmount: z.number(),
+  totalInclTax: z.number(),
+  taxRate: z.number().default(0.05),
+  termsAndConditions: z.string().optional(),
+  extractedAt: z.string(),
+  extractionModel: z.string(),
+});
+
+export type PurchaseOrderSnapshot = z.infer<typeof PurchaseOrderSnapshotSchema>;
+```
+
+### 4. Domain Service — PurchaseOrderSynthesisService
+
+用於 synthesis 需要的 aggregation 邏輯（Domain Service，純業務規則）：
+
+```typescript
+// src/modules/notebooklm/subdomains/source/domain/services/PurchaseOrderSynthesisService.ts
+export class PurchaseOrderSynthesisService {
+  /**
+   * 計算指定工程大類的小計
+   * 例：「SCADA 站內工程的總金額」
+   */
+  calculateCategorySubtotal(
+    po: PurchaseOrderSnapshot,
+    categoryCode: string,
+  ): number {
+    const category = po.workCategories.find(c => c.code === categoryCode);
+    return category?.subtotal ?? 0;
+  }
+
+  /**
+   * 根據描述關鍵字找品項
+   * 例：「RTU 機櫃」→ 返回相關 LineItem[]
+   */
+  findLineItemsByKeyword(
+    po: PurchaseOrderSnapshot,
+    keyword: string,
+  ): LineItem[] {
+    return po.lineItems.filter(item =>
+      item.description.includes(keyword),
+    );
+  }
+
+  /**
+   * 產生財務摘要文字（供 synthesis grounding 使用）
+   */
+  generateFinancialSummary(po: PurchaseOrderSnapshot): string {
+    const categories = po.workCategories
+      .map(c => `  - ${c.name}：NTD ${c.subtotal.toLocaleString()}`)
+      .join('\n');
+    
+    return `採購訂單 ${po.poNumber} 財務摘要：
+工程名稱：${po.projectName}
+賣方：${po.vendorName}
+未稅金額：NTD ${po.subtotalExclTax.toLocaleString()}
+含稅總計：NTD ${po.totalInclTax.toLocaleString()}
+品項總數：${po.lineItems.length} 項
+工程大類：
+${categories}`;
+  }
+}
+```
+
+### 5. Source Aggregate 事件（Domain Events）
+
+```typescript
+// src/modules/notebooklm/subdomains/source/domain/events/SourceStructuredExtractionCompleted.ts
+export interface SourceStructuredExtractionCompleted {
+  type: 'notebooklm.source.structured-extraction-completed';
+  occurredAt: string;
+  payload: {
+    sourceId: string;
+    notebookId: string;
+    structuredType: 'purchase_order';
+    poNumber: string;
+    lineItemCount: number;
+    workCategoryCount: number;
+    totalInclTax: number;
+  };
+}
+```
+
+### 6. Ubiquitous Language 更新（補充至 notebooklm/docs/ubiquitous-language.md）
+
+| Term | Meaning | Owned By |
+|---|---|---|
+| `StructuredSourceType` | Source 文件的語意類型（unstructured / purchase_order / invoice / contract） | notebooklm/source |
+| `PurchaseOrder` | 採購訂單型別的 Source 結構，包含 header、line items、work categories、財務摘要 | notebooklm/source |
+| `LineItem` | PurchaseOrder 內的單一工程品項（項次、料號、描述、數量、金額） | notebooklm/source (local) |
+| `WorkCategory` | PurchaseOrder 的工程大類分組（代碼、名稱、大類小計） | notebooklm/source (local) |
+| `PurchaseOrderSummary` | 嵌入 Source snapshot 的 PO 快速摘要（供 notebook 層顯示） | notebooklm/source |
+
+## Consequences
+
+### 正面
+
+- `StructuredSourceType` 作為路由機制，讓 synthesis 可以選擇 aggregation vs. RAG 策略
+- `PurchaseOrderSynthesisService` 封裝財務聚合邏輯於 domain 層，不外溢到 application 或 UI
+- `SourceStructuredExtractionCompleted` domain event 可觸發後續 notebook-level 摘要更新
+- `PurchaseOrderSnapshot` 用 Zod schema 確保 type safety（Mandatory Compliance Rule 4）
+
+### 負面
+
+- `Source` entity 增加 `structuredType` + `purchaseOrderSummary` 欄位，需相應更新 `FirestoreSourceRepository`
+- `PurchaseOrder` entity 是新增，需測試 Zod schema 驗證（Rule 14）
+
+### 中性
+
+- `LineItem` 和 `WorkCategory` 僅在 notebooklm/source 內部使用，不暴露給其他 bounded context（Rule 3）
+- `termsAndConditions` 是採購條款全文，長度可能超過 500KB；synthesis 時應只取前 2000 字元作為 grounding context
+
+### 合規映射（20 Mandatory Rules）
+
+| Rule | 對應 |
+|---|---|
+| Rule 2 (Bounded Context) | `PurchaseOrder` 歸 notebooklm；`billing` 不擁有財務計算 |
+| Rule 3 (Ubiquitous Language) | 新術語已定義於本 ADR §6 |
+| Rule 4 (Schema Validation) | Zod schema 用於 PO extraction 結果驗證 |
+| Rule 6 (Aggregate Design) | Source aggregate 透過 `setStructuredType()` method 修改狀態 |
+| Rule 12 (Hexagonal) | `PurchaseOrderSynthesisService` 純 domain，無外部依賴 |
+| Rule 14 (Testability) | `generateFinancialSummary()`、`calculateCategorySubtotal()` 可純函數測試 |
+| Rule 17 (YAGNI) | `invoice`、`contract` 型別宣告為 future，不預建實作 |
+
+## References
+
+- [ai/0005-sap-po-structured-extraction-strategy.md](../ai/0005-sap-po-structured-extraction-strategy.md)
+- [data/0003-purchase-order-source-schema.md](../data/0003-purchase-order-source-schema.md)
+- [domain/0001-notebooklm-document-to-source-rename.md](./0001-notebooklm-document-to-source-rename.md)
+- PDF 驗證：`4510250181-AP8_v0-8150.PDF`（ABB PO #4510250181，配電盤 SCADA 工程）
+- [docs/structure/domain/ubiquitous-language.md](../../structure/domain/ubiquitous-language.md)
+- [src/modules/notebooklm/AGENTS.md](../../../../src/modules/notebooklm/AGENTS.md)
 ````
 
 ## File: docs/decisions/meta/.gitkeep
@@ -148,9 +1961,335 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 
 ````
 
+## File: docs/decisions/meta/0001-adr-format-and-numbering.md
+````markdown
+# ADR 0001 — ADR 格式與編號規範
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+`docs/decisions/` 下已建立六個子目錄，但沒有統一的 ADR 格式規範與編號策略。隨著 8 個主域逐步演化，架構決策將越來越多，必須有一套可維護的命名與結構約束。
+
+## Decision
+
+### 子目錄分類
+
+| 目錄 | 決策類型 |
+|---|---|
+| `meta/` | ADR 流程、格式、治理規則 |
+| `architecture/` | 模組邊界、依賴方向、cross-runtime 分拆 |
+| `domain/` | bounded context 語言、subdomain 切分、aggregate 設計 |
+| `ai/` | AI capability、model policy、safety、orchestration |
+| `platform/` | 平台服務治理：audit-log、feature-flag、observability |
+| `data/` | Firestore schema、vector storage、collection ownership |
+
+### 編號規則
+
+- 每個子目錄獨立從 `0001` 開始。
+- 格式：`NNNN-kebab-case-title.md`（例如：`0001-notebooklm-source-rename.md`）。
+- 每個 ADR 必須有：Status、Date、Context、Decision、Consequences 五個必要欄位。
+- Status 允許值：`Proposed` / `Accepted` / `Deprecated` / `Superseded By NNNN`。
+
+### ADR 模板
+
+```markdown
+# ADR NNNN — <Title>
+
+## Status
+<Proposed | Accepted | Deprecated | Superseded By NNNN>
+
+## Date
+<YYYY-MM-DD>
+
+## Context
+<為什麼需要做決策？描述問題空間與現有限制>
+
+## Decision
+<選擇了什麼方案？為什麼？>
+
+## Consequences
+<這個決策帶來的正面、負面與中性結果>
+
+## References
+<相關文件、外部資料、相關 ADR>
+```
+
+### 不寫 ADR 的情境
+
+- 只改 UI 細節（無邊界影響）。
+- 單純 bug 修復（不改變語意邊界或架構）。
+- 技術細節（如 CSS class 命名）。
+
+## Consequences
+
+**正面：** 決策可追溯，減少重複討論。  
+**負面：** 每次架構決策多一份文件成本。  
+**中性：** 需要在 PR 說明中標記對應 ADR 編號。
+
+## References
+
+- `.github/copilot-instructions.md` — Mandatory Compliance Rule 16
+- `docs/README.md` — Conflict Resolution Rules
+````
+
 ## File: docs/decisions/platform/.gitkeep
 ````
 
+````
+
+## File: docs/decisions/platform/0001-platform-audit-log-vs-workspace-audit.md
+````markdown
+# ADR 0001 — platform `audit-log` vs workspace `audit` 邊界澄清
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+系統目前存在兩個「稽核」相關子域：
+
+1. **`workspace/subdomains/audit/`**：已存在，負責工作區操作日誌。
+2. **`platform/subdomains/`**：無 `audit-log`，但 `docs/structure/domain/subdomains.md` 的 platform baseline 定義包含 `audit-log`。
+
+問題：兩者語意重疊，導致：
+- 不清楚某類操作記錄（如成員加入工作區、刪除頁面）應存在 `workspace/audit` 還是 `platform/audit-log`
+- 不清楚 `platform/audit-log` 是否應在現有 workspace/audit 之外額外建立
+
+此外，`docs/structure/domain/ubiquitous-language.md` 定義了兩個不同層級的稽核概念：
+
+- **workspace/audit**：工作區操作的活動證據（team 內可見）
+- **platform/audit-log**：永久不可否認日誌（系統管理員、合規用途）
+
+## Decision
+
+### 邊界定義
+
+| 維度 | workspace/audit | platform/audit-log |
+|---|---|---|
+| 所有權 | workspace bounded context | platform bounded context |
+| 對象 | 工作區參與者（Membership） | 系統管理員、合規審計員 |
+| 範圍 | 單一 workspace 內的操作 | 跨主域的系統級操作 |
+| 可見性 | Workspace 成員可查（依權限） | 僅管理員/合規層可查 |
+| 保留期 | 業務需要（如 90 天） | 永久（不可否認性） |
+| 可刪除性 | 可能依 GDPR 刪除 | 不可刪除（防篡改） |
+| 典型事件 | 任務建立、評論、狀態變更 | IAM 角色變更、資料刪除、安全政策更新 |
+
+### 建立 `platform/subdomains/audit-log/`
+
+```
+src/modules/platform/subdomains/audit-log/
+  README.md
+  domain/
+    entities/
+      AuditLogEntry.ts         # 不可變 log entry 聚合根
+    value-objects/
+      AuditAction.ts           # create / update / delete / access / system
+      AuditActorRef.ts         # actorId + actorType（user / system / service）
+      AuditResourceRef.ts      # resourceType + resourceId
+    events/
+      AuditLogEntryCreated.ts  # 永久記錄已建立（供合規 sink 消費）
+    repositories/
+      AuditLogRepository.ts    # 介面（write-only + append-only）
+  application/
+    use-cases/
+      append-audit-log.use-case.ts
+    dtos/
+      AppendAuditLogInput.ts
+```
+
+### workspace/audit 維持現狀
+
+`workspace/audit` 繼續負責工作區活動記錄，不需遷移。兩者透過事件橋接：
+
+- workspace/audit 的高敏感操作（如：刪除 workspace、批次移除成員）可同時觸發 `platform/audit-log` 的 `append-audit-log`。
+- platform/audit-log 不直接讀取 workspace/audit 的 Firestore collection。
+
+## Consequences
+
+**正面：** 消除「稽核」雙頭混亂；platform 取得符合合規要求的不可否認日誌能力。  
+**負面：** 高敏感操作需同時寫入兩個位置，需確保 Outbox 或事件機制確保一致性。  
+**中性：** platform/audit-log 的 Firestore collection 應設計為 append-only（Firestore 本身不強制，需 Security Rules 配合）。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — platform audit-log baseline
+- `src/modules/workspace/subdomains/audit/` — 現有 workspace 稽核
+- `docs/structure/domain/ubiquitous-language.md` — AuditLog vs AuditTrail 命名規則
+- `firestore.rules` — 待更新：audit-log collection 需 write-only rules
+````
+
+## File: docs/decisions/platform/0002-feature-flag-subdomain.md
+````markdown
+# ADR 0002 — platform `feature-flag` 子域建立
+
+## Status
+
+Proposed
+
+## Date
+
+2025-02-11
+
+## Context
+
+`docs/structure/domain/subdomains.md` 的 platform baseline 定義包含 `feature-flag`：
+
+> feature-flag — 功能開關策略與發佈節點
+
+目前 `platform/subdomains/` 有 `platform-config`，但沒有 `feature-flag`。問題：
+
+1. **`platform-config` ≠ feature-flag**：`platform-config` 負責平台配置輪廓（如：Firebase 專案設定、環境變數），feature-flag 負責執行期的功能開關決策（如：哪些用戶看到哪些功能）。
+2. **無 FeatureFlag 業務語言**：`docs/structure/domain/ubiquitous-language.md` 定義的 platform 術語中無 FeatureFlag，代表尚未正式化。
+3. **billing entitlement 的區別**：`billing/entitlement` 控制的是「付費方案給予哪些能力」，而 feature-flag 控制的是「開發團隊把哪些功能打開給哪些用戶測試」。兩者都能限制功能可用性，但決策維度不同。
+
+系統中潛在需求：
+- Canary release（只讓 10% 用戶看到新功能）
+- Beta program（特定 organizationId 優先開啟）
+- Gradual rollout（按百分比漸進開放）
+
+這些策略屬於 **platform 的發佈治理能力**，不是 billing 的商業授權。
+
+## Decision
+
+### 建立 `platform/subdomains/feature-flag/`
+
+```
+src/modules/platform/subdomains/feature-flag/
+  README.md
+  domain/
+    entities/
+      FeatureFlag.ts           # 聚合根：name, status, rolloutStrategy, rules
+    value-objects/
+      FlagStatus.ts            # enabled / disabled / gradual
+      RolloutStrategy.ts       # percentage, allowList, denyList
+      FlagTarget.ts            # userId / organizationId / accountId
+    services/
+      FlagEvaluator.ts         # 純業務邏輯：給定 actor → 決定 flag 是否開啟
+    events/
+      FeatureFlagUpdated.ts
+    repositories/
+      FeatureFlagRepository.ts
+  application/
+    use-cases/
+      evaluate-feature-flag.use-case.ts   # 主要消費 API
+      create-feature-flag.use-case.ts
+      update-rollout-strategy.use-case.ts
+    dtos/
+      EvaluateFlagInput.ts
+      EvaluateFlagResult.ts    # { enabled: boolean; reason: string }
+```
+
+### 邊界澄清
+
+| 問題 | 機制 | 所屬 |
+|---|---|---|
+| 這個功能需要付費方案嗎？ | Entitlement | billing |
+| 這個功能是否在本次 release 開啟？ | FeatureFlag | platform |
+| 這個功能是否對這個用戶授權？ | AccessDecision | iam |
+
+### 與 platform-config 的分工
+
+`platform-config`：靜態的平台環境配置（Firebase 設定、API endpoint、env 變數等），部署時決定，不在執行期動態改變。  
+`feature-flag`：執行期的功能開關，可不重新部署即更新。
+
+## Consequences
+
+**正面：** 提供正式的功能發佈治理能力；與 entitlement 的商業授權邏輯分開，各自清晰。  
+**負面：** 需要一個 backend 儲存 flag 定義（Firestore 即可）；評估效能時需確保 `evaluate-feature-flag` 不成為 hot path 瓶頸。  
+**中性：** 初期 `RolloutStrategy` 只需支援 `enabled / disabled`，漸進 rollout 在真實需求出現時再擴展（YAGNI）。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — platform feature-flag baseline
+- `src/modules/platform/subdomains/platform-config/` — 現有平台配置（不負責功能開關）
+- `src/modules/billing/subdomains/entitlement/` — 商業授權（不負責發佈策略）
+- ADR platform/0001 — audit-log（feature-flag 更新應觸發 audit-log 記錄）
+````
+
+## File: docs/decisions/platform/0003-platform-cache-classification.md
+````markdown
+# ADR 0003 — platform `cache` 子域歸屬評估
+
+## Status
+
+Accepted
+
+## Date
+
+2025-02-11
+
+## Context
+
+`src/modules/platform/subdomains/` 目前存在 `cache` 子域，但 `docs/structure/domain/subdomains.md` 的 platform baseline **不包含** `cache`。問題：
+
+1. **Cache 是 infrastructure concern**：快取策略（TTL、invalidation、storage backend）屬於技術實作細節，不是業務能力。
+2. **DDD 原則**：Subdomain 應代表業務能力（Business Capability），不是技術機制。
+3. **Baseline 不認可**：baseline 定義的 platform 子域是 notification、search、audit-log 等有業務語言的能力，沒有 cache。
+4. **`packages/infra/` 已有對應位置**：共用 infrastructure 能力（query、http、serialization 等）統一放在 `packages/infra/`，cache 屬於同類。
+
+此外，若 `cache` 子域只是包裝了 Redis 或 in-memory 快取客戶端，它沒有 domain model、沒有 aggregate、沒有業務事件，本質上是 infrastructure adapter 而非子域。
+
+## Decision
+
+### 將 `platform/subdomains/cache/` 移除，重定位至 infrastructure
+
+**方案：移至 `packages/infra/cache/`**
+
+```
+packages/infra/cache/
+  AGENTS.md
+  index.ts             # 暴露 CacheAdapter interface + 實作
+  README.md
+  adapters/
+    MemoryCacheAdapter.ts
+    FirestoreCacheAdapter.ts    # 若需要持久化快取
+```
+
+`platform` module 若有自己的快取需求，透過 `@infra/cache` alias 引入，並在各自的 `infrastructure/` adapter 中使用，不建立 platform subdomain。
+
+### 邊界確認
+
+| 問題 | 結論 |
+|---|---|
+| cache 有業務規則嗎？ | 否，TTL 是技術配置 |
+| cache 有 aggregate 或 domain event 嗎？ | 否 |
+| cache 屬於業務語言嗎？ | 否，不在 ubiquitous-language.md |
+| baseline subdomains 包含 cache 嗎？ | 否 |
+
+**結論：cache 是 infrastructure 能力，不是 platform 子域。**
+
+### 遷移步驟
+
+1. 確認 `platform/subdomains/cache/` 的現有程式碼內容
+2. 若只有 adapter 代碼 → 直接移至 `packages/infra/cache/`
+3. 若有業務邏輯（如快取失效策略） → 評估是否屬於某個有業務語言的子域
+4. 更新所有 `import from '@/modules/platform/subdomains/cache'` 改為 `import from '@infra/cache'`
+5. 刪除 `platform/subdomains/cache/` 目錄
+
+## Consequences
+
+**正面：** platform module 的子域清單對齊 baseline；cache 能力在 packages/infra 統一管理，所有模組都可使用。  
+**負面：** 需要遷移現有 import；若其他模組已依賴 `platform/cache` 需全部更新。  
+**中性：** `packages/infra/cache` 是新目錄，需在 `tsconfig.json` 和 `eslint.config.mjs` 增加 `@infra/cache` alias。
+
+## References
+
+- `docs/structure/domain/subdomains.md` — platform baseline（不含 cache）
+- `src/modules/platform/subdomains/cache/` — 待評估遷移的現有子域
+- `packages/infra/` — 目標位置
+- ADR architecture/0001 — subdomain boundary governance（extra subdomains evaluation 規則）
 ````
 
 ## File: docs/examples/ai/.gitkeep
@@ -8290,13 +10429,36 @@ def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) 
 ⋮----
 class InfraDocumentPipelineGateway
 ⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> Any
+@staticmethod
+    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
+⋮----
+@staticmethod
+    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
+⋮----
+lines = [line.strip() for line in text.splitlines() if line.strip()]
+⋮----
+chunks: list[dict[str, Any]] = []
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
+⋮----
+# parser == "layout" (default)
+layout_parsed = process_document_gcs(
+⋮----
+fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
+⋮----
+fallback_parsed = process_document_gcs(
+fallback_text = (layout_parsed.text or fallback_parsed.text or "").strip()
+fallback_chunks = layout_parsed.chunks or self._synthesize_chunks_from_text(fallback_text)
 ⋮----
 def record_error(self, doc_id: str, message: str, account_id: str) -> None
 ⋮----
 def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
 ⋮----
 def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
 ⋮----
 def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
 ⋮----
@@ -8574,6 +10736,10 @@ DOCAI_LAYOUT_PROCESSOR_NAME: str = os.environ.get(
 # 若未設定則使用預設 US Form Parser；設為空字串可停用副通道
 DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
 ⋮----
+# OCR Processor（選配）— 當 Layout Parser 無有效輸出時的文字擷取後備通道。
+# 預設留空（不啟用）；若提供值，需填入 US region processor resource name。
+DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
+⋮----
 # 舊版 asia-southeast1 processor — 已棄用，保留供向下相容
 _DOCAI_PROCESSOR_NAME_LEGACY: str = (
 ⋮----
@@ -8664,13 +10830,17 @@ def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) 
 ⋮----
 class DocumentPipelineGateway(Protocol)
 ⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> Any: ...
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
 ⋮----
 def record_error(self, doc_id: str, message: str, account_id: str) -> None: ...
 ⋮----
 def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
 ⋮----
 def parsed_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def form_json_path(self, upload_object_path: str) -> str: ...
 ⋮----
 def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str: ...
 ⋮----
@@ -9520,6 +11690,33 @@ payload = {
         entity_count:   Form Parser 結構化欄位數量。
     """
 ⋮----
+"""
+    更新 Layout Parser 解析結果，標記文件為 completed 狀態。
+
+    Layout JSON（含 text、chunks）已寫入 GCS，
+    Firestore 只保留輕量索引（layout_json_gcs_uri、page_count、layout_chunk_count）。
+
+    Args:
+        doc_id:               文件識別碼。
+        layout_json_gcs_uri:  Layout Parser GCS JSON 路徑（.layout.json）。
+        page_count:           頁數。
+        extraction_ms:        解析耗時（毫秒）。
+        chunk_count:          語意分塊數量。
+    """
+⋮----
+"""
+    更新 Form Parser 解析結果（不覆蓋 Layout Parser 的欄位）。
+
+    Form JSON（含 entities）已寫入 GCS，
+    Firestore 用 dot-notation update 新增 form 專屬欄位。
+
+    Args:
+        doc_id:              文件識別碼。
+        form_json_gcs_uri:   Form Parser GCS JSON 路徑（.form.json）。
+        extraction_ms:       解析耗時（毫秒）。
+        entity_count:        結構化欄位數量。
+    """
+⋮----
 def record_error(doc_id: str, message: str, account_id: str) -> None
 ⋮----
 """
@@ -9575,6 +11772,24 @@ def parsed_json_path(upload_object_path: str) -> str
         uploads/doc.png          ->  files/doc.json
     """
 relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
+⋮----
+def layout_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    Layout Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.layout.json
+    """
+⋮----
+def form_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    Form Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.form.json
+    """
 ⋮----
 def upload_json(bucket_name: str, object_path: str, data: dict) -> str
 ⋮----
@@ -9725,13 +11940,13 @@ start_time = time.time()
 parsed = runtime.process_document_gcs(
 extraction_ms = int((time.time() - start_time) * 1000)
 ⋮----
-json_object_path = runtime.parsed_json_path(object_path)
+json_object_path = runtime.layout_json_path(object_path)
 json_gcs_uri = runtime.upload_json(
 ⋮----
-# Store full layout chunks so rag_reindex_document can reconstruct
-# text and use layout-aware chunking without re-parsing the document.
-⋮----
 rag = ingest_document_for_rag(
+⋮----
+else:  # "form"
+json_object_path = runtime.form_json_path(object_path)
 ````
 
 ## File: fn/src/interface/handlers/rag_query_handler.py
@@ -9783,12 +11998,6 @@ json_bytes = runtime.download_bytes(
 parsed_payload: dict = (
 ⋮----
 text = str(parsed_payload.get("text", "")).strip()
-⋮----
-# Backward-compat: old JSON files may not have "text".
-# Reconstruct from stored layout chunks when available.
-stored_chunks = parsed_payload.get("chunks") or []
-⋮----
-text = "\n".join(
 ⋮----
 # Enrich from the JSON payload when schema fields were left empty.
 source_gcs_uri = schema.source_gcs_uri or str(
@@ -9899,18 +12108,18 @@ gcs_uri = f"gs://{bucket_name}/{object_path}"
 ⋮----
 # ── Step 1: 初始化 Firestore document ──────────────────────────────────
 ⋮----
-# ── Step 2: Document AI 解析 ──────────────────────────────────────────
+# ── Step 2: Document AI 解析（Layout Parser） ─────────────────────────
 start_time = time.time()
 ⋮----
-parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, parser="layout")
 extraction_ms = int((time.time() - start_time) * 1000)
 ⋮----
-# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，同目錄結構）──────────
-json_object_path = runtime.parsed_json_path(object_path)
+# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，.layout.json 副檔名）─
+json_object_path = runtime.layout_json_path(object_path)
 json_data = {
 json_gcs_uri = runtime.upload_json(
 ⋮----
-# ── Step 4: 更新 Firestore 索引（只存 metadata，不存全文）─────────
+# ── Step 4: 更新 Firestore 索引（layout 欄位）──────────────────────
 ⋮----
 # ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
 ⋮----
@@ -9949,6 +12158,7 @@ filename: str
 mime_type: str
 size_bytes: int
 run_rag: bool
+parser: str  # "layout" | "form" | "ocr"
 ⋮----
 @classmethod
     def from_raw(cls, raw: dict) -> "ParseDocumentRequest"
@@ -9982,6 +12192,8 @@ size_bytes = int(raw.get("size_bytes", 0) or 0)
 size_bytes = 0
 ⋮----
 run_rag = bool(raw.get("run_rag", True))
+⋮----
+parser = str(raw.get("parser", "layout")).strip().lower()
 ````
 
 ## File: fn/src/interface/schemas/rag_query.py
@@ -10108,158 +12320,6 @@ page_count = 0
 ## File: fn/src/interface/__init__.py
 ````python
 
-````
-
-## File: fn/tests/__init__.py
-````python
-
-````
-
-## File: fn/tests/conftest.py
-````python
-SRC_DIR = Path(__file__).resolve().parents[1] / "src"
-````
-
-## File: fn/tests/test_domain_repository_gateways.py
-````python
-class _FakeRagQueryGateway
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict | None
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict) -> None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-⋮----
-class _FakeRagIngestionGateway
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
-⋮----
-def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
-⋮----
-def upsert_search_documents(self, documents: list[dict]) -> int
-⋮----
-def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
-⋮----
-class _FakeDocumentPipelineGateway
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
-⋮----
-def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
-⋮----
-rag_query_gateway = _FakeRagQueryGateway()
-rag_ingestion_gateway = _FakeRagIngestionGateway()
-document_pipeline_gateway = _FakeDocumentPipelineGateway()
-⋮----
-def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
-````
-
-## File: fn/tests/test_input_schemas.py
-````python
-"""
-Unit tests for interface/schemas/ — Rule 4 (Contract / Schema) compliance.
-
-Verifies that all HTTPS Callable input schemas reject invalid inputs and
-accept valid inputs before reaching the application layer.
-"""
-⋮----
-# ── ParseDocumentRequest ──────────────────────────────────────────────────────
-⋮----
-class TestParseDocumentRequest
-⋮----
-def test_fromRaw_WithValidPdf_ReturnsSchema(self) -> None
-⋮----
-raw = {
-schema = ParseDocumentRequest.from_raw(raw)
-⋮----
-def test_fromRaw_WithExplicitDocId_UsesProvidedDocId(self) -> None
-⋮----
-def test_fromRaw_WithRunRagFalse_SetsRunRagFalse(self) -> None
-⋮----
-def test_fromRaw_InfersMimeFromExtension_WhenMimeOmitted(self) -> None
-⋮----
-def test_fromRaw_MissingAccountId_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_MissingWorkspaceId_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_InvalidGcsUri_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_UnknownExtensionWithoutMime_RaisesValueError(self) -> None
-⋮----
-# ── RagQueryRequest ───────────────────────────────────────────────────────────
-⋮----
-class TestRagQueryRequest
-⋮----
-def test_fromRaw_WithValidInput_ReturnsSchema(self) -> None
-⋮----
-schema = RagQueryRequest.from_raw(
-⋮----
-def test_fromRaw_WithTopK_ParsesInt(self) -> None
-⋮----
-def test_fromRaw_WithTaxonomyFilters_NormalizesStrings(self) -> None
-⋮----
-def test_fromRaw_EmptyUid_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_MissingQuery_RaisesValueError(self) -> None
-⋮----
-# ── RagReindexRequest ─────────────────────────────────────────────────────────
-⋮----
-class TestRagReindexRequest
-⋮----
-def test_fromRaw_WithMinimalValidInput_ReturnsSchema(self) -> None
-⋮----
-schema = RagReindexRequest.from_raw(raw)
-⋮----
-def test_fromRaw_MissingDocId_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_MissingJsonGcsUri_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_WithPageCount_ParsesInt(self) -> None
-````
-
-## File: fn/tests/test_rag_ingestion_text.py
-````python
-"""Unit tests for domain/services/rag_ingestion_text.py — Layout Parser path."""
-⋮----
-def test_layoutChunksToRagChunks_WithValidChunks_ReturnsExpectedShape() -> None
-⋮----
-layout_chunks = [
-⋮----
-result = layout_chunks_to_rag_chunks(layout_chunks)
-⋮----
-first = result[0]
-assert first["text"] == "採購訂單標頭"  # whitespace stripped
-⋮----
-# char_start / char_end are schema-compat fields
-⋮----
-second = result[1]
-⋮----
-def test_layoutChunksToRagChunks_WithEmptyTextChunk_SkipsChunk() -> None
-⋮----
-def test_layoutChunksToRagChunks_WithEmptyInput_ReturnsEmptyList() -> None
-⋮----
-def test_layoutChunksToRagChunks_WithMissingOptionalFields_UsesDefaults() -> None
-⋮----
-layout_chunks = [{"text": "只有文字欄位"}]
-⋮----
-chunk = result[0]
 ````
 
 ## File: fn/.env.example
@@ -10551,7 +12611,8 @@ GCS Document
     └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
 ```
 
-- **主通道（Layout Parser）**失敗 → 整體 pipeline 失敗（拋例外，Rule 10）
+- **主通道（Layout Parser）**若回傳空輸出（0 page 且無 text/chunk）→ 自動改走後備 OCR/Form processor 補齊文字，再繼續流程
+- **主通道（Layout Parser）**API 失敗（拋例外）→ 整體 pipeline 失敗（Rule 10）
 - **副通道（Form Parser）**失敗 → 記錄 `WARNING`，以空 `entities` 繼續，不阻斷主流程（Rule 10）
 
 ### 環境變數
@@ -10560,6 +12621,7 @@ GCS Document
 |---|---|---|
 | `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser 資源名稱（主通道，不可空） |
 | `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser 資源名稱（設為空字串可停用副通道） |
+| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填，建議 US region） |
 | `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | **不可改為 eu 或 global** |
 | `DOCAI_LOCATION` | `us` | processor 所在 region |
 
@@ -14380,7 +16442,8 @@ function googleDocViewerUrl(downloadUrl: string): string
 type DocActionStatus = "idle" | "running" | "done" | "error";
 ⋮----
 interface DocActionState {
-  parse: DocActionStatus;
+  parseLayout: DocActionStatus;
+  parseForm: DocActionStatus;
   index: DocActionStatus;
   reindex: DocActionStatus;
   page: DocActionStatus;
@@ -14395,6 +16458,8 @@ interface DocActionState {
 // Preview state
 ⋮----
 // Per-document expanded / action state
+⋮----
+// JSON viewer modal state
 ⋮----
 const load = () =>
 ⋮----
@@ -14411,9 +16476,9 @@ const closePreview = () =>
 ⋮----
 const setDocAction = (docId: string, patch: Partial<DocActionState>) =>
 ⋮----
-const handleParse = async (doc: DocumentSnapshot) =>
+const handleParseLayout = async (doc: DocumentSnapshot) =>
 ⋮----
-// Reload list to pick up updated Firestore metadata
+const handleParseForm = async (doc: DocumentSnapshot) =>
 ⋮----
 const handleIndex = async (doc: DocumentSnapshot) =>
 ⋮----
@@ -14443,13 +16508,19 @@ const handleCreateDatabase = async (doc: DocumentSnapshot) =>
 ⋮----
 {/* Section: Document AI parse */}
 ⋮----
+onClick=
+⋮----
+{/* Section: RAG index — uses Layout Parser output */}
+⋮----
 {/* Section: Generate downstream artifacts */}
 ⋮----
 {/* Action status message */}
 ⋮----
 {/* Downstream CTAs when documents are ready */}
 ⋮----
-{/* PDF / image preview overlay — Google Doc Viewer */}
+{/* JSON viewer modal — parsed output summary */}
+⋮----
+<Button size="sm" variant="ghost" onClick=
 ⋮----
 src=
 ````
@@ -14479,7 +16550,9 @@ async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut
 ⋮----
 // ── Input schemas ─────────────────────────────────────────────────────────────
 ⋮----
-/** GCS URI of the parsed JSON written by fn after Document AI parse. */
+/** Which Document AI processor to invoke: "layout" (default), "form", or "ocr". */
+⋮----
+/** GCS URI of the Layout Parser JSON written by fn after Document AI parse. */
 ⋮----
 // ── Actions ───────────────────────────────────────────────────────────────────
 ⋮----
@@ -14514,17 +16587,16 @@ export async function createPageFromDocumentAction(rawInput: unknown)
 export async function createDatabaseFromDocumentAction(rawInput: unknown)
 ⋮----
 /**
- * parseDocumentAction — trigger Document AI parse (Layout Parser + Form Parser)
- * for a specific document. Always a pure parse; RAG indexing is a separate step.
+ * parseDocumentAction — trigger Document AI parse for a specific document.
  *
- * Calls the fn `parse_document` HTTPS callable function from the server side,
- * which avoids browser CORS restrictions entirely.  Functions are deployed in
- * asia-southeast1; the server-to-server fetch bypasses CORS headers.
+ * Pass `parser: "layout"` (default) for Layout Parser (text + semantic chunks).
+ * Pass `parser: "form"` for Form Parser (structured entities / KV fields).
+ * Always a pure parse step; RAG indexing is a separate step.
  */
 export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocumentOutput>
 ⋮----
 /**
- * reindexDocumentAction — trigger RAG reindex for a specific document.
+ * reindexDocumentAction — trigger RAG reindex from Layout Parser JSON.
  *
  * Calls the fn `rag_reindex_document` HTTPS callable function from the server
  * side to avoid browser CORS restrictions.
@@ -15198,10 +17270,15 @@ interface PyFnDocumentRecord {
     mime_type?: string;
   };
   parsed?: {
-    json_gcs_uri?: string;
+    layout_json_gcs_uri?: string;
+    form_json_gcs_uri?: string;
     page_count?: number;
     parsed_at?: { toDate?: () => Date };
     extraction_ms?: number;
+    layout_chunk_count?: number;
+    form_entity_count?: number;
+    /** Legacy field written by storage trigger before the split. */
+    json_gcs_uri?: string;
     chunk_count?: number;
     entity_count?: number;
   };
@@ -15223,6 +17300,8 @@ interface PyFnDocumentRecord {
     space_id?: string;
   };
 }
+⋮----
+/** Legacy field written by storage trigger before the split. */
 ⋮----
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 ⋮----
@@ -15344,12 +17423,14 @@ export interface DocumentSnapshot {
   readonly deletedAtISO?: string;
   /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
   readonly parsedPageCount?: number;
-  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.chunk_count）*/
-  readonly parsedChunkCount?: number;
-  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.entity_count）*/
-  readonly parsedEntityCount?: number;
-  /** 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.json_gcs_uri）*/
-  readonly parsedJsonGcsUri?: string;
+  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
+  readonly parsedLayoutChunkCount?: number;
+  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
+  readonly parsedFormEntityCount?: number;
+  /** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+  readonly parsedLayoutJsonGcsUri?: string;
+  /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
+  readonly parsedFormJsonGcsUri?: string;
   /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
   readonly ragChunkCount?: number;
   /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
@@ -15362,11 +17443,13 @@ export interface DocumentSnapshot {
 ⋮----
 /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
 ⋮----
-/** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.chunk_count）*/
+/** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
 ⋮----
-/** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.entity_count）*/
+/** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
 ⋮----
-/** 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.json_gcs_uri）*/
+/** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+⋮----
+/** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
 ⋮----
 /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
 ⋮----
@@ -17852,8 +19935,6 @@ export function AccountDashboardRouteScreen(): React.ReactElement
 {/* Header */}
 ⋮----
 {/* Stats */}
-⋮----
-{/* Quick links */}
 ⋮----
 {/* Recent activity */}
 ⋮----
@@ -21079,15 +23160,6 @@ async execute(input: InitiateWorkflowDTO): Promise<WorkflowResponseDTO>
 // Add use-cases, DTOs, and ports for template lifecycle workflows here.
 ````
 
-## File: src/modules/template/subdomains/workflow/domain/entities/template-state-model.test.ts
-````typescript
-import { describe, expect, it } from 'vitest';
-import { TemplateWorkflow } from './TemplateWorkflow';
-import { WorkflowId } from '../value-objects/WorkflowId';
-import { IngestionJob } from '../../../ingestion/domain/entities/IngestionJob';
-import { IngestionId } from '../../../ingestion/domain/value-objects/IngestionId';
-````
-
 ## File: src/modules/template/subdomains/workflow/domain/entities/TemplateWorkflow.ts
 ````typescript
 import { WorkflowId } from '../value-objects/WorkflowId';
@@ -21663,21 +23735,6 @@ export function resolveAccountScopedWorkspaceId({
   activeWorkspaceId,
   workspaces,
 }: ResolveAccountScopedWorkspaceIdInput): string | null
-````
-
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
-import type { WorkspaceEntity } from "./WorkspaceContext";
-⋮----
-function buildWorkspace(
-  id: string,
-  name: string,
-  accountId: string,
-  accountType: "user" | "organization" = "organization",
-): WorkspaceEntity
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
@@ -22285,16 +24342,6 @@ const handleReject = (decision: ApprovalDecisionSnapshot) =>
 onClick=
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { matchesAuditEventType } from "./workspace-audit-filter";
-import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
-⋮----
-function buildEntry(partial: Partial<AuditEntrySnapshot>): AuditEntrySnapshot
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx
 ````typescript
 /**
@@ -22898,7 +24945,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { createActor } from "xstate";
 ⋮----
 import {
-  createInvoiceAction,
+  createInvoiceFromAcceptedTasksAction,
   listInvoicesByWorkspaceAction,
   transitionInvoiceStatusAction,
 } from "@/src/modules/workspace/adapters/inbound/server-actions/settlement-actions";
@@ -23094,6 +25141,22 @@ export async function listIssuesByTaskAction(taskId: string): Promise<IssueSnaps
 export async function listIssuesByWorkspaceAction(workspaceId: string): Promise<IssueSnapshot[]>
 ````
 
+## File: src/modules/workspace/adapters/inbound/server-actions/membership-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { createClientMembershipController, createClientMembershipUseCases } from "../../outbound/firebase-composition";
+import { MEMBER_ROLES } from "../../../subdomains/membership/domain/entities/WorkspaceMember";
+⋮----
+export async function addMemberAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function changeMemberRoleAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function removeMemberAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function listMembersAction(rawInput: unknown)
+````
+
 ## File: src/modules/workspace/adapters/inbound/server-actions/quality-actions.ts
 ````typescript
 import { z } from "zod";
@@ -23131,6 +25194,7 @@ export async function listWorkDemandsByWorkspaceAction(workspaceId: string): Pro
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/settlement-actions.ts
 ````typescript
+import { z } from "zod";
 import { commandFailureFrom, type CommandResult } from "../../../../shared";
 import { CreateInvoiceSchema, TransitionInvoiceSchema } from "../../../subdomains/settlement/application/dto/SettlementDTO";
 import { createClientSettlementUseCases } from "../../outbound/firebase-composition";
@@ -23141,6 +25205,8 @@ import type { InvoiceSnapshot } from "../../../subdomains/settlement/domain/enti
 // not verified here — tracked as GAP-05.
 ⋮----
 export async function createInvoiceAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function createInvoiceFromAcceptedTasksAction(rawInput: unknown): Promise<CommandResult>
 ⋮----
 export async function transitionInvoiceStatusAction(rawInput: unknown): Promise<CommandResult>
 ⋮----
@@ -23199,12 +25265,14 @@ import {
   StopWorkspaceUseCase,
 } from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
 import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
+import { FirestorePermissionCheckAdapter } from "../../subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter";
 import {
   AddMemberUseCase,
   ChangeMemberRoleUseCase,
   ListWorkspaceMembersUseCase,
   RemoveMemberUseCase,
 } from "../../subdomains/membership/application/use-cases/MembershipUseCases";
+import { MembershipController } from "../../subdomains/membership/adapters/inbound/http/MembershipController";
 import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
 import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
 import {
@@ -23254,6 +25322,7 @@ import {
 } from "../../subdomains/audit/application/use-cases/AuditUseCases";
 import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
 import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
+import { CreateInvoiceFromAcceptedTasksUseCase } from "../../subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
 ⋮----
 type FirestoreWhereOperator =
   | "<"
@@ -23290,6 +25359,8 @@ function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
 ⋮----
 function getWorkspaceMemberRepo(): FirestoreMemberRepository
 ⋮----
+function createMembershipPermissionCheck(repo: FirestoreMemberRepository): FirestorePermissionCheckAdapter
+⋮----
 // ── Public subscriptions ───────────────────────────────────────────────────────
 ⋮----
 /**
@@ -23308,6 +25379,8 @@ export function subscribeToWorkspacesForAccount(
 export function createClientWorkspaceLifecycleUseCases()
 ⋮----
 export function createClientMembershipUseCases()
+⋮----
+export function createClientMembershipController(): MembershipController
 ⋮----
 export function createClientTaskFormationUseCases()
 ⋮----
@@ -24745,17 +26818,6 @@ export type OpenIssueDTO = z.infer<typeof OpenIssueInputSchema>;
 export type TransitionIssueDTO = z.infer<typeof TransitionIssueInputSchema>;
 ````
 
-## File: src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-import {
-  getIssueTransitionEvents,
-  ISSUE_EVENT_LABEL,
-  ISSUE_EVENT_TO_STATUS,
-} from "./issueLifecycle.machine";
-import { canTransitionIssueStatus } from "../../domain/value-objects/IssueStatus";
-````
-
 ## File: src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine.ts
 ````typescript
 import { setup } from "xstate";
@@ -25060,40 +27122,6 @@ export type CreateWorkspaceDTO = z.infer<typeof CreateWorkspaceInputSchema>;
 export type UpdateWorkspaceSettingsDTO = z.infer<typeof UpdateWorkspaceSettingsSchema>;
 ````
 
-## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.test.ts
-````typescript
-import { describe, expect, it } from 'vitest';
-import {
-  CreateWorkspaceWithOwnerUseCase,
-} from './WorkspaceLifecycleUseCases';
-import type { WorkspaceSnapshot } from '../../domain/entities/Workspace';
-import type { WorkspaceRepository } from '../../domain/repositories/WorkspaceRepository';
-import type { WorkspaceMemberSnapshot } from '../../../membership/domain/entities/WorkspaceMember';
-import type { WorkspaceMemberRepository } from '../../../membership/domain/repositories/WorkspaceMemberRepository';
-⋮----
-class InMemoryWorkspaceRepository implements WorkspaceRepository
-⋮----
-async findById(workspaceId: string): Promise<WorkspaceSnapshot | null>
-⋮----
-async findByAccountId(accountId: string): Promise<WorkspaceSnapshot[]>
-⋮----
-async save(workspace: WorkspaceSnapshot): Promise<void>
-⋮----
-async delete(workspaceId: string): Promise<void>
-⋮----
-class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository
-⋮----
-async findById(memberId: string): Promise<WorkspaceMemberSnapshot | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<WorkspaceMemberSnapshot[]>
-⋮----
-async findByActorAndWorkspace(actorId: string, workspaceId: string): Promise<WorkspaceMemberSnapshot | null>
-⋮----
-async save(member: WorkspaceMemberSnapshot): Promise<void>
-⋮----
-async delete(memberId: string): Promise<void>
-````
-
 ## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.ts
 ````typescript
 import { v4 as uuid } from "uuid";
@@ -25113,19 +27141,29 @@ interface CreateWorkspaceWithOwnerInput {
   };
 }
 ⋮----
+interface WorkspaceCreatorInput {
+  readonly actorId: string;
+  readonly displayName: string;
+  readonly email?: string;
+}
+⋮----
+interface CreateWorkspaceWithCreatorInput extends CreateWorkspaceInput {
+  readonly creator?: WorkspaceCreatorInput;
+}
+⋮----
 export class CreateWorkspaceUseCase
 ⋮----
-constructor(private readonly workspaceRepo: WorkspaceRepository)
+constructor(
 ⋮----
-async execute(input: CreateWorkspaceInput): Promise<CommandResult>
+async execute(input: CreateWorkspaceWithCreatorInput): Promise<CommandResult>
 ⋮----
 export class CreateWorkspaceWithOwnerUseCase
-⋮----
-constructor(
 ⋮----
 async execute(input: CreateWorkspaceWithOwnerInput): Promise<CommandResult>
 ⋮----
 export class ActivateWorkspaceUseCase
+⋮----
+constructor(private readonly workspaceRepo: WorkspaceRepository)
 ⋮----
 async execute(workspaceId: string): Promise<CommandResult>
 ⋮----
@@ -25248,11 +27286,23 @@ delete(workspaceId: string): Promise<void>;
 ## File: src/modules/workspace/subdomains/membership/adapters/inbound/http/MembershipController.ts
 ````typescript
 import type { WorkspaceMemberRepository } from "../../../domain/repositories/WorkspaceMemberRepository";
+import type { AddMemberInput, MemberRole } from "../../../domain/entities/WorkspaceMember";
 import { AddMemberUseCase, ChangeMemberRoleUseCase, RemoveMemberUseCase } from "../../../application/use-cases/MembershipUseCases";
+import type { PermissionCheckPort } from "../../../application/ports/PermissionCheckPort";
+import type { CommandResult } from "../../../../../../shared";
 ⋮----
 export class MembershipController
 ⋮----
-constructor(memberRepo: WorkspaceMemberRepository)
+constructor(
+    memberRepo: WorkspaceMemberRepository,
+    permissionCheck: PermissionCheckPort,
+)
+⋮----
+async add(actorId: string, input: AddMemberInput): Promise<CommandResult>
+⋮----
+async changeRole(actorId: string, memberId: string, role: MemberRole): Promise<CommandResult>
+⋮----
+async remove(actorId: string, memberId: string): Promise<CommandResult>
 ````
 
 ## File: src/modules/workspace/subdomains/membership/adapters/inbound/index.ts
@@ -25292,6 +27342,32 @@ async save(member: WorkspaceMemberSnapshot): Promise<void>
 async delete(memberId: string): Promise<void>
 ````
 
+## File: src/modules/workspace/subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter.ts
+````typescript
+import type { PermissionCheckInput, PermissionCheckPort } from "../../../application/ports/PermissionCheckPort";
+import type { WorkspaceMemberRepository } from "../../../domain/repositories/WorkspaceMemberRepository";
+import { WorkspaceRolePolicy, type WorkspaceMembershipAction } from "../../../domain/value-objects/WorkspaceRolePolicy";
+import type { FirestoreLike } from "../firestore/FirestoreMemberRepository";
+⋮----
+interface AccessPolicyRecord {
+  readonly action: string;
+  readonly effect: "allow" | "deny";
+  readonly isActive?: boolean;
+}
+⋮----
+export class FirestorePermissionCheckAdapter implements PermissionCheckPort
+⋮----
+constructor(
+⋮----
+async can(input: PermissionCheckInput): Promise<boolean>
+⋮----
+private async resolveDynamicDecision(input: PermissionCheckInput): Promise<boolean | null>
+⋮----
+private toAccessPolicyRecord(record: Record<string, unknown>): AccessPolicyRecord | null
+⋮----
+private matchesAction(policyAction: string, action: WorkspaceMembershipAction): boolean
+````
+
 ## File: src/modules/workspace/subdomains/membership/adapters/outbound/index.ts
 ````typescript
 
@@ -25311,6 +27387,26 @@ export type AddMemberDTO = z.infer<typeof AddMemberInputSchema>;
 export type ChangeMemberRoleDTO = z.infer<typeof ChangeMemberRoleSchema>;
 ````
 
+## File: src/modules/workspace/subdomains/membership/application/ports/PermissionCheckPort.ts
+````typescript
+import type { MemberRole } from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceMembershipAction } from "../../domain/value-objects/WorkspaceRolePolicy";
+⋮----
+export interface PermissionCheckInput {
+  readonly actorId: string;
+  readonly workspaceId: string;
+  readonly action: WorkspaceMembershipAction;
+  readonly targetMemberRole?: MemberRole;
+  readonly nextRole?: MemberRole;
+}
+⋮----
+export interface PermissionCheckPort {
+  can(input: PermissionCheckInput): Promise<boolean>;
+}
+⋮----
+can(input: PermissionCheckInput): Promise<boolean>;
+````
+
 ## File: src/modules/workspace/subdomains/membership/application/use-cases/MembershipUseCases.ts
 ````typescript
 import { v4 as uuid } from "uuid";
@@ -25318,22 +27414,25 @@ import { commandSuccess, commandFailureFrom, type CommandResult } from "../../..
 import type { WorkspaceMemberRepository } from "../../domain/repositories/WorkspaceMemberRepository";
 import { WorkspaceMember } from "../../domain/entities/WorkspaceMember";
 import type { AddMemberInput, MemberRole } from "../../domain/entities/WorkspaceMember";
+import type { PermissionCheckPort } from "../ports/PermissionCheckPort";
 ⋮----
 export class AddMemberUseCase
 ⋮----
-constructor(private readonly memberRepo: WorkspaceMemberRepository)
+constructor(
 ⋮----
-async execute(input: AddMemberInput): Promise<CommandResult>
+async execute(actorId: string, input: AddMemberInput): Promise<CommandResult>
 ⋮----
 export class ChangeMemberRoleUseCase
 ⋮----
-async execute(memberId: string, role: MemberRole): Promise<CommandResult>
+async execute(actorId: string, memberId: string, role: MemberRole): Promise<CommandResult>
 ⋮----
 export class RemoveMemberUseCase
 ⋮----
-async execute(memberId: string): Promise<CommandResult>
+async execute(actorId: string, memberId: string): Promise<CommandResult>
 ⋮----
 export class ListWorkspaceMembersUseCase
+⋮----
+constructor(private readonly memberRepo: WorkspaceMemberRepository)
 ⋮----
 async execute(workspaceId: string)
 ````
@@ -25434,6 +27533,23 @@ findByWorkspaceId(workspaceId: string): Promise<WorkspaceMemberSnapshot[]>;
 findByActorAndWorkspace(actorId: string, workspaceId: string): Promise<WorkspaceMemberSnapshot | null>;
 save(member: WorkspaceMemberSnapshot): Promise<void>;
 delete(memberId: string): Promise<void>;
+````
+
+## File: src/modules/workspace/subdomains/membership/domain/value-objects/WorkspaceRolePolicy.ts
+````typescript
+import type { MemberRole } from "../entities/WorkspaceMember";
+⋮----
+export type WorkspaceMembershipAction = typeof WORKSPACE_MEMBERSHIP_ACTIONS[number];
+⋮----
+export class WorkspaceRolePolicy
+⋮----
+constructor(
+⋮----
+can(role: MemberRole, action: WorkspaceMembershipAction): boolean
+⋮----
+canChangeRole(actorRole: MemberRole, targetRole: MemberRole, nextRole: MemberRole): boolean
+⋮----
+canRemove(actorRole: MemberRole, targetRole: MemberRole): boolean
 ````
 
 ## File: src/modules/workspace/subdomains/membership/domain/index.ts
@@ -26351,7 +28467,6 @@ update(demand: WorkDemandSnapshot): Promise<void>;
 ````typescript
 import type { InvoiceRepository } from "../../../domain/repositories/InvoiceRepository";
 import type { InvoiceSnapshot } from "../../../domain/entities/Invoice";
-import type { InvoiceStatus } from "../../../domain/value-objects/InvoiceStatus";
 ⋮----
 export interface FirestoreLike {
   get(collection: string, id: string): Promise<Record<string, unknown> | null>;
@@ -26365,6 +28480,13 @@ set(collection: string, id: string, data: Record<string, unknown>): Promise<void
 delete(collection: string, id: string): Promise<void>;
 query(collection: string, filters: Array<
 ⋮----
+/**
+ * Backfills default values for fields added after initial schema.
+ * Ensures old Firestore documents (missing lineItems/currency/subtotal/taxRate/taxAmount)
+ * are read back as valid InvoiceSnapshot without runtime crashes. (Rule 4)
+ */
+function toInvoiceSnapshot(raw: Record<string, unknown>): InvoiceSnapshot
+⋮----
 export class FirestoreInvoiceRepository implements InvoiceRepository
 ⋮----
 constructor(private readonly db: FirestoreLike)
@@ -26374,8 +28496,6 @@ async findById(invoiceId: string): Promise<InvoiceSnapshot | null>
 async findByWorkspaceId(workspaceId: string): Promise<InvoiceSnapshot[]>
 ⋮----
 async save(invoice: InvoiceSnapshot): Promise<void>
-⋮----
-async transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<InvoiceSnapshot | null>
 ⋮----
 async delete(invoiceId: string): Promise<void>
 ````
@@ -26406,16 +28526,19 @@ import { commandSuccess, commandFailureFrom, type CommandResult } from "../../..
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
 import { Invoice } from "../../domain/entities/Invoice";
 import type { CreateInvoiceFromAcceptedTasksInput } from "../../domain/entities/Invoice";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import { InvoiceCalculationService } from "../../domain/services/InvoiceCalculationService";
 ⋮----
 /**
  * CreateInvoiceFromAcceptedTasksUseCase
  *
  * Triggered by the TaskLifecycleSaga when a task reaches `accepted` status.
- * Creates a draft invoice with the accepted taskIds linked for traceability.
+ * Looks up the accepted tasks, builds LineItems from their unitPrice /
+ * contractQuantity fields, and creates a draft invoice with computed totals.
  */
 export class CreateInvoiceFromAcceptedTasksUseCase
 ⋮----
-constructor(private readonly invoiceRepo: InvoiceRepository)
+constructor(
 ⋮----
 async execute(input: CreateInvoiceFromAcceptedTasksInput): Promise<CommandResult>
 ````
@@ -26452,12 +28575,19 @@ import { v4 as uuid } from "uuid";
 import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
 import { canTransitionInvoiceStatus } from "../value-objects/InvoiceStatus";
 import type { InvoiceDomainEventType } from "../events/InvoiceDomainEvent";
+import type { LineItem } from "../value-objects/LineItem";
+import { InvoiceCalculationService } from "../services/InvoiceCalculationService";
 ⋮----
 export interface InvoiceSnapshot {
   readonly id: string;
   readonly workspaceId: string;
   readonly taskIds: ReadonlyArray<string>;
   readonly status: InvoiceStatus;
+  readonly lineItems: ReadonlyArray<LineItem>;
+  readonly currency: string;
+  readonly subtotal: number;
+  readonly taxRate: number;
+  readonly taxAmount: number;
   readonly totalAmount: number;
   readonly submittedAtISO: string | null;
   readonly approvedAtISO: string | null;
@@ -26486,6 +28616,8 @@ static create(id: string, input: CreateInvoiceInput): Invoice
 static reconstitute(snapshot: InvoiceSnapshot): Invoice
 ⋮----
 transition(to: InvoiceStatus): void
+⋮----
+setLineItems(items: ReadonlyArray<LineItem>): void
 ⋮----
 get id(): string
 get status(): InvoiceStatus
@@ -26522,21 +28654,51 @@ export type InvoiceDomainEventType = InvoiceCreatedEvent | InvoiceStatusChangedE
 ## File: src/modules/workspace/subdomains/settlement/domain/repositories/InvoiceRepository.ts
 ````typescript
 import type { InvoiceSnapshot } from "../entities/Invoice";
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
 ⋮----
 export interface InvoiceRepository {
   findById(invoiceId: string): Promise<InvoiceSnapshot | null>;
   findByWorkspaceId(workspaceId: string): Promise<InvoiceSnapshot[]>;
   save(invoice: InvoiceSnapshot): Promise<void>;
-  transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<InvoiceSnapshot | null>;
   delete(invoiceId: string): Promise<void>;
 }
 ⋮----
 findById(invoiceId: string): Promise<InvoiceSnapshot | null>;
 findByWorkspaceId(workspaceId: string): Promise<InvoiceSnapshot[]>;
 save(invoice: InvoiceSnapshot): Promise<void>;
-transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<InvoiceSnapshot | null>;
 delete(invoiceId: string): Promise<void>;
+````
+
+## File: src/modules/workspace/subdomains/settlement/domain/services/InvoiceCalculationService.ts
+````typescript
+/**
+ * InvoiceCalculationService — pure domain service.
+ *
+ * No framework or I/O dependencies. Computes invoice totals from a list of
+ * LineItems and builds LineItem value objects from task data.
+ *
+ * taxRate defaults to Taiwan's standard VAT of 5%.
+ */
+import type { LineItem } from "../value-objects/LineItem";
+⋮----
+export interface InvoiceTotals {
+  readonly subtotal: number;
+  readonly taxAmount: number;
+  readonly totalAmount: number;
+}
+⋮----
+export class InvoiceCalculationService
+⋮----
+static fromLineItems(
+    lineItems: ReadonlyArray<LineItem>,
+    taxRate = 0.05,
+): InvoiceTotals
+⋮----
+static buildLineItem(
+    taskId: string,
+    description: string,
+    unitPrice: number,
+    quantity: number,
+): LineItem
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/domain/value-objects/InvoiceStatus.ts
@@ -26546,6 +28708,25 @@ export type InvoiceStatus = "draft" | "submitted" | "finance_review" | "approved
 export function canTransitionInvoiceStatus(from: InvoiceStatus, to: InvoiceStatus): boolean
 ⋮----
 export function isTerminalInvoiceStatus(status: InvoiceStatus): boolean
+````
+
+## File: src/modules/workspace/subdomains/settlement/domain/value-objects/LineItem.ts
+````typescript
+/**
+ * LineItem — settlement subdomain value object.
+ *
+ * Represents one billable entry in an Invoice, derived from an accepted Task.
+ * Immutable: netAmount = unitPrice × quantity.
+ *
+ * Intentionally minimal at this stage — no PO item numbers or penalty fields.
+ */
+export interface LineItem {
+  readonly taskId: string;
+  readonly description: string;
+  readonly unitPrice: number;
+  readonly quantity: number;
+  readonly netAmount: number;
+}
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/domain/index.ts
@@ -26844,6 +29025,8 @@ export interface TaskSnapshot {
   readonly acceptedAtISO: string | null;
   readonly archivedAtISO: string | null;
   readonly sourceReference: SourceReference | null;
+  readonly unitPrice: number | null;
+  readonly contractQuantity: number | null;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
 }
@@ -26855,6 +29038,8 @@ export interface CreateTaskInput {
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
   readonly sourceReference?: SourceReference;
+  readonly unitPrice?: number;
+  readonly contractQuantity?: number;
 }
 ⋮----
 export interface UpdateTaskInput {
@@ -26862,6 +29047,8 @@ export interface UpdateTaskInput {
   readonly description?: string;
   readonly assigneeId?: string | null;
   readonly dueDateISO?: string | null;
+  readonly unitPrice?: number | null;
+  readonly contractQuantity?: number | null;
 }
 ⋮----
 export class Task
@@ -27054,6 +29241,8 @@ import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskC
  * ESLint: @integration-firebase is allowed here — outbound adapter layer.
  */
 export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort
+⋮----
+private _inferCategory(text: string): "施工作業" | "費用管銷"
 ⋮----
 async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
 ````
