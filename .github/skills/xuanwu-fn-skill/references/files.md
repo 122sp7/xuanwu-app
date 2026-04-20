@@ -1,158 +1,5 @@
 # Files
 
-## File: fn/.env.example
-````
-# fn/.env.example
-# 複製為 fn/.env 後填入實際值，再執行 fn/ 的 Cloud Functions。
-# 唯一真實來源：fn/src/core/config.py
-# 未列出的變數（UPLOAD_BUCKET、GCP_REGION、DOCAI_LOCATION）僅定義於
-# config.py 但從未被其他模組引用，不需在此設定。
-
-# ── OpenAI ───────────────────────────────────────────────────────────────────
-# 必填
-OPENAI_API_KEY=
-
-# 選填（預設值已可正常運作）
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_EMBEDDING_DIMENSIONS=1024
-OPENAI_LLM_MODEL=gpt-4o-mini
-OPENAI_TIMEOUT_SECONDS=30
-OPENAI_MAX_RETRIES=2
-
-# ── Document AI（US region） ──────────────────────────────────────────────────
-# 選填（預設值指向現行 US processors，勿改為 eu 或 global）
-DOCAI_API_ENDPOINT=us-documentai.googleapis.com
-DOCAI_LAYOUT_PROCESSOR_NAME=projects/65970295651/locations/us/processors/929c4719f45b1eee
-DOCAI_FORM_PROCESSOR_NAME=projects/65970295651/locations/us/processors/7318076ba71e0758
-
-# ── Upstash Redis ─────────────────────────────────────────────────────────────
-# 必填
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-
-# ── Upstash Vector ────────────────────────────────────────────────────────────
-# 必填
-UPSTASH_VECTOR_REST_URL=
-UPSTASH_VECTOR_REST_TOKEN=
-
-# ── Upstash Search ────────────────────────────────────────────────────────────
-# 必填
-UPSTASH_SEARCH_REST_URL=
-UPSTASH_SEARCH_REST_TOKEN=
-UPSTASH_SEARCH_INDEX=
-
-# 選填
-UPSTASH_SEARCH_TIMEOUT_SECONDS=8
-
-# ── QStash ────────────────────────────────────────────────────────────────────
-# 必填
-QSTASH_TOKEN=
-QSTASH_CURRENT_SIGNING_KEY=
-QSTASH_NEXT_SIGNING_KEY=
-QSTASH_RAG_AUDIT_URL=
-
-# 選填
-QSTASH_URL=https://qstash-us-east-1.upstash.io
-
-# ── RAG Pipeline ─────────────────────────────────────────────────────────────
-# 選填（調整會影響 chunk 品質與查詢行為）
-RAG_VECTOR_NAMESPACE=rag-docs
-RAG_CHUNK_SIZE_CHARS=1200
-RAG_CHUNK_OVERLAP_CHARS=150
-RAG_QUERY_TOP_K=5
-RAG_QUERY_CACHE_TTL_SECONDS=300
-RAG_QUERY_RATE_LIMIT_MAX=30
-RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS=60
-RAG_QUERY_DEFAULT_MAX_AGE_DAYS=365
-RAG_QUERY_REQUIRE_READY_STATUS=true
-RAG_DOC_CACHE_TTL_SECONDS=2592000
-RAG_REDIS_PREFIX=rag
-````
-
-## File: fn/main.py
-````python
-"""
-fn — Firebase Functions (Python) 入口檔
-========================================
-
-所有 Firebase Function 都在這裡用裝飾器宣告；
-實際邏輯委派給 interface/handlers/ 下的各模組。
-
-部署：
-    firebase deploy --only functions
-
-本機模擬：
-    firebase emulators:start --only functions,storage,firestore
-"""
-⋮----
-SRC_ROOT = Path(__file__).resolve().parent / "src"
-⋮----
-# ── Firebase Admin SDK 初始化（app/bootstrap 之中）──────────────────────
-import app.bootstrap  # noqa: F401  — 副作用：呼叫 firebase_admin.initialize_app()
-⋮----
-# ── 全域選項 ─────────────────────────────────────────────────────────────────
-⋮----
-# ── Cloud Storage 觸發器 ──────────────────────────────────────────────────────
-⋮----
-"""GCS 物件建立後自動觸發 Document AI 解析流程。"""
-⋮----
-# ── HTTPS Callable ────────────────────────────────────────────────────────────
-⋮----
-@https_fn.on_call()
-def parse_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""手動觸發 Document AI 解析，回傳解析摘要。"""
-⋮----
-@https_fn.on_call()
-def rag_query(req: https_fn.CallableRequest) -> dict
-⋮----
-"""RAG 檢索 + 生成查詢。"""
-⋮----
-@https_fn.on_call()
-def rag_reindex_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""手動重新整理文件（normalization + ingestion）。"""
-````
-
-## File: fn/requirements-dev.txt
-````
-# Dev/test dependencies (not deployed to Cloud Functions)
-pytest>=8.0.0,<9.0.0
-pytest-mock>=3.14.0,<4.0.0
-````
-
-## File: fn/requirements.txt
-````
-# Firebase Functions runtime
-firebase-functions>=0.4.2,<1.0.0
-
-# Firebase Admin SDK - Firestore / Auth / Storage admin APIs
-firebase-admin>=6.5.0,<7.0.0
-
-# Google Cloud Document AI - synchronous & async document processing
-google-cloud-documentai<3.0.0
-
-# Google Cloud Firestore - explicit dependency for type hints & features
-google-cloud-firestore<3.0.0
-
-# GCS helper used by the storage service layer
-google-cloud-storage<3.0.0
-
-# OpenAI SDK for embeddings and LLM calls
-openai>=1.40.0,<2.0.0
-
-# Upstash Python SDKs (Vector/Redis used in RAG; QStash used for async audit event)
-upstash-vector>=0.8.0,<1.0.0
-upstash-redis>=1.0.0,<2.0.0
-upstash-search>=0.1.1,<1.0.0
-qstash>=3.0.0,<4.0.0
-````
-
-## File: fn/src/app/__init__.py
-````python
-
-````
-
 ## File: fn/src/app/bootstrap/__init__.py
 ````python
 """
@@ -169,7 +16,7 @@ Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 
 ````
 
-## File: fn/src/application/__init__.py
+## File: fn/src/app/__init__.py
 ````python
 
 ````
@@ -259,11 +106,6 @@ normalization_version: str
 language_hint: str
 ````
 
-## File: fn/src/application/ports/__init__.py
-````python
-
-````
-
 ## File: fn/src/application/ports/input/__init__.py
 ````python
 
@@ -279,6 +121,11 @@ language_hint: str
 """Backward-compatible application-layer re-export of domain repository contracts."""
 ⋮----
 __all__ = [
+````
+
+## File: fn/src/application/ports/__init__.py
+````python
+
 ````
 
 ## File: fn/src/application/services/__init__.py
@@ -396,6 +243,11 @@ answer = gateway.generate_answer(query=request.query, context_block=context_bloc
 result = RagQueryResult(
 ````
 
+## File: fn/src/application/__init__.py
+````python
+
+````
+
 ## File: fn/src/core/__init__.py
 ````python
 
@@ -432,6 +284,10 @@ DOCAI_LAYOUT_PROCESSOR_NAME: str = os.environ.get(
 # Form Parser — 結構化欄位擷取副通道（PO號、金額、日期、供應商等 KV entity）
 # 若未設定則使用預設 US Form Parser；設為空字串可停用副通道
 DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
+⋮----
+# OCR Processor（選配）— 當 Layout Parser 無有效輸出時的文字擷取後備通道。
+# 預設留空（不啟用）；若提供值，需填入 US region processor resource name。
+DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
 ⋮----
 # 舊版 asia-southeast1 processor — 已棄用，保留供向下相容
 _DOCAI_PROCESSOR_NAME_LEGACY: str = (
@@ -476,11 +332,6 @@ RAG_DOC_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_DOC_CACHE_TTL_SECONDS",
 RAG_REDIS_PREFIX: str = os.environ.get("RAG_REDIS_PREFIX", "rag").strip()
 ````
 
-## File: fn/src/domain/__init__.py
-````python
-
-````
-
 ## File: fn/src/domain/events/__init__.py
 ````python
 
@@ -496,6 +347,75 @@ RAG_REDIS_PREFIX: str = os.environ.get("RAG_REDIS_PREFIX", "rag").strip()
 """Domain repository contracts."""
 ⋮----
 __all__ = [
+````
+
+## File: fn/src/domain/repositories/rag.py
+````python
+class RagQueryGateway(Protocol)
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str: ...
+⋮----
+def get_query_cache(self, cache_key: str) -> dict[str, Any] | None: ...
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None: ...
+⋮----
+def to_query_vector(self, query: str) -> list[float]: ...
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]: ...
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]: ...
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str: ...
+⋮----
+class RagIngestionGateway(Protocol)
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]: ...
+⋮----
+def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any: ...
+⋮----
+def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int: ...
+⋮----
+def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None: ...
+⋮----
+class DocumentPipelineGateway(Protocol)
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None: ...
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def form_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str: ...
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
+⋮----
+_rag_query_gateway: RagQueryGateway | None = None
+_rag_ingestion_gateway: RagIngestionGateway | None = None
+_document_pipeline_gateway: DocumentPipelineGateway | None = None
+⋮----
+def register_rag_query_gateway(gateway: RagQueryGateway) -> None
+⋮----
+_rag_query_gateway = gateway
+⋮----
+def get_rag_query_gateway() -> RagQueryGateway
+⋮----
+def register_rag_ingestion_gateway(gateway: RagIngestionGateway) -> None
+⋮----
+_rag_ingestion_gateway = gateway
+⋮----
+def get_rag_ingestion_gateway() -> RagIngestionGateway
+⋮----
+def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None
+⋮----
+_document_pipeline_gateway = gateway
+⋮----
+def get_document_pipeline_gateway() -> DocumentPipelineGateway
 ````
 
 ## File: fn/src/domain/services/__init__.py
@@ -704,7 +624,7 @@ debug: dict[str, Any] | None = None
 payload: dict[str, Any] = {
 ````
 
-## File: fn/src/infrastructure/__init__.py
+## File: fn/src/domain/__init__.py
 ````python
 
 ````
@@ -736,11 +656,6 @@ digest = hashlib.sha256(key_base.encode("utf-8")).hexdigest()
 def get_query_cache(cache_key: str) -> dict[str, Any] | None
 ⋮----
 def save_query_cache(cache_key: str, payload: dict[str, Any]) -> None
-````
-
-## File: fn/src/infrastructure/external/__init__.py
-````python
-
 ````
 
 ## File: fn/src/infrastructure/external/documentai/__init__.py
@@ -1238,7 +1153,7 @@ result = index.query(vector=vector, top_k=top_k, namespace=namespace)
 candidates = result.get("result") or result.get("matches") or result.get("data") or []
 ````
 
-## File: fn/src/infrastructure/persistence/__init__.py
+## File: fn/src/infrastructure/external/__init__.py
 ````python
 
 ````
@@ -1248,12 +1163,229 @@ candidates = result.get("result") or result.get("matches") or result.get("data")
 
 ````
 
+## File: fn/src/infrastructure/persistence/firestore/document_repository.py
+````python
+"""
+Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
+
+Firestore 只存輕量索引（供 account-scoped 列表），
+解析全文以 JSON 格式存回 GCS 的對應路徑（files/ 前綴）。
+
+Document Schema:
+    {
+        "id": "doc-abc123",
+        "status": "processing" | "completed" | "error",
+        "source": {
+            "gcs_uri": "gs://bucket/uploads/file.pdf",
+            "filename": "file.pdf",
+            "size_bytes": 102400,
+            "uploaded_at": "2026-03-22T...",
+            "mime_type": "application/pdf"
+        },
+        "parsed": {
+            "json_gcs_uri": "gs://bucket/files/file.json",   // 全文 JSON 位置
+            "page_count": 5,
+            "parsed_at": "2026-03-22T...",
+            "extraction_ms": 1234
+        },
+        "error": {  // 只在 status=error 時出現
+            "message": "...",
+            "timestamp": "2026-03-22T..."
+        }
+    }
+
+用法：
+    init_document(doc_id, gcs_uri, filename, size_bytes, mime_type)
+    update_parsed(doc_id, json_gcs_uri, page_count, extraction_ms)
+    record_error(doc_id, message)
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def _document_ref(doc_id: str, account_id: str)
+⋮----
+"""Resolve strict account-scoped document reference."""
+⋮----
+db = fb_firestore.client()
+⋮----
+"""
+    初始化 Firestore document，標記為 processing 狀態。
+
+    在檔案上傳到 GCS 時呼叫，建立初始的 source metadata。
+
+    Args:
+        doc_id:      文件識別碼。
+        gcs_uri:     GCS 位置，例如 gs://bucket/path/file.pdf
+        filename:    原始檔名。
+        size_bytes:  文件大小（位元組）。
+        mime_type:   MIME 類型。
+    """
+ref = _document_ref(doc_id, account_id)
+⋮----
+payload = {
+⋮----
+"""
+    更新 document 的解析結果索引，標記為 completed 狀態。
+
+    全文內容已寫入 GCS JSON 檔（json_gcs_uri），
+    Firestore 只保留輕量索引供前端列表使用。
+
+    Args:
+        doc_id:         文件識別碼。
+        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
+        page_count:     頁數。
+        extraction_ms:  解析耗時（毫秒），非必填。
+        chunk_count:    Layout Parser 語意分塊數量。
+        entity_count:   Form Parser 結構化欄位數量。
+    """
+⋮----
+"""
+    更新 Layout Parser 解析結果，標記文件為 completed 狀態。
+
+    Layout JSON（含 text、chunks）已寫入 GCS，
+    Firestore 只保留輕量索引（layout_json_gcs_uri、page_count、layout_chunk_count）。
+
+    Args:
+        doc_id:               文件識別碼。
+        layout_json_gcs_uri:  Layout Parser GCS JSON 路徑（.layout.json）。
+        page_count:           頁數。
+        extraction_ms:        解析耗時（毫秒）。
+        chunk_count:          語意分塊數量。
+    """
+⋮----
+"""
+    更新 Form Parser 解析結果（不覆蓋 Layout Parser 的欄位）。
+
+    Form JSON（含 entities）已寫入 GCS，
+    Firestore 用 dot-notation update 新增 form 專屬欄位。
+
+    Args:
+        doc_id:              文件識別碼。
+        form_json_gcs_uri:   Form Parser GCS JSON 路徑（.form.json）。
+        extraction_ms:       解析耗時（毫秒）。
+        entity_count:        結構化欄位數量。
+    """
+⋮----
+def record_error(doc_id: str, message: str, account_id: str) -> None
+⋮----
+"""
+    記錄解析錯誤，標記為 error 狀態。
+
+    在 Document AI 呼叫失敗時呼叫。
+
+    Args:
+        doc_id:  文件識別碼。
+        message: 錯誤訊息。
+    """
+⋮----
+"""標記 RAG ingestion 完成（ready）。"""
+⋮----
+def record_rag_error(doc_id: str, message: str, account_id: str) -> None
+⋮----
+"""記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
+````
+
 ## File: fn/src/infrastructure/persistence/storage/__init__.py
 ````python
 
 ````
 
-## File: fn/src/interface/__init__.py
+## File: fn/src/infrastructure/persistence/storage/client.py
+````python
+"""
+Cloud Storage 服務層 — 使用 firebase-admin 的 storage 模組下載／上傳物件。
+
+用法：
+    from infrastructure.persistence.storage.client import download_bytes, upload_json
+    data = download_bytes(bucket_name="my-bucket", object_path="uploads/doc.pdf")
+    uri  = upload_json(bucket_name="my-bucket", object_path="files/doc.json", data={...})
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+# 上傳檔案路徑前綴 → 解析結果前綴
+_UPLOAD_PREFIX = "uploads/"
+_FILES_PREFIX = "files/"
+⋮----
+def parsed_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    將 GCS 上傳路徑轉換為對應的解析結果 JSON 路徑。
+
+    規則：
+      - 去掉 uploads/ 前綴，換成 files/ 前綴
+      - 副檔名替換為 .json
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.json
+        uploads/doc.png          ->  files/doc.json
+    """
+relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
+⋮----
+def layout_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    Layout Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.layout.json
+    """
+⋮----
+def form_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    Form Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.form.json
+    """
+⋮----
+def upload_json(bucket_name: str, object_path: str, data: dict) -> str
+⋮----
+"""
+    將 dict 序列化為 JSON 後上傳至 Cloud Storage。
+
+    Args:
+        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
+        object_path: bucket 內的目標路徑，例如 files/org/ws/file.json
+        data:        要序列化的資料，必須可 JSON 序列化。
+
+    Returns:
+        str: gs:// 完整 URI，例如 gs://bucket/files/org/ws/file.json
+    """
+bucket = fb_storage.bucket(bucket_name)
+blob = bucket.blob(object_path)
+⋮----
+# 緊湊序列化可降低 CPU 與儲存傳輸成本。
+json_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+⋮----
+uri = f"gs://{bucket_name}/{object_path}"
+⋮----
+def download_bytes(bucket_name: str, object_path: str) -> bytes
+⋮----
+"""
+    從 Cloud Storage 下載物件並回傳 bytes。
+
+    Args:
+        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
+        object_path: bucket 內的物件路徑。
+
+    Returns:
+        bytes: 物件的完整二進位內容。
+
+    Raises:
+        google.cloud.exceptions.NotFound: 物件不存在時。
+    """
+⋮----
+data = blob.download_as_bytes()
+````
+
+## File: fn/src/infrastructure/persistence/__init__.py
+````python
+
+````
+
+## File: fn/src/infrastructure/__init__.py
 ````python
 
 ````
@@ -1323,6 +1455,49 @@ HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
 __all__ = [
 ````
 
+## File: fn/src/interface/handlers/parse_document.py
+````python
+"""
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
+
+Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
+before any application-layer call.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def handle_parse_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    All external input is validated through ParseDocumentRequest before
+    reaching the application layer (Rule 4).
+    """
+runtime = get_document_pipeline()
+⋮----
+schema = ParseDocumentRequest.from_raw(req.data or {})
+⋮----
+# Derive bucket / object_path from the validated URI.
+path_part = schema.gcs_uri.split("gs://", 1)[1]
+⋮----
+# ── 初始化 Firestore document ───────────────────────────────────────────
+⋮----
+# ── 同步解析 ─────────────────────────────────────────────────────────────
+start_time = time.time()
+⋮----
+parsed = runtime.process_document_gcs(
+extraction_ms = int((time.time() - start_time) * 1000)
+⋮----
+json_object_path = runtime.layout_json_path(object_path)
+json_gcs_uri = runtime.upload_json(
+⋮----
+rag = ingest_document_for_rag(
+⋮----
+else:  # "form"
+json_object_path = runtime.form_json_path(object_path)
+````
+
 ## File: fn/src/interface/handlers/rag_query_handler.py
 ````python
 """
@@ -1350,9 +1525,224 @@ result = execute_rag_query(
 response = {
 ````
 
+## File: fn/src/interface/handlers/rag_reindex_handler.py
+````python
+"""
+HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
+
+Schema validation (Rule 4) is performed via RagReindexRequest.from_raw()
+before any application-layer call.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion."""
+runtime = get_document_pipeline()
+⋮----
+schema = RagReindexRequest.from_raw(req.data or {})
+⋮----
+json_bytes = runtime.download_bytes(
+parsed_payload: dict = (
+⋮----
+text = str(parsed_payload.get("text", "")).strip()
+⋮----
+# Enrich from the JSON payload when schema fields were left empty.
+source_gcs_uri = schema.source_gcs_uri or str(
+⋮----
+workspace_id = schema.workspace_id
+⋮----
+workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
+⋮----
+workspace_id = str(
+⋮----
+filename = schema.filename
+⋮----
+filename = (
+⋮----
+page_count = schema.page_count
+⋮----
+page_count = int(parsed_payload.get("page_count", 0) or 0)
+⋮----
+# Read stored layout chunks; passes None when absent (falls back to char-split).
+layout_chunks: list[dict] | None = parsed_payload.get("chunks") or None
+⋮----
+rag = ingest_document_for_rag(
+````
+
+## File: fn/src/interface/handlers/storage.py
+````python
+"""
+Storage 觸發器 — 監聽 GCS 物件建立事件，自動送 Document AI 解析。
+
+流程：
+    GCS object.finalized（uploads/ 前綴）
+        → 建立初始 Firestore document（status=processing）
+        → Document AI 直接從 GCS URI 讀取
+        → 將解析全文以 JSON 格式寫回 GCS（files/ 前綴，同目錄結構）
+        → 更新 Firestore 輕量索引（status=completed，含 json_gcs_uri）
+        → 如失敗，記錄 error
+
+Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
+完整解析結果透過 json_gcs_uri 讀取 GCS JSON 檔。
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+# 只處理這個資料夾下的上傳檔案（空字串 = 處理整個 bucket）
+WATCH_PREFIX: str = os.environ.get("WATCH_PREFIX", "uploads/")
+⋮----
+# 支援的 MIME 類型對照表（副檔名 → MIME）
+_MIME_MAP: dict[str, str] = {
+⋮----
+def _mime_from_path(object_path: str) -> str | None
+⋮----
+"""Best-effort account scope binding for storage-triggered uploads.
+
+    Priority:
+    1) custom metadata field `account_id`
+    2) path convention: uploads/{accountId}/...
+    3) fallback: None (reject write)
+    """
+⋮----
+from_meta = str(event_metadata.get("account_id", "")).strip()
+⋮----
+prefix = f"{WATCH_PREFIX}"
+⋮----
+remainder = object_path[len(prefix):]
+# uploads/{accountId}/file.pdf
+⋮----
+candidate = remainder.split("/", 1)[0].strip()
+⋮----
+def _extract_workspace_id(event_metadata: dict | None) -> str | None
+⋮----
+workspace_id = str(event_metadata.get("workspace_id", "")).strip()
+⋮----
+def _extract_display_filename(object_path: str, event_metadata: dict | None) -> str
+⋮----
+candidates: tuple[Any, ...] = ()
+⋮----
+candidates = (
+⋮----
+filename = str(candidate or "").strip()
+⋮----
+"""
+    Cloud Storage on_object_finalized 觸發器。
+
+    - 只處理 WATCH_PREFIX 下、且為支援 MIME 類型的檔案。
+    - 初始化 → Document AI 解析 → 更新 Firestore
+    - 異常時記錄至 Firestore。
+    """
+runtime = get_document_pipeline()
+data = event.data
+⋮----
+bucket_name: str = data.bucket
+object_path: str = data.name or ""
+size_bytes: int = int(data.size or 0)
+⋮----
+# ── 路徑過濾 ────────────────────────────────────────────────────────────
+⋮----
+mime_type = _mime_from_path(object_path)
+⋮----
+account_id = _extract_account_id(object_path, data.metadata)
+⋮----
+workspace_id = _extract_workspace_id(data.metadata)
+⋮----
+# doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
+storage_filename = os.path.basename(object_path)
+display_filename = _extract_display_filename(object_path, data.metadata)
+⋮----
+gcs_uri = f"gs://{bucket_name}/{object_path}"
+⋮----
+# ── Step 1: 初始化 Firestore document ──────────────────────────────────
+⋮----
+# ── Step 2: Document AI 解析（Layout Parser） ─────────────────────────
+start_time = time.time()
+⋮----
+parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, parser="layout")
+extraction_ms = int((time.time() - start_time) * 1000)
+⋮----
+# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，.layout.json 副檔名）─
+json_object_path = runtime.layout_json_path(object_path)
+json_data = {
+json_gcs_uri = runtime.upload_json(
+⋮----
+# ── Step 4: 更新 Firestore 索引（layout 欄位）──────────────────────
+⋮----
+# ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
+⋮----
+rag = ingest_document_for_rag(
+````
+
 ## File: fn/src/interface/schemas/__init__.py
 ````python
 
+````
+
+## File: fn/src/interface/schemas/parse_document.py
+````python
+"""
+Input schema for parse_document HTTPS Callable (Rule 4 — Contract / Schema).
+
+All data entering the system through this function must pass through this
+schema before being forwarded to the application layer.  Validation raises
+ValueError so that the handler can convert it to a typed HttpsError.
+"""
+⋮----
+_MIME_MAP: dict[str, str] = {
+⋮----
+_ALLOWED_MIMES: frozenset[str] = frozenset(_MIME_MAP.values())
+⋮----
+@dataclass
+class ParseDocumentRequest
+⋮----
+"""Validated input contract for the parse_document callable."""
+⋮----
+account_id: str
+workspace_id: str
+gcs_uri: str
+doc_id: str
+filename: str
+mime_type: str
+size_bytes: int
+run_rag: bool
+parser: str  # "layout" | "form" | "ocr"
+⋮----
+@classmethod
+    def from_raw(cls, raw: dict) -> "ParseDocumentRequest"
+⋮----
+"""Parse and validate raw request data.
+
+        Raises:
+            ValueError: if any required field is missing or invalid.
+        """
+account_id = str(raw.get("account_id", "")).strip()
+⋮----
+workspace_id = str(raw.get("workspace_id", "")).strip()
+⋮----
+gcs_uri = str(raw.get("gcs_uri", "")).strip()
+⋮----
+# Derive doc_id and filename from URI when not provided explicitly.
+path_part = gcs_uri.split("gs://", 1)[1]
+storage_filename = os.path.basename(path_part)
+⋮----
+doc_id = str(raw.get("doc_id", "")).strip() or default_doc_id
+filename = (
+⋮----
+mime_type = str(raw.get("mime_type", "")).strip()
+⋮----
+resolved = _MIME_MAP.get(ext.lower())
+⋮----
+mime_type = resolved
+⋮----
+size_bytes = int(raw.get("size_bytes", 0) or 0)
+⋮----
+size_bytes = 0
+⋮----
+run_rag = bool(raw.get("run_rag", True))
+⋮----
+parser = str(raw.get("parser", "layout")).strip().lower()
 ````
 
 ## File: fn/src/interface/schemas/rag_query.py
@@ -1476,6 +1866,11 @@ page_count = int(raw.get("page_count", 0) or 0)
 page_count = 0
 ````
 
+## File: fn/src/interface/__init__.py
+````python
+
+````
+
 ## File: fn/tests/__init__.py
 ````python
 
@@ -1484,6 +1879,57 @@ page_count = 0
 ## File: fn/tests/conftest.py
 ````python
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
+````
+
+## File: fn/tests/test_domain_repository_gateways.py
+````python
+class _FakeRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict | None
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict) -> None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
+⋮----
+class _FakeRagIngestionGateway
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+⋮----
+def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
+⋮----
+def upsert_search_documents(self, documents: list[dict]) -> int
+⋮----
+def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
+⋮----
+class _FakeDocumentPipelineGateway
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+⋮----
+def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
+⋮----
+rag_query_gateway = _FakeRagQueryGateway()
+rag_ingestion_gateway = _FakeRagIngestionGateway()
+document_pipeline_gateway = _FakeDocumentPipelineGateway()
+⋮----
+def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
 ````
 
 ## File: fn/tests/test_input_schemas.py
@@ -1507,6 +1953,8 @@ schema = ParseDocumentRequest.from_raw(raw)
 def test_fromRaw_WithExplicitDocId_UsesProvidedDocId(self) -> None
 ⋮----
 def test_fromRaw_WithRunRagFalse_SetsRunRagFalse(self) -> None
+⋮----
+def test_fromRaw_WithParserOcr_AcceptsOcrParser(self) -> None
 ⋮----
 def test_fromRaw_InfersMimeFromExtension_WhenMimeOmitted(self) -> None
 ⋮----
@@ -1577,210 +2025,73 @@ layout_chunks = [{"text": "只有文字欄位"}]
 chunk = result[0]
 ````
 
-## File: fn/src/infrastructure/persistence/storage/client.py
-````python
-"""
-Cloud Storage 服務層 — 使用 firebase-admin 的 storage 模組下載／上傳物件。
-
-用法：
-    from infrastructure.persistence.storage.client import download_bytes, upload_json
-    data = download_bytes(bucket_name="my-bucket", object_path="uploads/doc.pdf")
-    uri  = upload_json(bucket_name="my-bucket", object_path="files/doc.json", data={...})
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-# 上傳檔案路徑前綴 → 解析結果前綴
-_UPLOAD_PREFIX = "uploads/"
-_FILES_PREFIX = "files/"
-⋮----
-def parsed_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    將 GCS 上傳路徑轉換為對應的解析結果 JSON 路徑。
-
-    規則：
-      - 去掉 uploads/ 前綴，換成 files/ 前綴
-      - 副檔名替換為 .json
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.json
-        uploads/doc.png          ->  files/doc.json
-    """
-relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
-⋮----
-def layout_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    Layout Parser 解析結果的 GCS 路徑。
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.layout.json
-    """
-⋮----
-def form_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    Form Parser 解析結果的 GCS 路徑。
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.form.json
-    """
-⋮----
-def upload_json(bucket_name: str, object_path: str, data: dict) -> str
-⋮----
-"""
-    將 dict 序列化為 JSON 後上傳至 Cloud Storage。
-
-    Args:
-        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
-        object_path: bucket 內的目標路徑，例如 files/org/ws/file.json
-        data:        要序列化的資料，必須可 JSON 序列化。
-
-    Returns:
-        str: gs:// 完整 URI，例如 gs://bucket/files/org/ws/file.json
-    """
-bucket = fb_storage.bucket(bucket_name)
-blob = bucket.blob(object_path)
-⋮----
-# 緊湊序列化可降低 CPU 與儲存傳輸成本。
-json_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-⋮----
-uri = f"gs://{bucket_name}/{object_path}"
-⋮----
-def download_bytes(bucket_name: str, object_path: str) -> bytes
-⋮----
-"""
-    從 Cloud Storage 下載物件並回傳 bytes。
-
-    Args:
-        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
-        object_path: bucket 內的物件路徑。
-
-    Returns:
-        bytes: 物件的完整二進位內容。
-
-    Raises:
-        google.cloud.exceptions.NotFound: 物件不存在時。
-    """
-⋮----
-data = blob.download_as_bytes()
+## File: fn/.env.example
 ````
+# fn/.env.example
+# 複製為 fn/.env 後填入實際值，再執行 fn/ 的 Cloud Functions。
+# 唯一真實來源：fn/src/core/config.py
+# 未列出的變數（UPLOAD_BUCKET、GCP_REGION、DOCAI_LOCATION）僅定義於
+# config.py 但從未被其他模組引用，不需在此設定。
 
-## File: fn/src/interface/schemas/parse_document.py
-````python
-"""
-Input schema for parse_document HTTPS Callable (Rule 4 — Contract / Schema).
+# ── OpenAI ───────────────────────────────────────────────────────────────────
+# 必填
+OPENAI_API_KEY=
 
-All data entering the system through this function must pass through this
-schema before being forwarded to the application layer.  Validation raises
-ValueError so that the handler can convert it to a typed HttpsError.
-"""
-⋮----
-_MIME_MAP: dict[str, str] = {
-⋮----
-_ALLOWED_MIMES: frozenset[str] = frozenset(_MIME_MAP.values())
-⋮----
-@dataclass
-class ParseDocumentRequest
-⋮----
-"""Validated input contract for the parse_document callable."""
-⋮----
-account_id: str
-workspace_id: str
-gcs_uri: str
-doc_id: str
-filename: str
-mime_type: str
-size_bytes: int
-run_rag: bool
-parser: str  # "layout" | "form"
-⋮----
-@classmethod
-    def from_raw(cls, raw: dict) -> "ParseDocumentRequest"
-⋮----
-"""Parse and validate raw request data.
+# 選填（預設值已可正常運作）
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1024
+OPENAI_LLM_MODEL=gpt-4o-mini
+OPENAI_TIMEOUT_SECONDS=30
+OPENAI_MAX_RETRIES=2
 
-        Raises:
-            ValueError: if any required field is missing or invalid.
-        """
-account_id = str(raw.get("account_id", "")).strip()
-⋮----
-workspace_id = str(raw.get("workspace_id", "")).strip()
-⋮----
-gcs_uri = str(raw.get("gcs_uri", "")).strip()
-⋮----
-# Derive doc_id and filename from URI when not provided explicitly.
-path_part = gcs_uri.split("gs://", 1)[1]
-storage_filename = os.path.basename(path_part)
-⋮----
-doc_id = str(raw.get("doc_id", "")).strip() or default_doc_id
-filename = (
-⋮----
-mime_type = str(raw.get("mime_type", "")).strip()
-⋮----
-resolved = _MIME_MAP.get(ext.lower())
-⋮----
-mime_type = resolved
-⋮----
-size_bytes = int(raw.get("size_bytes", 0) or 0)
-⋮----
-size_bytes = 0
-⋮----
-run_rag = bool(raw.get("run_rag", True))
-⋮----
-parser = str(raw.get("parser", "layout")).strip().lower()
-````
+# ── Document AI（US region） ──────────────────────────────────────────────────
+# 選填（預設值指向現行 US processors，勿改為 eu 或 global）
+DOCAI_API_ENDPOINT=us-documentai.googleapis.com
+DOCAI_LAYOUT_PROCESSOR_NAME=projects/65970295651/locations/us/processors/929c4719f45b1eee
+DOCAI_FORM_PROCESSOR_NAME=projects/65970295651/locations/us/processors/7318076ba71e0758
 
-## File: fn/tests/test_domain_repository_gateways.py
-````python
-class _FakeRagQueryGateway
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict | None
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict) -> None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-⋮----
-class _FakeRagIngestionGateway
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
-⋮----
-def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
-⋮----
-def upsert_search_documents(self, documents: list[dict]) -> int
-⋮----
-def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
-⋮----
-class _FakeDocumentPipelineGateway
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
-⋮----
-def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
-⋮----
-rag_query_gateway = _FakeRagQueryGateway()
-rag_ingestion_gateway = _FakeRagIngestionGateway()
-document_pipeline_gateway = _FakeDocumentPipelineGateway()
-⋮----
-def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
+# ── Upstash Redis ─────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# ── Upstash Vector ────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_VECTOR_REST_URL=
+UPSTASH_VECTOR_REST_TOKEN=
+
+# ── Upstash Search ────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_SEARCH_REST_URL=
+UPSTASH_SEARCH_REST_TOKEN=
+UPSTASH_SEARCH_INDEX=
+
+# 選填
+UPSTASH_SEARCH_TIMEOUT_SECONDS=8
+
+# ── QStash ────────────────────────────────────────────────────────────────────
+# 必填
+QSTASH_TOKEN=
+QSTASH_CURRENT_SIGNING_KEY=
+QSTASH_NEXT_SIGNING_KEY=
+QSTASH_RAG_AUDIT_URL=
+
+# 選填
+QSTASH_URL=https://qstash-us-east-1.upstash.io
+
+# ── RAG Pipeline ─────────────────────────────────────────────────────────────
+# 選填（調整會影響 chunk 品質與查詢行為）
+RAG_VECTOR_NAMESPACE=rag-docs
+RAG_CHUNK_SIZE_CHARS=1200
+RAG_CHUNK_OVERLAP_CHARS=150
+RAG_QUERY_TOP_K=5
+RAG_QUERY_CACHE_TTL_SECONDS=300
+RAG_QUERY_RATE_LIMIT_MAX=30
+RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS=60
+RAG_QUERY_DEFAULT_MAX_AGE_DAYS=365
+RAG_QUERY_REQUIRE_READY_STATUS=true
+RAG_DOC_CACHE_TTL_SECONDS=2592000
+RAG_REDIS_PREFIX=rag
 ````
 
 ## File: fn/AGENTS.md
@@ -1924,6 +2235,51 @@ python -m pytest tests/ -v
 ```
 ````
 
+## File: fn/main.py
+````python
+"""
+fn — Firebase Functions (Python) 入口檔
+========================================
+
+所有 Firebase Function 都在這裡用裝飾器宣告；
+實際邏輯委派給 interface/handlers/ 下的各模組。
+
+部署：
+    firebase deploy --only functions
+
+本機模擬：
+    firebase emulators:start --only functions,storage,firestore
+"""
+⋮----
+SRC_ROOT = Path(__file__).resolve().parent / "src"
+⋮----
+# ── Firebase Admin SDK 初始化（app/bootstrap 之中）──────────────────────
+import app.bootstrap  # noqa: F401  — 副作用：呼叫 firebase_admin.initialize_app()
+⋮----
+# ── 全域選項 ─────────────────────────────────────────────────────────────────
+⋮----
+# ── Cloud Storage 觸發器 ──────────────────────────────────────────────────────
+⋮----
+"""GCS 物件建立後自動觸發 Document AI 解析流程。"""
+⋮----
+# ── HTTPS Callable ────────────────────────────────────────────────────────────
+⋮----
+@https_fn.on_call()
+def parse_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""手動觸發 Document AI 解析，回傳解析摘要。"""
+⋮----
+@https_fn.on_call()
+def rag_query(req: https_fn.CallableRequest) -> dict
+⋮----
+"""RAG 檢索 + 生成查詢。"""
+⋮----
+@https_fn.on_call()
+def rag_reindex_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""手動重新整理文件（normalization + ingestion）。"""
+````
+
 ## File: fn/README.md
 ````markdown
 # fn — Python Cloud Functions 架構規範
@@ -1958,7 +2314,8 @@ GCS Document
     └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
 ```
 
-- **主通道（Layout Parser）**失敗 → 整體 pipeline 失敗（拋例外，Rule 10）
+- **主通道（Layout Parser）**若回傳空輸出（0 page 且無 text/chunk）→ 自動改走後備 OCR/Form processor 補齊文字，再繼續流程
+- **主通道（Layout Parser）**API 失敗（拋例外）→ 整體 pipeline 失敗（Rule 10）
 - **副通道（Form Parser）**失敗 → 記錄 `WARNING`，以空 `entities` 繼續，不阻斷主流程（Rule 10）
 
 ### 環境變數
@@ -1967,6 +2324,7 @@ GCS Document
 |---|---|---|
 | `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser 資源名稱（主通道，不可空） |
 | `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser 資源名稱（設為空字串可停用副通道） |
+| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填，建議 US region） |
 | `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | **不可改為 eu 或 global** |
 | `DOCAI_LOCATION` | `us` | processor 所在 region |
 
@@ -2140,8 +2498,44 @@ python -m pytest tests/ -v
 - `docs/structure/system/architecture-overview.md` — 主域關係圖
 ````
 
+## File: fn/requirements-dev.txt
+````
+# Dev/test dependencies (not deployed to Cloud Functions)
+pytest>=8.0.0,<9.0.0
+pytest-mock>=3.14.0,<4.0.0
+````
+
+## File: fn/requirements.txt
+````
+# Firebase Functions runtime
+firebase-functions>=0.4.2,<1.0.0
+
+# Firebase Admin SDK - Firestore / Auth / Storage admin APIs
+firebase-admin>=6.5.0,<7.0.0
+
+# Google Cloud Document AI - synchronous & async document processing
+google-cloud-documentai<3.0.0
+
+# Google Cloud Firestore - explicit dependency for type hints & features
+google-cloud-firestore<3.0.0
+
+# GCS helper used by the storage service layer
+google-cloud-storage<3.0.0
+
+# OpenAI SDK for embeddings and LLM calls
+openai>=1.40.0,<2.0.0
+
+# Upstash Python SDKs (Vector/Redis used in RAG; QStash used for async audit event)
+upstash-vector>=0.8.0,<1.0.0
+upstash-redis>=1.0.0,<2.0.0
+upstash-search>=0.1.1,<1.0.0
+qstash>=3.0.0,<4.0.0
+````
+
 ## File: fn/src/app/container/runtime_dependencies.py
 ````python
+logger = logging.getLogger(__name__)
+⋮----
 class InfraRagQueryGateway
 ⋮----
 def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
@@ -2170,9 +2564,27 @@ def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) 
 ⋮----
 class InfraDocumentPipelineGateway
 ⋮----
+@staticmethod
+    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
+⋮----
+@staticmethod
+    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
+⋮----
+lines = [line.strip() for line in text.splitlines() if line.strip()]
+⋮----
+chunks: list[dict[str, Any]] = []
+⋮----
 def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
 ⋮----
-processor_name = DOCAI_FORM_PROCESSOR_NAME if parser == "form" else DOCAI_LAYOUT_PROCESSOR_NAME
+# parser == "layout" (default)
+layout_parsed = process_document_gcs(
+⋮----
+fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
+⋮----
+fallback_parsed = process_document_gcs(
+fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
+# Layout path may return [] when processor yields no semantic chunks.
+fallback_chunks = (
 ⋮----
 def record_error(self, doc_id: str, message: str, account_id: str) -> None
 ⋮----
@@ -2189,388 +2601,4 @@ def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any
 def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
 ⋮----
 def register_runtime_dependencies() -> None
-````
-
-## File: fn/src/domain/repositories/rag.py
-````python
-class RagQueryGateway(Protocol)
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str: ...
-⋮----
-def get_query_cache(self, cache_key: str) -> dict[str, Any] | None: ...
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None: ...
-⋮----
-def to_query_vector(self, query: str) -> list[float]: ...
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]: ...
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]: ...
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str: ...
-⋮----
-class RagIngestionGateway(Protocol)
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]: ...
-⋮----
-def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any: ...
-⋮----
-def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int: ...
-⋮----
-def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None: ...
-⋮----
-class DocumentPipelineGateway(Protocol)
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None: ...
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def layout_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def form_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str: ...
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
-⋮----
-_rag_query_gateway: RagQueryGateway | None = None
-_rag_ingestion_gateway: RagIngestionGateway | None = None
-_document_pipeline_gateway: DocumentPipelineGateway | None = None
-⋮----
-def register_rag_query_gateway(gateway: RagQueryGateway) -> None
-⋮----
-_rag_query_gateway = gateway
-⋮----
-def get_rag_query_gateway() -> RagQueryGateway
-⋮----
-def register_rag_ingestion_gateway(gateway: RagIngestionGateway) -> None
-⋮----
-_rag_ingestion_gateway = gateway
-⋮----
-def get_rag_ingestion_gateway() -> RagIngestionGateway
-⋮----
-def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None
-⋮----
-_document_pipeline_gateway = gateway
-⋮----
-def get_document_pipeline_gateway() -> DocumentPipelineGateway
-````
-
-## File: fn/src/infrastructure/persistence/firestore/document_repository.py
-````python
-"""
-Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
-
-Firestore 只存輕量索引（供 account-scoped 列表），
-解析全文以 JSON 格式存回 GCS 的對應路徑（files/ 前綴）。
-
-Document Schema:
-    {
-        "id": "doc-abc123",
-        "status": "processing" | "completed" | "error",
-        "source": {
-            "gcs_uri": "gs://bucket/uploads/file.pdf",
-            "filename": "file.pdf",
-            "size_bytes": 102400,
-            "uploaded_at": "2026-03-22T...",
-            "mime_type": "application/pdf"
-        },
-        "parsed": {
-            "json_gcs_uri": "gs://bucket/files/file.json",   // 全文 JSON 位置
-            "page_count": 5,
-            "parsed_at": "2026-03-22T...",
-            "extraction_ms": 1234
-        },
-        "error": {  // 只在 status=error 時出現
-            "message": "...",
-            "timestamp": "2026-03-22T..."
-        }
-    }
-
-用法：
-    init_document(doc_id, gcs_uri, filename, size_bytes, mime_type)
-    update_parsed(doc_id, json_gcs_uri, page_count, extraction_ms)
-    record_error(doc_id, message)
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def _document_ref(doc_id: str, account_id: str)
-⋮----
-"""Resolve strict account-scoped document reference."""
-⋮----
-db = fb_firestore.client()
-⋮----
-"""
-    初始化 Firestore document，標記為 processing 狀態。
-
-    在檔案上傳到 GCS 時呼叫，建立初始的 source metadata。
-
-    Args:
-        doc_id:      文件識別碼。
-        gcs_uri:     GCS 位置，例如 gs://bucket/path/file.pdf
-        filename:    原始檔名。
-        size_bytes:  文件大小（位元組）。
-        mime_type:   MIME 類型。
-    """
-ref = _document_ref(doc_id, account_id)
-⋮----
-payload = {
-⋮----
-"""
-    更新 document 的解析結果索引，標記為 completed 狀態。
-
-    全文內容已寫入 GCS JSON 檔（json_gcs_uri），
-    Firestore 只保留輕量索引供前端列表使用。
-
-    Args:
-        doc_id:         文件識別碼。
-        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
-        page_count:     頁數。
-        extraction_ms:  解析耗時（毫秒），非必填。
-        chunk_count:    Layout Parser 語意分塊數量。
-        entity_count:   Form Parser 結構化欄位數量。
-    """
-⋮----
-"""
-    更新 Layout Parser 解析結果，標記文件為 completed 狀態。
-
-    Layout JSON（含 text、chunks）已寫入 GCS，
-    Firestore 只保留輕量索引（layout_json_gcs_uri、page_count、layout_chunk_count）。
-
-    Args:
-        doc_id:               文件識別碼。
-        layout_json_gcs_uri:  Layout Parser GCS JSON 路徑（.layout.json）。
-        page_count:           頁數。
-        extraction_ms:        解析耗時（毫秒）。
-        chunk_count:          語意分塊數量。
-    """
-⋮----
-"""
-    更新 Form Parser 解析結果（不覆蓋 Layout Parser 的欄位）。
-
-    Form JSON（含 entities）已寫入 GCS，
-    Firestore 用 dot-notation update 新增 form 專屬欄位。
-
-    Args:
-        doc_id:              文件識別碼。
-        form_json_gcs_uri:   Form Parser GCS JSON 路徑（.form.json）。
-        extraction_ms:       解析耗時（毫秒）。
-        entity_count:        結構化欄位數量。
-    """
-⋮----
-def record_error(doc_id: str, message: str, account_id: str) -> None
-⋮----
-"""
-    記錄解析錯誤，標記為 error 狀態。
-
-    在 Document AI 呼叫失敗時呼叫。
-
-    Args:
-        doc_id:  文件識別碼。
-        message: 錯誤訊息。
-    """
-⋮----
-"""標記 RAG ingestion 完成（ready）。"""
-⋮----
-def record_rag_error(doc_id: str, message: str, account_id: str) -> None
-⋮----
-"""記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
-````
-
-## File: fn/src/interface/handlers/rag_reindex_handler.py
-````python
-"""
-HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
-
-Schema validation (Rule 4) is performed via RagReindexRequest.from_raw()
-before any application-layer call.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion."""
-runtime = get_document_pipeline()
-⋮----
-schema = RagReindexRequest.from_raw(req.data or {})
-⋮----
-json_bytes = runtime.download_bytes(
-parsed_payload: dict = (
-⋮----
-text = str(parsed_payload.get("text", "")).strip()
-⋮----
-# Enrich from the JSON payload when schema fields were left empty.
-source_gcs_uri = schema.source_gcs_uri or str(
-⋮----
-workspace_id = schema.workspace_id
-⋮----
-workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
-⋮----
-workspace_id = str(
-⋮----
-filename = schema.filename
-⋮----
-filename = (
-⋮----
-page_count = schema.page_count
-⋮----
-page_count = int(parsed_payload.get("page_count", 0) or 0)
-⋮----
-# Read stored layout chunks; passes None when absent (falls back to char-split).
-layout_chunks: list[dict] | None = parsed_payload.get("chunks") or None
-⋮----
-rag = ingest_document_for_rag(
-````
-
-## File: fn/src/interface/handlers/storage.py
-````python
-"""
-Storage 觸發器 — 監聽 GCS 物件建立事件，自動送 Document AI 解析。
-
-流程：
-    GCS object.finalized（uploads/ 前綴）
-        → 建立初始 Firestore document（status=processing）
-        → Document AI 直接從 GCS URI 讀取
-        → 將解析全文以 JSON 格式寫回 GCS（files/ 前綴，同目錄結構）
-        → 更新 Firestore 輕量索引（status=completed，含 json_gcs_uri）
-        → 如失敗，記錄 error
-
-Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
-完整解析結果透過 json_gcs_uri 讀取 GCS JSON 檔。
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-# 只處理這個資料夾下的上傳檔案（空字串 = 處理整個 bucket）
-WATCH_PREFIX: str = os.environ.get("WATCH_PREFIX", "uploads/")
-⋮----
-# 支援的 MIME 類型對照表（副檔名 → MIME）
-_MIME_MAP: dict[str, str] = {
-⋮----
-def _mime_from_path(object_path: str) -> str | None
-⋮----
-"""Best-effort account scope binding for storage-triggered uploads.
-
-    Priority:
-    1) custom metadata field `account_id`
-    2) path convention: uploads/{accountId}/...
-    3) fallback: None (reject write)
-    """
-⋮----
-from_meta = str(event_metadata.get("account_id", "")).strip()
-⋮----
-prefix = f"{WATCH_PREFIX}"
-⋮----
-remainder = object_path[len(prefix):]
-# uploads/{accountId}/file.pdf
-⋮----
-candidate = remainder.split("/", 1)[0].strip()
-⋮----
-def _extract_workspace_id(event_metadata: dict | None) -> str | None
-⋮----
-workspace_id = str(event_metadata.get("workspace_id", "")).strip()
-⋮----
-def _extract_display_filename(object_path: str, event_metadata: dict | None) -> str
-⋮----
-candidates: tuple[Any, ...] = ()
-⋮----
-candidates = (
-⋮----
-filename = str(candidate or "").strip()
-⋮----
-"""
-    Cloud Storage on_object_finalized 觸發器。
-
-    - 只處理 WATCH_PREFIX 下、且為支援 MIME 類型的檔案。
-    - 初始化 → Document AI 解析 → 更新 Firestore
-    - 異常時記錄至 Firestore。
-    """
-runtime = get_document_pipeline()
-data = event.data
-⋮----
-bucket_name: str = data.bucket
-object_path: str = data.name or ""
-size_bytes: int = int(data.size or 0)
-⋮----
-# ── 路徑過濾 ────────────────────────────────────────────────────────────
-⋮----
-mime_type = _mime_from_path(object_path)
-⋮----
-account_id = _extract_account_id(object_path, data.metadata)
-⋮----
-workspace_id = _extract_workspace_id(data.metadata)
-⋮----
-# doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
-storage_filename = os.path.basename(object_path)
-display_filename = _extract_display_filename(object_path, data.metadata)
-⋮----
-gcs_uri = f"gs://{bucket_name}/{object_path}"
-⋮----
-# ── Step 1: 初始化 Firestore document ──────────────────────────────────
-⋮----
-# ── Step 2: Document AI 解析（Layout Parser） ─────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, parser="layout")
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，.layout.json 副檔名）─
-json_object_path = runtime.layout_json_path(object_path)
-json_data = {
-json_gcs_uri = runtime.upload_json(
-⋮----
-# ── Step 4: 更新 Firestore 索引（layout 欄位）──────────────────────
-⋮----
-# ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
-⋮----
-rag = ingest_document_for_rag(
-````
-
-## File: fn/src/interface/handlers/parse_document.py
-````python
-"""
-HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
-
-Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
-before any application-layer call.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_parse_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    All external input is validated through ParseDocumentRequest before
-    reaching the application layer (Rule 4).
-    """
-runtime = get_document_pipeline()
-⋮----
-schema = ParseDocumentRequest.from_raw(req.data or {})
-⋮----
-# Derive bucket / object_path from the validated URI.
-path_part = schema.gcs_uri.split("gs://", 1)[1]
-⋮----
-# ── 初始化 Firestore document ───────────────────────────────────────────
-⋮----
-# ── 同步解析 ─────────────────────────────────────────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-json_object_path = runtime.layout_json_path(object_path)
-json_gcs_uri = runtime.upload_json(
-⋮----
-rag = ingest_document_for_rag(
-⋮----
-else:  # "form"
-json_object_path = runtime.form_json_path(object_path)
 ````
