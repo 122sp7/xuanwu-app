@@ -90,6 +90,9 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 "extraction_ms": extraction_ms,
                 "text": parsed.text,
                 "chunk_count": len(parsed.chunks),
+                # Store full layout chunks so rag_reindex_document can reconstruct
+                # text and use layout-aware chunking without re-parsing the document.
+                "chunks": parsed.chunks,
                 "entities": parsed.entities,
             },
         )
