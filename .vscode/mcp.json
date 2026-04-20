@@ -1,12 +1,19 @@
 {
 	"servers": {
+		"pdf-reader": {
+			"type": "stdio",
+			"command": "npx",
+			"args": ["@sylphx/pdf-reader-mcp"],
+			"tools": ["*"]
+		},
 		"sequential-thinking": {
 			"command": "npx",
 			"args": [
 				"-y",
 				"@modelcontextprotocol/server-sequential-thinking"
 			],
-			"type": "stdio"
+			"type": "stdio",
+			"tools": ["*"]
 		},
 		"context7": {
 			"type": "stdio",
@@ -14,6 +21,7 @@
 			"args": [
 				"@upstash/context7-mcp@1.0.31"
 			],
+					"tools": ["*"],
 			"env": {
 				"CONTEXT7_API_KEY": "${input:CONTEXT7_API_KEY}"
 			}
@@ -24,7 +32,8 @@
 			"args": [
 				"shadcn@latest",
 				"mcp"
-			]
+			],
+			"tools": ["*"]
 		},
 		"microsoft/playwright-mcp": {
 			"type": "stdio",
@@ -32,6 +41,7 @@
 			"args": [
 				"@playwright/mcp@latest"
 			],
+			"tools": ["*"],
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.0.1-seed"
 		},
@@ -41,6 +51,7 @@
 			"args": [
 				"markitdown-mcp@0.0.1a4"
 			],
+			"tools": ["*"],
 			"gallery": "https://api.mcp.github.com",
 			"version": "1.0.0"
 		},
@@ -56,6 +67,7 @@
 				"--context",
 				"ide-assistant"
 			],
+			"tools": ["*"],
 			"gallery": "https://api.mcp.github.com",
 			"version": "1.0.0"
 		},
@@ -65,6 +77,7 @@
 			"args": [
 				"next-devtools-mcp@0.3.6"
 			],
+			"tools": ["*"],
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.3.6"
 		},
@@ -75,6 +88,7 @@
 				"repomix",
 				"--mcp"
 			],
+			"tools": ["*"],
 			"type": "stdio"
 		}
 	},
