@@ -16,6 +16,77 @@ Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 
 ````
 
+## File: fn/src/app/container/runtime_dependencies.py
+````python
+logger = logging.getLogger(__name__)
+⋮----
+class InfraRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
+⋮----
+class InfraRagIngestionGateway
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+⋮----
+def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any
+⋮----
+def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int
+⋮----
+def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None
+⋮----
+class InfraDocumentPipelineGateway
+⋮----
+@staticmethod
+    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
+⋮----
+@staticmethod
+    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
+⋮----
+lines = [line.strip() for line in text.splitlines() if line.strip()]
+⋮----
+chunks: list[dict[str, Any]] = []
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
+⋮----
+# parser == "layout" (default)
+layout_parsed = process_document_gcs(
+⋮----
+fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
+⋮----
+fallback_parsed = process_document_gcs(
+fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
+# Layout path may return [] when processor yields no semantic chunks.
+fallback_chunks = (
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+⋮----
+def register_runtime_dependencies() -> None
+````
+
 ## File: fn/src/app/__init__.py
 ````python
 
@@ -285,8 +356,9 @@ DOCAI_LAYOUT_PROCESSOR_NAME: str = os.environ.get(
 # 若未設定則使用預設 US Form Parser；設為空字串可停用副通道
 DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
 ⋮----
-# OCR Processor（選配）— 當 Layout Parser 無有效輸出時的文字擷取後備通道。
-# 預設留空（不啟用）；若提供值，需填入 US region processor resource name。
+# OCR Processor — 高品質全頁文字擷取通道（AP8採購訂單等密集表格 PDF 推薦）。
+# AP8 PO 4510250181：54 個明細（項次 10–540，步進 10），需 OCR 完整擷取中文描述。
+# https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/f88dfd0407416be7:process
 DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
 ⋮----
 # 舊版 asia-southeast1 processor — 已棄用，保留供向下相容
@@ -1455,49 +1527,6 @@ HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
 __all__ = [
 ````
 
-## File: fn/src/interface/handlers/parse_document.py
-````python
-"""
-HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
-
-Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
-before any application-layer call.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_parse_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    All external input is validated through ParseDocumentRequest before
-    reaching the application layer (Rule 4).
-    """
-runtime = get_document_pipeline()
-⋮----
-schema = ParseDocumentRequest.from_raw(req.data or {})
-⋮----
-# Derive bucket / object_path from the validated URI.
-path_part = schema.gcs_uri.split("gs://", 1)[1]
-⋮----
-# ── 初始化 Firestore document ───────────────────────────────────────────
-⋮----
-# ── 同步解析 ─────────────────────────────────────────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-json_object_path = runtime.layout_json_path(object_path)
-json_gcs_uri = runtime.upload_json(
-⋮----
-rag = ingest_document_for_rag(
-⋮----
-else:  # "form"
-json_object_path = runtime.form_json_path(object_path)
-````
-
 ## File: fn/src/interface/handlers/rag_query_handler.py
 ````python
 """
@@ -1995,6 +2024,113 @@ def test_fromRaw_MissingDocId_RaisesValueError(self) -> None
 def test_fromRaw_MissingJsonGcsUri_RaisesValueError(self) -> None
 ⋮----
 def test_fromRaw_WithPageCount_ParsesInt(self) -> None
+````
+
+## File: fn/tests/test_po_extraction.py
+````python
+"""
+Unit tests for domain/services/po_extraction.py.
+
+Tests cover the ABB 訂購單 AP8 format (document 4510250181-AP8_v0-8150.PDF):
+  - 54 line items numbered 10–540 in steps of 10
+  - Classification into 施工作業 / 費用管銷
+  - Dense text format from Document AI OCR output
+"""
+⋮----
+# ── classify_po_task ──────────────────────────────────────────────────────────
+⋮----
+class TestClassifyPoTask
+⋮----
+def test_scada_installation_is_work(self) -> None
+⋮----
+def test_fiber_splicing_is_work(self) -> None
+⋮----
+def test_panel_transport_is_work(self) -> None
+⋮----
+def test_fire_seal_is_work(self) -> None
+⋮----
+def test_foundation_work_is_work(self) -> None
+⋮----
+def test_high_altitude_fee_is_cost(self) -> None
+⋮----
+# ends with 費 → 費用管銷
+⋮----
+def test_sanitation_fee_is_cost(self) -> None
+⋮----
+def test_document_fee_is_cost(self) -> None
+⋮----
+def test_software_control_is_cost(self) -> None
+⋮----
+def test_substation_management_is_cost(self) -> None
+⋮----
+# 管理N人 pattern
+⋮----
+def test_supervision_fee_is_cost(self) -> None
+⋮----
+def test_insurance_is_cost(self) -> None
+⋮----
+def test_waste_disposal_is_cost(self) -> None
+⋮----
+def test_profit_and_misc_is_cost(self) -> None
+⋮----
+def test_wu_section_forces_cost(self) -> None
+⋮----
+# Section 伍 (雜項費用) is always 費用管銷 regardless of description
+⋮----
+def test_jiu_section_forces_cost(self) -> None
+⋮----
+def test_5d_cost_is_cost(self) -> None
+⋮----
+def test_site_office_is_cost(self) -> None
+⋮----
+# ── extract_po_line_items ─────────────────────────────────────────────────────
+⋮----
+# Minimal AP8 text excerpt with two items representing both categories.
+_AP8_EXCERPT = (
+⋮----
+class TestExtractPoLineItems
+⋮----
+def test_extractsItemNumbers(self) -> None
+⋮----
+items = extract_po_line_items(_AP8_EXCERPT)
+item_nos = [item["item_no"] for item in items]
+⋮----
+def test_item10_isWork(self) -> None
+⋮----
+item10 = next((i for i in items if i["item_no"] == 10), None)
+⋮----
+def test_item210_isCost(self) -> None
+⋮----
+item210 = next((i for i in items if i["item_no"] == 210), None)
+⋮----
+def test_itemsAreSortedByNumber(self) -> None
+⋮----
+nos = [i["item_no"] for i in items]
+⋮----
+def test_emptyText_returnsEmpty(self) -> None
+⋮----
+def test_nonPoText_returnsEmpty(self) -> None
+⋮----
+def test_descriptionIsNonEmpty(self) -> None
+⋮----
+def test_categoryIsOnlyTwoValues(self) -> None
+⋮----
+# ── po_line_items_to_rag_chunks ───────────────────────────────────────────────
+⋮----
+class TestPoLineItemsToRagChunks
+⋮----
+def test_chunkContainsCategoryAndItemNo(self) -> None
+⋮----
+line_items = [
+chunks = po_line_items_to_rag_chunks(line_items)
+⋮----
+chunk = chunks[0]
+⋮----
+def test_emptyInput_returnsEmpty(self) -> None
+⋮----
+def test_charStartIsZeroAndCharEndIsTextLength(self) -> None
+⋮----
+chunk = po_line_items_to_rag_chunks(line_items)[0]
 ````
 
 ## File: fn/tests/test_rag_ingestion_text.py
@@ -2532,73 +2668,206 @@ upstash-search>=0.1.1,<1.0.0
 qstash>=3.0.0,<4.0.0
 ````
 
-## File: fn/src/app/container/runtime_dependencies.py
+## File: fn/src/domain/services/po_extraction.py
 ````python
+"""
+Domain Service — Purchase Order (PO) line item extraction and classification.
+
+Pure business logic — no infrastructure dependency.
+
+Supports the ABB 訂購單 AP8 format (document 4510250181-AP8_v0-8150.PDF):
+  - 54 line items numbered 10–540 in steps of 10
+  - Two task categories: 施工作業 (construction) / 費用管銷 (expense management)
+  - Dense text format produced by Document AI OCR / Layout Parser
+
+Dependency: stdlib only.
+"""
+⋮----
+# ── Chinese numeral character class used in section headers ─────────────────
+_CHINESE_NUMERALS = "一二三四五六七八九十壹貳參肆伍陸柒捌玖拾"
+⋮----
+# Pattern: item number (10–540, step 10) at word boundary
+_ITEM_NO_PATTERN = re.compile(r"(?<!\d)(\d{2,3})(?=\s)")
+⋮----
+# Pattern: 小計 + amount signals end of price data; description follows
+_SUBTOTAL_PATTERN = re.compile(r"小計[\d,，.]+\s*")
+⋮----
+# Pattern: section header 「（中文数字）」
+_SECTION_HEADER_PATTERN = re.compile(
+⋮----
+# ── Classification rules ─────────────────────────────────────────────────────
+⋮----
+# Section numerals whose entire section is 費用管銷.
+# 伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
+# 玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
+_COST_SECTION_CHARS: frozenset[str] = frozenset(["伍", "玖"])
+⋮----
+# Section numerals whose entire section is 施工作業 (overridden per-item if needed)
+_WORK_SECTION_CHARS: frozenset[str] = frozenset(
+⋮----
+# Description-level patterns that force 費用管銷, regardless of section
+_COST_DESCRIPTION_PATTERNS: list[re.Pattern[str]] = [
+⋮----
+re.compile(r"費$"),           # ends with 費 (e.g., 高空作業費, 工程衛生費)
+re.compile(r"費用"),          # 費用 anywhere
+re.compile(r"管理\d*人"),     # management headcount (e.g., 管理1人*4個月)
+re.compile(r"監工"),          # supervision
+re.compile(r"工安費"),        # safety fee
+re.compile(r"保險"),          # insurance
+re.compile(r"分攤"),          # cost allocation
+re.compile(r"廢棄物"),        # waste disposal
+re.compile(r"5D"),            # 5D cost
+re.compile(r"利潤"),          # profit
+re.compile(r"圖控與軟體"),    # SCADA software deliverable (cost item)
+re.compile(r"圖面製作"),      # drawing / document fee
+re.compile(r"工務所"),        # site office
+⋮----
+def classify_po_task(description: str, section_char: str = "") -> Literal["施工作業", "費用管銷"]
+⋮----
+"""Classify a PO line item as 施工作業 or 費用管銷.
+
+    Args:
+        description: Chinese task description text.
+        section_char: Chinese numeral from the section header (e.g., "伍").
+
+    Returns:
+        "施工作業" or "費用管銷"
+    """
+# Section-level override takes precedence
+⋮----
+# Description-level pattern matching
+⋮----
+def extract_po_line_items(text: str) -> list[dict[str, Any]]
+⋮----
+"""Extract structured line items from AP8 PO raw text.
+
+    Document AI (OCR / Layout Parser) produces dense text where each line item
+    is formatted as::
+
+        "{item_no} {product_code} SET {price}... 小計{total}（{section}）{description}"
+
+    This function locates each item's Chinese section header and description
+    after the price block and returns a structured list.
+
+    Args:
+        text: Raw text from Document AI output for the PO document.
+
+    Returns:
+        Sorted list (by item_no) of dicts with keys:
+            item_no (int): 10, 20, … 540
+            section (str): e.g., "（一）SCADA站內工程"
+            section_char (str): e.g., "一"
+            description (str): task description text
+            category (str): "施工作業" or "費用管銷"
+            raw_snippet (str): first 200 chars of the matched segment
+    """
+# Normalize horizontal whitespace for reliable pattern matching
+normalized = re.sub(r"[ \t]+", " ", text)
+⋮----
+items: list[dict[str, Any]] = []
+⋮----
+# Split on item boundaries: digit(s) followed by the ABB product code prefix
+# or a Chinese description marker so we get one segment per line item.
+segment_pattern = re.compile(
+segments = list(segment_pattern.finditer(normalized))
+⋮----
+item_no_str = match.group(1)
+⋮----
+item_no = int(item_no_str)
+⋮----
+# Validate item number is in the expected AP8 range (10–540, step 10)
+⋮----
+# Extract the text segment for this item
+start = match.start()
+end = segments[idx + 1].start() if idx + 1 < len(segments) else len(normalized)
+segment = normalized[start:end]
+⋮----
+# Find 小計 to locate where the price block ends
+subtotal_match = _SUBTOTAL_PATTERN.search(segment)
+description_zone = segment[subtotal_match.end():] if subtotal_match else segment
+⋮----
+# Extract section header + leading description from the description zone
+header_match = _SECTION_HEADER_PATTERN.search(description_zone)
+⋮----
+section_char = header_match.group(1).strip()
+description_raw = (header_match.group(2) or "").strip()
+⋮----
+# Collect any remaining text after the section header (may continue on next line)
+after_header = description_zone[header_match.end():].strip()
+# Limit to first sentence/clause for the description
+extra = re.split(r"[（\n]|ABB Ltd\.", after_header, maxsplit=1)[0].strip()
+⋮----
+description_raw = (description_raw + " " + extra).strip()
+⋮----
+description = re.sub(r"\s+", " ", description_raw).strip()
+⋮----
+section_label = f"（{section_char}）"
+category = classify_po_task(description, section_char)
+⋮----
+"""Convert extracted PO line items to RAG chunk format.
+
+    Each line item becomes one chunk, preserving category metadata so the
+    RAG pipeline can filter by 施工作業 / 費用管銷.
+
+    Args:
+        line_items: Output of extract_po_line_items().
+
+    Returns:
+        list of dicts compatible with the RAG ingestion pipeline.
+    """
+result: list[dict[str, Any]] = []
+⋮----
+text = (
+````
+
+## File: fn/src/interface/handlers/parse_document.py
+````python
+"""
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
+
+Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
+before any application-layer call.
+"""
+⋮----
 logger = logging.getLogger(__name__)
 ⋮----
-class InfraRagQueryGateway
+def handle_parse_document(req: https_fn.CallableRequest) -> dict
 ⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+"""
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    All external input is validated through ParseDocumentRequest before
+    reaching the application layer (Rule 4).
+    """
+runtime = get_document_pipeline()
 ⋮----
-def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
+schema = ParseDocumentRequest.from_raw(req.data or {})
 ⋮----
-def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
+# Derive bucket / object_path from the validated URI.
+path_part = schema.gcs_uri.split("gs://", 1)[1]
 ⋮----
-def to_query_vector(self, query: str) -> list[float]
+# ── 初始化 Firestore document ───────────────────────────────────────────
 ⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
+# ── 同步解析 ─────────────────────────────────────────────────────────────
+start_time = time.time()
 ⋮----
-def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
+parsed = runtime.process_document_gcs(
+extraction_ms = int((time.time() - start_time) * 1000)
 ⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
+json_object_path = runtime.layout_json_path(object_path)
+json_gcs_uri = runtime.upload_json(
 ⋮----
-class InfraRagIngestionGateway
+rag = ingest_document_for_rag(
 ⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+# OCR Processor — full-page text extraction; stores text output in the
+# same JSON envelope as layout so the RAG ingestion path can reuse it.
+# char-split-v2 chunking is applied since OCR gives no semantic chunks.
 ⋮----
-def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any
+# OCR does not return semantic chunks; `ingest_document_for_rag`
+# will apply char-split-v2 chunking when layout_chunks=None.
 ⋮----
-def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int
+# OCR has no layout chunks → char-split-v2 fallback.
 ⋮----
-def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None
-⋮----
-class InfraDocumentPipelineGateway
-⋮----
-@staticmethod
-    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
-⋮----
-@staticmethod
-    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
-⋮----
-lines = [line.strip() for line in text.splitlines() if line.strip()]
-⋮----
-chunks: list[dict[str, Any]] = []
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
-⋮----
-# parser == "layout" (default)
-layout_parsed = process_document_gcs(
-⋮----
-fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
-⋮----
-fallback_parsed = process_document_gcs(
-fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
-# Layout path may return [] when processor yields no semantic chunks.
-fallback_chunks = (
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def layout_json_path(self, upload_object_path: str) -> str
-⋮----
-def form_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
-⋮----
-def register_runtime_dependencies() -> None
+else:  # "form"
+json_object_path = runtime.form_json_path(object_path)
 ````
