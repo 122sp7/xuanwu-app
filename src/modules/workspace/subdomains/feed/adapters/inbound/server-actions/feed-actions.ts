@@ -9,7 +9,11 @@
 
 import type { CommandResult } from "../../../../../../shared";
 import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
-import { CreateFeedPostSchema, ListFeedPostsSchema } from "../../../application";
+import {
+  CreateFeedPostSchema,
+  ListAccountFeedPostsSchema,
+  ListFeedPostsSchema,
+} from "../../../application";
 import { createClientFeedUseCases } from "../../../../../adapters/outbound/firebase-composition";
 
 /** Create a new feed post (text + optional photos). */
@@ -24,4 +28,11 @@ export async function listFeedPostsAction(rawInput: unknown): Promise<FeedPostSn
   const input = ListFeedPostsSchema.parse(rawInput);
   const { listFeedPosts } = createClientFeedUseCases();
   return listFeedPosts.execute(input);
+}
+
+/** List feed posts across all workspaces within an account. */
+export async function listAccountFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]> {
+  const input = ListAccountFeedPostsSchema.parse(rawInput);
+  const { listAccountFeedPosts } = createClientFeedUseCases();
+  return listAccountFeedPosts.execute(input);
 }

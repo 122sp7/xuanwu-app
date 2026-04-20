@@ -33,7 +33,7 @@ This skill contains the following reference files:
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
 - Only files matching these patterns are included: .github/copilot-instructions.md, docs/**, src/app/**, src/modules/ai/**, src/modules/analytics/**, src/modules/billing/**, src/modules/notebooklm/**, src/modules/notion/**, src/modules/platform/**, src/modules/shared/**, src/modules/template/**, src/modules/workspace/**, src/modules/iam/index.ts, src/packages/index.ts, fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, llms.txt, next.config.ts, package.json, postcss.config.mjs, tailwind.config.ts, tsconfig.json
-- Files matching these patterns are excluded: *.md, .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
+- Files matching these patterns are excluded: fn/tests/**, **/*.test.ts, *.md, .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,14 +42,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-986 files | 25,014 lines
+1002 files | 27,114 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 726 | 9,874 |
-| Markdown | 105 | 9,995 |
-| Python | 74 | 1,767 |
-| TypeScript (TSX) | 49 | 2,324 |
+| TypeScript | 727 | 9,988 |
+| Markdown | 125 | 12,054 |
+| Python | 69 | 1,687 |
+| TypeScript (TSX) | 49 | 2,331 |
 | No Extension | 17 | 17 |
 | JSON | 6 | 724 |
 | Text | 3 | 108 |
@@ -62,10 +62,10 @@ This skill contains the following reference files:
 - `firestore.indexes.json` (437 lines)
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
 - `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (374 lines)
+- `docs/decisions/domain/0005-purchase-order-source-domain-model.md` (283 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `src/modules/template/README.md` (266 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
 - `docs/structure/domain/ddd-strategic-design.md` (221 lines)
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
-- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
-- `fn/README.md` (212 lines)
+- `docs/decisions/ai/0005-sap-po-structured-extraction-strategy.md` (215 lines)

@@ -34,3 +34,18 @@ export class ListFeedPostsUseCase {
     return this.feedRepo.listByWorkspaceId(input.accountId, input.workspaceId, limit);
   }
 }
+
+export class ListAccountFeedPostsUseCase {
+  constructor(private readonly feedRepo: FeedPostRepository) {}
+
+  async execute(input: {
+    accountId: string;
+    dateKey?: string;
+    limit?: number;
+  }): Promise<FeedPostSnapshot[]> {
+    const limit = input.limit ?? 100;
+    const posts = await this.feedRepo.listByAccountId(input.accountId, limit);
+    if (!input.dateKey) return posts;
+    return posts.filter((post) => post.dateKey === input.dateKey);
+  }
+}

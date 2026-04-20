@@ -29,14 +29,25 @@ import {
 import { CreateUserAccountUseCase } from "../../subdomains/account/application/use-cases/AccountUseCases";
 import { CreateOrganizationUseCase } from "../../subdomains/organization/application/use-cases/OrganizationLifecycleUseCases";
 import {
+  InviteMemberUseCase,
   ListOrganizationMembersUseCase,
+  UpdateMemberRoleUseCase,
+  RecruitMemberUseCase,
 } from "../../subdomains/organization/application/use-cases/OrganizationMemberUseCases";
 import {
+  CreateTeamUseCase,
   ListOrganizationTeamsUseCase,
 } from "../../subdomains/organization/application/use-cases/OrganizationTeamUseCases";
 import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
 import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
-import type { MemberReference, Team } from "../../subdomains/organization/domain/entities/Organization";
+import type {
+  CreateTeamInput,
+  InviteMemberInput,
+  MemberReference,
+  Team,
+  UpdateMemberRoleInput,
+} from "../../subdomains/organization/domain/entities/Organization";
+import type { CommandResult } from "../../../shared";
 
 // ─── Singleton repositories ───────────────────────────────────────────────────
 
@@ -222,4 +233,27 @@ export async function listOrganizationMembers(organizationId: string): Promise<M
 
 export async function listOrganizationTeams(organizationId: string): Promise<Team[]> {
   return new ListOrganizationTeamsUseCase(getOrgRepo()).execute(organizationId);
+}
+
+export async function inviteOrganizationMember(input: InviteMemberInput): Promise<CommandResult> {
+  return new InviteMemberUseCase(getOrgRepo()).execute(input);
+}
+
+export async function recruitOrganizationMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  return new RecruitMemberUseCase(getOrgRepo()).execute(organizationId, memberId, name, email);
+}
+
+export async function updateOrganizationMemberRole(
+  input: UpdateMemberRoleInput,
+): Promise<CommandResult> {
+  return new UpdateMemberRoleUseCase(getOrgRepo()).execute(input);
+}
+
+export async function createOrganizationTeam(input: CreateTeamInput): Promise<CommandResult> {
+  return new CreateTeamUseCase(getOrgRepo()).execute(input);
 }
