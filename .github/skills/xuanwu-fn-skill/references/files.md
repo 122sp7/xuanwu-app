@@ -1289,99 +1289,6 @@ candidates = result.get("result") or result.get("matches") or result.get("data")
 
 ````
 
-## File: fn/src/infrastructure/persistence/firestore/document_repository.py
-````python
-"""
-Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
-
-Firestore 只存輕量索引（供 account-scoped 列表），
-解析全文以 JSON 格式存回 GCS 的對應路徑（files/ 前綴）。
-
-Document Schema:
-    {
-        "id": "doc-abc123",
-        "status": "processing" | "completed" | "error",
-        "source": {
-            "gcs_uri": "gs://bucket/uploads/file.pdf",
-            "filename": "file.pdf",
-            "size_bytes": 102400,
-            "uploaded_at": "2026-03-22T...",
-            "mime_type": "application/pdf"
-        },
-        "parsed": {
-            "json_gcs_uri": "gs://bucket/files/file.json",   // 全文 JSON 位置
-            "page_count": 5,
-            "parsed_at": "2026-03-22T...",
-            "extraction_ms": 1234
-        },
-        "error": {  // 只在 status=error 時出現
-            "message": "...",
-            "timestamp": "2026-03-22T..."
-        }
-    }
-
-用法：
-    init_document(doc_id, gcs_uri, filename, size_bytes, mime_type)
-    update_parsed(doc_id, json_gcs_uri, page_count, extraction_ms)
-    record_error(doc_id, message)
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def _document_ref(doc_id: str, account_id: str)
-⋮----
-"""Resolve strict account-scoped document reference."""
-⋮----
-db = fb_firestore.client()
-⋮----
-"""
-    初始化 Firestore document，標記為 processing 狀態。
-
-    在檔案上傳到 GCS 時呼叫，建立初始的 source metadata。
-
-    Args:
-        doc_id:      文件識別碼。
-        gcs_uri:     GCS 位置，例如 gs://bucket/path/file.pdf
-        filename:    原始檔名。
-        size_bytes:  文件大小（位元組）。
-        mime_type:   MIME 類型。
-    """
-ref = _document_ref(doc_id, account_id)
-⋮----
-payload = {
-⋮----
-"""
-    更新 document 的解析結果索引，標記為 completed 狀態。
-
-    全文內容已寫入 GCS JSON 檔（json_gcs_uri），
-    Firestore 只保留輕量索引供前端列表使用。
-
-    Args:
-        doc_id:         文件識別碼。
-        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
-        page_count:     頁數。
-        extraction_ms:  解析耗時（毫秒），非必填。
-    """
-⋮----
-def record_error(doc_id: str, message: str, account_id: str) -> None
-⋮----
-"""
-    記錄解析錯誤，標記為 error 狀態。
-
-    在 Document AI 呼叫失敗時呼叫。
-
-    Args:
-        doc_id:  文件識別碼。
-        message: 錯誤訊息。
-    """
-⋮----
-"""標記 RAG ingestion 完成（ready）。"""
-⋮----
-def record_rag_error(doc_id: str, message: str, account_id: str) -> None
-⋮----
-"""記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
-````
-
 ## File: fn/src/infrastructure/persistence/storage/__init__.py
 ````python
 
@@ -1529,46 +1436,6 @@ HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
 __all__ = [
 ````
 
-## File: fn/src/interface/handlers/parse_document.py
-````python
-"""
-HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
-
-Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
-before any application-layer call.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_parse_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    All external input is validated through ParseDocumentRequest before
-    reaching the application layer (Rule 4).
-    """
-runtime = get_document_pipeline()
-⋮----
-schema = ParseDocumentRequest.from_raw(req.data or {})
-⋮----
-# Derive bucket / object_path from the validated URI.
-path_part = schema.gcs_uri.split("gs://", 1)[1]
-⋮----
-# ── 初始化 Firestore document ───────────────────────────────────────────
-⋮----
-# ── 同步解析 ─────────────────────────────────────────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-json_object_path = runtime.parsed_json_path(object_path)
-json_gcs_uri = runtime.upload_json(
-⋮----
-rag = ingest_document_for_rag(
-````
-
 ## File: fn/src/interface/handlers/rag_query_handler.py
 ````python
 """
@@ -1635,110 +1502,6 @@ filename = (
 page_count = schema.page_count
 ⋮----
 page_count = int(parsed_payload.get("page_count", 0) or 0)
-⋮----
-rag = ingest_document_for_rag(
-````
-
-## File: fn/src/interface/handlers/storage.py
-````python
-"""
-Storage 觸發器 — 監聽 GCS 物件建立事件，自動送 Document AI 解析。
-
-流程：
-    GCS object.finalized（uploads/ 前綴）
-        → 建立初始 Firestore document（status=processing）
-        → Document AI 直接從 GCS URI 讀取
-        → 將解析全文以 JSON 格式寫回 GCS（files/ 前綴，同目錄結構）
-        → 更新 Firestore 輕量索引（status=completed，含 json_gcs_uri）
-        → 如失敗，記錄 error
-
-Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
-完整解析結果透過 json_gcs_uri 讀取 GCS JSON 檔。
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-# 只處理這個資料夾下的上傳檔案（空字串 = 處理整個 bucket）
-WATCH_PREFIX: str = os.environ.get("WATCH_PREFIX", "uploads/")
-⋮----
-# 支援的 MIME 類型對照表（副檔名 → MIME）
-_MIME_MAP: dict[str, str] = {
-⋮----
-def _mime_from_path(object_path: str) -> str | None
-⋮----
-"""Best-effort account scope binding for storage-triggered uploads.
-
-    Priority:
-    1) custom metadata field `account_id`
-    2) path convention: uploads/{accountId}/...
-    3) fallback: None (reject write)
-    """
-⋮----
-from_meta = str(event_metadata.get("account_id", "")).strip()
-⋮----
-prefix = f"{WATCH_PREFIX}"
-⋮----
-remainder = object_path[len(prefix):]
-# uploads/{accountId}/file.pdf
-⋮----
-candidate = remainder.split("/", 1)[0].strip()
-⋮----
-def _extract_workspace_id(event_metadata: dict | None) -> str | None
-⋮----
-workspace_id = str(event_metadata.get("workspace_id", "")).strip()
-⋮----
-def _extract_display_filename(object_path: str, event_metadata: dict | None) -> str
-⋮----
-candidates: tuple[Any, ...] = ()
-⋮----
-candidates = (
-⋮----
-filename = str(candidate or "").strip()
-⋮----
-"""
-    Cloud Storage on_object_finalized 觸發器。
-
-    - 只處理 WATCH_PREFIX 下、且為支援 MIME 類型的檔案。
-    - 初始化 → Document AI 解析 → 更新 Firestore
-    - 異常時記錄至 Firestore。
-    """
-runtime = get_document_pipeline()
-data = event.data
-⋮----
-bucket_name: str = data.bucket
-object_path: str = data.name or ""
-size_bytes: int = int(data.size or 0)
-⋮----
-# ── 路徑過濾 ────────────────────────────────────────────────────────────
-⋮----
-mime_type = _mime_from_path(object_path)
-⋮----
-account_id = _extract_account_id(object_path, data.metadata)
-⋮----
-workspace_id = _extract_workspace_id(data.metadata)
-⋮----
-# doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
-storage_filename = os.path.basename(object_path)
-display_filename = _extract_display_filename(object_path, data.metadata)
-⋮----
-gcs_uri = f"gs://{bucket_name}/{object_path}"
-⋮----
-# ── Step 1: 初始化 Firestore document ──────────────────────────────────
-⋮----
-# ── Step 2: Document AI 解析 ──────────────────────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，同目錄結構）──────────
-json_object_path = runtime.parsed_json_path(object_path)
-json_data = {
-json_gcs_uri = runtime.upload_json(
-⋮----
-# ── Step 4: 更新 Firestore 索引（只存 metadata，不存全文）─────────
-⋮----
-# ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
 ⋮----
 rag = ingest_document_for_rag(
 ````
@@ -2081,6 +1844,245 @@ def test_layoutChunksToRagChunks_WithMissingOptionalFields_UsesDefaults() -> Non
 layout_chunks = [{"text": "只有文字欄位"}]
 ⋮----
 chunk = result[0]
+````
+
+## File: fn/src/infrastructure/persistence/firestore/document_repository.py
+````python
+"""
+Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
+
+Firestore 只存輕量索引（供 account-scoped 列表），
+解析全文以 JSON 格式存回 GCS 的對應路徑（files/ 前綴）。
+
+Document Schema:
+    {
+        "id": "doc-abc123",
+        "status": "processing" | "completed" | "error",
+        "source": {
+            "gcs_uri": "gs://bucket/uploads/file.pdf",
+            "filename": "file.pdf",
+            "size_bytes": 102400,
+            "uploaded_at": "2026-03-22T...",
+            "mime_type": "application/pdf"
+        },
+        "parsed": {
+            "json_gcs_uri": "gs://bucket/files/file.json",   // 全文 JSON 位置
+            "page_count": 5,
+            "parsed_at": "2026-03-22T...",
+            "extraction_ms": 1234
+        },
+        "error": {  // 只在 status=error 時出現
+            "message": "...",
+            "timestamp": "2026-03-22T..."
+        }
+    }
+
+用法：
+    init_document(doc_id, gcs_uri, filename, size_bytes, mime_type)
+    update_parsed(doc_id, json_gcs_uri, page_count, extraction_ms)
+    record_error(doc_id, message)
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def _document_ref(doc_id: str, account_id: str)
+⋮----
+"""Resolve strict account-scoped document reference."""
+⋮----
+db = fb_firestore.client()
+⋮----
+"""
+    初始化 Firestore document，標記為 processing 狀態。
+
+    在檔案上傳到 GCS 時呼叫，建立初始的 source metadata。
+
+    Args:
+        doc_id:      文件識別碼。
+        gcs_uri:     GCS 位置，例如 gs://bucket/path/file.pdf
+        filename:    原始檔名。
+        size_bytes:  文件大小（位元組）。
+        mime_type:   MIME 類型。
+    """
+ref = _document_ref(doc_id, account_id)
+⋮----
+payload = {
+⋮----
+"""
+    更新 document 的解析結果索引，標記為 completed 狀態。
+
+    全文內容已寫入 GCS JSON 檔（json_gcs_uri），
+    Firestore 只保留輕量索引供前端列表使用。
+
+    Args:
+        doc_id:         文件識別碼。
+        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
+        page_count:     頁數。
+        extraction_ms:  解析耗時（毫秒），非必填。
+        chunk_count:    Layout Parser 語意分塊數量。
+        entity_count:   Form Parser 結構化欄位數量。
+    """
+⋮----
+def record_error(doc_id: str, message: str, account_id: str) -> None
+⋮----
+"""
+    記錄解析錯誤，標記為 error 狀態。
+
+    在 Document AI 呼叫失敗時呼叫。
+
+    Args:
+        doc_id:  文件識別碼。
+        message: 錯誤訊息。
+    """
+⋮----
+"""標記 RAG ingestion 完成（ready）。"""
+⋮----
+def record_rag_error(doc_id: str, message: str, account_id: str) -> None
+⋮----
+"""記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
+````
+
+## File: fn/src/interface/handlers/parse_document.py
+````python
+"""
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
+
+Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
+before any application-layer call.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def handle_parse_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    All external input is validated through ParseDocumentRequest before
+    reaching the application layer (Rule 4).
+    """
+runtime = get_document_pipeline()
+⋮----
+schema = ParseDocumentRequest.from_raw(req.data or {})
+⋮----
+# Derive bucket / object_path from the validated URI.
+path_part = schema.gcs_uri.split("gs://", 1)[1]
+⋮----
+# ── 初始化 Firestore document ───────────────────────────────────────────
+⋮----
+# ── 同步解析 ─────────────────────────────────────────────────────────────
+start_time = time.time()
+⋮----
+parsed = runtime.process_document_gcs(
+extraction_ms = int((time.time() - start_time) * 1000)
+⋮----
+json_object_path = runtime.parsed_json_path(object_path)
+json_gcs_uri = runtime.upload_json(
+⋮----
+rag = ingest_document_for_rag(
+````
+
+## File: fn/src/interface/handlers/storage.py
+````python
+"""
+Storage 觸發器 — 監聽 GCS 物件建立事件，自動送 Document AI 解析。
+
+流程：
+    GCS object.finalized（uploads/ 前綴）
+        → 建立初始 Firestore document（status=processing）
+        → Document AI 直接從 GCS URI 讀取
+        → 將解析全文以 JSON 格式寫回 GCS（files/ 前綴，同目錄結構）
+        → 更新 Firestore 輕量索引（status=completed，含 json_gcs_uri）
+        → 如失敗，記錄 error
+
+Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
+完整解析結果透過 json_gcs_uri 讀取 GCS JSON 檔。
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+# 只處理這個資料夾下的上傳檔案（空字串 = 處理整個 bucket）
+WATCH_PREFIX: str = os.environ.get("WATCH_PREFIX", "uploads/")
+⋮----
+# 支援的 MIME 類型對照表（副檔名 → MIME）
+_MIME_MAP: dict[str, str] = {
+⋮----
+def _mime_from_path(object_path: str) -> str | None
+⋮----
+"""Best-effort account scope binding for storage-triggered uploads.
+
+    Priority:
+    1) custom metadata field `account_id`
+    2) path convention: uploads/{accountId}/...
+    3) fallback: None (reject write)
+    """
+⋮----
+from_meta = str(event_metadata.get("account_id", "")).strip()
+⋮----
+prefix = f"{WATCH_PREFIX}"
+⋮----
+remainder = object_path[len(prefix):]
+# uploads/{accountId}/file.pdf
+⋮----
+candidate = remainder.split("/", 1)[0].strip()
+⋮----
+def _extract_workspace_id(event_metadata: dict | None) -> str | None
+⋮----
+workspace_id = str(event_metadata.get("workspace_id", "")).strip()
+⋮----
+def _extract_display_filename(object_path: str, event_metadata: dict | None) -> str
+⋮----
+candidates: tuple[Any, ...] = ()
+⋮----
+candidates = (
+⋮----
+filename = str(candidate or "").strip()
+⋮----
+"""
+    Cloud Storage on_object_finalized 觸發器。
+
+    - 只處理 WATCH_PREFIX 下、且為支援 MIME 類型的檔案。
+    - 初始化 → Document AI 解析 → 更新 Firestore
+    - 異常時記錄至 Firestore。
+    """
+runtime = get_document_pipeline()
+data = event.data
+⋮----
+bucket_name: str = data.bucket
+object_path: str = data.name or ""
+size_bytes: int = int(data.size or 0)
+⋮----
+# ── 路徑過濾 ────────────────────────────────────────────────────────────
+⋮----
+mime_type = _mime_from_path(object_path)
+⋮----
+account_id = _extract_account_id(object_path, data.metadata)
+⋮----
+workspace_id = _extract_workspace_id(data.metadata)
+⋮----
+# doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
+storage_filename = os.path.basename(object_path)
+display_filename = _extract_display_filename(object_path, data.metadata)
+⋮----
+gcs_uri = f"gs://{bucket_name}/{object_path}"
+⋮----
+# ── Step 1: 初始化 Firestore document ──────────────────────────────────
+⋮----
+# ── Step 2: Document AI 解析 ──────────────────────────────────────────
+start_time = time.time()
+⋮----
+parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+extraction_ms = int((time.time() - start_time) * 1000)
+⋮----
+# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，同目錄結構）──────────
+json_object_path = runtime.parsed_json_path(object_path)
+json_data = {
+json_gcs_uri = runtime.upload_json(
+⋮----
+# ── Step 4: 更新 Firestore 索引（只存 metadata，不存全文）─────────
+⋮----
+# ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
+⋮----
+rag = ingest_document_for_rag(
 ````
 
 ## File: fn/AGENTS.md
