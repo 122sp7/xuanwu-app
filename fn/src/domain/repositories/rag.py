@@ -40,7 +40,7 @@ class RagIngestionGateway(Protocol):
 
 
 class DocumentPipelineGateway(Protocol):
-    def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> Any: ...
+    def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
 
     def redis_fixed_window_allow(
         self,
@@ -73,6 +73,27 @@ class DocumentPipelineGateway(Protocol):
         entity_count: int = 0,
     ) -> None: ...
 
+    def update_parsed_layout(
+        self,
+        *,
+        doc_id: str,
+        layout_json_gcs_uri: str,
+        page_count: int,
+        extraction_ms: int,
+        account_id: str,
+        chunk_count: int = 0,
+    ) -> None: ...
+
+    def update_parsed_form(
+        self,
+        *,
+        doc_id: str,
+        form_json_gcs_uri: str,
+        account_id: str,
+        extraction_ms: int = 0,
+        entity_count: int = 0,
+    ) -> None: ...
+
     def mark_rag_ready(
         self,
         *,
@@ -93,6 +114,10 @@ class DocumentPipelineGateway(Protocol):
     def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
 
     def parsed_json_path(self, upload_object_path: str) -> str: ...
+
+    def layout_json_path(self, upload_object_path: str) -> str: ...
+
+    def form_json_path(self, upload_object_path: str) -> str: ...
 
     def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str: ...
 

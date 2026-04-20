@@ -26,12 +26,14 @@ export interface DocumentSnapshot {
   readonly deletedAtISO?: string;
   /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
   readonly parsedPageCount?: number;
-  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.chunk_count）*/
-  readonly parsedChunkCount?: number;
-  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.entity_count）*/
-  readonly parsedEntityCount?: number;
-  /** 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.json_gcs_uri）*/
-  readonly parsedJsonGcsUri?: string;
+  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
+  readonly parsedLayoutChunkCount?: number;
+  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
+  readonly parsedFormEntityCount?: number;
+  /** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+  readonly parsedLayoutJsonGcsUri?: string;
+  /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
+  readonly parsedFormJsonGcsUri?: string;
   /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
   readonly ragChunkCount?: number;
   /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/

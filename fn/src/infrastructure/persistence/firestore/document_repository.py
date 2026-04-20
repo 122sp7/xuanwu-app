@@ -152,6 +152,83 @@ def update_parsed(
     )
 
 
+def update_parsed_layout(
+    doc_id: str,
+    layout_json_gcs_uri: str,
+    page_count: int,
+    account_id: str,
+    extraction_ms: int = 0,
+    chunk_count: int = 0,
+) -> None:
+    """
+    更新 Layout Parser 解析結果，標記文件為 completed 狀態。
+
+    Layout JSON（含 text、chunks）已寫入 GCS，
+    Firestore 只保留輕量索引（layout_json_gcs_uri、page_count、layout_chunk_count）。
+
+    Args:
+        doc_id:               文件識別碼。
+        layout_json_gcs_uri:  Layout Parser GCS JSON 路徑（.layout.json）。
+        page_count:           頁數。
+        extraction_ms:        解析耗時（毫秒）。
+        chunk_count:          語意分塊數量。
+    """
+    ref = _document_ref(doc_id, account_id)
+
+    ref.update({
+        "status": "completed",
+        "account_id": account_id,
+        "parsed.layout_json_gcs_uri": layout_json_gcs_uri,
+        "parsed.page_count": page_count,
+        "parsed.parsed_at": datetime.now(UTC),
+        "parsed.extraction_ms": extraction_ms,
+        "parsed.layout_chunk_count": chunk_count,
+    })
+    logger.info(
+        "Firestore: update_parsed_layout %s (scope=%s) → status=completed (%d pages, %d chunks)",
+        doc_id,
+        account_id,
+        page_count,
+        chunk_count,
+    )
+
+
+def update_parsed_form(
+    doc_id: str,
+    form_json_gcs_uri: str,
+    account_id: str,
+    extraction_ms: int = 0,
+    entity_count: int = 0,
+) -> None:
+    """
+    更新 Form Parser 解析結果（不覆蓋 Layout Parser 的欄位）。
+
+    Form JSON（含 entities）已寫入 GCS，
+    Firestore 用 dot-notation update 新增 form 專屬欄位。
+
+    Args:
+        doc_id:              文件識別碼。
+        form_json_gcs_uri:   Form Parser GCS JSON 路徑（.form.json）。
+        extraction_ms:       解析耗時（毫秒）。
+        entity_count:        結構化欄位數量。
+    """
+    ref = _document_ref(doc_id, account_id)
+
+    ref.update({
+        "account_id": account_id,
+        "parsed.form_json_gcs_uri": form_json_gcs_uri,
+        "parsed.form_parsed_at": datetime.now(UTC),
+        "parsed.form_extraction_ms": extraction_ms,
+        "parsed.form_entity_count": entity_count,
+    })
+    logger.info(
+        "Firestore: update_parsed_form %s (scope=%s) → %d entities",
+        doc_id,
+        account_id,
+        entity_count,
+    )
+
+
 def record_error(doc_id: str, message: str, account_id: str) -> None:
     """
     記錄解析錯誤，標記為 error 狀態。

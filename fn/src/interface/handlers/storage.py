@@ -159,14 +159,14 @@ def handle_object_finalized(
         logger.exception("Failed to init document %s: %s", doc_id, exc)
         return
 
-    # ── Step 2: Document AI 解析 ──────────────────────────────────────────
+    # ── Step 2: Document AI 解析（Layout Parser） ─────────────────────────
     start_time = time.time()
     try:
-        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, parser="layout")
         extraction_ms = int((time.time() - start_time) * 1000)
 
-        # ── Step 3: 將解析全文寫回 GCS（files/ 前綴，同目錄結構）──────────
-        json_object_path = runtime.parsed_json_path(object_path)
+        # ── Step 3: 將解析全文寫回 GCS（files/ 前綴，.layout.json 副檔名）─
+        json_object_path = runtime.layout_json_path(object_path)
         json_data = {
             "doc_id": doc_id,
             "account_id": account_id,
@@ -179,7 +179,7 @@ def handle_object_finalized(
             "extraction_ms": extraction_ms,
             "text": parsed.text,
             "chunk_count": len(parsed.chunks),
-            "entities": parsed.entities,
+            "chunks": parsed.chunks,
         }
         json_gcs_uri = runtime.upload_json(
             bucket_name=bucket_name,
@@ -187,15 +187,14 @@ def handle_object_finalized(
             data=json_data,
         )
 
-        # ── Step 4: 更新 Firestore 索引（只存 metadata，不存全文）─────────
-        runtime.update_parsed(
+        # ── Step 4: 更新 Firestore 索引（layout 欄位）──────────────────────
+        runtime.update_parsed_layout(
             doc_id=doc_id,
-            json_gcs_uri=json_gcs_uri,
+            layout_json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
             extraction_ms=extraction_ms,
             account_id=account_id,
             chunk_count=len(parsed.chunks),
-            entity_count=len(parsed.entities),
         )
 
         # ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────

@@ -43,17 +43,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
 
         text = str(parsed_payload.get("text", "")).strip()
         if not text:
-            # Backward-compat: old JSON files may not have "text".
-            # Reconstruct from stored layout chunks when available.
-            stored_chunks = parsed_payload.get("chunks") or []
-            if stored_chunks:
-                text = "\n".join(
-                    str(c.get("text", "")).strip()
-                    for c in stored_chunks
-                    if c.get("text", "")
-                ).strip()
-        if not text:
-            raise ValueError("json 內容缺少 text")
+            raise ValueError("layout JSON 缺少 text 欄位，請先執行「解析文件(Layout Parser)」")
 
         # Enrich from the JSON payload when schema fields were left empty.
         source_gcs_uri = schema.source_gcs_uri or str(
