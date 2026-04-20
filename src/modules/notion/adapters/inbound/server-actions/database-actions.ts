@@ -21,6 +21,8 @@ const CreateDatabaseInputSchema = z.object({
   /** pageId is optional; a new UUID is auto-generated when omitted. */
   pageId: z.string().uuid().optional(),
   name: z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
+  createdByUserId: z.string().min(1).optional(),
 });
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -39,6 +41,7 @@ export async function createDatabaseAction(rawInput: unknown) {
     accountId: input.accountId,
     pageId: input.pageId ?? uuid(),
     title: input.name,
-    createdByUserId: "",
+    description: input.description,
+    createdByUserId: input.createdByUserId ?? input.accountId,
   });
 }

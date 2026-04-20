@@ -199,7 +199,11 @@ export function WorkspaceDetailRouteScreen({
           />
         )}
         {activeTab === "Database" && (
-          <NotionDatabaseSection workspaceId={workspaceId} accountId={accountId} />
+          <NotionDatabaseSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId ?? ""}
+          />
         )}
         {activeTab === "Templates" && (
           <NotionTemplatesSection workspaceId={workspaceId} accountId={accountId} currentUserId={currentUserId ?? ""} />

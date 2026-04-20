@@ -18,6 +18,7 @@ import { queryDatabasesAction, createDatabaseAction } from "../server-actions/da
 interface NotionDatabaseSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId: string;
 }
 
 function taskFormationHref(accountId: string, workspaceId: string) {
@@ -27,10 +28,12 @@ function taskFormationHref(accountId: string, workspaceId: string) {
 export function NotionDatabaseSection({
   workspaceId,
   accountId,
+  currentUserId,
 }: NotionDatabaseSectionProps): React.ReactElement {
   const [databases, setDatabases] = useState<DatabaseSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const load = () => {
@@ -53,8 +56,11 @@ export function NotionDatabaseSection({
         workspaceId,
         accountId,
         name: newName.trim(),
+        description: newDescription.trim() || undefined,
+        createdByUserId: currentUserId,
       });
       setNewName("");
+      setNewDescription("");
       const result = await queryDatabasesAction({ workspaceId, accountId });
       setDatabases(Array.isArray(result) ? result : []);
     });
@@ -71,7 +77,7 @@ export function NotionDatabaseSection({
 
       {loaded && (
         <>
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <Input
               placeholder="新資料庫名稱…"
               value={newName}
@@ -80,9 +86,19 @@ export function NotionDatabaseSection({
               className="h-8 text-sm"
               disabled={isPending}
             />
-            <Button size="sm" onClick={handleCreate} disabled={isPending || !newName.trim()}>
-              <Plus className="size-3.5" />
-            </Button>
+            <div className="flex gap-2">
+              <Input
+                placeholder="描述（可選）…"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                className="h-8 text-sm"
+                disabled={isPending}
+              />
+              <Button size="sm" onClick={handleCreate} disabled={isPending || !newName.trim()}>
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
           </div>
 
           {databases.length === 0 ? (
@@ -99,6 +115,9 @@ export function NotionDatabaseSection({
                     <span className="ml-2 text-xs text-muted-foreground">
                       {db.properties.length} 個欄位
                     </span>
+                    {db.description && (
+                      <p className="mt-1 text-xs text-muted-foreground">{db.description}</p>
+                    )}
                   </div>
                   <Link
                     href={taskFormationHref(accountId, workspaceId)}
