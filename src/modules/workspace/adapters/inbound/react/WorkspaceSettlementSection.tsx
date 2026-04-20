@@ -190,6 +190,14 @@ export function WorkspaceSettlementSection({
                   <p className="mt-1 text-xs text-muted-foreground">
                     建立時間：{new Date(invoice.createdAtISO).toLocaleString("zh-TW")}
                   </p>
+                  <p className="mt-0.5 text-xs font-medium text-foreground">
+                    金額：{invoice.totalAmount.toLocaleString("zh-TW")} {invoice.currency}
+                    {invoice.lineItems.length > 0 && (
+                      <span className="ml-1 text-muted-foreground">
+                        （{invoice.lineItems.length} 項）
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <Badge variant={STATUS_BADGE[invoice.status]} className="text-xs">
                   {STATUS_LABEL[invoice.status]}

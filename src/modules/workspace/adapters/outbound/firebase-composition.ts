@@ -85,6 +85,7 @@ import {
 } from "../../subdomains/audit/application/use-cases/AuditUseCases";
 import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
 import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
+import { CreateInvoiceFromAcceptedTasksUseCase } from "../../subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
 
 type FirestoreWhereOperator =
   | "<"
@@ -319,8 +320,10 @@ export function createClientAuditUseCases() {
 export function createClientSettlementUseCases() {
   const db = createFirestoreLikeAdapter();
   const invoiceRepo = new FirestoreInvoiceRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
   return {
     createInvoice: new CreateInvoiceUseCase(invoiceRepo),
+    createInvoiceFromAcceptedTasks: new CreateInvoiceFromAcceptedTasksUseCase(invoiceRepo, taskRepo),
     transitionInvoiceStatus: new TransitionInvoiceStatusUseCase(invoiceRepo),
     listInvoicesByWorkspace: (workspaceId: string) => invoiceRepo.findByWorkspaceId(workspaceId),
   };
