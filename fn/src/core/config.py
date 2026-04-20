@@ -46,11 +46,6 @@ DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
     "projects/65970295651/locations/us/processors/f88dfd0407416be7",
 ).strip()
 
-# 舊版 asia-southeast1 processor — 已棄用，保留供向下相容
-_DOCAI_PROCESSOR_NAME_LEGACY: str = (
-    "projects/65970295651/locations/asia-southeast1/processors/ce1eedab7b277f54"
-)
-
 # ── OpenAI (Embeddings / LLM) ───────────────────────────────────────────────
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "").strip()
 OPENAI_EMBEDDING_MODEL: str = os.environ.get(

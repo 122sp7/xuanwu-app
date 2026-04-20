@@ -138,6 +138,40 @@ class TestExtractPoLineItems:
         for item in items:
             assert item["category"] in ("施工作業", "費用管銷")
 
+    def test_deduplication_whenItemAppearsMoreThanOnce(self) -> None:
+        """Items that appear twice in OCR text (multi-page PDF) must be returned once."""
+        duplicated = _AP8_EXCERPT + _AP8_EXCERPT  # simulate page-repeat
+        items = extract_po_line_items(duplicated)
+        nos = [i["item_no"] for i in items]
+        # No item_no should appear more than once
+        assert len(nos) == len(set(nos)), f"Duplicate item_nos found: {nos}"
+
+    def test_subtotalPatternHandlesSpaceBeforeAmount(self) -> None:
+        """「小計 721,619」(space after 小計) must still locate the section header."""
+        # Item 90 from AP8 PDF crosses a page break and has 小計 {space} amount
+        text = (
+            "90 3RDTW5BD1 SET 882,000882,0002025.04.30 GIT(Cost Ref: 6591401)"
+            "折扣-160,381(Customer PO: ) 小計 721,619"
+            "（一 ）SCADA站內工程:RTU盤內設備安裝及配線"
+            "100 3RDTW5BD2 SET 100,000200,0002025.04.30 GIT 小計180,000"
+            "（一 ）SCADA站內工程:Server機櫃"
+        )
+        items = extract_po_line_items(text)
+        item90 = next((i for i in items if i["item_no"] == 90), None)
+        assert item90 is not None, "Item 90 should be extracted"
+        assert "RTU" in item90["description"], (
+            f"Expected RTU in description, got: {item90['description']}"
+        )
+
+    def test_descriptionDoesNotContainPriceData(self) -> None:
+        """Price/discount tokens from OCR must not leak into item descriptions."""
+        items = extract_po_line_items(_AP8_EXCERPT)
+        for item in items:
+            desc = item["description"]
+            assert "3RDTW" not in desc, f"Item {item['item_no']} description contains 3RDTW: {desc}"
+            assert "折扣" not in desc, f"Item {item['item_no']} description contains 折扣: {desc}"
+            assert "小計" not in desc, f"Item {item['item_no']} description contains 小計: {desc}"
+
 
 # ── po_line_items_to_rag_chunks ───────────────────────────────────────────────
 

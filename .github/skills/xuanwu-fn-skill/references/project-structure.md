@@ -33,7 +33,7 @@ fn/
       __init__.py (0 lines)
     core/
       __init__.py (0 lines)
-      config.py (76 lines)
+      config.py (73 lines)
     domain/
       events/
         __init__.py (0 lines)
@@ -44,7 +44,7 @@ fn/
         rag.py (65 lines)
       services/
         __init__.py (3 lines)
-        po_extraction.py (148 lines)
+        po_extraction.py (169 lines)
         rag_ingestion_text.py (63 lines)
         rag_result_filter.py (55 lines)
       value_objects/
@@ -107,7 +107,7 @@ fn/
     conftest.py (1 lines)
     test_domain_repository_gateways.py (47 lines)
     test_input_schemas.py (61 lines)
-    test_po_extraction.py (103 lines)
+    test_po_extraction.py (125 lines)
     test_rag_ingestion_text.py (24 lines)
   .env.example (65 lines)
   AGENTS.md (137 lines)

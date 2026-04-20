@@ -22,25 +22,31 @@ _CHINESE_NUMERALS = "一二三四五六七八九十壹貳參肆伍陸柒捌玖�
 # Pattern: item number (10–540, step 10) at word boundary
 _ITEM_NO_PATTERN = re.compile(r"(?<!\d)(\d{2,3})(?=\s)")
 
-# Pattern: 小計 + amount signals end of price data; description follows
-_SUBTOTAL_PATTERN = re.compile(r"小計[\d,，.]+\s*")
+# Pattern: 小計 + amount signals end of price data; description follows.
+# The space between 小計 and the amount is optional — items crossing page
+# breaks in the AP8 PDF produce "小計 721,619" (with space).
+_SUBTOTAL_PATTERN = re.compile(r"小計\s*[\d,，.]+\s*")
 
 # Pattern: section header 「（中文数字）」
 _SECTION_HEADER_PATTERN = re.compile(
     rf"（([{_CHINESE_NUMERALS}]+)\s*）([^（\n]{{1,80}})"
 )
 
+# Pattern to truncate description at noise boundaries within a single OCR line:
+# next-item anchor (e.g. "330 3RDTW"), summary totals, or ABB page footer.
+# Note: "ABB Ltd." is intentionally vendor-specific — this service is scoped to
+# the ABB AP8 訂購單 format (document 4510250181); see module docstring.
+_DESCRIPTION_STOP_PATTERN = re.compile(r"\d{2,3}\s+3RDTW|未稅總計|ABB Ltd\.")
+
 # ── Classification rules ─────────────────────────────────────────────────────
 
 # Section numerals whose entire section is 費用管銷.
-# 伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
-# 玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
+# Specific to the ABB AP8 訂購單 4510250181 section structure:
+#   伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
+#   玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
+# Sections 一–肆 and 柒–捌 contain a mix; classification falls through to
+# _COST_DESCRIPTION_PATTERNS for per-item discrimination.
 _COST_SECTION_CHARS: frozenset[str] = frozenset(["伍", "玖"])
-
-# Section numerals whose entire section is 施工作業 (overridden per-item if needed)
-_WORK_SECTION_CHARS: frozenset[str] = frozenset(
-    ["一", "壹", "貳", "參", "肆", "柒", "捌"]
-)
 
 # Description-level patterns that force 費用管銷, regardless of section
 _COST_DESCRIPTION_PATTERNS: list[re.Pattern[str]] = [
@@ -145,12 +151,19 @@ def extract_po_line_items(text: str) -> list[dict[str, Any]]:
 
         section_char = header_match.group(1).strip()
         description_raw = (header_match.group(2) or "").strip()
+        # Truncate at noise boundaries (next-item anchor or summary totals)
+        description_raw = _DESCRIPTION_STOP_PATTERN.split(description_raw, maxsplit=1)[0].strip()
 
         # Collect any remaining text after the section header (may continue on next line)
         after_header = description_zone[header_match.end():].strip()
-        # Limit to first sentence/clause for the description
-        extra = re.split(r"[（\n]|ABB Ltd\.", after_header, maxsplit=1)[0].strip()
-        if extra:
+        # Limit to first sentence/clause; stop at new section, page-break, next item, or totals
+        extra = re.split(r"[（\n]|ABB Ltd\.|(?=\d{2,3}\s+3RDTW)|未稅總計", after_header, maxsplit=1)[0].strip()
+        # Only append extra if it starts with Chinese text (genuine description continuation).
+        # ASCII-leading text (e.g., "Ref: 6591401)折扣…") is leaked price data — discard.
+        # Known limitation: descriptions that legitimately start with English terms
+        # (e.g., "RTU盤內…") will not be extended by extra; they are however already
+        # fully captured by _SECTION_HEADER_PATTERN group 2 in practice.
+        if extra and re.match(r"^[\u4e00-\u9fff（]", extra):
             description_raw = (description_raw + " " + extra).strip()
 
         description = re.sub(r"\s+", " ", description_raw).strip()
@@ -172,7 +185,17 @@ def extract_po_line_items(text: str) -> list[dict[str, Any]]:
         )
 
     items.sort(key=lambda x: x["item_no"])
-    return items
+
+    # De-duplicate: the PDF's multi-page layout causes identical items to appear
+    # more than once in the OCR text.  Keep the first occurrence per item_no
+    # because it tends to come from the main table (cleaner formatting).
+    seen: set[int] = set()
+    deduped: list[dict[str, Any]] = []
+    for item in items:
+        if item["item_no"] not in seen:
+            seen.add(item["item_no"])
+            deduped.append(item)
+    return deduped
 
 
 def po_line_items_to_rag_chunks(
