@@ -30,7 +30,8 @@ GCS Document
     └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
 ```
 
-- **主通道（Layout Parser）**失敗 → 整體 pipeline 失敗（拋例外，Rule 10）
+- **主通道（Layout Parser）**若回傳空輸出（0 page 且無 text/chunk）→ 自動改走後備 OCR/Form processor 補齊文字，再繼續流程
+- **主通道（Layout Parser）**API 失敗（拋例外）→ 整體 pipeline 失敗（Rule 10）
 - **副通道（Form Parser）**失敗 → 記錄 `WARNING`，以空 `entities` 繼續，不阻斷主流程（Rule 10）
 
 ### 環境變數
@@ -39,6 +40,7 @@ GCS Document
 |---|---|---|
 | `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser 資源名稱（主通道，不可空） |
 | `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser 資源名稱（設為空字串可停用副通道） |
+| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填，建議 US region） |
 | `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | **不可改為 eu 或 global** |
 | `DOCAI_LOCATION` | `us` | processor 所在 region |
 
