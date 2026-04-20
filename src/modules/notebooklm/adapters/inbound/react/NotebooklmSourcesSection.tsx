@@ -198,9 +198,13 @@ export function NotebooklmSourcesSection({
 
   const handleReindex = async (doc: DocumentSnapshot) => {
     if (!doc.id) return;
+    if (!doc.parsedJsonGcsUri) {
+      setDocAction(doc.id, { reindex: "error", message: "文件尚未解析，請先執行「解析文件」後再重建索引" });
+      return;
+    }
     setDocAction(doc.id, { reindex: "running", message: undefined });
     try {
-      await reindexDocumentAction({ accountId, docId: doc.id });
+      await reindexDocumentAction({ accountId, docId: doc.id, jsonGcsUri: doc.parsedJsonGcsUri });
       setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成" });
       const result = await queryDocumentsAction({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);

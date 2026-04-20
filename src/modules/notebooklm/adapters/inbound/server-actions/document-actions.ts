@@ -82,6 +82,8 @@ const ParseDocumentActionInputSchema = z.object({
 const ReindexDocumentActionInputSchema = z.object({
   accountId: z.string().min(1),
   docId: z.string().min(1),
+  /** GCS URI of the parsed JSON written by fn after Document AI parse. */
+  jsonGcsUri: z.string().min(1, "json_gcs_uri 為必填欄位（文件尚未完成解析？）"),
 });
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -196,8 +198,8 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
  */
 export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
   const input = ReindexDocumentActionInputSchema.parse(rawInput);
-  await _callCallable<{ account_id: string; doc_id: string }, void>(
+  await _callCallable<{ account_id: string; doc_id: string; json_gcs_uri: string }, void>(
     "rag_reindex_document",
-    { account_id: input.accountId, doc_id: input.docId },
+    { account_id: input.accountId, doc_id: input.docId, json_gcs_uri: input.jsonGcsUri },
   );
 }

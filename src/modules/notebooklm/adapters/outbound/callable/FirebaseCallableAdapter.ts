@@ -58,6 +58,8 @@ export interface ParseDocumentOutput {
 export interface ReindexDocumentInput {
   readonly account_id: string;
   readonly doc_id: string;
+  /** GCS URI of the parsed JSON file (gs://bucket/files/…json). Required by fn. */
+  readonly json_gcs_uri: string;
 }
 
 // ── Callable wrappers ─────────────────────────────────────────────────────────
