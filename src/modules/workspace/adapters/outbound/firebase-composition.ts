@@ -30,12 +30,14 @@ import {
   StopWorkspaceUseCase,
 } from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
 import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
+import { FirestorePermissionCheckAdapter } from "../../subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter";
 import {
   AddMemberUseCase,
   ChangeMemberRoleUseCase,
   ListWorkspaceMembersUseCase,
   RemoveMemberUseCase,
 } from "../../subdomains/membership/application/use-cases/MembershipUseCases";
+import { MembershipController } from "../../subdomains/membership/adapters/inbound/http/MembershipController";
 import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
 import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
 import {
@@ -205,7 +207,7 @@ export function createClientWorkspaceLifecycleUseCases() {
   const repo = getWorkspaceLifecycleRepo();
   const memberRepo = getWorkspaceMemberRepo();
   return {
-    createWorkspaceUseCase: new CreateWorkspaceUseCase(repo),
+    createWorkspaceUseCase: new CreateWorkspaceUseCase(repo, memberRepo),
     createWorkspaceWithOwnerUseCase: new CreateWorkspaceWithOwnerUseCase(repo, memberRepo),
     activateWorkspaceUseCase: new ActivateWorkspaceUseCase(repo),
     stopWorkspaceUseCase: new StopWorkspaceUseCase(repo),
@@ -214,12 +216,19 @@ export function createClientWorkspaceLifecycleUseCases() {
 
 export function createClientMembershipUseCases() {
   const repo = getWorkspaceMemberRepo();
+  const permissionCheck = new FirestorePermissionCheckAdapter(repo, createFirestoreLikeAdapter());
   return {
-    addMember: new AddMemberUseCase(repo),
-    changeMemberRole: new ChangeMemberRoleUseCase(repo),
-    removeMember: new RemoveMemberUseCase(repo),
+    addMember: new AddMemberUseCase(repo, permissionCheck),
+    changeMemberRole: new ChangeMemberRoleUseCase(repo, permissionCheck),
+    removeMember: new RemoveMemberUseCase(repo, permissionCheck),
     listMembersByWorkspace: new ListWorkspaceMembersUseCase(repo),
   };
+}
+
+export function createClientMembershipController(): MembershipController {
+  const repo = getWorkspaceMemberRepo();
+  const permissionCheck = new FirestorePermissionCheckAdapter(repo, createFirestoreLikeAdapter());
+  return new MembershipController(repo, permissionCheck);
 }
 
 export function createClientTaskFormationUseCases() {

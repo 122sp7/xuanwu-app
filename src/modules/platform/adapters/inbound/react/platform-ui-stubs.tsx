@@ -113,13 +113,6 @@ export function AccountDashboardRouteScreen(): React.ReactElement {
     day: "numeric",
   });
 
-  const quickLinks = [
-    { label: "工作區中心", description: "管理所有工作區", icon: <BriefcaseBusiness className="size-4 text-muted-foreground" /> },
-    { label: "每日", description: "今日任務快照", icon: <CalendarDays className="size-4 text-muted-foreground" /> },
-    { label: "排程", description: "里程碑與時間軸", icon: <CalendarRange className="size-4 text-muted-foreground" /> },
-    { label: "日誌", description: "操作記錄", icon: <Activity className="size-4 text-muted-foreground" /> },
-  ] as const;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -150,26 +143,6 @@ export function AccountDashboardRouteScreen(): React.ReactElement {
             <p className="text-xl font-semibold">{stat.value}</p>
           </div>
         ))}
-      </div>
-
-      {/* Quick links */}
-      <div>
-        <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">快速連結</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {quickLinks.map((link) => (
-            <div
-              key={link.label}
-              className="flex items-center gap-3 rounded-xl border border-border/40 bg-card/30 px-4 py-3 transition hover:bg-muted/40 cursor-pointer"
-            >
-              {link.icon}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{link.label}</p>
-                <p className="text-xs text-muted-foreground truncate">{link.description}</p>
-              </div>
-              <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Recent activity */}

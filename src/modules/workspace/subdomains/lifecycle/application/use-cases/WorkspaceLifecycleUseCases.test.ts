@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CreateWorkspaceUseCase,
   CreateWorkspaceWithOwnerUseCase,
 } from './WorkspaceLifecycleUseCases';
 import type { WorkspaceSnapshot } from '../../domain/entities/Workspace';
@@ -52,6 +53,31 @@ class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository {
 }
 
 describe('CreateWorkspaceWithOwnerUseCase', () => {
+  it('auto-assigns creator as owner when create use case receives creator input', async () => {
+    const workspaceRepo = new InMemoryWorkspaceRepository();
+    const memberRepo = new InMemoryWorkspaceMemberRepository();
+    const useCase = new CreateWorkspaceUseCase(workspaceRepo, memberRepo);
+
+    const result = await useCase.execute({
+      accountId: 'org-1',
+      accountType: 'organization',
+      name: 'Auto Owner Workspace',
+      creator: {
+        actorId: 'creator-1',
+        displayName: 'Creator Name',
+        email: 'creator@example.com',
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.aggregateId).toBeTruthy();
+
+    const members = await memberRepo.findByWorkspaceId(result.aggregateId);
+    expect(members).toHaveLength(1);
+    expect(members[0]?.role).toBe('owner');
+    expect(members[0]?.actorId).toBe('creator-1');
+  });
+
   it('creates workspace and owner membership together', async () => {
     const workspaceRepo = new InMemoryWorkspaceRepository();
     const memberRepo = new InMemoryWorkspaceMemberRepository();

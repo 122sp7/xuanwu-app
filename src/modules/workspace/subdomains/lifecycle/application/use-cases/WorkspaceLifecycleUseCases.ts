@@ -15,13 +15,41 @@ interface CreateWorkspaceWithOwnerInput {
   };
 }
 
-export class CreateWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+interface WorkspaceCreatorInput {
+  readonly actorId: string;
+  readonly displayName: string;
+  readonly email?: string;
+}
 
-  async execute(input: CreateWorkspaceInput): Promise<CommandResult> {
+interface CreateWorkspaceWithCreatorInput extends CreateWorkspaceInput {
+  readonly creator?: WorkspaceCreatorInput;
+}
+
+export class CreateWorkspaceUseCase {
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly memberRepo?: WorkspaceMemberRepository,
+  ) {}
+
+  async execute(input: CreateWorkspaceWithCreatorInput): Promise<CommandResult> {
     try {
       const workspace = Workspace.create(uuid(), input);
       await this.workspaceRepo.save(workspace.getSnapshot());
+      if (input.creator && this.memberRepo) {
+        try {
+          const ownerMember = WorkspaceMember.add(uuid(), {
+            workspaceId: workspace.id,
+            actorId: input.creator.actorId,
+            role: "owner",
+            displayName: input.creator.displayName,
+            email: input.creator.email,
+          });
+          await this.memberRepo.save(ownerMember.getSnapshot());
+        } catch (memberErr) {
+          await this.workspaceRepo.delete(workspace.id);
+          throw memberErr;
+        }
+      }
       return commandSuccess(workspace.id, Date.now());
     } catch (err) {
       return commandFailureFrom("WORKSPACE_CREATE_FAILED", err instanceof Error ? err.message : "Failed to create workspace.");
@@ -36,27 +64,10 @@ export class CreateWorkspaceWithOwnerUseCase {
   ) {}
 
   async execute(input: CreateWorkspaceWithOwnerInput): Promise<CommandResult> {
-    try {
-      const workspace = Workspace.create(uuid(), input.workspace);
-      await this.workspaceRepo.save(workspace.getSnapshot());
-      try {
-        const ownerMember = WorkspaceMember.add(uuid(), {
-          workspaceId: workspace.id,
-          actorId: input.owner.actorId,
-          role: "owner",
-          displayName: input.owner.displayName,
-          email: input.owner.email,
-        });
-        await this.memberRepo.save(ownerMember.getSnapshot());
-      } catch (memberErr) {
-        await this.workspaceRepo.delete(workspace.id);
-        throw memberErr;
-      }
-
-      return commandSuccess(workspace.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom("WORKSPACE_CREATE_FAILED", err instanceof Error ? err.message : "Failed to create workspace.");
-    }
+    return new CreateWorkspaceUseCase(this.workspaceRepo, this.memberRepo).execute({
+      ...input.workspace,
+      creator: input.owner,
+    });
   }
 }
 

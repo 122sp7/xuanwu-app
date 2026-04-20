@@ -42,30 +42,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-984 files | 24,802 lines
+986 files | 25,014 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 725 | 9,774 |
-| Markdown | 105 | 10,028 |
-| Python | 74 | 1,753 |
-| TypeScript (TSX) | 49 | 2,258 |
+| TypeScript | 726 | 9,874 |
+| Markdown | 105 | 9,995 |
+| Python | 74 | 1,767 |
+| TypeScript (TSX) | 49 | 2,324 |
 | No Extension | 17 | 17 |
 | JSON | 6 | 724 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
+| EXAMPLE | 1 | 65 |
 | CSS | 1 | 47 |
-| PROMPT | 1 | 19 |
-| Other | 1 | 64 |
+| Other | 2 | 83 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
-- `docs/structure/system/hard-rules-consolidated.md` (414 lines)
-- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (387 lines)
+- `docs/structure/system/hard-rules-consolidated.md` (415 lines)
+- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (374 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `src/modules/template/README.md` (266 lines)
-- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (241 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
+- `docs/structure/domain/ddd-strategic-design.md` (221 lines)
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
-- `docs/structure/domain/ddd-strategic-design.md` (218 lines)
+- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
 - `fn/README.md` (212 lines)

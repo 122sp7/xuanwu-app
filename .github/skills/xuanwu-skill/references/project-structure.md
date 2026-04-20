@@ -35,9 +35,9 @@ docs/
       feature/
         AGENTS.md (8 lines)
         notebooklm-source-processing-task-flow.md (86 lines)
-        py-fn-ts-capability-bridge.md (387 lines)
+        py-fn-ts-capability-bridge.md (374 lines)
         README.md (12 lines)
-        workspace-nav-notion-notebooklm-implementation-guide.md (241 lines)
+        workspace-nav-notion-notebooklm-implementation-guide.md (215 lines)
   structure/
     ai/
       .gitkeep (0 lines)
@@ -106,8 +106,8 @@ docs/
     domain/
       bounded-context-subdomain-template.md (203 lines)
       bounded-contexts.md (88 lines)
-      ddd-strategic-design.md (218 lines)
-      event-driven-design.md (189 lines)
+      ddd-strategic-design.md (221 lines)
+      event-driven-design.md (191 lines)
       subdomains.md (273 lines)
       ubiquitous-language.md (166 lines)
     modules/
@@ -115,7 +115,7 @@ docs/
     system/
       architecture-overview.md (135 lines)
       context-map.md (121 lines)
-      hard-rules-consolidated.md (414 lines)
+      hard-rules-consolidated.md (415 lines)
       integration-guidelines.md (110 lines)
       module-graph.system-wide.md (134 lines)
       project-delivery-milestones.md (109 lines)
@@ -220,7 +220,7 @@ fn/
       persistence/
         firestore/
           __init__.py (0 lines)
-          document_repository.py (89 lines)
+          document_repository.py (91 lines)
         storage/
           __init__.py (0 lines)
           client.py (68 lines)
@@ -231,9 +231,9 @@ fn/
         __init__.py (1 lines)
         _https_helpers.py (40 lines)
         https.py (12 lines)
-        parse_document.py (36 lines)
+        parse_document.py (39 lines)
         rag_query_handler.py (23 lines)
-        rag_reindex_handler.py (39 lines)
+        rag_reindex_handler.py (48 lines)
         storage.py (100 lines)
       schemas/
         __init__.py (0 lines)
@@ -247,6 +247,7 @@ fn/
     test_domain_repository_gateways.py (47 lines)
     test_input_schemas.py (59 lines)
     test_rag_ingestion_text.py (24 lines)
+  .env.example (65 lines)
   AGENTS.md (137 lines)
   main.py (41 lines)
   README.md (212 lines)
@@ -709,14 +710,14 @@ src/
             NotebooklmAiChatSection.tsx (25 lines)
             NotebooklmNotebookSection.tsx (18 lines)
             NotebooklmResearchSection.tsx (28 lines)
-            NotebooklmSourcesSection.tsx (56 lines)
+            NotebooklmSourcesSection.tsx (122 lines)
           server-actions/
-            document-actions.ts (30 lines)
+            document-actions.ts (74 lines)
             notebook-actions.ts (27 lines)
             source-processing-actions.ts (43 lines)
         outbound/
           callable/
-            FirebaseCallableAdapter.ts (59 lines)
+            FirebaseCallableAdapter.ts (75 lines)
           firebase-composition.ts (71 lines)
           TaskMaterializationWorkflowAdapter.ts (49 lines)
       infrastructure/
@@ -760,7 +761,7 @@ src/
               index.ts (2 lines)
             outbound/
               firestore/
-                FirestoreDocumentRepository.ts (94 lines)
+                FirestoreDocumentRepository.ts (99 lines)
               memory/
                 InMemoryDocumentRepository.ts (14 lines)
               index.ts (2 lines)
@@ -771,7 +772,7 @@ src/
             index.ts (0 lines)
           domain/
             entities/
-              Document.ts (62 lines)
+              Document.ts (94 lines)
             repositories/
               DocumentRepository.ts (24 lines)
             index.ts (0 lines)
@@ -1509,7 +1510,8 @@ src/
             dto/
               IssueDTO.ts (6 lines)
             machines/
-              issueLifecycle.machine.ts (36 lines)
+              issueLifecycle.machine.test.ts (7 lines)
+              issueLifecycle.machine.ts (32 lines)
             use-cases/
               IssueUseCases.ts (23 lines)
             index.ts (0 lines)
