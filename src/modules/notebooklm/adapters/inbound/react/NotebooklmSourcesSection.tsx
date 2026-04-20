@@ -101,6 +101,9 @@ export function NotebooklmSourcesSection({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
 
+  // JSON viewer modal state
+  const [jsonViewer, setJsonViewer] = useState<{ doc: DocumentSnapshot; type: "layout" | "form" } | null>(null);
+
   const load = () => {
     startRefresh(async () => {
       const result = await queryDocumentsAction({ accountId, workspaceId });
@@ -465,13 +468,22 @@ export function NotebooklmSourcesSection({
                         >
                           {state?.parseLayout === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
-                          ) : state?.parseLayout === "done" ? (
-                            <CheckCircle2 className="size-3 text-sky-600" />
                           ) : (
                             <ScanText className="size-3 text-sky-600" />
                           )}
                           解析文件(Layout Parser)
                         </Button>
+                        {(doc.parsedLayoutJsonGcsUri || state?.parseLayout === "done") && (
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full p-0.5 text-green-600 hover:bg-green-500/10 transition-colors"
+                            title="Layout Parser 已解析 — 點擊查看 JSON 摘要"
+                            onClick={() => setJsonViewer({ doc, type: "layout" })}
+                            aria-label="查看 Layout Parser JSON"
+                          >
+                            <CheckCircle2 className="size-4" />
+                          </button>
+                        )}
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
                           disabled={!doc.storageUrl || state?.parseForm === "running" || !!anyRunning}
@@ -480,13 +492,22 @@ export function NotebooklmSourcesSection({
                         >
                           {state?.parseForm === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
-                          ) : state?.parseForm === "done" ? (
-                            <CheckCircle2 className="size-3 text-indigo-600" />
                           ) : (
                             <Braces className="size-3 text-indigo-600" />
                           )}
                           解析文件(Form Parser)
                         </Button>
+                        {(doc.parsedFormJsonGcsUri || state?.parseForm === "done") && (
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full p-0.5 text-green-600 hover:bg-green-500/10 transition-colors"
+                            title="Form Parser 已解析 — 點擊查看 JSON 摘要"
+                            onClick={() => setJsonViewer({ doc, type: "form" })}
+                            aria-label="查看 Form Parser JSON"
+                          >
+                            <CheckCircle2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -630,6 +651,57 @@ export function NotebooklmSourcesSection({
           </Link>
         </div>
       )}
+
+      {/* JSON viewer modal — parsed output summary */}
+      {jsonViewer && (() => {
+        const { doc: jDoc, type } = jsonViewer;
+        const payload =
+          type === "layout"
+            ? {
+                parser: "layout",
+                documentId: jDoc.id,
+                name: jDoc.name,
+                parsedPageCount: jDoc.parsedPageCount ?? null,
+                parsedLayoutChunkCount: jDoc.parsedLayoutChunkCount ?? null,
+                parsedLayoutJsonGcsUri: jDoc.parsedLayoutJsonGcsUri ?? null,
+              }
+            : {
+                parser: "form",
+                documentId: jDoc.id,
+                name: jDoc.name,
+                parsedFormEntityCount: jDoc.parsedFormEntityCount ?? null,
+                parsedFormJsonGcsUri: jDoc.parsedFormJsonGcsUri ?? null,
+              };
+        const title = type === "layout" ? "Layout Parser JSON 摘要" : "Form Parser JSON 摘要";
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setJsonViewer(null); }}
+            onKeyDown={(e) => { if (e.key === "Escape") setJsonViewer(null); }}
+          >
+            <div className="relative flex max-h-[70vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+              <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-green-600" />
+                  <span className="text-sm font-medium">{title}</span>
+                  <span className="text-xs text-muted-foreground truncate max-w-xs">{jDoc.name}</span>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setJsonViewer(null)} className="h-7 w-7 p-0">
+                  <X className="size-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <pre className="text-xs text-foreground whitespace-pre-wrap break-all font-mono">
+                  {JSON.stringify(payload, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* PDF / image preview overlay — Google Doc Viewer */}
       {previewDoc && (
