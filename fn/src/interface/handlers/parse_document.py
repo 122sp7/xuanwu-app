@@ -137,10 +137,9 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                     )
 
         elif schema.parser == "ocr":
-            # OCR Processor — full-page text extraction; stores text output in the
-            # same JSON envelope as layout so the RAG ingestion path can reuse it.
+            # OCR Processor — full-page text extraction with dedicated OCR JSON artifact.
             # char-split-v2 chunking is applied since OCR gives no semantic chunks.
-            json_object_path = runtime.layout_json_path(object_path)
+            json_object_path = runtime.ocr_json_path(object_path)
             json_gcs_uri = runtime.upload_json(
                 bucket_name=bucket_name,
                 object_path=json_object_path,
@@ -162,13 +161,12 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 },
             )
 
-            runtime.update_parsed_layout(
+            runtime.update_parsed_ocr(
                 doc_id=schema.doc_id,
-                layout_json_gcs_uri=json_gcs_uri,
+                ocr_json_gcs_uri=json_gcs_uri,
                 page_count=parsed.page_count,
-                extraction_ms=extraction_ms,
                 account_id=schema.account_id,
-                chunk_count=0,
+                extraction_ms=extraction_ms,
             )
 
             if schema.run_rag:
@@ -203,7 +201,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                         schema.doc_id, str(rag_exc)[:200], account_id=schema.account_id
                     )
 
-        else:  # "form"
+        elif schema.parser == "form":
             json_object_path = runtime.form_json_path(object_path)
             json_gcs_uri = runtime.upload_json(
                 bucket_name=bucket_name,
@@ -229,6 +227,36 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 account_id=schema.account_id,
                 extraction_ms=extraction_ms,
                 entity_count=len(parsed.entities),
+            )
+        else:  # "genkit"
+            json_object_path = runtime.genkit_json_path(object_path)
+            json_gcs_uri = runtime.upload_json(
+                bucket_name=bucket_name,
+                object_path=json_object_path,
+                data={
+                    "doc_id": schema.doc_id,
+                    "account_id": schema.account_id,
+                    "workspace_id": schema.workspace_id,
+                    "source_gcs_uri": schema.gcs_uri,
+                    "filename": schema.filename,
+                    "display_name": schema.filename,
+                    "original_filename": schema.filename,
+                    "page_count": parsed.page_count,
+                    "extraction_ms": extraction_ms,
+                    "mode": "genkit-ai",
+                    # OCR-first text baseline for scanned / dense PDFs
+                    # (e.g. 4510250181-AP8_v0-8150.PDF) before downstream AI workflows.
+                    "text": parsed.text,
+                    "chunk_count": len(parsed.chunks),
+                    "chunks": parsed.chunks,
+                },
+            )
+
+            runtime.update_parsed_genkit(
+                doc_id=schema.doc_id,
+                genkit_json_gcs_uri=json_gcs_uri,
+                account_id=schema.account_id,
+                extraction_ms=extraction_ms,
             )
 
         logger.info(

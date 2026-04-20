@@ -76,8 +76,8 @@ const ParseDocumentActionInputSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.string().default("application/pdf"),
   sizeBytes: z.number().int().nonnegative().default(0),
-  /** Which Document AI processor to invoke: "layout" (default), "form", or "ocr". */
-  parser: z.enum(["layout", "form", "ocr"]).default("layout"),
+  /** Which parser to invoke: "layout" | "form" | "ocr" | "genkit". */
+  parser: z.enum(["layout", "form", "ocr", "genkit"]).default("layout"),
 });
 
 const ReindexDocumentActionInputSchema = z.object({
@@ -176,7 +176,7 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
       mime_type: string;
       size_bytes: number;
       run_rag: false;
-      parser: "layout" | "form" | "ocr";
+       parser: "layout" | "form" | "ocr" | "genkit";
     },
     ParseDocumentOutput
   >("parse_document", {

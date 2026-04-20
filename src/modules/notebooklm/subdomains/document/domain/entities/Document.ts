@@ -34,6 +34,10 @@ export interface DocumentSnapshot {
   readonly parsedLayoutJsonGcsUri?: string;
   /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
   readonly parsedFormJsonGcsUri?: string;
+  /** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
+  readonly parsedOcrJsonGcsUri?: string;
+  /** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
+  readonly parsedGenkitJsonGcsUri?: string;
   /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
   readonly ragChunkCount?: number;
   /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/

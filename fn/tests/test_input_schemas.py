@@ -64,6 +64,16 @@ class TestParseDocumentRequest:
         schema = ParseDocumentRequest.from_raw(raw)
         assert schema.parser == "ocr"
 
+    def test_fromRaw_WithParserGenkit_AcceptsGenkitParser(self) -> None:
+        raw = {
+            "account_id": "acct",
+            "workspace_id": "ws",
+            "gcs_uri": "gs://bucket/path/file.pdf",
+            "parser": "genkit",
+        }
+        schema = ParseDocumentRequest.from_raw(raw)
+        assert schema.parser == "genkit"
+
     def test_fromRaw_InfersMimeFromExtension_WhenMimeOmitted(self) -> None:
         raw = {
             "account_id": "acct",

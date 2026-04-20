@@ -94,6 +94,25 @@ class DocumentPipelineGateway(Protocol):
         entity_count: int = 0,
     ) -> None: ...
 
+    def update_parsed_ocr(
+        self,
+        *,
+        doc_id: str,
+        ocr_json_gcs_uri: str,
+        account_id: str,
+        page_count: int,
+        extraction_ms: int = 0,
+    ) -> None: ...
+
+    def update_parsed_genkit(
+        self,
+        *,
+        doc_id: str,
+        genkit_json_gcs_uri: str,
+        account_id: str,
+        extraction_ms: int = 0,
+    ) -> None: ...
+
     def mark_rag_ready(
         self,
         *,
@@ -118,6 +137,10 @@ class DocumentPipelineGateway(Protocol):
     def layout_json_path(self, upload_object_path: str) -> str: ...
 
     def form_json_path(self, upload_object_path: str) -> str: ...
+
+    def ocr_json_path(self, upload_object_path: str) -> str: ...
+
+    def genkit_json_path(self, upload_object_path: str) -> str: ...
 
     def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str: ...
 

@@ -26,13 +26,17 @@ from infrastructure.persistence.firestore.document_repository import (
     record_error,
     record_rag_error,
     update_parsed,
+    update_parsed_genkit,
     update_parsed_layout,
+    update_parsed_ocr,
     update_parsed_form,
 )
 from infrastructure.persistence.storage.client import (
     download_bytes,
-    parsed_json_path,
+    genkit_json_path,
     layout_json_path,
+    ocr_json_path,
+    parsed_json_path,
     form_json_path,
     upload_json,
 )
@@ -142,6 +146,16 @@ class InfraDocumentPipelineGateway:
         if parser == "ocr":
             if not DOCAI_OCR_PROCESSOR_NAME:
                 raise ValueError("DOCAI_OCR_PROCESSOR_NAME is required when parser='ocr'")
+            return process_document_gcs(
+                gcs_uri=gcs_uri,
+                mime_type=mime_type,
+                processor_name=DOCAI_OCR_PROCESSOR_NAME,
+            )
+
+        if parser == "genkit":
+            if not DOCAI_OCR_PROCESSOR_NAME:
+                raise ValueError("DOCAI_OCR_PROCESSOR_NAME is required when parser='genkit'")
+            # Genkit-AI parse uses OCR text as the canonical source for scanned PDFs.
             return process_document_gcs(
                 gcs_uri=gcs_uri,
                 mime_type=mime_type,
@@ -281,6 +295,38 @@ class InfraDocumentPipelineGateway:
             entity_count=entity_count,
         )
 
+    def update_parsed_ocr(
+        self,
+        *,
+        doc_id: str,
+        ocr_json_gcs_uri: str,
+        account_id: str,
+        page_count: int,
+        extraction_ms: int = 0,
+    ) -> None:
+        update_parsed_ocr(
+            doc_id=doc_id,
+            ocr_json_gcs_uri=ocr_json_gcs_uri,
+            account_id=account_id,
+            page_count=page_count,
+            extraction_ms=extraction_ms,
+        )
+
+    def update_parsed_genkit(
+        self,
+        *,
+        doc_id: str,
+        genkit_json_gcs_uri: str,
+        account_id: str,
+        extraction_ms: int = 0,
+    ) -> None:
+        update_parsed_genkit(
+            doc_id=doc_id,
+            genkit_json_gcs_uri=genkit_json_gcs_uri,
+            account_id=account_id,
+            extraction_ms=extraction_ms,
+        )
+
     def mark_rag_ready(
         self,
         *,
@@ -322,6 +368,12 @@ class InfraDocumentPipelineGateway:
 
     def form_json_path(self, upload_object_path: str) -> str:
         return form_json_path(upload_object_path)
+
+    def ocr_json_path(self, upload_object_path: str) -> str:
+        return ocr_json_path(upload_object_path)
+
+    def genkit_json_path(self, upload_object_path: str) -> str:
+        return genkit_json_path(upload_object_path)
 
     def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str:
         return upload_json(bucket_name=bucket_name, object_path=object_path, data=data)

@@ -97,7 +97,9 @@ def init_document(
         payload["spaceId"] = workspace_id
         payload["metadata"]["space_id"] = workspace_id
 
-    ref.set(payload)
+    # merge=True keeps previously written parser artifacts (layout/form/ocr/genkit)
+    # so multiple parser JSON outputs can coexist on the same document.
+    ref.set(payload, merge=True)
     logger.info(
         "Firestore: init document %s (scope=%s) → status=processing",
         doc_id,
@@ -226,6 +228,59 @@ def update_parsed_form(
         doc_id,
         account_id,
         entity_count,
+    )
+
+
+def update_parsed_ocr(
+    doc_id: str,
+    ocr_json_gcs_uri: str,
+    account_id: str,
+    page_count: int,
+    extraction_ms: int = 0,
+) -> None:
+    """
+    更新 OCR Parser 解析結果（不覆蓋 Layout/Form 欄位）。
+    """
+    ref = _document_ref(doc_id, account_id)
+
+    ref.update({
+        "status": "completed",
+        "account_id": account_id,
+        "parsed.ocr_json_gcs_uri": ocr_json_gcs_uri,
+        "parsed.ocr_page_count": page_count,
+        "parsed.ocr_parsed_at": datetime.now(UTC),
+        "parsed.ocr_extraction_ms": extraction_ms,
+    })
+    logger.info(
+        "Firestore: update_parsed_ocr %s (scope=%s) → %d pages",
+        doc_id,
+        account_id,
+        page_count,
+    )
+
+
+def update_parsed_genkit(
+    doc_id: str,
+    genkit_json_gcs_uri: str,
+    account_id: str,
+    extraction_ms: int = 0,
+) -> None:
+    """
+    更新 Genkit-AI 解析結果（不覆蓋其他 parser 欄位）。
+    """
+    ref = _document_ref(doc_id, account_id)
+
+    ref.update({
+        "status": "completed",
+        "account_id": account_id,
+        "parsed.genkit_json_gcs_uri": genkit_json_gcs_uri,
+        "parsed.genkit_parsed_at": datetime.now(UTC),
+        "parsed.genkit_extraction_ms": extraction_ms,
+    })
+    logger.info(
+        "Firestore: update_parsed_genkit %s (scope=%s)",
+        doc_id,
+        account_id,
     )
 
 
