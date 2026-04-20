@@ -62,23 +62,33 @@ export class CreateWorkspaceUseCase {
         }
       }
       if (input.creator && this.auditRepo) {
-        const workspaceSnapshot = workspace.getSnapshot();
-        const auditEntry = AuditEntry.record(uuid(), {
-          workspaceId: workspace.id,
-          actorId: input.creator.actorId,
-          action: createAuditAction("create"),
-          resourceType: "workspace",
-          resourceId: workspace.id,
-          severity: createAuditSeverity("low"),
-          detail: `建立工作區「${workspaceSnapshot.name}」`,
-          source: "workspace",
-          changes: [{
-            field: "workspace.name",
-            oldValue: null,
-            newValue: workspaceSnapshot.name,
-          }],
-        });
-        await this.auditRepo.save(auditEntry.getSnapshot());
+        try {
+          const workspaceSnapshot = workspace.getSnapshot();
+          const auditEntry = AuditEntry.record(uuid(), {
+            workspaceId: workspace.id,
+            actorId: input.creator.actorId,
+            action: createAuditAction("create"),
+            resourceType: "workspace",
+            resourceId: workspace.id,
+            severity: createAuditSeverity("low"),
+            detail: `建立工作區「${workspaceSnapshot.name}」`,
+            source: "workspace",
+            changes: [{
+              field: "workspace.name",
+              oldValue: null,
+              newValue: workspaceSnapshot.name,
+            }],
+          });
+          await this.auditRepo.save(auditEntry.getSnapshot());
+        } catch (auditErr) {
+          // Best-effort audit logging: do not mask successful workspace creation.
+          // Keep a traceable error record for observability.
+          console.error("[workspace.lifecycle.create.audit_failed]", {
+            workspaceId: workspace.id,
+            actorId: input.creator.actorId,
+            error: auditErr instanceof Error ? auditErr.message : "unknown",
+          });
+        }
       }
       return commandSuccess(workspace.id, Date.now());
     } catch (err) {

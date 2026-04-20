@@ -276,8 +276,9 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
     }
     setActionError(null);
     setIsSubmitting(true);
-    const memberId = email;
-    const recruitResult = await recruitOrganizationMember(resolvedAccountId, memberId, name, email);
+    // Temporary mapping: email is used as member identity key until IAM directory lookup is available.
+    const memberIdFromEmail = email;
+    const recruitResult = await recruitOrganizationMember(resolvedAccountId, memberIdFromEmail, name, email);
     if (!recruitResult.success) {
       setActionError(recruitResult.error.message);
       setIsSubmitting(false);
@@ -286,7 +287,7 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
     if (inviteRole !== "Member") {
       const roleResult = await updateOrganizationMemberRole({
         organizationId: resolvedAccountId,
-        memberId,
+        memberId: memberIdFromEmail,
         role: inviteRole,
       });
       if (!roleResult.success) {

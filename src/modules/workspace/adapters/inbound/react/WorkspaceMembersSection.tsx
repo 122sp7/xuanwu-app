@@ -29,7 +29,7 @@ const membershipUseCases = createClientMembershipUseCases();
 
 export function WorkspaceMembersSection({
   workspaceId,
-  accountId,
+  accountId: _accountId,
   currentUserId,
 }: WorkspaceMembersSectionProps): React.ReactElement {
   const { listMembersByWorkspace } = membershipUseCases;
@@ -40,7 +40,7 @@ export function WorkspaceMembersSection({
   const [inviteRole, setInviteRole] = useState<"owner" | "admin" | "member">("member");
   const [actionError, setActionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const operatorActorId = currentUserId ?? accountId;
+  const operatorActorId = currentUserId;
 
   async function loadMembers(): Promise<void> {
     const result = await listMembersByWorkspace.execute(workspaceId);
@@ -65,6 +65,10 @@ export function WorkspaceMembersSection({
   }, [members, roleFilter]);
 
   async function handleInviteMember(): Promise<void> {
+    if (!operatorActorId) {
+      setActionError("尚未取得操作者身分，請重新登入後再試。");
+      return;
+    }
     const displayName = inviteDisplayName.trim();
     const email = inviteEmail.trim();
     if (!displayName || !email) {
@@ -73,10 +77,13 @@ export function WorkspaceMembersSection({
     }
     setIsSubmitting(true);
     setActionError(null);
+    // TODO(workspace-membership): replace this fallback with IAM directory lookup (email -> actorId).
+    // Temporary mapping: use normalized email as target actor identity.
+    const targetActorIdFromEmail = email.toLowerCase();
     const result = await addMemberAction({
       actorId: operatorActorId,
       workspaceId,
-      targetActorId: email.toLowerCase(),
+      targetActorId: targetActorIdFromEmail,
       role: inviteRole,
       displayName,
       email,
@@ -94,6 +101,10 @@ export function WorkspaceMembersSection({
   }
 
   async function handleRoleChange(memberId: string, nextRole: "owner" | "admin" | "member"): Promise<void> {
+    if (!operatorActorId) {
+      setActionError("尚未取得操作者身分，請重新登入後再試。");
+      return;
+    }
     setIsSubmitting(true);
     setActionError(null);
     const result = await changeMemberRoleAction({
@@ -119,7 +130,7 @@ export function WorkspaceMembersSection({
           <h2 className="text-sm font-semibold">成員</h2>
         </div>
         <Badge variant="outline" className="text-xs">
-          操作身分：{operatorActorId}
+          操作身分：{operatorActorId ?? "未登入"}
         </Badge>
       </div>
 

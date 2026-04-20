@@ -45,6 +45,10 @@ export function WorkspaceScheduleSection({
   }, [listWorkDemandsByWorkspace, workspaceId]);
 
   async function handleCreateBaseline(): Promise<void> {
+    if (!currentUserId) {
+      setCreateError("尚未取得操作者身分，請重新登入後再試。");
+      return;
+    }
     setIsCreatingBaseline(true);
     setCreateError(null);
     const now = new Date();
@@ -53,7 +57,7 @@ export function WorkspaceScheduleSection({
     const result = await createWorkDemandAction({
       workspaceId,
       accountId,
-      requesterId: currentUserId ?? accountId,
+      requesterId: currentUserId,
       title: "基線里程碑",
       description: "初始化工作區排程基線",
       priority: "medium",
