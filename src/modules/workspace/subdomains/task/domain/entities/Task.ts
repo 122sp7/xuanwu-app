@@ -21,6 +21,8 @@ export interface TaskSnapshot {
   readonly acceptedAtISO: string | null;
   readonly archivedAtISO: string | null;
   readonly sourceReference: SourceReference | null;
+  readonly unitPrice: number | null;
+  readonly contractQuantity: number | null;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
 }
@@ -32,6 +34,8 @@ export interface CreateTaskInput {
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
   readonly sourceReference?: SourceReference;
+  readonly unitPrice?: number;
+  readonly contractQuantity?: number;
 }
 
 export interface UpdateTaskInput {
@@ -39,6 +43,8 @@ export interface UpdateTaskInput {
   readonly description?: string;
   readonly assigneeId?: string | null;
   readonly dueDateISO?: string | null;
+  readonly unitPrice?: number | null;
+  readonly contractQuantity?: number | null;
 }
 
 export class Task {
@@ -59,6 +65,8 @@ export class Task {
       acceptedAtISO: null,
       archivedAtISO: null,
       sourceReference: input.sourceReference ?? null,
+      unitPrice: input.unitPrice ?? null,
+      contractQuantity: input.contractQuantity ?? null,
       createdAtISO: now,
       updatedAtISO: now,
     });
@@ -86,6 +94,8 @@ export class Task {
       description: input.description ?? this._props.description,
       assigneeId: input.assigneeId === undefined ? this._props.assigneeId : input.assigneeId,
       dueDateISO: input.dueDateISO === undefined ? this._props.dueDateISO : input.dueDateISO,
+      unitPrice: input.unitPrice === undefined ? this._props.unitPrice : input.unitPrice,
+      contractQuantity: input.contractQuantity === undefined ? this._props.contractQuantity : input.contractQuantity,
       updatedAtISO: now,
     };
   }

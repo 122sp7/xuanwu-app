@@ -245,6 +245,24 @@ export function WorkspaceTasksSection({
                       截止：{new Date(task.dueDateISO).toLocaleDateString("zh-TW")}
                     </p>
                   )}
+                  {(task.unitPrice !== null || task.contractQuantity !== null) && (
+                    <p className="mt-1 text-xs text-muted-foreground/70">
+                      {task.unitPrice !== null && (
+                        <span>單價：{task.unitPrice.toLocaleString("zh-TW")} TWD</span>
+                      )}
+                      {task.unitPrice !== null && task.contractQuantity !== null && (
+                        <span className="mx-1">·</span>
+                      )}
+                      {task.contractQuantity !== null && (
+                        <span>數量：{task.contractQuantity}</span>
+                      )}
+                      {task.unitPrice !== null && task.contractQuantity !== null && (
+                        <span className="ml-1 font-medium text-foreground">
+                          （小計 {(task.unitPrice * task.contractQuantity).toLocaleString("zh-TW")} TWD）
+                        </span>
+                      )}
+                    </p>
+                  )}
                   {action && (
                     <div className="mt-2">
                       {"href" in action ? (

@@ -3711,6 +3711,17 @@ export type OpenIssueDTO = z.infer<typeof OpenIssueInputSchema>;
 export type TransitionIssueDTO = z.infer<typeof TransitionIssueInputSchema>;
 ````
 
+## File: src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+import {
+  getIssueTransitionEvents,
+  ISSUE_EVENT_LABEL,
+  ISSUE_EVENT_TO_STATUS,
+} from "./issueLifecycle.machine";
+import { canTransitionIssueStatus } from "../../domain/value-objects/IssueStatus";
+````
+
 ## File: src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine.ts
 ````typescript
 import { setup } from "xstate";
@@ -3722,10 +3733,6 @@ export interface IssueLifecycleContext {
 }
 ⋮----
 export type IssueLifecycleEvent =
-  | { type: "INVESTIGATE" }
-  | { type: "START_FIX" }
-  | { type: "SUBMIT_RETEST" }
-  | { type: "REOPEN_FIX" }
   | { type: "RESOLVE" }
   | { type: "CLOSE" };
 ⋮----
@@ -3733,7 +3740,7 @@ export type IssueLifecycleEvent =
  * issueLifecycleMachine — XState FSM modelling the Issue status lifecycle.
  *
  * Matches the domain FSM in IssueStatus.ts:
- *   open → investigating → fixing → retest → resolved / fixing(reopen)
+ *   open / investigating / fixing / retest → resolved
  *   resolved → closed
  */
 ⋮----

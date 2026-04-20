@@ -224,7 +224,8 @@ src/
             dto/
               IssueDTO.ts (6 lines)
             machines/
-              issueLifecycle.machine.ts (36 lines)
+              issueLifecycle.machine.test.ts (7 lines)
+              issueLifecycle.machine.ts (32 lines)
             use-cases/
               IssueUseCases.ts (23 lines)
             index.ts (0 lines)
