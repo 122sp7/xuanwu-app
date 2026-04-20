@@ -69,6 +69,8 @@ class DocumentPipelineGateway(Protocol):
         page_count: int,
         extraction_ms: int,
         account_id: str,
+        chunk_count: int = 0,
+        entity_count: int = 0,
     ) -> None: ...
 
     def mark_rag_ready(
