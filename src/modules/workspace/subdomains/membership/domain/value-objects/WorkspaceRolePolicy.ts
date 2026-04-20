@@ -11,7 +11,7 @@ export type WorkspaceMembershipAction = typeof WORKSPACE_MEMBERSHIP_ACTIONS[numb
 
 const DEFAULT_ROLE_ACTION_MATRIX: Readonly<Record<MemberRole, readonly WorkspaceMembershipAction[]>> = {
   owner: WORKSPACE_MEMBERSHIP_ACTIONS,
-  admin: ["workspace.membership.read", "workspace.membership.add", "workspace.membership.change_role", "workspace.membership.remove"],
+  admin: WORKSPACE_MEMBERSHIP_ACTIONS,
   member: ["workspace.membership.read"],
   guest: [],
 };

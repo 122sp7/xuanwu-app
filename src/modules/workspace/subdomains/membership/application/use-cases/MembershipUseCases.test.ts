@@ -59,6 +59,24 @@ function createActiveMember(
 }
 
 describe("Membership use case role guards", () => {
+  it("blocks add member when permission check rejects the action", async () => {
+    const repo = new InMemoryWorkspaceMemberRepository();
+    const permissionCheck = new InMemoryPermissionCheckPort(() => false);
+    const useCase = new AddMemberUseCase(repo, permissionCheck);
+
+    const result = await useCase.execute("actor-1", {
+      workspaceId: "w-1",
+      actorId: "target-1",
+      role: "member",
+      displayName: "Target User",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("MEMBERSHIP_FORBIDDEN");
+    const members = await repo.findByWorkspaceId("w-1");
+    expect(members).toHaveLength(0);
+  });
+
   it("blocks role change when permission check rejects the action", async () => {
     const repo = new InMemoryWorkspaceMemberRepository([
       createActiveMember({ id: "m-1", workspaceId: "w-1", actorId: "target-1", role: "member" }),

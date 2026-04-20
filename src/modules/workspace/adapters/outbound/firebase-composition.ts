@@ -183,6 +183,10 @@ function getWorkspaceMemberRepo(): FirestoreMemberRepository {
   return _workspaceMemberRepo;
 }
 
+function createMembershipPermissionCheck(repo: FirestoreMemberRepository): FirestorePermissionCheckAdapter {
+  return new FirestorePermissionCheckAdapter(repo, createFirestoreLikeAdapter());
+}
+
 // ── Public subscriptions ───────────────────────────────────────────────────────
 
 /**
@@ -216,7 +220,7 @@ export function createClientWorkspaceLifecycleUseCases() {
 
 export function createClientMembershipUseCases() {
   const repo = getWorkspaceMemberRepo();
-  const permissionCheck = new FirestorePermissionCheckAdapter(repo, createFirestoreLikeAdapter());
+  const permissionCheck = createMembershipPermissionCheck(repo);
   return {
     addMember: new AddMemberUseCase(repo, permissionCheck),
     changeMemberRole: new ChangeMemberRoleUseCase(repo, permissionCheck),
@@ -227,7 +231,7 @@ export function createClientMembershipUseCases() {
 
 export function createClientMembershipController(): MembershipController {
   const repo = getWorkspaceMemberRepo();
-  const permissionCheck = new FirestorePermissionCheckAdapter(repo, createFirestoreLikeAdapter());
+  const permissionCheck = createMembershipPermissionCheck(repo);
   return new MembershipController(repo, permissionCheck);
 }
 

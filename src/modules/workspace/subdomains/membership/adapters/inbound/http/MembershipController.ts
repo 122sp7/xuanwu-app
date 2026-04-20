@@ -18,15 +18,15 @@ export class MembershipController {
     this.removeMember = new RemoveMemberUseCase(memberRepo, permissionCheck);
   }
 
-  async add(requesterActorId: string, input: AddMemberInput): Promise<CommandResult> {
-    return this.addMember.execute(requesterActorId, input);
+  async add(actorId: string, input: AddMemberInput): Promise<CommandResult> {
+    return this.addMember.execute(actorId, input);
   }
 
-  async changeRole(requesterActorId: string, memberId: string, role: MemberRole): Promise<CommandResult> {
-    return this.changeMemberRole.execute(requesterActorId, memberId, role);
+  async changeRole(actorId: string, memberId: string, role: MemberRole): Promise<CommandResult> {
+    return this.changeMemberRole.execute(actorId, memberId, role);
   }
 
-  async remove(requesterActorId: string, memberId: string): Promise<CommandResult> {
-    return this.removeMember.execute(requesterActorId, memberId);
+  async remove(actorId: string, memberId: string): Promise<CommandResult> {
+    return this.removeMember.execute(actorId, memberId);
   }
 }

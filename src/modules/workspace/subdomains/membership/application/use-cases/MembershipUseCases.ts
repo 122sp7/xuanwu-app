@@ -11,10 +11,10 @@ export class AddMemberUseCase {
     private readonly permissionCheck: PermissionCheckPort,
   ) {}
 
-  async execute(requesterActorId: string, input: AddMemberInput): Promise<CommandResult> {
+  async execute(actorId: string, input: AddMemberInput): Promise<CommandResult> {
     try {
       const canAdd = await this.permissionCheck.can({
-        actorId: requesterActorId,
+        actorId,
         workspaceId: input.workspaceId,
         action: "workspace.membership.add",
         nextRole: input.role,
@@ -38,13 +38,13 @@ export class ChangeMemberRoleUseCase {
     private readonly permissionCheck: PermissionCheckPort,
   ) {}
 
-  async execute(requesterActorId: string, memberId: string, role: MemberRole): Promise<CommandResult> {
+  async execute(actorId: string, memberId: string, role: MemberRole): Promise<CommandResult> {
     try {
       const snapshot = await this.memberRepo.findById(memberId);
       if (!snapshot) return commandFailureFrom("MEMBERSHIP_NOT_FOUND", "Member not found.");
 
       const canChangeRole = await this.permissionCheck.can({
-        actorId: requesterActorId,
+        actorId,
         workspaceId: snapshot.workspaceId,
         action: "workspace.membership.change_role",
         targetMemberRole: snapshot.role,
@@ -70,13 +70,13 @@ export class RemoveMemberUseCase {
     private readonly permissionCheck: PermissionCheckPort,
   ) {}
 
-  async execute(requesterActorId: string, memberId: string): Promise<CommandResult> {
+  async execute(actorId: string, memberId: string): Promise<CommandResult> {
     try {
       const snapshot = await this.memberRepo.findById(memberId);
       if (!snapshot) return commandFailureFrom("MEMBERSHIP_NOT_FOUND", "Member not found.");
 
       const canRemove = await this.permissionCheck.can({
-        actorId: requesterActorId,
+        actorId,
         workspaceId: snapshot.workspaceId,
         action: "workspace.membership.remove",
         targetMemberRole: snapshot.role,

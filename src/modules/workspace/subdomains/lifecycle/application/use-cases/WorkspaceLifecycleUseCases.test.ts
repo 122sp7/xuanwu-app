@@ -28,6 +28,12 @@ class InMemoryWorkspaceRepository implements WorkspaceRepository {
   }
 }
 
+class InMemoryWorkspaceRepositoryWithDeleteFailure extends InMemoryWorkspaceRepository {
+  async delete(_workspaceId: string): Promise<void> {
+    throw new Error("rollback-delete-failed");
+  }
+}
+
 class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository {
   private readonly items = new Map<string, WorkspaceMemberSnapshot>();
 
@@ -107,5 +113,31 @@ describe('CreateWorkspaceWithOwnerUseCase', () => {
     expect(members[0]?.actorId).toBe('user-1');
     expect(members[0]?.role).toBe('owner');
     expect(members[0]?.displayName).toBe('Owner Name');
+  });
+
+  it("returns combined error when owner creation and rollback both fail", async () => {
+    const workspaceRepo = new InMemoryWorkspaceRepositoryWithDeleteFailure();
+    const memberRepo = new InMemoryWorkspaceMemberRepository();
+    const useCase = new CreateWorkspaceUseCase(workspaceRepo, {
+      ...memberRepo,
+      async save(): Promise<void> {
+        throw new Error("member-save-failed");
+      },
+    });
+
+    const result = await useCase.execute({
+      accountId: "org-1",
+      accountType: "organization",
+      name: "Rollback Failure Workspace",
+      creator: {
+        actorId: "creator-1",
+        displayName: "Creator Name",
+      },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("WORKSPACE_CREATE_FAILED");
+    expect(result.error.message).toContain("member-save-failed");
+    expect(result.error.message).toContain("rollback-delete-failed");
   });
 });

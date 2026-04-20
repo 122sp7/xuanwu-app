@@ -46,7 +46,13 @@ export class CreateWorkspaceUseCase {
           });
           await this.memberRepo.save(ownerMember.getSnapshot());
         } catch (memberErr) {
-          await this.workspaceRepo.delete(workspace.id);
+          try {
+            await this.workspaceRepo.delete(workspace.id);
+          } catch (rollbackErr) {
+            const memberErrorMessage = memberErr instanceof Error ? memberErr.message : "Failed to create owner membership.";
+            const rollbackErrorMessage = rollbackErr instanceof Error ? rollbackErr.message : "Failed to rollback workspace creation.";
+            throw new Error(`${memberErrorMessage} ${rollbackErrorMessage}`);
+          }
           throw memberErr;
         }
       }
