@@ -221,10 +221,18 @@ export function WorkspaceDetailRouteScreen({
 
         {/* ── workspace group — work execution tabs ── */}
         {activeTab === "Daily" && (
-          <WorkspaceDailySection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceDailySection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId}
+          />
         )}
         {activeTab === "Schedule" && (
-          <WorkspaceScheduleSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceScheduleSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId}
+          />
         )}
         {activeTab === "Audit" && (
           <WorkspaceAuditSection workspaceId={workspaceId} accountId={accountId} />
@@ -233,7 +241,11 @@ export function WorkspaceDetailRouteScreen({
           <WorkspaceFilesSection workspaceId={workspaceId} accountId={accountId} />
         )}
         {activeTab === "Members" && (
-          <WorkspaceMembersSection workspaceId={workspaceId} accountId={accountId} />
+          <WorkspaceMembersSection
+            workspaceId={workspaceId}
+            accountId={accountId}
+            currentUserId={currentUserId}
+          />
         )}
         {activeTab === "WorkspaceSettings" && (
           <WorkspaceSettingsSection

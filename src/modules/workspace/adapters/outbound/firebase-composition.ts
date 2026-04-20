@@ -73,7 +73,11 @@ import {
   ListApprovalDecisionsUseCase,
 } from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
 import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
-import { CreateFeedPostUseCase, ListFeedPostsUseCase } from "../../subdomains/feed/application/use-cases/FeedUseCases";
+import {
+  CreateFeedPostUseCase,
+  ListAccountFeedPostsUseCase,
+  ListFeedPostsUseCase,
+} from "../../subdomains/feed/application/use-cases/FeedUseCases";
 import { FirestoreDemandRepository } from "../../subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository";
 import {
   AssignWorkDemandUseCase,
@@ -184,6 +188,10 @@ function getWorkspaceMemberRepo(): FirestoreMemberRepository {
   return _workspaceMemberRepo;
 }
 
+function createAuditRepo(): FirestoreAuditRepository {
+  return new FirestoreAuditRepository(createFirestoreLikeAdapter());
+}
+
 function createMembershipPermissionCheck(repo: FirestoreMemberRepository): FirestorePermissionCheckAdapter {
   return new FirestorePermissionCheckAdapter(repo, createFirestoreLikeAdapter());
 }
@@ -211,9 +219,10 @@ export function subscribeToWorkspacesForAccount(
 export function createClientWorkspaceLifecycleUseCases() {
   const repo = getWorkspaceLifecycleRepo();
   const memberRepo = getWorkspaceMemberRepo();
+  const auditRepo = createAuditRepo();
   return {
-    createWorkspaceUseCase: new CreateWorkspaceUseCase(repo, memberRepo),
-    createWorkspaceWithOwnerUseCase: new CreateWorkspaceWithOwnerUseCase(repo, memberRepo),
+    createWorkspaceUseCase: new CreateWorkspaceUseCase(repo, memberRepo, auditRepo),
+    createWorkspaceWithOwnerUseCase: new CreateWorkspaceWithOwnerUseCase(repo, memberRepo, auditRepo),
     activateWorkspaceUseCase: new ActivateWorkspaceUseCase(repo),
     stopWorkspaceUseCase: new StopWorkspaceUseCase(repo),
   };
@@ -308,6 +317,7 @@ export function createClientFeedUseCases() {
   return {
     createFeedPost: new CreateFeedPostUseCase(feedRepo),
     listFeedPosts: new ListFeedPostsUseCase(feedRepo),
+    listAccountFeedPosts: new ListAccountFeedPostsUseCase(feedRepo),
   };
 }
 

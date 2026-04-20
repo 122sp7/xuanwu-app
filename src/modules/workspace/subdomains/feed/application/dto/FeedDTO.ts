@@ -21,3 +21,12 @@ export const ListFeedPostsSchema = z.object({
 });
 
 export type ListFeedPostsDTO = z.infer<typeof ListFeedPostsSchema>;
+
+export const ListAccountFeedPostsSchema = z.object({
+  accountId: z.string(),
+  /** YYYY-MM-DD. Omit to list across all dates (up to limit). */
+  dateKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+});
+
+export type ListAccountFeedPostsDTO = z.infer<typeof ListAccountFeedPostsSchema>;

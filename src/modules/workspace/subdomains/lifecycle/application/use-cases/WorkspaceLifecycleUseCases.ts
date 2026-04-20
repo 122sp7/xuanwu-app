@@ -5,6 +5,10 @@ import { Workspace } from "../../domain/entities/Workspace";
 import type { CreateWorkspaceInput } from "../../domain/entities/Workspace";
 import { WorkspaceMember } from "../../../membership/domain/entities/WorkspaceMember";
 import type { WorkspaceMemberRepository } from "../../../membership/domain/repositories/WorkspaceMemberRepository";
+import type { AuditRepository } from "../../../audit/domain/repositories/AuditRepository";
+import { AuditEntry } from "../../../audit/domain/entities/AuditEntry";
+import { createAuditAction } from "../../../audit/domain/value-objects/AuditAction";
+import { createAuditSeverity } from "../../../audit/domain/value-objects/AuditSeverity";
 
 interface CreateWorkspaceWithOwnerInput {
   readonly workspace: CreateWorkspaceInput;
@@ -29,6 +33,7 @@ export class CreateWorkspaceUseCase {
   constructor(
     private readonly workspaceRepo: WorkspaceRepository,
     private readonly memberRepo?: WorkspaceMemberRepository,
+    private readonly auditRepo?: AuditRepository,
   ) {}
 
   async execute(input: CreateWorkspaceWithCreatorInput): Promise<CommandResult> {
@@ -56,6 +61,25 @@ export class CreateWorkspaceUseCase {
           throw memberErr;
         }
       }
+      if (input.creator && this.auditRepo) {
+        const workspaceSnapshot = workspace.getSnapshot();
+        const auditEntry = AuditEntry.record(uuid(), {
+          workspaceId: workspace.id,
+          actorId: input.creator.actorId,
+          action: createAuditAction("create"),
+          resourceType: "workspace",
+          resourceId: workspace.id,
+          severity: createAuditSeverity("low"),
+          detail: `建立工作區「${workspaceSnapshot.name}」`,
+          source: "workspace",
+          changes: [{
+            field: "workspace.name",
+            oldValue: null,
+            newValue: workspaceSnapshot.name,
+          }],
+        });
+        await this.auditRepo.save(auditEntry.getSnapshot());
+      }
       return commandSuccess(workspace.id, Date.now());
     } catch (err) {
       return commandFailureFrom("WORKSPACE_CREATE_FAILED", err instanceof Error ? err.message : "Failed to create workspace.");
@@ -67,10 +91,11 @@ export class CreateWorkspaceWithOwnerUseCase {
   constructor(
     private readonly workspaceRepo: WorkspaceRepository,
     private readonly memberRepo: WorkspaceMemberRepository,
+    private readonly auditRepo?: AuditRepository,
   ) {}
 
   async execute(input: CreateWorkspaceWithOwnerInput): Promise<CommandResult> {
-    return new CreateWorkspaceUseCase(this.workspaceRepo, this.memberRepo).execute({
+    return new CreateWorkspaceUseCase(this.workspaceRepo, this.memberRepo, this.auditRepo).execute({
       ...input.workspace,
       creator: input.owner,
     });

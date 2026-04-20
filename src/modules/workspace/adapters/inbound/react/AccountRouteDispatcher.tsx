@@ -34,6 +34,7 @@ import {
 } from "./workspace-ui-stubs";
 import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
 import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
+import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
 import { useWorkspaceContext } from "./WorkspaceContext";
 import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
 
@@ -179,11 +180,15 @@ export function AccountRouteDispatcher({
             <WorkspaceScheduleSection
               workspaceId={accountScopedWorkspaceId}
               accountId={effectiveAccountId}
+              currentUserId={currentUserId ?? undefined}
             />
           );
         }
         return <OrganizationScheduleRouteScreen />;
       case "daily":
+        if (accountType === "organization") {
+          return <WorkspaceAccountDailySection accountId={effectiveAccountId} />;
+        }
         return <OrganizationDailyRouteScreen />;
       case "audit":
         if (accountType === "organization" && accountScopedWorkspaceId) {
