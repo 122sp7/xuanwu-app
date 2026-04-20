@@ -38,11 +38,12 @@ DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
     "projects/65970295651/locations/us/processors/7318076ba71e0758",
 ).strip()
 
-# OCR Processor（選配）— 當 Layout Parser 無有效輸出時的文字擷取後備通道。
-# 預設留空（不啟用）；若提供值，需填入 US region processor resource name。
+# OCR Processor — 高品質全頁文字擷取通道（AP8採購訂單等密集表格 PDF 推薦）。
+# AP8 PO 4510250181：54 個明細（項次 10–540，步進 10），需 OCR 完整擷取中文描述。
+# https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/f88dfd0407416be7:process
 DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
     "DOCAI_OCR_PROCESSOR_NAME",
-    "",
+    "projects/65970295651/locations/us/processors/f88dfd0407416be7",
 ).strip()
 
 # 舊版 asia-southeast1 processor — 已棄用，保留供向下相容

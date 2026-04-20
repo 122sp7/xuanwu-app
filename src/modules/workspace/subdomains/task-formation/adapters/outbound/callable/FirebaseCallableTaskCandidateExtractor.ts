@@ -13,53 +13,110 @@ const CandidateSchema = z.object({
   sourceSnippet: z.string().optional(),
 });
 
+// Simple line items: "10 光纖熔接" or "10 高空作業費"
 const LINE_ITEM_PATTERN = /^(\d{2,3})\s+/;
+// Dense AP8 PO format: item number + 3RDTW product code + price block ending in 小計
+// followed by Chinese section header （numeral） and task description.
+const PO_DENSE_PATTERN =
+  /(?<!\d)(\d{2,3})\s+3RDTW\S+.*?小計[\d,，.]+\s*（([\u4e00-\u9fff]+)\s*）([^（\n]{1,120})/gs;
+
 const MAX_TITLE_BODY_CHARS = 100;
+
+// Chinese section numeral chars whose entire section is 費用管銷
+const COST_SECTION_CHARS = new Set(["伍", "玖"]);
+
+// Description-level patterns that indicate 費用管銷 regardless of section
+const COST_DESC_PATTERNS: RegExp[] = [
+  /費$/u,           // ends with 費 (高空作業費, 工程衛生費 …)
+  /費用/u,          // 費用 anywhere
+  /管理\d*人/u,     // management headcount
+  /監工/u,
+  /工安費/u,
+  /保險/u,
+  /分攤/u,
+  /廢棄物/u,
+  /5D/u,
+  /利潤/u,
+  /圖控與軟體/u,    // SCADA software deliverable (cost item)
+  /圖面製作/u,
+  /工務所/u,
+  /雜費/u,
+];
 
 /**
  * FirebaseCallableTaskCandidateExtractor — working implementation of
  * TaskCandidateExtractorPort with Firebase-only runtime behavior.
  *
- * This adapter intentionally avoids fn callable dependency and generates
- * candidates from workspace-side context (`sourceText`, `sourcePageIds`) so
- * task-formation can be completed within Next.js + Firebase flow.
+ * Supports two text formats:
+ *   1. Clean line-item format: "10 光纖熔接" (simple rule-based extraction)
+ *   2. Dense AP8 PO format from Document AI OCR/Layout Parser output with
+ *      price blocks and Chinese section headers (po_dense path).
+ *
+ * Classification follows the AP8 PO 4510250181 two-category model:
+ *   施工作業 — installation, cabling, construction, fiber splicing, positioning
+ *   費用管銷 — management fees, insurance, sanitation, profit, software cost
  *
  * ESLint: @integration-firebase is allowed here — outbound adapter layer.
  */
 export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort {
-  private _inferCategory(text: string): "施工作業" | "費用管銷" {
-    const normalized = text.toLowerCase();
+  /** Classify a task description as 施工作業 or 費用管銷. */
+  private _inferCategory(description: string, sectionChar?: string): "施工作業" | "費用管銷" {
+    // Section-level override: 伍 (雜項費用) and 玖 (利潤及雜費) are always costs
+    if (sectionChar && COST_SECTION_CHARS.has(sectionChar)) return "費用管銷";
+
+    // Description-level pattern matching (highest precision, checked first)
+    for (const pattern of COST_DESC_PATTERNS) {
+      if (pattern.test(description)) return "費用管銷";
+    }
+
+    // Keyword-score fallback for unstructured text
     const costKeywords: readonly string[] = [
-      "費",
-      "折扣",
-      "稅",
-      "總計",
-      "小計",
-      "金額",
-      "單價",
-      "profit",
-      "price",
-      "cost",
-      "amount",
-      "tax",
-      "discount",
+      "費用", "管銷", "保險", "分攤", "利潤", "廢棄物",
+      "折扣", "稅", "總計", "金額", "單價",
+      "profit", "cost", "tax", "discount",
     ];
     const workKeywords: readonly string[] = [
-      "施工",
-      "配線",
-      "安裝",
-      "架設",
-      "熔接",
-      "搬運",
-      "建置",
-      "作業",
-      "工程",
-      "線槽",
-      "定位",
+      "施工", "配線", "安裝", "架設", "熔接", "搬運", "建置",
+      "工程", "線槽", "定位", "填塞", "拉配線", "基礎座", "光纖",
     ];
-    const costScore = costKeywords.filter((keyword) => normalized.includes(keyword)).length;
-    const workScore = workKeywords.filter((keyword) => normalized.includes(keyword)).length;
-    return costScore >= workScore ? "費用管銷" : "施工作業";
+    const lower = description.toLowerCase();
+    const costScore = costKeywords.filter((k) => lower.includes(k)).length;
+    const workScore = workKeywords.filter((k) => lower.includes(k)).length;
+    return costScore > workScore ? "費用管銷" : "施工作業";
+  }
+
+  /**
+   * Extract candidates from dense AP8 PO text (Document AI OCR/Layout output).
+   *
+   * Matches pattern: {item_no} 3RDTW… …小計{amount}（{section}）{description}
+   */
+  private _extractDensePoCandidates(
+    text: string,
+    source: "rule" | "ai",
+    sourceBlockId: string | undefined,
+  ): Array<z.infer<typeof CandidateSchema>> {
+    const candidates: Array<z.infer<typeof CandidateSchema>> = [];
+    // Reset lastIndex before iterating (global regex)
+    PO_DENSE_PATTERN.lastIndex = 0;
+    for (const match of text.matchAll(PO_DENSE_PATTERN)) {
+      const itemNo = match[1] ?? "";
+      const sectionChar = (match[2] ?? "").trim();
+      const description = (match[3] ?? "").trim().slice(0, MAX_TITLE_BODY_CHARS);
+      if (!description) continue;
+      const category = this._inferCategory(description, sectionChar);
+      const sectionLabel = sectionChar ? `（${sectionChar}）` : "";
+      candidates.push(
+        CandidateSchema.parse({
+          title: `[${category}] 項次${itemNo} ${sectionLabel}${description}`.trim(),
+          description: `[分類] ${category}\n項次 ${itemNo}：${sectionLabel}${description}`,
+          source,
+          confidence: 0.92,
+          sourceBlockId,
+          sourceSnippet: (match[0] ?? "").slice(0, 240),
+        }),
+      );
+    }
+    return candidates;
   }
 
   async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]> {
@@ -68,6 +125,19 @@ export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtr
     const inferredSource = input.sourceType;
     const primarySource = sourcePageIds[0];
 
+    // ── Path 1: Dense AP8 PO format detection ─────────────────────────────
+    // If the text contains the ABB product code prefix "3RDTW", treat it as a
+    // dense PO document and use the structured dense-PO extractor.
+    if (/3RDTW/i.test(normalizedText)) {
+      const denseCandidates = this._extractDensePoCandidates(
+        normalizedText,
+        inferredSource,
+        primarySource,
+      );
+      if (denseCandidates.length > 0) return denseCandidates;
+    }
+
+    // ── Path 2: Simple line-item format ────────────────────────────────────
     const lines = normalizedText
       .split(/\r?\n/g)
       .map((line) => line.trim())
@@ -76,7 +146,7 @@ export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtr
     const lineItemCandidates = lines
       .map((line, index) => ({ line, index }))
       .filter(({ line }) => LINE_ITEM_PATTERN.test(line))
-      .map(({ line, index }) => {
+      .map(({ line }) => {
         const itemNo = (line.match(LINE_ITEM_PATTERN)?.[1] ?? "").trim();
         const body = line.replace(LINE_ITEM_PATTERN, "").trim();
         const titleBody = body.slice(0, MAX_TITLE_BODY_CHARS);
