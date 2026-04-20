@@ -70,6 +70,8 @@
     "useDotIgnore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
+      "fn/tests/**",
+      "**/*.test.ts",
       "*.md",
       ".next/**",
       ".turbo/**",
