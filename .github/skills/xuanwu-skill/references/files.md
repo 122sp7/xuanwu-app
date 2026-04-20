@@ -219,7 +219,7 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 
 ```mermaid
 flowchart LR
-    User[User] --> SourceUI[notebooklm source dialog]
+    Actor[Actor] --> SourceUI[notebooklm source dialog]
     SourceUI --> Parse[Parse source document]
     Parse --> RAG[Optional RAG indexing]
     Parse --> Draft[Create Knowledge Page draft]
@@ -337,7 +337,7 @@ flowchart LR
 ## Failure Branches
 
 - parse 失敗：RAG / Page / Task 全部跳過。
-- 無登入 user：Page 與 Task 不執行。
+- 未驗證 Actor：Page 與 Task 不執行。
 - draft page 建立失敗：Task 流程停止，不直接跨過 notion 邊界寫入 workspace。
 - task extraction 成功但沒有候選項：標記成功，但 `taskCount = 0`。
 
@@ -539,7 +539,7 @@ function fromFirestore(raw: Record<string, unknown>, id: string): DocumentSnap {
     id,
     workspaceId: (raw.spaceId ?? raw.metadata?.space_id ?? "") as string,
     accountId: raw.account_id as string,
-    organizationId: "", // fn 不寫 organizationId，從 account 查詢時補填
+    organizationId: "", // TODO: organizationId 必須由呼叫方從 iam account adapter 取得，此處暫為佔位符
     name: raw.title as string,
     mimeType: (raw.source as any)?.mime_type ?? "",
     sizeBytes: (raw.source as any)?.size_bytes ?? 0,
@@ -584,6 +584,7 @@ export class FirestoreDocumentRepository implements DocumentRepository {
 ```typescript
 // src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { z } from "zod";
 
 export interface RagQueryInput {
   account_id: string;
@@ -605,11 +606,30 @@ export interface RagQueryOutput {
   search_hits: number;
 }
 
+// Rule 4: 所有 fn callable 回傳值必須通過 Zod 驗證再傳入 application layer
+const RagQueryOutputSchema = z.object({
+  answer: z.string(),
+  citations: z.array(z.object({
+    doc_id: z.string(),
+    chunk_id: z.string(),
+    filename: z.string(),
+    score: z.number(),
+  })),
+  cache: z.enum(["hit", "miss"]),
+  vector_hits: z.number(),
+  search_hits: z.number(),
+});
+
 export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput> {
   const functions = getFunctions();
   const fn = httpsCallable<RagQueryInput, RagQueryOutput>(functions, "rag_query");
-  const result = await fn(input);
-  return result.data;
+  let result;
+  try {
+    result = await fn(input);
+  } catch (err) {
+    throw new Error(`callRagQuery failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  return RagQueryOutputSchema.parse(result.data);
 }
 
 export async function callParseDocument(input: {
@@ -621,7 +641,11 @@ export async function callParseDocument(input: {
 }) {
   const functions = getFunctions();
   const fn = httpsCallable(functions, "parse_document");
-  return fn(input);
+  try {
+    return await fn(input);
+  } catch (err) {
+    throw new Error(`callParseDocument failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 ```
 
@@ -629,16 +653,19 @@ export async function callParseDocument(input: {
 
 ```
 Next.js UI（拖放上傳）
-  → Firebase Storage uploadBytes() → uploads/{accountId}/{workspaceId}/{filename}
+  → platform.FileAPI.uploadWorkspaceFile({ file, ownerId }) → 上傳到 uploads/{accountId}/{workspaceId}/{filename}
   → Cloud Storage Trigger (on_document_uploaded)
   → fn 自動執行完整 parse + RAG pipeline
   → Firestore accounts/{accountId}/documents/{docId} 狀態更新
   → TypeScript Firestore 訂閱收到更新 → UI 即時反映狀態
 ```
 
+> **Rule 8**：前端禁止直接呼叫 `Firebase Storage uploadBytes()`；所有涉及檔案所有權、entitlement 或多租戶隔離的上傳，
+> 必須透過 `platform.FileAPI.uploadWorkspaceFile()` 路由，讓 platform 統一處理 ownership、entitlement 與 audit 語意。
+
 這是**最推薦的模式**，前端不需要主動呼叫 `parse_document` callable。
 只需要：
-1. 上傳到正確的 GCS 路徑（帶 `account_id` 和 `workspace_id` 作為 custom metadata）
+1. 透過 `FileAPI.uploadWorkspaceFile()` 上傳到正確的 GCS 路徑（帶 `account_id` 和 `workspace_id` 作為 custom metadata）
 2. 訂閱 Firestore 文件狀態
 
 ---
@@ -659,11 +686,11 @@ Next.js UI（拖放上傳）
 2. document-actions.ts (Server Action)
    "use server"
    → queryDocumentsAction({ accountId, workspaceId })  → 呼叫 QueryDocumentsUseCase
-   → uploadDocumentAction({ accountId, workspaceId, gcsUri, filename }) → Storage.upload 後自動觸發
+   → uploadDocumentAction({ accountId, workspaceId, file }) → FileAPI.uploadWorkspaceFile() 後自動觸發 Storage Trigger
 
 3. NotebooklmSourcesSection.tsx
    → 列出文件（名稱、狀態 badge、rag 就緒狀態）
-   → 上傳按鈕 → Firebase Storage uploadBytes 到 uploads/{accountId}/{workspaceId}/
+   → 上傳按鈕 → 透過 platform.FileAPI.uploadWorkspaceFile() 上傳到 uploads/{accountId}/{workspaceId}/
    → 訂閱 Firestore 狀態更新（useEffect + onSnapshot）
 ```
 
@@ -698,24 +725,7 @@ Custom metadata:
    → 顯示 citations 列表（filename + score）
 ```
 
-### 4.3 `notebooklm.ai-chat` — AI 對話
-
-**目標**：多輪對話，每輪查詢都接上下文傳遞給 RAG。
-
-**缺少的實作**：
-- `Conversation` 聚合根（domain 層已有骨架）
-- Firestore conversation 持久化 adapter
-- Server action 包裝 `rag_query` callable（帶 conversation history 作為 context）
-
-### 4.4 `notebooklm.research` — 研究摘要
-
-**目標**：針對整個 workspace 的文件庫做 synthesis summary。
-
-**實作方式**：  
-呼叫 `rag_query`，但傳入 synthesis prompt（「總結所有文件的主要主題」），
-不需要獨立的 callable，重用現有 `rag_query` 能力。
-
-### 4.5 `notion.*` tabs
+### 4.3 `notion.*` tabs
 
 Notion 的四個 tabs（knowledge / pages / database / templates）目前 fn **沒有對應能力**。
 它們是純 TypeScript DDD 實作，需要建立：
@@ -727,30 +737,7 @@ Notion 的四個 tabs（knowledge / pages / database / templates）目前 fn **�
 
 ---
 
-## 5. 開發優先順序建議
-
-根據「已有能力最大化」原則（Occam's Razor）：
-
-```
-Phase 1 — 橋接 fn 已有能力（highest ROI）
-  ✅ fn parse + RAG 已可用
-  → 1. FirestoreDocumentRepository (read-only)
-  → 2. document-actions.ts (upload + query)
-  → 3. NotebooklmSourcesSection.tsx (Sources tab 可見)
-  → 4. ragQueryAction + NotebooklmNotebookSection.tsx (Notebook tab 可用)
-
-Phase 2 — Conversation 持久化
-  → StartConversation / AddMessage use cases 接上 Firestore
-  → AiChat tab 接通
-
-Phase 3 — Notion 純 TypeScript 實作
-  → PageRepository (Firestore)
-  → Knowledge / Pages / Database / Templates tabs
-```
-
----
-
-## 6. 邊界規則（橋接版本補充）
+## 5. 邊界規則（橋接版本補充）
 
 原有規則（見 implementation-guide 第 5 節）加上以下補充：
 
@@ -763,7 +750,7 @@ Phase 3 — Notion 純 TypeScript 實作
 
 ---
 
-## 7. 相關文件
+## 6. 相關文件
 
 - [`workspace-nav-notion-notebooklm-implementation-guide.md`](./workspace-nav-notion-notebooklm-implementation-guide.md) — Tab 導覽模型與三層設計
 - [`notebooklm-source-processing-task-flow.md`](./notebooklm-source-processing-task-flow.md) — Source 文件處理流程細節
@@ -817,7 +804,7 @@ Phase 3 — Notion 純 TypeScript 實作
 
 | 層次 | 內容 |
 |---|---|
-| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`documentIds[]`、`model`、status）；`Document` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: user / assistant / system；`content`）|
+| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`documentIds[]`、`model`、status）；`Document` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: `"user"` / `"assistant"` / `"system"`，此處 `"user"` 為 AI message role 術語，非 `Actor` 身份語意；`content`）|
 | **行為層 (Behavior / Capability Layer)** | Notebook: `CreateNotebook`、`AddDocumentToNotebook`、`RemoveDocument`、`GenerateNotebookResponse`、`ArchiveNotebook`；Document: `CreateDocument`（upload trigger）、`ArchiveDocument`、`DeleteDocument`；Conversation: `StartConversation`、`AddMessage`（user message → RAG grounding → assistant reply）|
 | **UI / Navigation 層** | `notebooklm.notebook` → RAG 查詢（notebook 列表 + 執行 grounding query）；`notebooklm.ai-chat` → AI 對話（Conversation thread UI）；`notebooklm.sources` → 來源文件（Document 上傳 / 狀態追蹤）；`notebooklm.research` → 研究摘要（Conversation synthesis / summary 視圖）|
 
@@ -892,33 +879,7 @@ Legacy aliases（`NotionPages`、`NotionDatabase`、`NotionTemplates`、`Noteboo
 | `Sources` | `NotebooklmSourcesSection` | `src/modules/notebooklm/adapters/inbound/react/` |
 | `Research` | `NotebooklmResearchSection` | `src/modules/notebooklm/adapters/inbound/react/` |
 
-### 3.2 `workspace-shell-interop.tsx` — Quick Access 補齊
-
-目前 `WORKSPACE_QUICK_ACCESS_TEMPLATES` 只有 `knowledge`、`notebook`、`ai-chat` 的快捷鍵。
-需要補上 `pages`、`database`、`templates`、`sources`、`research`：
-
-```typescript
-// 範例（加入 pages）
-{
-  id: "pages",
-  href: "{workspaceBaseHref}?tab=Pages",
-  label: "頁面",
-  icon: <FileText className="size-3.5" />,
-  isActive: (_pathname, options) => resolveWorkspaceTabValue(options?.tab) === "Pages",
-},
-```
-
-對應 lucide-react icon 建議：
-
-| Tab | Icon |
-|---|---|
-| `Pages` | `FileText` (已 import) |
-| `Database` | `Table2` |
-| `Templates` | `LayoutTemplate` |
-| `Sources` | `FileStack` |
-| `Research` | `BookOpen` |
-
-### 3.3 Server Actions（notion）
+### 3.2 Server Actions（notion）
 
 在 `src/modules/notion/adapters/inbound/server-actions/` 建立各 tab 所需的 server action 檔案。
 必須遵守「先 Zod parse → 呼叫 use case → 回傳 CommandResult」的三段式：
@@ -948,7 +909,7 @@ export async function queryPagesAction(rawInput: unknown) {
 - `RenamePageUseCase` → 重命名
 - `ArchivePageUseCase` → 封存
 
-### 3.4 Server Actions（notebooklm）
+### 3.3 Server Actions（notebooklm）
 
 ```typescript
 // src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts
@@ -985,7 +946,7 @@ export async function listNotebooksAction(rawInput: unknown) {
 3. 建立 section component            → src/modules/<context>/adapters/inbound/react/
 4. 在 workspace-route-screens.tsx 加入 tab branch
 5. 在 workspace-shell-interop.tsx 補 quick access item
-6. lint + build 驗證
+6. lint + build + unit test 驗證
 ```
 
 ---
@@ -5155,6 +5116,9 @@ flowchart LR
 49. 模型依賴方向必須單向流動（Dependency Direction Rule），領域層不得依賴基礎設施層。
 50. 防腐層（ACL）內部轉換必須顯式建模，禁止隱性映射或魔法轉換。
 51. 上下文契約必須顯式化（Explicit Contract Principle），所有跨上下文互動需具備明確 schema 與語意版本控制。
+
+> 以下規則為進階參考，僅在觸發條件出現時適用：
+
 52. 契約變更必須遵守向後相容性（Backward Compatibility First），避免破壞既有上下文整合。
 53. 語意版本控制必須獨立於技術版本控制（Semantic Versioning of Domain Contracts）。
 54. 模型演化必須支援漸進式遷移（Strangler Pattern for Domain Evolution），避免一次性重構。
@@ -5194,7 +5158,7 @@ Integration Patterns（整合模式）
 
 ---
 
-# 🔥 四、你這種 AI 系統的映射（直接對應）
+# 🔥 四、Xuanwu ai Context 的子域映射
 
 ```
 Core Domain
@@ -5301,7 +5265,7 @@ Generic Domain
 
 ---
 
-# 🎯 五（補）、Evans 核心原則總覽
+# 🎯 十二、Evans 核心原則總覽
 
 | 原則 | 一句話 |
 |------|--------|
@@ -5343,6 +5307,8 @@ export const DomainEventBaseSchema = z.object({
   type: z.string(),              // discriminant，格式：<module-name>.<action>
   eventId: z.string().uuid(),    // 每次發出唯一 ID（用於去重與 idempotency key）
   occurredAt: z.string().datetime(), // ISO 8601 字串，不使用 Date 物件
+  correlationId: z.string().uuid().optional(), // 關聯追蹤 ID，用於跨上下文因果鏈
+  causationId: z.string().uuid().optional(),   // 觸發本事件的前因事件 ID
 });
 
 export type DomainEventBase = z.infer<typeof DomainEventBaseSchema>;
@@ -5370,7 +5336,7 @@ export const WorkspaceCreatedEventSchema = DomainEventBaseSchema.extend({
   type: z.literal('workspace.created'),
   payload: z.object({
     workspaceId: z.string().uuid(),
-    organizationId: z.string().uuid(),
+    organizationId: z.string().uuid().optional(), // personal account workspaces（AccountType = "user"）無 organizationId
     name: z.string(),
     ownerId: z.string(),
     createdAt: z.string().datetime(),
@@ -6306,9 +6272,10 @@ Cross-reference between `.github/copilot-instructions.md` Mandatory Rules (1-20)
 - ✅ `index.ts` exposes only public surface; hides internals
 - ❌ NO imports from internal module paths outside module
 
-### Rule 8: Platform Provides Shared Infrastructure Services
-- ✅ Firebase Auth, File Storage, Genkit AI routing, Permission API: platform coordinates and governs
-- ✅ Cross-domain coordination, routing, governance: platform owns
+### Rule 8: Platform Provides Shared Operational Services
+- ✅ **iam** owns the canonical `account` and `organization` aggregates; `platform` does NOT own auth governance
+- ✅ File Storage lifecycle, Genkit AI routing, Permission API: platform coordinates as operational services
+- ✅ Cross-domain coordination, routing, audit-log, notification, search: platform owns
 - ❌ notion and notebooklm NEVER bypass FileAPI for operations involving file ownership, entitlement, or multi-tenant isolation
 - ❌ notion and notebooklm DO own domain-local persistence adapters (Firestore reads/writes for their own domain data)
 
@@ -9549,6 +9516,8 @@ payload = {
         json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
         page_count:     頁數。
         extraction_ms:  解析耗時（毫秒），非必填。
+        chunk_count:    Layout Parser 語意分塊數量。
+        entity_count:   Form Parser 結構化欄位數量。
     """
 ⋮----
 def record_error(doc_id: str, message: str, account_id: str) -> None
@@ -9759,6 +9728,9 @@ extraction_ms = int((time.time() - start_time) * 1000)
 json_object_path = runtime.parsed_json_path(object_path)
 json_gcs_uri = runtime.upload_json(
 ⋮----
+# Store full layout chunks so rag_reindex_document can reconstruct
+# text and use layout-aware chunking without re-parsing the document.
+⋮----
 rag = ingest_document_for_rag(
 ````
 
@@ -9812,6 +9784,12 @@ parsed_payload: dict = (
 ⋮----
 text = str(parsed_payload.get("text", "")).strip()
 ⋮----
+# Backward-compat: old JSON files may not have "text".
+# Reconstruct from stored layout chunks when available.
+stored_chunks = parsed_payload.get("chunks") or []
+⋮----
+text = "\n".join(
+⋮----
 # Enrich from the JSON payload when schema fields were left empty.
 source_gcs_uri = schema.source_gcs_uri or str(
 ⋮----
@@ -9828,6 +9806,9 @@ filename = (
 page_count = schema.page_count
 ⋮----
 page_count = int(parsed_payload.get("page_count", 0) or 0)
+⋮----
+# Read stored layout chunks; passes None when absent (falls back to char-split).
+layout_chunks: list[dict] | None = parsed_payload.get("chunks") or None
 ⋮----
 rag = ingest_document_for_rag(
 ````
@@ -10279,6 +10260,75 @@ def test_layoutChunksToRagChunks_WithMissingOptionalFields_UsesDefaults() -> Non
 layout_chunks = [{"text": "只有文字欄位"}]
 ⋮----
 chunk = result[0]
+````
+
+## File: fn/.env.example
+````
+# fn/.env.example
+# 複製為 fn/.env 後填入實際值，再執行 fn/ 的 Cloud Functions。
+# 唯一真實來源：fn/src/core/config.py
+# 未列出的變數（UPLOAD_BUCKET、GCP_REGION、DOCAI_LOCATION）僅定義於
+# config.py 但從未被其他模組引用，不需在此設定。
+
+# ── OpenAI ───────────────────────────────────────────────────────────────────
+# 必填
+OPENAI_API_KEY=
+
+# 選填（預設值已可正常運作）
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1024
+OPENAI_LLM_MODEL=gpt-4o-mini
+OPENAI_TIMEOUT_SECONDS=30
+OPENAI_MAX_RETRIES=2
+
+# ── Document AI（US region） ──────────────────────────────────────────────────
+# 選填（預設值指向現行 US processors，勿改為 eu 或 global）
+DOCAI_API_ENDPOINT=us-documentai.googleapis.com
+DOCAI_LAYOUT_PROCESSOR_NAME=projects/65970295651/locations/us/processors/929c4719f45b1eee
+DOCAI_FORM_PROCESSOR_NAME=projects/65970295651/locations/us/processors/7318076ba71e0758
+
+# ── Upstash Redis ─────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# ── Upstash Vector ────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_VECTOR_REST_URL=
+UPSTASH_VECTOR_REST_TOKEN=
+
+# ── Upstash Search ────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_SEARCH_REST_URL=
+UPSTASH_SEARCH_REST_TOKEN=
+UPSTASH_SEARCH_INDEX=
+
+# 選填
+UPSTASH_SEARCH_TIMEOUT_SECONDS=8
+
+# ── QStash ────────────────────────────────────────────────────────────────────
+# 必填
+QSTASH_TOKEN=
+QSTASH_CURRENT_SIGNING_KEY=
+QSTASH_NEXT_SIGNING_KEY=
+QSTASH_RAG_AUDIT_URL=
+
+# 選填
+QSTASH_URL=https://qstash-us-east-1.upstash.io
+
+# ── RAG Pipeline ─────────────────────────────────────────────────────────────
+# 選填（調整會影響 chunk 品質與查詢行為）
+RAG_VECTOR_NAMESPACE=rag-docs
+RAG_CHUNK_SIZE_CHARS=1200
+RAG_CHUNK_OVERLAP_CHARS=150
+RAG_QUERY_TOP_K=5
+RAG_QUERY_CACHE_TTL_SECONDS=300
+RAG_QUERY_RATE_LIMIT_MAX=30
+RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS=60
+RAG_QUERY_DEFAULT_MAX_AGE_DAYS=365
+RAG_QUERY_REQUIRE_READY_STATUS=true
+RAG_DOC_CACHE_TTL_SECONDS=2592000
+RAG_REDIS_PREFIX=rag
 ````
 
 ## File: fn/AGENTS.md
@@ -14282,22 +14332,39 @@ href=
 ````typescript
 /**
  * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
- * Uploads via Firebase Storage (fn Storage Trigger auto-runs parse + RAG).
  *
- * Closed-loop design: uploaded documents are the entry point of the data loop.
- * After upload → fn parses → RAG index → available in notebook/research → task formation.
+ * Manual Document AI pipeline controls:
+ *   ① 上傳文件  — upload to Firebase Storage (fn Storage Trigger auto-runs parse+RAG)
+ *   ② 解析文件  — manually trigger Layout Parser + Form Parser via callable
+ *   ③ RAG 索引  — manually trigger RAG reindex via callable
+ *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
+ *   ⑤ 建立資料庫 — create Notion Database named after document (for Form Parser entities)
  *
- * PDF/image preview: Google Doc Viewer renders Firebase Storage download URLs inline.
+ * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 ⋮----
 import { Button } from "@packages";
-import { Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus, Eye, X, Loader2 } from "lucide-react";
+import {
+  Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
+  Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
+  Layers, Braces, BarChart2, CheckCircle2,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 ⋮----
 import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
-import { queryDocumentsAction, registerUploadedDocumentAction } from "../server-actions/document-actions";
-import { uploadDocumentToStorage, getDocumentDownloadUrl } from "../../../adapters/outbound/firebase-composition";
+import {
+  queryDocumentsAction,
+  registerUploadedDocumentAction,
+  createPageFromDocumentAction,
+  createDatabaseFromDocumentAction,
+  parseDocumentAction,
+  reindexDocumentAction,
+} from "../server-actions/document-actions";
+import {
+  uploadDocumentToStorage,
+  getDocumentDownloadUrl,
+} from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -14308,7 +14375,26 @@ interface NotebooklmSourcesSectionProps {
 ⋮----
 function googleDocViewerUrl(downloadUrl: string): string
 ⋮----
+// ── Per-document action state ─────────────────────────────────────────────────
+⋮----
+type DocActionStatus = "idle" | "running" | "done" | "error";
+⋮----
+interface DocActionState {
+  parse: DocActionStatus;
+  index: DocActionStatus;
+  reindex: DocActionStatus;
+  page: DocActionStatus;
+  database: DocActionStatus;
+  message?: string;
+  pageHref?: string;
+  databaseHref?: string;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
 // Preview state
+⋮----
+// Per-document expanded / action state
 ⋮----
 const load = () =>
 ⋮----
@@ -14317,23 +14403,53 @@ useEffect(() => { load(); }, [workspaceId, accountId]); // eslint-disable-line r
 ⋮----
 const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
 ⋮----
-// reload list after upload
-⋮----
 const handlePreview = async (doc: DocumentSnapshot) =>
 ⋮----
 const closePreview = () =>
 ⋮----
-{/* hidden file input */}
+// ── Per-document action helpers ─────────────────────────────────────────────
 ⋮----
-{/* Processing chain banner — always visible once loaded */}
+const setDocAction = (docId: string, patch: Partial<DocActionState>) =>
+⋮----
+const handleParse = async (doc: DocumentSnapshot) =>
+⋮----
+// Reload list to pick up updated Firestore metadata
+⋮----
+const handleIndex = async (doc: DocumentSnapshot) =>
+⋮----
+const handleReindex = async (doc: DocumentSnapshot) =>
+⋮----
+const handleCreatePage = async (doc: DocumentSnapshot) =>
+⋮----
+const handleCreateDatabase = async (doc: DocumentSnapshot) =>
+⋮----
+// ── Render helpers ───────────────────────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Hidden file input */}
+⋮----
+{/* Processing chain banner */}
+⋮----
+{/* Document list */}
+⋮----
+{/* Document header row */}
+⋮----
+{/* Toggle actions panel */}
+⋮----
+{/* Meta row */}
+⋮----
+{/* Expandable actions panel */}
+⋮----
+{/* Section: Document AI parse */}
+⋮----
+{/* Section: Generate downstream artifacts */}
+⋮----
+{/* Action status message */}
 ⋮----
 {/* Downstream CTAs when documents are ready */}
 ⋮----
 {/* PDF / image preview overlay — Google Doc Viewer */}
-⋮----
-{/* Header */}
-⋮----
-{/* Body */}
 ⋮----
 src=
 ````
@@ -14351,8 +14467,19 @@ import { z } from "zod";
 import {
   createClientNotebooklmDocumentUseCases,
 } from "../../outbound/firebase-composition";
+import { processSourceDocumentAction } from "./source-processing-actions";
+import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
+import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallableAdapter";
+⋮----
+// ── Firebase HTTPS Callable server-side helper ────────────────────────────────
+// Calling Cloud Functions from a Server Action avoids CORS completely.
+// Functions are deployed in asia-southeast1; project ID comes from env.
+⋮----
+async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut>
 ⋮----
 // ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+/** GCS URI of the parsed JSON written by fn after Document AI parse. */
 ⋮----
 // ── Actions ───────────────────────────────────────────────────────────────────
 ⋮----
@@ -14370,6 +14497,39 @@ export async function queryDocumentsAction(rawInput: unknown)
  * This action records the document in the local domain for immediate UI feedback.
  */
 export async function registerUploadedDocumentAction(rawInput: unknown)
+⋮----
+/**
+ * createPageFromDocumentAction — create a Knowledge Page from a parsed document.
+ *
+ * Delegates to processSourceDocumentAction with shouldCreatePage=true only.
+ * The Knowledge Page title is set to the document name.
+ */
+export async function createPageFromDocumentAction(rawInput: unknown)
+⋮----
+/**
+ * createDatabaseFromDocumentAction — create a Notion Database named after the document.
+ *
+ * Useful as a container for Form Parser-extracted structured fields.
+ */
+export async function createDatabaseFromDocumentAction(rawInput: unknown)
+⋮----
+/**
+ * parseDocumentAction — trigger Document AI parse (Layout Parser + Form Parser)
+ * for a specific document. Always a pure parse; RAG indexing is a separate step.
+ *
+ * Calls the fn `parse_document` HTTPS callable function from the server side,
+ * which avoids browser CORS restrictions entirely.  Functions are deployed in
+ * asia-southeast1; the server-to-server fetch bypasses CORS headers.
+ */
+export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocumentOutput>
+⋮----
+/**
+ * reindexDocumentAction — trigger RAG reindex for a specific document.
+ *
+ * Calls the fn `rag_reindex_document` HTTPS callable function from the server
+ * side to avoid browser CORS restrictions.
+ */
+export async function reindexDocumentAction(rawInput: unknown): Promise<void>
 ````
 
 ## File: src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts
@@ -14497,18 +14657,34 @@ export interface ParseDocumentInput {
   readonly gcs_uri: string;
   readonly doc_id?: string;
   readonly filename?: string;
+  readonly mime_type?: string;
+  readonly size_bytes?: number;
+  /** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
+  readonly run_rag?: boolean;
+}
+⋮----
+/** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
+⋮----
+export interface ParseDocumentOutput {
+  readonly doc_id: string;
+  readonly account_scope: string;
+  readonly status: string;
 }
 ⋮----
 export interface ReindexDocumentInput {
   readonly account_id: string;
   readonly doc_id: string;
+  /** GCS URI of the parsed JSON file (gs://bucket/files/…json). Required by fn. */
+  readonly json_gcs_uri: string;
 }
+⋮----
+/** GCS URI of the parsed JSON file (gs://bucket/files/…json). Required by fn. */
 ⋮----
 // ── Callable wrappers ─────────────────────────────────────────────────────────
 ⋮----
 export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput>
 ⋮----
-export async function callParseDocument(input: ParseDocumentInput): Promise<void>
+export async function callParseDocument(input: ParseDocumentInput): Promise<ParseDocumentOutput>
 ⋮----
 export async function callReindexDocument(input: ReindexDocumentInput): Promise<void>
 ````
@@ -14538,7 +14714,7 @@ import {
   GenerateNotebookResponseUseCase,
 } from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
 import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, type RagQueryInput, type RagQueryOutput } from "./callable/FirebaseCallableAdapter";
+import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
 ⋮----
 // ── Singleton repositories ────────────────────────────────────────────────────
 ⋮----
@@ -15026,6 +15202,8 @@ interface PyFnDocumentRecord {
     page_count?: number;
     parsed_at?: { toDate?: () => Date };
     extraction_ms?: number;
+    chunk_count?: number;
+    entity_count?: number;
   };
   rag?: {
     status?: string;
@@ -15049,6 +15227,9 @@ interface PyFnDocumentRecord {
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 ⋮----
 function mapPyFnStatus(docStatus: string | undefined, ragStatus: string | undefined): DocumentStatus
+⋮----
+// fn sets status="completed" after a successful parse but before RAG indexing.
+// Treat it as "active" — the document artifact is usable.
 ⋮----
 function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap
 ⋮----
@@ -15161,7 +15342,39 @@ export interface DocumentSnapshot {
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
   readonly deletedAtISO?: string;
+  /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
+  readonly parsedPageCount?: number;
+  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.chunk_count）*/
+  readonly parsedChunkCount?: number;
+  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.entity_count）*/
+  readonly parsedEntityCount?: number;
+  /** 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.json_gcs_uri）*/
+  readonly parsedJsonGcsUri?: string;
+  /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
+  readonly ragChunkCount?: number;
+  /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
+  readonly ragVectorCount?: number;
+  /** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
+  readonly ragStatus?: string;
+  /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
+  readonly errorMessage?: string;
 }
+⋮----
+/** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
+⋮----
+/** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.chunk_count）*/
+⋮----
+/** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.entity_count）*/
+⋮----
+/** 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.json_gcs_uri）*/
+⋮----
+/** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
+⋮----
+/** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
+⋮----
+/** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
+⋮----
+/** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
 ⋮----
 export interface CreateDocumentInput {
   readonly notebookId?: string;
@@ -24532,6 +24745,17 @@ export type OpenIssueDTO = z.infer<typeof OpenIssueInputSchema>;
 export type TransitionIssueDTO = z.infer<typeof TransitionIssueInputSchema>;
 ````
 
+## File: src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+import {
+  getIssueTransitionEvents,
+  ISSUE_EVENT_LABEL,
+  ISSUE_EVENT_TO_STATUS,
+} from "./issueLifecycle.machine";
+import { canTransitionIssueStatus } from "../../domain/value-objects/IssueStatus";
+````
+
 ## File: src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine.ts
 ````typescript
 import { setup } from "xstate";
@@ -24543,10 +24767,6 @@ export interface IssueLifecycleContext {
 }
 ⋮----
 export type IssueLifecycleEvent =
-  | { type: "INVESTIGATE" }
-  | { type: "START_FIX" }
-  | { type: "SUBMIT_RETEST" }
-  | { type: "REOPEN_FIX" }
   | { type: "RESOLVE" }
   | { type: "CLOSE" };
 ⋮----
@@ -24554,7 +24774,7 @@ export type IssueLifecycleEvent =
  * issueLifecycleMachine — XState FSM modelling the Issue status lifecycle.
  *
  * Matches the domain FSM in IssueStatus.ts:
- *   open → investigating → fixing → retest → resolved / fixing(reopen)
+ *   open / investigating / fixing / retest → resolved
  *   resolved → closed
  */
 ⋮----

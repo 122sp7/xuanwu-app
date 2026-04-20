@@ -2,8 +2,39 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMembershipRole(role) {
+      return role in ["owner", "admin", "member", "guest"];
+    }
+
+    function isMembershipStatus(status) {
+      return status in ["active", "suspended", "removed"];
+    }
+
+    match /workspace_members/{memberId} {
+      allow read: if isSignedIn() && resource.data.actorId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId is string
+        && request.resource.data.actorId is string
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.role == "owner"
+        && request.resource.data.status == "active"
+        && exists(/databases/$(database)/documents/workspaces/$(request.resource.data.workspaceId))
+        && isMembershipStatus(request.resource.data.status);
+      allow update: if isSignedIn()
+        && resource.data.actorId == request.auth.uid
+        && request.resource.data.workspaceId == resource.data.workspaceId
+        && request.resource.data.actorId == resource.data.actorId
+        && isMembershipRole(request.resource.data.role)
+        && isMembershipStatus(request.resource.data.status);
+      allow delete: if isSignedIn() && resource.data.actorId == request.auth.uid;
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
   }
 }

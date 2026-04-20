@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CreateWorkspaceUseCase,
   CreateWorkspaceWithOwnerUseCase,
 } from './WorkspaceLifecycleUseCases';
 import type { WorkspaceSnapshot } from '../../domain/entities/Workspace';
@@ -24,6 +25,12 @@ class InMemoryWorkspaceRepository implements WorkspaceRepository {
 
   async delete(workspaceId: string): Promise<void> {
     this.items.delete(workspaceId);
+  }
+}
+
+class InMemoryWorkspaceRepositoryWithDeleteFailure extends InMemoryWorkspaceRepository {
+  async delete(_workspaceId: string): Promise<void> {
+    throw new Error("rollback-delete-failed");
   }
 }
 
@@ -52,6 +59,31 @@ class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository {
 }
 
 describe('CreateWorkspaceWithOwnerUseCase', () => {
+  it('auto-assigns creator as owner when create use case receives creator input', async () => {
+    const workspaceRepo = new InMemoryWorkspaceRepository();
+    const memberRepo = new InMemoryWorkspaceMemberRepository();
+    const useCase = new CreateWorkspaceUseCase(workspaceRepo, memberRepo);
+
+    const result = await useCase.execute({
+      accountId: 'org-1',
+      accountType: 'organization',
+      name: 'Auto Owner Workspace',
+      creator: {
+        actorId: 'creator-1',
+        displayName: 'Creator Name',
+        email: 'creator@example.com',
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.aggregateId).toBeTruthy();
+
+    const members = await memberRepo.findByWorkspaceId(result.aggregateId);
+    expect(members).toHaveLength(1);
+    expect(members[0]?.role).toBe('owner');
+    expect(members[0]?.actorId).toBe('creator-1');
+  });
+
   it('creates workspace and owner membership together', async () => {
     const workspaceRepo = new InMemoryWorkspaceRepository();
     const memberRepo = new InMemoryWorkspaceMemberRepository();
@@ -81,5 +113,31 @@ describe('CreateWorkspaceWithOwnerUseCase', () => {
     expect(members[0]?.actorId).toBe('user-1');
     expect(members[0]?.role).toBe('owner');
     expect(members[0]?.displayName).toBe('Owner Name');
+  });
+
+  it("returns combined error when owner creation and rollback both fail", async () => {
+    const workspaceRepo = new InMemoryWorkspaceRepositoryWithDeleteFailure();
+    const memberRepo = new InMemoryWorkspaceMemberRepository();
+    const useCase = new CreateWorkspaceUseCase(workspaceRepo, {
+      ...memberRepo,
+      async save(): Promise<void> {
+        throw new Error("member-save-failed");
+      },
+    });
+
+    const result = await useCase.execute({
+      accountId: "org-1",
+      accountType: "organization",
+      name: "Rollback Failure Workspace",
+      creator: {
+        actorId: "creator-1",
+        displayName: "Creator Name",
+      },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("WORKSPACE_CREATE_FAILED");
+    expect(result.error.message).toContain("member-save-failed");
+    expect(result.error.message).toContain("rollback-delete-failed");
   });
 });
