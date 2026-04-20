@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from domain.repositories import (
@@ -9,7 +10,7 @@ from domain.repositories import (
 )
 from infrastructure.audit.qstash import publish_query_audit
 from infrastructure.cache.rag_query_cache import build_query_cache_key, get_query_cache, save_query_cache
-from infrastructure.external.documentai.client import process_document_gcs_with_form
+from infrastructure.external.documentai.client import ParsedDocument, process_document_gcs
 from infrastructure.external.openai.embeddings import embed_texts
 from infrastructure.external.openai.rag_query import generate_answer, to_query_vector
 from infrastructure.external.upstash.clients import (
@@ -25,8 +26,18 @@ from infrastructure.persistence.firestore.document_repository import (
     record_error,
     record_rag_error,
     update_parsed,
+    update_parsed_layout,
+    update_parsed_form,
 )
-from infrastructure.persistence.storage.client import download_bytes, parsed_json_path, upload_json
+from infrastructure.persistence.storage.client import (
+    download_bytes,
+    parsed_json_path,
+    layout_json_path,
+    form_json_path,
+    upload_json,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class InfraRagQueryGateway:
@@ -86,8 +97,99 @@ class InfraRagIngestionGateway:
 
 
 class InfraDocumentPipelineGateway:
-    def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> Any:
-        return process_document_gcs_with_form(gcs_uri=gcs_uri, mime_type=mime_type)
+    @staticmethod
+    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool:
+        return (
+            parsed.page_count <= 0
+            or (len(parsed.chunks) == 0 and not (parsed.text or "").strip())
+        )
+
+    @staticmethod
+    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]:
+        if not text:
+            return []
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        if not lines:
+            return []
+        chunks: list[dict[str, Any]] = []
+        for i, line in enumerate(lines):
+            chunks.append(
+                {
+                    "chunk_id": f"fallback-{i:04d}",
+                    "text": line,
+                    "page_start": 0,
+                    "page_end": 0,
+                    "source_block_indices": [],
+                    "synthetic": True,
+                }
+            )
+        return chunks
+
+    def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any:
+        from core.config import (
+            DOCAI_FORM_PROCESSOR_NAME,
+            DOCAI_LAYOUT_PROCESSOR_NAME,
+            DOCAI_OCR_PROCESSOR_NAME,
+        )
+
+        if parser == "form":
+            return process_document_gcs(
+                gcs_uri=gcs_uri,
+                mime_type=mime_type,
+                processor_name=DOCAI_FORM_PROCESSOR_NAME,
+            )
+
+        if parser == "ocr":
+            if not DOCAI_OCR_PROCESSOR_NAME:
+                raise ValueError("DOCAI_OCR_PROCESSOR_NAME is required when parser='ocr'")
+            return process_document_gcs(
+                gcs_uri=gcs_uri,
+                mime_type=mime_type,
+                processor_name=DOCAI_OCR_PROCESSOR_NAME,
+            )
+
+        # parser == "layout" (default)
+        layout_parsed = process_document_gcs(
+            gcs_uri=gcs_uri,
+            mime_type=mime_type,
+            processor_name=DOCAI_LAYOUT_PROCESSOR_NAME,
+        )
+
+        if not self._looks_like_empty_layout(layout_parsed):
+            return layout_parsed
+
+        fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
+        if not fallback_processor:
+            logger.warning(
+                "DocumentAI: layout output empty for %s but no OCR/Form fallback processor configured",
+                gcs_uri,
+            )
+            return layout_parsed
+
+        fallback_parsed = process_document_gcs(
+            gcs_uri=gcs_uri,
+            mime_type=mime_type,
+            processor_name=fallback_processor,
+        )
+        fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
+        # Layout path may return [] when processor yields no semantic chunks.
+        fallback_chunks = (
+            layout_parsed.chunks
+            if layout_parsed.chunks is not None and len(layout_parsed.chunks) > 0
+            else (
+                fallback_parsed.chunks
+                if fallback_parsed.chunks is not None and len(fallback_parsed.chunks) > 0
+                else self._synthesize_chunks_from_text(fallback_text)
+            )
+        )
+
+        return ParsedDocument(
+            text=fallback_text,
+            page_count=max(layout_parsed.page_count, fallback_parsed.page_count),
+            mime_type=layout_parsed.mime_type or fallback_parsed.mime_type,
+            chunks=fallback_chunks,
+            entities=fallback_parsed.entities,
+        )
 
     def redis_fixed_window_allow(
         self,
@@ -143,6 +245,42 @@ class InfraDocumentPipelineGateway:
             entity_count=entity_count,
         )
 
+    def update_parsed_layout(
+        self,
+        *,
+        doc_id: str,
+        layout_json_gcs_uri: str,
+        page_count: int,
+        extraction_ms: int,
+        account_id: str,
+        chunk_count: int = 0,
+    ) -> None:
+        update_parsed_layout(
+            doc_id=doc_id,
+            layout_json_gcs_uri=layout_json_gcs_uri,
+            page_count=page_count,
+            extraction_ms=extraction_ms,
+            account_id=account_id,
+            chunk_count=chunk_count,
+        )
+
+    def update_parsed_form(
+        self,
+        *,
+        doc_id: str,
+        form_json_gcs_uri: str,
+        account_id: str,
+        extraction_ms: int = 0,
+        entity_count: int = 0,
+    ) -> None:
+        update_parsed_form(
+            doc_id=doc_id,
+            form_json_gcs_uri=form_json_gcs_uri,
+            account_id=account_id,
+            extraction_ms=extraction_ms,
+            entity_count=entity_count,
+        )
+
     def mark_rag_ready(
         self,
         *,
@@ -178,6 +316,12 @@ class InfraDocumentPipelineGateway:
 
     def parsed_json_path(self, upload_object_path: str) -> str:
         return parsed_json_path(upload_object_path)
+
+    def layout_json_path(self, upload_object_path: str) -> str:
+        return layout_json_path(upload_object_path)
+
+    def form_json_path(self, upload_object_path: str) -> str:
+        return form_json_path(upload_object_path)
 
     def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str:
         return upload_json(bucket_name=bucket_name, object_path=object_path, data=data)

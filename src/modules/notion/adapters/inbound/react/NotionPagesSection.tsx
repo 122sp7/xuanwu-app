@@ -8,12 +8,17 @@
  */
 
 import { Button, Input } from "@packages";
-import { FileText, Plus, ListPlus } from "lucide-react";
+import { FileText, Plus, ListPlus, Pencil, Archive } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
 import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
-import { queryPagesAction, createPageAction } from "../server-actions/page-actions";
+import {
+  queryPagesAction,
+  createPageAction,
+  renamePageAction,
+  archivePageAction,
+} from "../server-actions/page-actions";
 
 interface NotionPagesSectionProps {
   workspaceId: string;
@@ -33,12 +38,18 @@ export function NotionPagesSection({
   const [pages, setPages] = useState<PageSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const reloadPages = async () => {
+    const result = await queryPagesAction({ workspaceId, accountId });
+    setPages(Array.isArray(result) ? result : []);
+  };
 
   const load = () => {
     startTransition(async () => {
-      const result = await queryPagesAction({ workspaceId, accountId });
-      setPages(Array.isArray(result) ? result : []);
+      await reloadPages();
       setLoaded(true);
     });
   };
@@ -58,8 +69,34 @@ export function NotionPagesSection({
         createdByUserId: currentUserId,
       });
       setNewTitle("");
-      const result = await queryPagesAction({ workspaceId, accountId });
-      setPages(Array.isArray(result) ? result : []);
+      await reloadPages();
+    });
+  };
+
+  const handleStartRename = (page: PageSnapshot) => {
+    setEditingPageId(page.id);
+    setRenameTitle(page.title);
+  };
+
+  const handleRename = (pageId: string) => {
+    const nextTitle = renameTitle.trim();
+    if (!nextTitle) return;
+    startTransition(async () => {
+      await renamePageAction({ pageId, title: nextTitle });
+      setEditingPageId(null);
+      setRenameTitle("");
+      await reloadPages();
+    });
+  };
+
+  const handleArchive = (pageId: string) => {
+    startTransition(async () => {
+      await archivePageAction({ pageId });
+      if (editingPageId === pageId) {
+        setEditingPageId(null);
+        setRenameTitle("");
+      }
+      await reloadPages();
     });
   };
 
@@ -96,18 +133,79 @@ export function NotionPagesSection({
                   key={page.id}
                   className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2 text-sm"
                 >
-                  <div>
-                    <span className="font-medium">{page.title}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">{page.status}</span>
+                  <div className="min-w-0 flex-1">
+                    {editingPageId === page.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={renameTitle}
+                          onChange={(e) => setRenameTitle(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleRename(page.id)}
+                          className="h-7 text-xs"
+                          disabled={isPending}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleRename(page.id)}
+                          disabled={isPending || !renameTitle.trim()}
+                        >
+                          儲存
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            setEditingPageId(null);
+                            setRenameTitle("");
+                          }}
+                          disabled={isPending}
+                        >
+                          取消
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{page.title}</span>
+                        <span className="text-xs text-muted-foreground">{page.status}</span>
+                      </div>
+                    )}
                   </div>
-                  <Link
-                    href={taskFormationHref(accountId, workspaceId)}
-                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="發送至任務形成"
-                  >
-                    <ListPlus className="size-3" />
-                    → 任務形成
-                  </Link>
+                  <div className="ml-3 flex items-center gap-1">
+                    {editingPageId !== page.id && page.status === "active" && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2"
+                          onClick={() => handleStartRename(page)}
+                          disabled={isPending}
+                          title="重新命名"
+                        >
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleArchive(page.id)}
+                          disabled={isPending}
+                          title="封存"
+                        >
+                          <Archive className="size-3" />
+                        </Button>
+                      </>
+                    )}
+                    <Link
+                      href={taskFormationHref(accountId, workspaceId)}
+                      className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title="發送至任務形成"
+                    >
+                      <ListPlus className="size-3" />
+                      → 任務形成
+                    </Link>
+                  </div>
                 </li>
               ))}
             </ul>

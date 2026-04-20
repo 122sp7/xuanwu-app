@@ -34,6 +34,7 @@ export function NotionTemplatesSection({
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [newCategory, setNewCategory] = useState<TemplateCategory>("page");
   const [isPending, startTransition] = useTransition();
 
@@ -59,8 +60,10 @@ export function NotionTemplatesSection({
         title: newTitle.trim(),
         category: newCategory,
         createdByUserId: currentUserId,
+        description: newDescription.trim() || undefined,
       });
       setNewTitle("");
+      setNewDescription("");
       const result = await queryTemplatesAction({ workspaceId, accountId });
       setTemplates(Array.isArray(result) ? result : []);
     });
@@ -75,7 +78,7 @@ export function NotionTemplatesSection({
 
       {loaded && (
         <>
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <Input
               placeholder="新模板名稱…"
               value={newTitle}
@@ -83,21 +86,31 @@ export function NotionTemplatesSection({
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               className="h-8 text-sm"
             />
-            <select
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value as TemplateCategory)}
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-              disabled={isPending}
-            >
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABELS[c]}
-                </option>
-              ))}
-            </select>
-            <Button size="sm" onClick={handleCreate} disabled={isPending || !newTitle.trim()}>
-              <Plus className="size-3.5" />
-            </Button>
+            <div className="flex gap-2">
+              <Input
+                placeholder="描述（可選）…"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                className="h-8 text-sm"
+                disabled={isPending}
+              />
+              <select
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value as TemplateCategory)}
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                disabled={isPending}
+              >
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {CATEGORY_LABELS[c]}
+                  </option>
+                ))}
+              </select>
+              <Button size="sm" onClick={handleCreate} disabled={isPending || !newTitle.trim()}>
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
           </div>
 
           {templates.length === 0 ? (
@@ -109,10 +122,15 @@ export function NotionTemplatesSection({
                   key={tpl.id}
                   className="rounded-lg border border-border/40 px-3 py-2 text-sm"
                 >
-                  <span className="font-medium">{tpl.title}</span>
-                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                    {CATEGORY_LABELS[tpl.category]}
-                  </span>
+                  <div>
+                    <span className="font-medium">{tpl.title}</span>
+                    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                      {CATEGORY_LABELS[tpl.category]}
+                    </span>
+                    {tpl.description && (
+                      <p className="mt-1 text-xs text-muted-foreground">{tpl.description}</p>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

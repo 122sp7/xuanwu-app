@@ -43,7 +43,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
 
         text = str(parsed_payload.get("text", "")).strip()
         if not text:
-            raise ValueError("json 內容缺少 text")
+            raise ValueError("layout JSON 缺少 text 欄位，請先執行「解析文件(Layout Parser)」")
 
         # Enrich from the JSON payload when schema fields were left empty.
         source_gcs_uri = schema.source_gcs_uri or str(
@@ -76,6 +76,9 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
         if page_count <= 0:
             page_count = int(parsed_payload.get("page_count", 0) or 0)
 
+        # Read stored layout chunks; passes None when absent (falls back to char-split).
+        layout_chunks: list[dict] | None = parsed_payload.get("chunks") or None
+
         rag = ingest_document_for_rag(
             doc_id=schema.doc_id,
             filename=filename,
@@ -85,6 +88,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             page_count=page_count,
             account_id=schema.account_id,
             workspace_id=workspace_id,
+            layout_chunks=layout_chunks,
         )
 
         runtime.mark_rag_ready(

@@ -35,6 +35,7 @@ class ParseDocumentRequest:
     mime_type: str
     size_bytes: int
     run_rag: bool
+    parser: str  # "layout" | "form" | "ocr"
 
     @classmethod
     def from_raw(cls, raw: dict) -> "ParseDocumentRequest":
@@ -86,6 +87,10 @@ class ParseDocumentRequest:
 
         run_rag = bool(raw.get("run_rag", True))
 
+        parser = str(raw.get("parser", "layout")).strip().lower()
+        if parser not in ("layout", "form", "ocr"):
+            raise ValueError("parser 必須為 'layout'、'form' 或 'ocr'")
+
         return cls(
             account_id=account_id,
             workspace_id=workspace_id,
@@ -95,4 +100,5 @@ class ParseDocumentRequest:
             mime_type=mime_type,
             size_bytes=size_bytes,
             run_rag=run_rag,
+            parser=parser,
         )

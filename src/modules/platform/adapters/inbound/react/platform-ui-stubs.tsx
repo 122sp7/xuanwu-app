@@ -45,8 +45,11 @@ import {
 import { ShellThemeToggle } from "./shell/ShellThemeToggle";
 import { ShellLanguageSwitcher } from "./shell/ShellLanguageSwitcher";
 import {
+  createOrganizationTeam,
+  recruitOrganizationMember,
   listOrganizationMembers,
   listOrganizationTeams,
+  updateOrganizationMemberRole,
 } from "../../../../iam/adapters/outbound/firebase-composition";
 import { useAccountRouteContext } from "./useAccountRouteContext";
 
@@ -113,13 +116,6 @@ export function AccountDashboardRouteScreen(): React.ReactElement {
     day: "numeric",
   });
 
-  const quickLinks = [
-    { label: "工作區中心", description: "管理所有工作區", icon: <BriefcaseBusiness className="size-4 text-muted-foreground" /> },
-    { label: "每日", description: "今日任務快照", icon: <CalendarDays className="size-4 text-muted-foreground" /> },
-    { label: "排程", description: "里程碑與時間軸", icon: <CalendarRange className="size-4 text-muted-foreground" /> },
-    { label: "日誌", description: "操作記錄", icon: <Activity className="size-4 text-muted-foreground" /> },
-  ] as const;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -150,26 +146,6 @@ export function AccountDashboardRouteScreen(): React.ReactElement {
             <p className="text-xl font-semibold">{stat.value}</p>
           </div>
         ))}
-      </div>
-
-      {/* Quick links */}
-      <div>
-        <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">快速連結</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {quickLinks.map((link) => (
-            <div
-              key={link.label}
-              className="flex items-center gap-3 rounded-xl border border-border/40 bg-card/30 px-4 py-3 transition hover:bg-muted/40 cursor-pointer"
-            >
-              {link.icon}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{link.label}</p>
-                <p className="text-xs text-muted-foreground truncate">{link.description}</p>
-              </div>
-              <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Recent activity */}
@@ -259,6 +235,16 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
     role: string;
     presence: string;
   }>>([]);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"Owner" | "Admin" | "Member">("Member");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function loadMembers(organizationId: string): Promise<void> {
+    const result = await listOrganizationMembers(organizationId);
+    setMembers(result);
+  }
 
   useEffect(() => {
     let active = true;
@@ -266,7 +252,8 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
       return () => { active = false; };
     }
     void listOrganizationMembers(resolvedAccountId).then((result) => {
-      if (active) setMembers(result);
+      if (!active) return;
+      setMembers(result);
     }).catch(() => {
       if (active) setMembers([]);
     });
@@ -279,6 +266,61 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
     return members.filter((member) => member.role.toLowerCase() === roleFilter);
   }, [accountType, members, resolvedAccountId, roleFilter]);
 
+  async function handleInviteMember(): Promise<void> {
+    if (!resolvedAccountId || accountType !== "organization") return;
+    const name = inviteName.trim();
+    const email = inviteEmail.trim().toLowerCase();
+    if (!name || !email) {
+      setActionError("請輸入姓名與 Email。");
+      return;
+    }
+    setActionError(null);
+    setIsSubmitting(true);
+    // Temporary mapping: email is used as member identity key until IAM directory lookup is available.
+    const memberIdFromEmail = email;
+    const recruitResult = await recruitOrganizationMember(resolvedAccountId, memberIdFromEmail, name, email);
+    if (!recruitResult.success) {
+      setActionError(recruitResult.error.message);
+      setIsSubmitting(false);
+      return;
+    }
+    if (inviteRole !== "Member") {
+      const roleResult = await updateOrganizationMemberRole({
+        organizationId: resolvedAccountId,
+        memberId: memberIdFromEmail,
+        role: inviteRole,
+      });
+      if (!roleResult.success) {
+        setActionError(roleResult.error.message);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+    await loadMembers(resolvedAccountId);
+    setInviteName("");
+    setInviteEmail("");
+    setInviteRole("Member");
+    setIsSubmitting(false);
+  }
+
+  async function handleMemberRoleChange(memberId: string, role: "Owner" | "Admin" | "Member"): Promise<void> {
+    if (!resolvedAccountId || accountType !== "organization") return;
+    setActionError(null);
+    setIsSubmitting(true);
+    const result = await updateOrganizationMemberRole({
+      organizationId: resolvedAccountId,
+      memberId,
+      role,
+    });
+    if (!result.success) {
+      setActionError(result.error.message);
+      setIsSubmitting(false);
+      return;
+    }
+    await loadMembers(resolvedAccountId);
+    setIsSubmitting(false);
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -287,11 +329,48 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
           <Users className="size-4 text-primary" />
           <h1 className="text-xl font-semibold tracking-tight">成員</h1>
         </div>
-        <Button size="sm" variant="outline" disabled>
+        <Badge variant="outline" className="text-xs">組織管理</Badge>
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-border/40 bg-card/20 p-3">
+        <p className="text-xs font-medium text-muted-foreground">邀請成員</p>
+        <div className="grid gap-2 sm:grid-cols-4">
+          <input
+            value={inviteName}
+            onChange={(event) => setInviteName(event.target.value)}
+            placeholder="姓名"
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            disabled={isSubmitting}
+          />
+          <input
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            placeholder="email@example.com"
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm sm:col-span-2"
+            disabled={isSubmitting}
+          />
+          <select
+            value={inviteRole}
+            onChange={(event) => setInviteRole(event.target.value as "Owner" | "Admin" | "Member")}
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            disabled={isSubmitting}
+          >
+            <option value="Owner">Owner</option>
+            <option value="Admin">Admin</option>
+            <option value="Member">Member</option>
+          </select>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => void handleInviteMember()} disabled={isSubmitting}>
           <UserPlus className="size-3.5" />
-          邀請成員
+          {isSubmitting ? "處理中…" : "邀請成員"}
         </Button>
       </div>
+
+      {actionError && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
 
       {/* Role filter */}
       <div className="flex flex-wrap gap-2">
@@ -324,7 +403,24 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
                   <p className="text-sm font-medium">{member.name}</p>
                   <p className="text-xs text-muted-foreground">{member.email}</p>
                 </div>
-                <Badge variant={badgeVariant} className="capitalize">{role}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={badgeVariant} className="capitalize">{role}</Badge>
+                  <select
+                    value={member.role}
+                    onChange={(event) =>
+                      void handleMemberRoleChange(
+                        member.id,
+                        event.target.value as "Owner" | "Admin" | "Member",
+                      )
+                    }
+                    className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                    disabled={isSubmitting || member.role === "Owner"}
+                  >
+                    <option value="Owner">Owner</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Member">Member</option>
+                  </select>
+                </div>
               </div>
             );
           })}
@@ -336,7 +432,7 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
           <p className="mt-1 text-xs text-muted-foreground/70">
             邀請成員加入組織後，可指派角色並管理存取範圍。
           </p>
-          <Button size="sm" variant="outline" className="mt-4" disabled>
+          <Button size="sm" variant="outline" className="mt-4" onClick={() => void handleInviteMember()} disabled={isSubmitting}>
             <UserPlus className="size-3.5" />
             邀請成員
           </Button>
@@ -357,6 +453,16 @@ export function OrganizationTeamsRouteScreen(): React.ReactElement {
     type: "internal" | "external";
     memberIds: string[];
   }>>([]);
+  const [teamName, setTeamName] = useState("");
+  const [teamDescription, setTeamDescription] = useState("");
+  const [teamType, setTeamType] = useState<"internal" | "external">("internal");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadTeams(organizationId: string): Promise<void> {
+    const result = await listOrganizationTeams(organizationId);
+    setTeams(result);
+  }
 
   useEffect(() => {
     let active = true;
@@ -364,12 +470,40 @@ export function OrganizationTeamsRouteScreen(): React.ReactElement {
       return () => { active = false; };
     }
     void listOrganizationTeams(resolvedAccountId).then((result) => {
-      if (active) setTeams(result);
+      if (!active) return;
+      setTeams(result);
     }).catch(() => {
       if (active) setTeams([]);
     });
     return () => { active = false; };
   }, [accountType, resolvedAccountId]);
+
+  async function handleCreateTeam(): Promise<void> {
+    if (!resolvedAccountId || accountType !== "organization") return;
+    const name = teamName.trim();
+    if (!name) {
+      setCreateError("請輸入團隊名稱。");
+      return;
+    }
+    setCreateError(null);
+    setIsSubmitting(true);
+    const result = await createOrganizationTeam({
+      organizationId: resolvedAccountId,
+      name,
+      description: teamDescription.trim(),
+      type: teamType,
+    });
+    if (!result.success) {
+      setCreateError(result.error.message);
+      setIsSubmitting(false);
+      return;
+    }
+    await loadTeams(resolvedAccountId);
+    setTeamName("");
+    setTeamDescription("");
+    setTeamType("internal");
+    setIsSubmitting(false);
+  }
 
   return (
     <div className="space-y-5">
@@ -379,11 +513,46 @@ export function OrganizationTeamsRouteScreen(): React.ReactElement {
           <BriefcaseBusiness className="size-4 text-primary" />
           <h1 className="text-xl font-semibold tracking-tight">團隊</h1>
         </div>
-        <Button size="sm" variant="outline" disabled>
+        <Button size="sm" variant="outline" onClick={() => void handleCreateTeam()} disabled={isSubmitting}>
           <Plus className="size-3.5" />
-          建立團隊
+          {isSubmitting ? "建立中…" : "建立團隊"}
         </Button>
       </div>
+
+      <div className="space-y-2 rounded-xl border border-border/40 bg-card/20 p-3">
+        <p className="text-xs font-medium text-muted-foreground">新增團隊</p>
+        <div className="grid gap-2 sm:grid-cols-4">
+          <input
+            value={teamName}
+            onChange={(event) => setTeamName(event.target.value)}
+            placeholder="團隊名稱"
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            disabled={isSubmitting}
+          />
+          <input
+            value={teamDescription}
+            onChange={(event) => setTeamDescription(event.target.value)}
+            placeholder="描述（可選）"
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm sm:col-span-2"
+            disabled={isSubmitting}
+          />
+          <select
+            value={teamType}
+            onChange={(event) => setTeamType(event.target.value as "internal" | "external")}
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            disabled={isSubmitting}
+          >
+            <option value="internal">內部</option>
+            <option value="external">外部</option>
+          </select>
+        </div>
+      </div>
+
+      {createError && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {createError}
+        </p>
+      )}
 
       {teams.length > 0 ? (
         <div className="space-y-2 rounded-xl border border-border/40 bg-card/20 p-2">
@@ -411,7 +580,7 @@ export function OrganizationTeamsRouteScreen(): React.ReactElement {
           <p className="mt-1 text-xs text-muted-foreground/70">
             建立功能性團隊（如工程、設計、業務），便於按團隊指派工作區與任務。
           </p>
-          <Button size="sm" variant="outline" className="mt-4" disabled>
+          <Button size="sm" variant="outline" className="mt-4" onClick={() => void handleCreateTeam()} disabled={isSubmitting}>
             <Plus className="size-3.5" />
             建立第一個團隊
           </Button>

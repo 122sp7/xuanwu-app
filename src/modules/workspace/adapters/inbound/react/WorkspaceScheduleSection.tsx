@@ -9,20 +9,30 @@ import { CalendarRange, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
 import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
+import { createWorkDemandAction } from "../server-actions/schedule-actions";
 const scheduleUseCases = createClientScheduleUseCases();
 
 interface WorkspaceScheduleSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
 
 export function WorkspaceScheduleSection({
   workspaceId,
-  accountId: _accountId,
+  accountId,
+  currentUserId,
 }: WorkspaceScheduleSectionProps): React.ReactElement {
   const { listWorkDemandsByWorkspace } = scheduleUseCases;
   const [period, setPeriod] = useState("本週");
   const [demands, setDemands] = useState<WorkDemandSnapshot[]>([]);
+  const [isCreatingBaseline, setIsCreatingBaseline] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadDemands(): Promise<void> {
+    const result = await listWorkDemandsByWorkspace.execute(workspaceId);
+    setDemands(result);
+  }
 
   useEffect(() => {
     let active = true;
@@ -34,6 +44,34 @@ export function WorkspaceScheduleSection({
     return () => { active = false; };
   }, [listWorkDemandsByWorkspace, workspaceId]);
 
+  async function handleCreateBaseline(): Promise<void> {
+    if (!currentUserId) {
+      setCreateError("尚未取得操作者身分，請重新登入後再試。");
+      return;
+    }
+    setIsCreatingBaseline(true);
+    setCreateError(null);
+    const now = new Date();
+    const baselineDate = new Date(now);
+    baselineDate.setDate(now.getDate() + 7);
+    const result = await createWorkDemandAction({
+      workspaceId,
+      accountId,
+      requesterId: currentUserId,
+      title: "基線里程碑",
+      description: "初始化工作區排程基線",
+      priority: "medium",
+      scheduledAt: baselineDate.toISOString(),
+    });
+    if (!result.success) {
+      setCreateError(result.error.message);
+      setIsCreatingBaseline(false);
+      return;
+    }
+    await loadDemands();
+    setIsCreatingBaseline(false);
+  }
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -42,11 +80,17 @@ export function WorkspaceScheduleSection({
           <CalendarRange className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">排程</h2>
         </div>
-        <Button size="sm" variant="outline" disabled>
+        <Button size="sm" variant="outline" onClick={() => void handleCreateBaseline()} disabled={isCreatingBaseline}>
           <Plus className="size-3.5" />
-          新增里程碑
+          {isCreatingBaseline ? "建立中…" : "建立基線"}
         </Button>
       </div>
+
+      {createError && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {createError}
+        </p>
+      )}
 
       {/* Phase labels */}
       <div className="flex flex-wrap gap-2">
@@ -88,6 +132,16 @@ export function WorkspaceScheduleSection({
             <p className="mt-1 text-xs text-muted-foreground/70">
               建立里程碑後，時間軸將顯示專案進度與截止日期。
             </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-4"
+              onClick={() => void handleCreateBaseline()}
+              disabled={isCreatingBaseline}
+            >
+              <Plus className="size-3.5" />
+              {isCreatingBaseline ? "建立中…" : "建立第一個基線"}
+            </Button>
           </div>
         </div>
       )}

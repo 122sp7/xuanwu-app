@@ -67,7 +67,8 @@ function googleDocViewerUrl(downloadUrl: string): string {
 type DocActionStatus = "idle" | "running" | "done" | "error";
 
 interface DocActionState {
-  parse: DocActionStatus;
+  parseLayout: DocActionStatus;
+  parseForm: DocActionStatus;
   index: DocActionStatus;
   reindex: DocActionStatus;
   page: DocActionStatus;
@@ -99,6 +100,9 @@ export function NotebooklmSourcesSection({
   // Per-document expanded / action state
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
+
+  // JSON viewer modal state
+  const [jsonViewer, setJsonViewer] = useState<{ doc: DocumentSnapshot; type: "layout" | "form" } | null>(null);
 
   const load = () => {
     startRefresh(async () => {
@@ -168,15 +172,15 @@ export function NotebooklmSourcesSection({
   const setDocAction = (docId: string, patch: Partial<DocActionState>) => {
     setActionState((prev) => {
       const current: DocActionState = prev[docId] ?? {
-        parse: "idle", index: "idle", reindex: "idle", page: "idle", database: "idle",
+        parseLayout: "idle", parseForm: "idle", index: "idle", reindex: "idle", page: "idle", database: "idle",
       };
       return { ...prev, [docId]: { ...current, ...patch } };
     });
   };
 
-  const handleParse = async (doc: DocumentSnapshot) => {
+  const handleParseLayout = async (doc: DocumentSnapshot) => {
     if (!doc.storageUrl) return;
-    setDocAction(doc.id, { parse: "running", message: undefined });
+    setDocAction(doc.id, { parseLayout: "running", message: undefined });
     try {
       await parseDocumentAction({
         accountId,
@@ -186,26 +190,48 @@ export function NotebooklmSourcesSection({
         filename: doc.name,
         mimeType: doc.mimeType || "application/pdf",
         sizeBytes: doc.sizeBytes,
+        parser: "layout",
       });
-      setDocAction(doc.id, { parse: "done", message: "解析完成，產出物已儲存" });
-      // Reload list to pick up updated Firestore metadata
+      setDocAction(doc.id, { parseLayout: "done", message: "Layout Parser 解析完成（文字 + 語意分塊已儲存）" });
       const result = await queryDocumentsAction({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
-      setDocAction(doc.id, { parse: "error", message: err instanceof Error ? err.message : "解析失敗" });
+      setDocAction(doc.id, { parseLayout: "error", message: err instanceof Error ? err.message : "Layout Parser 解析失敗" });
+    }
+  };
+
+  const handleParseForm = async (doc: DocumentSnapshot) => {
+    if (!doc.storageUrl) return;
+    setDocAction(doc.id, { parseForm: "running", message: undefined });
+    try {
+      await parseDocumentAction({
+        accountId,
+        workspaceId,
+        docId: doc.id,
+        storageUrl: doc.storageUrl,
+        filename: doc.name,
+        mimeType: doc.mimeType || "application/pdf",
+        sizeBytes: doc.sizeBytes,
+        parser: "form",
+      });
+      setDocAction(doc.id, { parseForm: "done", message: "Form Parser 解析完成（結構化欄位已儲存）" });
+      const result = await queryDocumentsAction({ accountId, workspaceId });
+      setDocuments(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setDocAction(doc.id, { parseForm: "error", message: err instanceof Error ? err.message : "Form Parser 解析失敗" });
     }
   };
 
   const handleIndex = async (doc: DocumentSnapshot) => {
     if (!doc.id) return;
-    if (!doc.parsedJsonGcsUri) {
-      setDocAction(doc.id, { index: "error", message: "文件尚未解析，請先執行「解析文件」後再建立索引" });
+    if (!doc.parsedLayoutJsonGcsUri) {
+      setDocAction(doc.id, { index: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
       return;
     }
     setDocAction(doc.id, { index: "running", message: undefined });
     try {
-      await reindexDocumentAction({ accountId, docId: doc.id, jsonGcsUri: doc.parsedJsonGcsUri });
-      setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成" });
+      await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
+      setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成（使用 Layout Parser 產出物）" });
       const result = await queryDocumentsAction({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
@@ -215,14 +241,14 @@ export function NotebooklmSourcesSection({
 
   const handleReindex = async (doc: DocumentSnapshot) => {
     if (!doc.id) return;
-    if (!doc.parsedJsonGcsUri) {
-      setDocAction(doc.id, { reindex: "error", message: "文件尚未解析，請先執行「解析文件」後再重建索引" });
+    if (!doc.parsedLayoutJsonGcsUri) {
+      setDocAction(doc.id, { reindex: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
       return;
     }
     setDocAction(doc.id, { reindex: "running", message: undefined });
     try {
-      await reindexDocumentAction({ accountId, docId: doc.id, jsonGcsUri: doc.parsedJsonGcsUri });
-      setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成" });
+      await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
+      setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成（使用 Layout Parser 產出物）" });
       const result = await queryDocumentsAction({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
@@ -348,7 +374,8 @@ export function NotebooklmSourcesSection({
             const state = actionState[doc.id];
             const isExpanded = expandedId === doc.id;
             const anyRunning = state && (
-              state.parse === "running" || state.index === "running" || state.reindex === "running" ||
+              state.parseLayout === "running" || state.parseForm === "running" ||
+              state.index === "running" || state.reindex === "running" ||
               state.page === "running" || state.database === "running"
             );
 
@@ -401,16 +428,16 @@ export function NotebooklmSourcesSection({
                       {doc.parsedPageCount} 頁
                     </span>
                   )}
-                  {doc.parsedChunkCount != null && (
+                  {doc.parsedLayoutChunkCount != null && (
                     <span className="flex items-center gap-0.5 text-sky-600">
                       <FileText className="size-3" />
-                      Layout: {doc.parsedChunkCount} 塊
+                      Layout: {doc.parsedLayoutChunkCount} 塊
                     </span>
                   )}
-                  {doc.parsedEntityCount != null && doc.parsedEntityCount > 0 && (
+                  {doc.parsedFormEntityCount != null && doc.parsedFormEntityCount > 0 && (
                     <span className="flex items-center gap-0.5 text-indigo-600">
                       <Braces className="size-3" />
-                      Form: {doc.parsedEntityCount} 欄位
+                      Form: {doc.parsedFormEntityCount} 欄位
                     </span>
                   )}
                   {doc.ragChunkCount != null && (
@@ -435,23 +462,72 @@ export function NotebooklmSourcesSection({
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-                          disabled={!doc.storageUrl || state?.parse === "running" || !!anyRunning}
-                          onClick={() => void handleParse(doc)}
+                          disabled={!doc.storageUrl || state?.parseLayout === "running" || !!anyRunning}
+                          onClick={() => void handleParseLayout(doc)}
+                          title="使用 Layout Parser 解析文字結構、語意分塊，供 RAG 索引使用"
                         >
-                          {state?.parse === "running" ? (
+                          {state?.parseLayout === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <ScanText className="size-3" />
+                            <ScanText className="size-3 text-sky-600" />
                           )}
-                          解析文件
+                          解析文件(Layout Parser)
                         </Button>
+                        {(doc.parsedLayoutJsonGcsUri || state?.parseLayout === "done") && (
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full p-0.5 text-green-600 hover:bg-green-500/10 transition-colors"
+                            title="Layout Parser 已解析 — 點擊查看 JSON 摘要"
+                            onClick={() => setJsonViewer({ doc, type: "layout" })}
+                            aria-label="查看 Layout Parser JSON"
+                          >
+                            <CheckCircle2 className="size-4" />
+                          </button>
+                        )}
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={!doc.storageUrl || state?.parseForm === "running" || !!anyRunning}
+                          onClick={() => void handleParseForm(doc)}
+                          title="使用 Form Parser 萃取結構化欄位（表格、KV），供建立資料庫使用"
+                        >
+                          {state?.parseForm === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <Braces className="size-3 text-indigo-600" />
+                          )}
+                          解析文件(Form Parser)
+                        </Button>
+                        {(doc.parsedFormJsonGcsUri || state?.parseForm === "done") && (
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full p-0.5 text-green-600 hover:bg-green-500/10 transition-colors"
+                            title="Form Parser 已解析 — 點擊查看 JSON 摘要"
+                            onClick={() => setJsonViewer({ doc, type: "form" })}
+                            aria-label="查看 Form Parser JSON"
+                          >
+                            <CheckCircle2 className="size-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Section: RAG index — uses Layout Parser output */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        RAG 索引
+                        <span className="ml-1 normal-case font-normal text-muted-foreground/70">（使用 Layout Parser 產出物）</span>
+                      </p>
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
                           disabled={state?.index === "running" || !!anyRunning}
                           onClick={() => void handleIndex(doc)}
+                          title={doc.parsedLayoutJsonGcsUri ? "建立 RAG 向量索引" : "須先完成 Layout Parser 解析"}
                         >
                           {state?.index === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
+                          ) : state?.index === "done" ? (
+                            <CheckCircle2 className="size-3 text-purple-600" />
                           ) : (
                             <RefreshCw className="size-3 text-purple-600" />
                           )}
@@ -461,9 +537,12 @@ export function NotebooklmSourcesSection({
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
                           disabled={state?.reindex === "running" || !!anyRunning}
                           onClick={() => void handleReindex(doc)}
+                          title={doc.parsedLayoutJsonGcsUri ? "重建 RAG 向量索引" : "須先完成 Layout Parser 解析"}
                         >
                           {state?.reindex === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
+                          ) : state?.reindex === "done" ? (
+                            <CheckCircle2 className="size-3 text-orange-600" />
                           ) : (
                             <RefreshCw className="size-3 text-orange-600" />
                           )}
@@ -480,6 +559,7 @@ export function NotebooklmSourcesSection({
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
                           disabled={state?.page === "running" || !!anyRunning}
                           onClick={() => void handleCreatePage(doc)}
+                          title="建立知識頁（使用 Layout Parser 產出物）"
                         >
                           {state?.page === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
@@ -503,6 +583,7 @@ export function NotebooklmSourcesSection({
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
                           disabled={state?.database === "running" || !!anyRunning}
                           onClick={() => void handleCreateDatabase(doc)}
+                          title="建立資料庫（使用 Form Parser 產出物）"
                         >
                           {state?.database === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
@@ -528,7 +609,7 @@ export function NotebooklmSourcesSection({
                     {/* Action status message */}
                     {state?.message && (
                       <p className={`text-xs px-2 py-1 rounded ${
-                        (state.parse === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
+                        (state.parseLayout === "error" || state.parseForm === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
                           ? "bg-destructive/10 text-destructive"
                           : "bg-muted text-muted-foreground"
                       }`}>
@@ -570,6 +651,57 @@ export function NotebooklmSourcesSection({
           </Link>
         </div>
       )}
+
+      {/* JSON viewer modal — parsed output summary */}
+      {jsonViewer && (() => {
+        const { doc: jDoc, type } = jsonViewer;
+        const payload =
+          type === "layout"
+            ? {
+                parser: "layout",
+                documentId: jDoc.id,
+                name: jDoc.name,
+                parsedPageCount: jDoc.parsedPageCount ?? null,
+                parsedLayoutChunkCount: jDoc.parsedLayoutChunkCount ?? null,
+                parsedLayoutJsonGcsUri: jDoc.parsedLayoutJsonGcsUri ?? null,
+              }
+            : {
+                parser: "form",
+                documentId: jDoc.id,
+                name: jDoc.name,
+                parsedFormEntityCount: jDoc.parsedFormEntityCount ?? null,
+                parsedFormJsonGcsUri: jDoc.parsedFormJsonGcsUri ?? null,
+              };
+        const title = type === "layout" ? "Layout Parser JSON 摘要" : "Form Parser JSON 摘要";
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setJsonViewer(null); }}
+            onKeyDown={(e) => { if (e.key === "Escape") setJsonViewer(null); }}
+          >
+            <div className="relative flex max-h-[70vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+              <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-green-600" />
+                  <span className="text-sm font-medium">{title}</span>
+                  <span className="text-xs text-muted-foreground truncate max-w-xs">{jDoc.name}</span>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setJsonViewer(null)} className="h-7 w-7 p-0">
+                  <X className="size-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <pre className="text-xs text-foreground whitespace-pre-wrap break-all font-mono">
+                  {JSON.stringify(payload, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* PDF / image preview overlay — Google Doc Viewer */}
       {previewDoc && (

@@ -71,76 +71,172 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
         parsed = runtime.process_document_gcs(
             gcs_uri=schema.gcs_uri,
             mime_type=schema.mime_type,
+            parser=schema.parser,
         )
         extraction_ms = int((time.time() - start_time) * 1000)
 
-        json_object_path = runtime.parsed_json_path(object_path)
-        json_gcs_uri = runtime.upload_json(
-            bucket_name=bucket_name,
-            object_path=json_object_path,
-            data={
-                "doc_id": schema.doc_id,
-                "account_id": schema.account_id,
-                "workspace_id": schema.workspace_id,
-                "source_gcs_uri": schema.gcs_uri,
-                "filename": schema.filename,
-                "display_name": schema.filename,
-                "original_filename": schema.filename,
-                "page_count": parsed.page_count,
-                "extraction_ms": extraction_ms,
-                "text": parsed.text,
-                "chunk_count": len(parsed.chunks),
-                "entities": parsed.entities,
-            },
-        )
+        if schema.parser == "layout":
+            json_object_path = runtime.layout_json_path(object_path)
+            json_gcs_uri = runtime.upload_json(
+                bucket_name=bucket_name,
+                object_path=json_object_path,
+                data={
+                    "doc_id": schema.doc_id,
+                    "account_id": schema.account_id,
+                    "workspace_id": schema.workspace_id,
+                    "source_gcs_uri": schema.gcs_uri,
+                    "filename": schema.filename,
+                    "display_name": schema.filename,
+                    "original_filename": schema.filename,
+                    "page_count": parsed.page_count,
+                    "extraction_ms": extraction_ms,
+                    "text": parsed.text,
+                    "chunk_count": len(parsed.chunks),
+                    "chunks": parsed.chunks,
+                },
+            )
 
-        runtime.update_parsed(
-            doc_id=schema.doc_id,
-            json_gcs_uri=json_gcs_uri,
-            page_count=parsed.page_count,
-            extraction_ms=extraction_ms,
-            account_id=schema.account_id,
-            chunk_count=len(parsed.chunks),
-            entity_count=len(parsed.entities),
-        )
+            runtime.update_parsed_layout(
+                doc_id=schema.doc_id,
+                layout_json_gcs_uri=json_gcs_uri,
+                page_count=parsed.page_count,
+                extraction_ms=extraction_ms,
+                account_id=schema.account_id,
+                chunk_count=len(parsed.chunks),
+            )
 
-        if schema.run_rag:
-            try:
-                rag = ingest_document_for_rag(
-                    doc_id=schema.doc_id,
-                    filename=schema.filename,
-                    source_gcs_uri=schema.gcs_uri,
-                    json_gcs_uri=json_gcs_uri,
-                    text=parsed.text,
-                    page_count=parsed.page_count,
-                    account_id=schema.account_id,
-                    workspace_id=schema.workspace_id,
-                    layout_chunks=parsed.chunks or None,
-                )
-                runtime.mark_rag_ready(
-                    doc_id=schema.doc_id,
-                    chunk_count=rag.chunk_count,
-                    vector_count=rag.vector_count,
-                    embedding_model=rag.embedding_model,
-                    embedding_dimensions=rag.embedding_dimensions,
-                    raw_chars=rag.raw_chars,
-                    normalized_chars=rag.normalized_chars,
-                    normalization_version=rag.normalization_version,
-                    language_hint=rag.language_hint,
-                    account_id=schema.account_id,
-                )
-            except Exception as rag_exc:
-                logger.exception("RAG ingestion failed for %s: %s", schema.doc_id, rag_exc)
-                runtime.record_rag_error(
-                    schema.doc_id, str(rag_exc)[:200], account_id=schema.account_id
-                )
+            if schema.run_rag:
+                try:
+                    rag = ingest_document_for_rag(
+                        doc_id=schema.doc_id,
+                        filename=schema.filename,
+                        source_gcs_uri=schema.gcs_uri,
+                        json_gcs_uri=json_gcs_uri,
+                        text=parsed.text,
+                        page_count=parsed.page_count,
+                        account_id=schema.account_id,
+                        workspace_id=schema.workspace_id,
+                        layout_chunks=parsed.chunks or None,
+                    )
+                    runtime.mark_rag_ready(
+                        doc_id=schema.doc_id,
+                        chunk_count=rag.chunk_count,
+                        vector_count=rag.vector_count,
+                        embedding_model=rag.embedding_model,
+                        embedding_dimensions=rag.embedding_dimensions,
+                        raw_chars=rag.raw_chars,
+                        normalized_chars=rag.normalized_chars,
+                        normalization_version=rag.normalization_version,
+                        language_hint=rag.language_hint,
+                        account_id=schema.account_id,
+                    )
+                except Exception as rag_exc:
+                    logger.exception("RAG ingestion failed for %s: %s", schema.doc_id, rag_exc)
+                    runtime.record_rag_error(
+                        schema.doc_id, str(rag_exc)[:200], account_id=schema.account_id
+                    )
+
+        elif schema.parser == "ocr":
+            # OCR Processor — full-page text extraction; stores text output in the
+            # same JSON envelope as layout so the RAG ingestion path can reuse it.
+            # char-split-v2 chunking is applied since OCR gives no semantic chunks.
+            json_object_path = runtime.layout_json_path(object_path)
+            json_gcs_uri = runtime.upload_json(
+                bucket_name=bucket_name,
+                object_path=json_object_path,
+                data={
+                    "doc_id": schema.doc_id,
+                    "account_id": schema.account_id,
+                    "workspace_id": schema.workspace_id,
+                    "source_gcs_uri": schema.gcs_uri,
+                    "filename": schema.filename,
+                    "display_name": schema.filename,
+                    "original_filename": schema.filename,
+                    "page_count": parsed.page_count,
+                    "extraction_ms": extraction_ms,
+                    "text": parsed.text,
+                    # OCR does not return semantic chunks; `ingest_document_for_rag`
+                    # will apply char-split-v2 chunking when layout_chunks=None.
+                    "chunk_count": 0,
+                    "chunks": [],
+                },
+            )
+
+            runtime.update_parsed_layout(
+                doc_id=schema.doc_id,
+                layout_json_gcs_uri=json_gcs_uri,
+                page_count=parsed.page_count,
+                extraction_ms=extraction_ms,
+                account_id=schema.account_id,
+                chunk_count=0,
+            )
+
+            if schema.run_rag:
+                try:
+                    rag = ingest_document_for_rag(
+                        doc_id=schema.doc_id,
+                        filename=schema.filename,
+                        source_gcs_uri=schema.gcs_uri,
+                        json_gcs_uri=json_gcs_uri,
+                        text=parsed.text,
+                        page_count=parsed.page_count,
+                        account_id=schema.account_id,
+                        workspace_id=schema.workspace_id,
+                        # OCR has no layout chunks → char-split-v2 fallback.
+                        layout_chunks=None,
+                    )
+                    runtime.mark_rag_ready(
+                        doc_id=schema.doc_id,
+                        chunk_count=rag.chunk_count,
+                        vector_count=rag.vector_count,
+                        embedding_model=rag.embedding_model,
+                        embedding_dimensions=rag.embedding_dimensions,
+                        raw_chars=rag.raw_chars,
+                        normalized_chars=rag.normalized_chars,
+                        normalization_version=rag.normalization_version,
+                        language_hint=rag.language_hint,
+                        account_id=schema.account_id,
+                    )
+                except Exception as rag_exc:
+                    logger.exception("RAG ingestion failed for %s: %s", schema.doc_id, rag_exc)
+                    runtime.record_rag_error(
+                        schema.doc_id, str(rag_exc)[:200], account_id=schema.account_id
+                    )
+
+        else:  # "form"
+            json_object_path = runtime.form_json_path(object_path)
+            json_gcs_uri = runtime.upload_json(
+                bucket_name=bucket_name,
+                object_path=json_object_path,
+                data={
+                    "doc_id": schema.doc_id,
+                    "account_id": schema.account_id,
+                    "workspace_id": schema.workspace_id,
+                    "source_gcs_uri": schema.gcs_uri,
+                    "filename": schema.filename,
+                    "display_name": schema.filename,
+                    "original_filename": schema.filename,
+                    "page_count": parsed.page_count,
+                    "extraction_ms": extraction_ms,
+                    "entities": parsed.entities,
+                    "entity_count": len(parsed.entities),
+                },
+            )
+
+            runtime.update_parsed_form(
+                doc_id=schema.doc_id,
+                form_json_gcs_uri=json_gcs_uri,
+                account_id=schema.account_id,
+                extraction_ms=extraction_ms,
+                entity_count=len(parsed.entities),
+            )
 
         logger.info(
-            "✓ parse_document done: doc_id=%s (%d pages, %d ms, run_rag=%s) → %s",
+            "✓ parse_document done: doc_id=%s parser=%s (%d pages, %d ms) → %s",
             schema.doc_id,
+            schema.parser,
             parsed.page_count,
             extraction_ms,
-            schema.run_rag,
             json_gcs_uri,
         )
     except https_fn.HttpsError:
