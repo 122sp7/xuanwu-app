@@ -37,6 +37,30 @@ def parsed_json_path(upload_object_path: str) -> str:
     return f"{_FILES_PREFIX}{base}.json"
 
 
+def layout_json_path(upload_object_path: str) -> str:
+    """
+    Layout Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.layout.json
+    """
+    relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
+    base, _ = os.path.splitext(relative)
+    return f"{_FILES_PREFIX}{base}.layout.json"
+
+
+def form_json_path(upload_object_path: str) -> str:
+    """
+    Form Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.form.json
+    """
+    relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
+    base, _ = os.path.splitext(relative)
+    return f"{_FILES_PREFIX}{base}.form.json"
+
+
 def upload_json(bucket_name: str, object_path: str, data: dict) -> str:
     """
     將 dict 序列化為 JSON 後上傳至 Cloud Storage。

@@ -9,7 +9,7 @@ from domain.repositories import (
 )
 from infrastructure.audit.qstash import publish_query_audit
 from infrastructure.cache.rag_query_cache import build_query_cache_key, get_query_cache, save_query_cache
-from infrastructure.external.documentai.client import process_document_gcs_with_form
+from infrastructure.external.documentai.client import process_document_gcs
 from infrastructure.external.openai.embeddings import embed_texts
 from infrastructure.external.openai.rag_query import generate_answer, to_query_vector
 from infrastructure.external.upstash.clients import (
@@ -25,8 +25,16 @@ from infrastructure.persistence.firestore.document_repository import (
     record_error,
     record_rag_error,
     update_parsed,
+    update_parsed_layout,
+    update_parsed_form,
 )
-from infrastructure.persistence.storage.client import download_bytes, parsed_json_path, upload_json
+from infrastructure.persistence.storage.client import (
+    download_bytes,
+    parsed_json_path,
+    layout_json_path,
+    form_json_path,
+    upload_json,
+)
 
 
 class InfraRagQueryGateway:
@@ -86,8 +94,10 @@ class InfraRagIngestionGateway:
 
 
 class InfraDocumentPipelineGateway:
-    def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> Any:
-        return process_document_gcs_with_form(gcs_uri=gcs_uri, mime_type=mime_type)
+    def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any:
+        from core.config import DOCAI_FORM_PROCESSOR_NAME, DOCAI_LAYOUT_PROCESSOR_NAME
+        processor_name = DOCAI_FORM_PROCESSOR_NAME if parser == "form" else DOCAI_LAYOUT_PROCESSOR_NAME
+        return process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, processor_name=processor_name)
 
     def redis_fixed_window_allow(
         self,
@@ -143,6 +153,42 @@ class InfraDocumentPipelineGateway:
             entity_count=entity_count,
         )
 
+    def update_parsed_layout(
+        self,
+        *,
+        doc_id: str,
+        layout_json_gcs_uri: str,
+        page_count: int,
+        extraction_ms: int,
+        account_id: str,
+        chunk_count: int = 0,
+    ) -> None:
+        update_parsed_layout(
+            doc_id=doc_id,
+            layout_json_gcs_uri=layout_json_gcs_uri,
+            page_count=page_count,
+            extraction_ms=extraction_ms,
+            account_id=account_id,
+            chunk_count=chunk_count,
+        )
+
+    def update_parsed_form(
+        self,
+        *,
+        doc_id: str,
+        form_json_gcs_uri: str,
+        account_id: str,
+        extraction_ms: int = 0,
+        entity_count: int = 0,
+    ) -> None:
+        update_parsed_form(
+            doc_id=doc_id,
+            form_json_gcs_uri=form_json_gcs_uri,
+            account_id=account_id,
+            extraction_ms=extraction_ms,
+            entity_count=entity_count,
+        )
+
     def mark_rag_ready(
         self,
         *,
@@ -178,6 +224,12 @@ class InfraDocumentPipelineGateway:
 
     def parsed_json_path(self, upload_object_path: str) -> str:
         return parsed_json_path(upload_object_path)
+
+    def layout_json_path(self, upload_object_path: str) -> str:
+        return layout_json_path(upload_object_path)
+
+    def form_json_path(self, upload_object_path: str) -> str:
+        return form_json_path(upload_object_path)
 
     def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str:
         return upload_json(bucket_name=bucket_name, object_path=object_path, data=data)

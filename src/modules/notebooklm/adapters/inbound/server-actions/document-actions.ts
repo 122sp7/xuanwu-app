@@ -76,13 +76,15 @@ const ParseDocumentActionInputSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.string().default("application/pdf"),
   sizeBytes: z.number().int().nonnegative().default(0),
+  /** Which Document AI processor to invoke: "layout" (default) or "form". */
+  parser: z.enum(["layout", "form"]).default("layout"),
 });
 
 const ReindexDocumentActionInputSchema = z.object({
   accountId: z.string().min(1),
   docId: z.string().min(1),
-  /** GCS URI of the parsed JSON written by fn after Document AI parse. */
-  jsonGcsUri: z.string().min(1, "json_gcs_uri 為必填欄位（文件尚未完成解析？）"),
+  /** GCS URI of the Layout Parser JSON written by fn after Document AI parse. */
+  layoutJsonGcsUri: z.string().min(1, "layout_json_gcs_uri 為必填欄位（文件尚未完成 Layout Parser 解析？）"),
 });
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -156,12 +158,11 @@ export async function createDatabaseFromDocumentAction(rawInput: unknown) {
 }
 
 /**
- * parseDocumentAction — trigger Document AI parse (Layout Parser + Form Parser)
- * for a specific document. Always a pure parse; RAG indexing is a separate step.
+ * parseDocumentAction — trigger Document AI parse for a specific document.
  *
- * Calls the fn `parse_document` HTTPS callable function from the server side,
- * which avoids browser CORS restrictions entirely.  Functions are deployed in
- * asia-southeast1; the server-to-server fetch bypasses CORS headers.
+ * Pass `parser: "layout"` (default) for Layout Parser (text + semantic chunks).
+ * Pass `parser: "form"` for Form Parser (structured entities / KV fields).
+ * Always a pure parse step; RAG indexing is a separate step.
  */
 export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocumentOutput> {
   const input = ParseDocumentActionInputSchema.parse(rawInput);
@@ -175,6 +176,7 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
       mime_type: string;
       size_bytes: number;
       run_rag: false;
+      parser: "layout" | "form";
     },
     ParseDocumentOutput
   >("parse_document", {
@@ -186,11 +188,12 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
     mime_type: input.mimeType,
     size_bytes: input.sizeBytes,
     run_rag: false,
+    parser: input.parser,
   });
 }
 
 /**
- * reindexDocumentAction — trigger RAG reindex for a specific document.
+ * reindexDocumentAction — trigger RAG reindex from Layout Parser JSON.
  *
  * Calls the fn `rag_reindex_document` HTTPS callable function from the server
  * side to avoid browser CORS restrictions.
@@ -199,6 +202,6 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
   const input = ReindexDocumentActionInputSchema.parse(rawInput);
   await _callCallable<{ account_id: string; doc_id: string; json_gcs_uri: string }, void>(
     "rag_reindex_document",
-    { account_id: input.accountId, doc_id: input.docId, json_gcs_uri: input.jsonGcsUri },
+    { account_id: input.accountId, doc_id: input.docId, json_gcs_uri: input.layoutJsonGcsUri },
   );
 }
