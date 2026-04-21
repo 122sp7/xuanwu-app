@@ -6,6 +6,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+_MIN_EXPIRY_SECONDS = 60
+_MAX_EXPIRY_SECONDS = 900
+
 
 @dataclass
 class SourcePreviewSignedUrlRequest:
@@ -40,8 +43,10 @@ class SourcePreviewSignedUrlRequest:
         except (TypeError, ValueError) as exc:
             raise ValueError("expires_in_seconds 必須是整數秒數") from exc
 
-        if expires_in_seconds < 60 or expires_in_seconds > 900:
-            raise ValueError("expires_in_seconds 必須介於 60 到 900 秒")
+        if expires_in_seconds < _MIN_EXPIRY_SECONDS or expires_in_seconds > _MAX_EXPIRY_SECONDS:
+            raise ValueError(
+                f"expires_in_seconds 必須介於 {_MIN_EXPIRY_SECONDS} 到 {_MAX_EXPIRY_SECONDS} 秒"
+            )
 
         return cls(
             uid=uid,
