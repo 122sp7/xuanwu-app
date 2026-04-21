@@ -91,15 +91,6 @@ export class Page {
     };
   }
 
-  updateContext(summary?: string, sourceLabel?: string): void {
-    this._props = {
-      ...this._props,
-      summary: summary?.trim() || undefined,
-      sourceLabel: sourceLabel?.trim() || undefined,
-      updatedAtISO: new Date().toISOString(),
-    };
-  }
-
   appendBlock(blockId: string): void {
     if (this._props.blockIds.includes(blockId)) return;
     this._props = {

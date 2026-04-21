@@ -41,12 +41,12 @@ interface WorkspaceTaskFormationSectionProps {
   currentUserId?: string;
 }
 
-type SourceKind = "page" | "database" | "research" | null;
+type SelectedSourceKind = "page" | "database" | "research" | null;
 type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
 
 type ConcreteSource = {
   readonly id: string;
-  readonly kind: Exclude<SourceKind, null>;
+  readonly kind: Exclude<SelectedSourceKind, null>;
   readonly title: string;
   readonly description: string;
   readonly sourceText?: string;
@@ -103,7 +103,7 @@ export function WorkspaceTaskFormationSection({
 }: WorkspaceTaskFormationSectionProps): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [selectedSourceOverride, setSelectedSourceOverride] = useState<SourceKind>(null);
+  const [selectedSourceOverride, setSelectedSourceOverride] = useState<SelectedSourceKind>(null);
   const [selectedReferenceIdOverride, setSelectedReferenceIdOverride] = useState<string | null>(null);
   const [pages, setPages] = useState<PageSnapshot[]>([]);
   const [databases, setDatabases] = useState<DatabaseSnapshot[]>([]);
@@ -161,7 +161,7 @@ export function WorkspaceTaskFormationSection({
 
   const sources = [
     {
-      id: "page" as SourceKind,
+      id: "page" as SelectedSourceKind,
       label: "知識頁面",
       description: `從 workspace 知識頁面萃取任務（目前 ${pages.length} 項）`,
       icon: <FileText className="size-4 text-blue-500" />,
@@ -170,7 +170,7 @@ export function WorkspaceTaskFormationSection({
       activeColor: "border-blue-500/60 bg-blue-500/15",
     },
     {
-      id: "database" as SourceKind,
+      id: "database" as SelectedSourceKind,
       label: "資料庫",
       description: `從結構化知識資料庫萃取任務（目前 ${databases.length} 項）`,
       icon: <LayoutGrid className="size-4 text-purple-500" />,
@@ -179,7 +179,7 @@ export function WorkspaceTaskFormationSection({
       activeColor: "border-purple-500/60 bg-purple-500/15",
     },
     {
-      id: "research" as SourceKind,
+      id: "research" as SelectedSourceKind,
       label: "AI 研究摘要",
       description: "從 notebooklm.research 的 AI 合成結論萃取任務",
       icon: <BookOpen className="size-4 text-emerald-500" />,
@@ -198,7 +198,7 @@ export function WorkspaceTaskFormationSection({
     });
   }
 
-  function handleSelectSource(nextSource: SourceKind) {
+  function handleSelectSource(nextSource: SelectedSourceKind) {
     if (selectedSource === nextSource) {
       router.replace(`${base}?tab=TaskFormation`, { scroll: false });
       setSelectedSourceOverride(null);

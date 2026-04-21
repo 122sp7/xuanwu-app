@@ -42,7 +42,7 @@ export interface CreateDatabaseInput {
 export class Database {
   private constructor(private _props: DatabaseSnapshot) {}
 
-  private static _createDefaultProperty(): DatabaseProperty {
+  private static createDefaultProperty(): DatabaseProperty {
     return {
       id: uuid(),
       name: "名稱",
@@ -54,7 +54,7 @@ export class Database {
     const now = new Date().toISOString();
     const properties = input.properties?.length
       ? input.properties
-      : [Database._createDefaultProperty()];
+      : [Database.createDefaultProperty()];
     return new Database({
       id: uuid(),
       parentPageId: input.parentPageId ?? null,
@@ -79,7 +79,7 @@ export class Database {
     if (!nextName) throw new Error("Property name cannot be empty");
     if (this._props.properties.some((p) => p.id === property.id)) throw new Error(`Property ${property.id} already exists`);
     if (this._props.properties.some((p) => p.name.trim().toLowerCase() === nextName.toLowerCase())) {
-      throw new Error(`Property ${nextName} already exists`);
+      throw new Error(`Property name '${nextName}' already exists (case-insensitive)`);
     }
     this._props = {
       ...this._props,

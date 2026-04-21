@@ -30,6 +30,7 @@ import {
   QueryTemplatesUseCase,
   CreateTemplateUseCase,
 } from "../../subdomains/template/application/use-cases/TemplateUseCases";
+import type { CommandResult } from "@/src/modules/shared";
 import type { CreatePageInput } from "../../subdomains/page/domain/entities/Page";
 import type { CreateDatabaseInput, DatabaseProperty } from "../../subdomains/database/domain/entities/Database";
 
@@ -121,7 +122,10 @@ export async function createDatabase(input: CreateDatabaseInput) {
   return uc.execute(input);
 }
 
-export async function addDatabaseProperty(databaseId: string, property: DatabaseProperty) {
+export async function addDatabaseProperty(
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<CommandResult> {
   const { addProperty: uc } = createClientNotionDatabaseUseCases();
   return uc.execute(databaseId, property);
 }
