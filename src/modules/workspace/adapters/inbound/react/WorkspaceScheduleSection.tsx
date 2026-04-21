@@ -15,6 +15,10 @@ interface WorkspaceScheduleSectionProps {
   workspaceId: string;
 }
 
+function isDemandPriority(value: string): value is DemandPriority {
+  return (DEMAND_PRIORITIES as readonly string[]).includes(value);
+}
+
 export function WorkspaceScheduleSection({
   workspaceId,
 }: WorkspaceScheduleSectionProps): React.ReactElement {

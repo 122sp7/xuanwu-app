@@ -21,7 +21,6 @@ import {
   AccountDashboardRouteScreen,
   OrganizationWorkspacesRouteScreen,
   OrganizationTeamsRouteScreen,
-  OrganizationScheduleRouteScreen,
   OrganizationDispatcherRouteScreen,
   OrganizationDailyRouteScreen,
   OrganizationAuditRouteScreen,
@@ -177,7 +176,7 @@ export function AccountRouteDispatcher({
         if (accountType === "organization") {
           return <OrganizationDispatcherRouteScreen />;
         }
-        return <OrganizationScheduleRouteScreen />;
+        return <OrganizationDispatcherRouteScreen />;
       case "daily":
         if (accountType === "organization") {
           return <WorkspaceAccountDailySection accountId={effectiveAccountId} />;
