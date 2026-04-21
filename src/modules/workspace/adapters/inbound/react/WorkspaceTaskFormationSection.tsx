@@ -120,7 +120,6 @@ export function WorkspaceTaskFormationSection({
   const [jobId, setJobId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmedCount, setConfirmedCount] = useState(0);
-  const [researchSourceText, setResearchSourceText] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
@@ -152,16 +151,15 @@ export function WorkspaceTaskFormationSection({
     };
   }, [accountId, workspaceId]);
 
-  useEffect(() => {
-    const cached = window.localStorage.getItem(getResearchCacheKey(accountId, workspaceId)) ?? "";
-    setResearchSourceText(cached);
-  }, [accountId, workspaceId]);
-
   const pageSources = useMemo(() => pages.map(buildPageSource), [pages]);
   const databaseSources = useMemo(
     () => databases.map((database) => buildDatabaseSource(database, pages)),
     [databases, pages],
   );
+  const researchSourceText = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(getResearchCacheKey(accountId, workspaceId)) ?? "";
+  }, [accountId, workspaceId]);
   const researchSources = useMemo<ConcreteSource[]>(
     () => (researchSourceText.trim().length > 0
       ? [{

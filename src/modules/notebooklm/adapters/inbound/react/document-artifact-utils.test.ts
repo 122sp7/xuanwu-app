@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDatabasePropertiesFromArtifact,
   buildSourceTextFromArtifacts,
-} from "./document-artifact-utils";
+} from "./document-artifact-payload";
 
 describe("document-artifact-utils", () => {
   it("keeps dense AP8 text patterns in source payload", () => {
