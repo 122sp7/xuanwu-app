@@ -1,5 +1,27 @@
 # fn — Agent Guide
 
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+
+## Package / Directory Index
+
+- `.env.example`
+- `main.py`
+- `requirements-dev.txt`
+- `requirements.txt`
+- `src/`
+- `tests/`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `fn/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
+
 ## Purpose
 
 `fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。

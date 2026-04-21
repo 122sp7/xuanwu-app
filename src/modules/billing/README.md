@@ -1,57 +1,26 @@
-﻿# Billing Module
+# Billing Module
 
-## 子域清單
+`src/modules/billing/` 是 計費能力模組；處理 entitlement、subscription、usage-metering。
 
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
-| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
-| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
+## Navigation Index
 
-**術語提醒：**
-- `Subscription` = 計費計劃（billing plan）
-- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
 
----
+## Directory Index（actual directories）
 
-## 預期目錄結構
+- `subdomains/entitlement/`
+- `subdomains/subscription/`
+- `subdomains/usage-metering/`
 
-```
-src/modules/billing/
-  index.ts
-  README.md
-  AGENTS.md
-  shared/
-    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
-    types/index.ts
-  subdomains/
-    entitlement/
-      domain/
-      application/
-      adapters/outbound/
-    subscription/
-      domain/
-      application/
-      adapters/outbound/
-    usage-metering/
-      domain/
-      application/
-      adapters/outbound/
-```
+## Pair Contract
 
----
+- `README.md` 維護 `src/modules/billing/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
 
-## 衝突防護
+## Read Next
 
-| 禁止行為 | 原因 |
-|---|---|
-| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)

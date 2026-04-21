@@ -1,4 +1,23 @@
-﻿# infra/table — Agent Rules
+# infra/table — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/infra/table/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
 
 此套件是 **headless 表格狀態管理的唯一授權來源**，透過 TanStack Table v8 提供排序、過濾、分頁、選取等能力。
 

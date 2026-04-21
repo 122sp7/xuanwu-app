@@ -1,46 +1,39 @@
-﻿# Billing Module — Agent Guide
+# Billing Module — Agent Guide
 
 ## Purpose
 
-`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
+`src/modules/billing/` 是 計費能力模組；處理 entitlement、subscription、usage-metering。
 
-## 子域清單
+## Immediate Index
 
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
-| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
-| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
 
-## Boundary Rules
+## Subdomain Index（actual directories）
 
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
-- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
+- `subdomains/entitlement/`
+- `subdomains/subscription/`
+- `subdomains/usage-metering/`
 
 ## Route Here When
 
-- 撰寫 Billing 的新 use case、entity、adapter 實作。
-- 實作 entitlement check port、subscription repository 等骨架。
+- 需要在 `src/modules/billing/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
 
 ## Route Elsewhere When
 
-- 讀取邊界規則 → `src/modules/billing/AGENTS.md`
-- 跨模組 API boundary → `src/modules/billing/index.ts`
+- 跨模組消費 entitlement / plan → `src/modules/billing/index.ts`
+- 帳號 / 組織 / session → `src/modules/iam/`
 
-## 路由規則
+## Drift Guard
 
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
-| 跨模組 API boundary | `src/modules/billing/index.ts` |
+- `AGENTS.md` 擁有 `src/modules/billing/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
 
-**嚴禁事項：**
-- ❌ 在 barrel 使用 `export *`
+## Related Docs
 
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)

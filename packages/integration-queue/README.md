@@ -1,5 +1,24 @@
 # integration-queue
 
+<!-- nested-index:start -->
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Pair Contract
+
+- `README.md` 保留最短概覽與實際目錄索引。
+- `AGENTS.md` 保留 routing 與放置決策。
+<!-- nested-index:end -->
+
+
 訊息佇列整合層：QStash HTTP publisher 合約與工具函式。
 
 ## 套件結構

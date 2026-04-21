@@ -1,4 +1,22 @@
-﻿# ui-visualization — Agent Rules
+# ui-visualization — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+
+## Package / Directory Index
+
+- `index.tsx`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/ui-visualization/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
 
 此套件提供 **資料視覺化組件**：圖表（charts）、圖形（graphs）、儀表板 widget。
 

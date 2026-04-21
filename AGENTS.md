@@ -1,23 +1,23 @@
 # Repository Entry Points
 
-Use this file as a router only.
+## Immediate Index
 
-## Authority Order
+| Node | Purpose | Agent entry | Human overview |
+|---|---|---|---|
+| `src/` | Next.js app + business modules | [src/AGENTS.md](src/AGENTS.md) | [src/README.md](src/README.md) |
+| `packages/` | shared packages and integrations | [packages/AGENTS.md](packages/AGENTS.md) | [packages/README.md](packages/README.md) |
+| `fn/` | Python Cloud Functions worker runtime | [fn/AGENTS.md](fn/AGENTS.md) | [fn/README.md](fn/README.md) |
+| `docs/` | strategic authority and terminology | — | [docs/README.md](docs/README.md) |
 
-1. `.github/copilot-instructions.md` — workspace-wide behavior rules and skill requirements
-2. `docs/README.md` — strategic architecture and terminology authority
-3. `.github/instructions/*.instructions.md` — scoped implementation and review rules
-4. `src/modules/<context>/AGENTS.md` — module-local routing guidance
+## Nesting Contract
+
+- 先讀本檔，再進入對應目錄的 `AGENTS.md`。
+- `AGENTS.md` 負責 AI routing / nested index；`README.md` 負責人類可讀概覽。
+- 若兩者有重複資訊，先更新擁有者文件，再同步另一份，避免飄移。
 
 ## Quick Links
 
-- Architecture and context ownership: `docs/structure/system/architecture-overview.md`
-- Context map and dependency direction: `docs/structure/system/context-map.md`
-- Ubiquitous language: `docs/structure/domain/ubiquitous-language.md`
-- Hard rules: `docs/structure/system/hard-rules-consolidated.md`
-- Commands and validation: `docs/tooling/commands-reference.md`
-
-## Cleanup Rule
-
-Do not restate strategic rules, API contracts, or context ownership here.
-If a rule already lives in `docs/**/*` or `.github/instructions/*`, update the owner file instead of duplicating it.
+- [docs/structure/system/architecture-overview.md](docs/structure/system/architecture-overview.md)
+- [docs/structure/domain/bounded-contexts.md](docs/structure/domain/bounded-contexts.md)
+- [docs/structure/domain/ubiquitous-language.md](docs/structure/domain/ubiquitous-language.md)
+- [docs/tooling/commands-reference.md](docs/tooling/commands-reference.md)

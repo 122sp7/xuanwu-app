@@ -1,5 +1,28 @@
 # packages/ui-shadcn
 
+<!-- nested-index:start -->
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `hooks/`
+- `index.ts`
+- `lib/`
+- `provider/`
+- `ui/`
+
+## Pair Contract
+
+- `README.md` 保留最短概覽與實際目錄索引。
+- `AGENTS.md` 保留 routing 與放置決策。
+<!-- nested-index:end -->
+
+
 官方 shadcn/ui 組件輸出目錄。**此套件由 shadcn CLI 管理，禁止手動修改 `ui/` 目錄下的任何檔案。**
 
 ---

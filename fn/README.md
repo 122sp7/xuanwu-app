@@ -1,5 +1,27 @@
 # fn — Python Cloud Functions 架構規範
 
+<!-- nested-index:start -->
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+
+## Package / Directory Index
+
+- `.env.example`
+- `main.py`
+- `requirements-dev.txt`
+- `requirements.txt`
+- `src/`
+- `tests/`
+
+## Pair Contract
+
+- `README.md` 保留最短概覽與實際目錄索引。
+- `AGENTS.md` 保留 routing 與放置決策。
+<!-- nested-index:end -->
+
+
 `fn/` 是 Python Cloud Functions worker 層，負責 ingestion、parsing、chunking、embedding 與 background job。
 這份規範以「路徑級依賴」為核心，看完整路徑判斷依賴方向，而非單看資料夾名稱。
 

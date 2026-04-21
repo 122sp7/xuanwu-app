@@ -1,23 +1,23 @@
 # src/app — Agent Guide
 
-路由組合層。只做 page / layout 組裝，不承載業務邏輯。
+## Immediate Index
 
-## Route Here
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
 
-- 新增 page、layout 或 route group。
-- account-scoped 頁面或 parallel / intercepting routes。
+## Route Here When
 
-## Route Elsewhere
+- 新增或修改 page、layout、route group、parallel route。
+- 調整 App Router composition、slot 組合或 route-level loading / error surface。
 
-| 需求 | 目標 |
-|---|---|
-| 業務邏輯 | `src/modules/<context>/application/use-cases/` |
-| Server Action | `modules/<context>/interfaces/_actions/` |
-| 共享 UI 元件 | `packages/ui-shadcn/` |
-| 業務無關 hook | `packages/ui-components/` |
+## Route Elsewhere When
 
-## Hard Rules
+- 業務規則、use case、domain entity → `src/modules/<context>/`
+- 共享 UI primitive → `packages/`
+- 背景 worker / parsing / embedding pipeline → `fn/`
 
-- 不呼叫 repository、Firebase SDK，不引用模組內部路徑。
-- Route props 只傳 `accountId`、`workspaceId`，不傳 aggregate 物件。
-- 能用既有 route group 就不要新開 group。
+## Drift Guard
+
+- `AGENTS.md` 管路由與 routing。
+- `README.md` 管 App Router 概覽。

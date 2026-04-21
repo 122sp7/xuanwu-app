@@ -1,55 +1,32 @@
-﻿# infra — Agent Rules
+# infra — Agent Rules
 
-此目錄是 **本地基礎設施原語（infra primitives）** 的唯一存放層。
-所有套件均**無外部服務依賴**，離線可用，不需要憑證。
+## Immediate Index
 
----
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
 
-## 子套件一覽
+## Subpackage Index
 
-| 子套件 | alias | 職責 |
-|---|---|---|
-| `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務 atom / slice） |
-| `infra/date` | `@infra/date` | 日期解析、格式化、比較與區間工具 |
-| `infra/form` | `@infra/form` | headless 表單狀態管理原語 |
-| `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
-| `infra/query` | `@infra/query` | TanStack Query server-state 原語 |
-| `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
-| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
-| `infra/table` | `@infra/table` | TanStack Table headless 表格原語 |
-| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider |
-| `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一 id 來源） |
-| `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
+- `client-state/` — client-side 狀態原語。 ([AGENTS.md](client-state/AGENTS.md) / [README.md](client-state/README.md))
+- `date/` — 日期與時間工具原語。 ([AGENTS.md](date/AGENTS.md) / [README.md](date/README.md))
+- `form/` — headless 表單狀態原語。 ([AGENTS.md](form/AGENTS.md) / [README.md](form/README.md))
+- `http/` — HTTP 工具原語。 ([AGENTS.md](http/AGENTS.md) / [README.md](http/README.md))
+- `query/` — server-state query 原語。 ([AGENTS.md](query/AGENTS.md) / [README.md](query/README.md))
+- `serialization/` — 序列化 / 反序列化原語。 ([AGENTS.md](serialization/AGENTS.md) / [README.md](serialization/README.md))
+- `state/` — Zustand / XState 封裝原語。 ([AGENTS.md](state/AGENTS.md) / [README.md](state/README.md))
+- `table/` — headless 表格原語。 ([AGENTS.md](table/AGENTS.md) / [README.md](table/README.md))
+- `trpc/` — tRPC client / provider 原語。 ([AGENTS.md](trpc/AGENTS.md) / [README.md](trpc/README.md))
+- `uuid/` — UUID 生成與驗證原語。 ([AGENTS.md](uuid/AGENTS.md) / [README.md](uuid/README.md))
+- `virtual/` — 長清單虛擬化原語。 ([AGENTS.md](virtual/AGENTS.md) / [README.md](virtual/README.md))
+- `zod/` — Zod schema helper 原語。 ([AGENTS.md](zod/AGENTS.md) / [README.md](zod/README.md))
 
----
+## Routing Rules
 
-## 核心規則
+- `packages/infra/*` 只放本地 infra primitive。
+- 需要外部服務 / credentials / network 的能力改放 `packages/integration-*`。
+- 子套件清單以實際目錄為準。
 
-- 所有 `infra/*` 套件**不得依賴任何外部服務**（Firebase、Google AI、QStash…）
-- 不得 import `src/modules/*` 的任何路徑
-- 每個子套件的 `index.ts` 是唯一公開入口
-- 新增套件前，先確認它是「本地原語」而非「外部服務整合」
+## Drift Guard
 
-## 公開入口檢查
-
-- `infra/client-state/index.ts`
-- `infra/date/index.ts`
-- `infra/form/index.ts`
-- `infra/http/index.ts`
-- `infra/query/index.ts`
-- `infra/serialization/index.ts`
-- `infra/state/index.ts`
-- `infra/table/index.ts`
-- `infra/trpc/index.ts`
-- `infra/uuid/index.ts`
-- `infra/zod/index.ts`
-
-若新增或刪除 `infra/*` 子套件，需同步更新 `packages/index.ts` 的具名匯出。
-
-## Route Elsewhere
-
-| 類型 | 正確位置 |
-|---|---|
-| 需要 credentials / 網路 / 第三方帳號 | `packages/integration-*` |
-| 業務邏輯 | `src/modules/<context>/domain/` 或 `application/` |
-| UI 元件 | `packages/ui-*` |
+- `AGENTS.md` 管 routing 與 nested index。
+- `README.md` 管 infra 子套件總覽。

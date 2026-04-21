@@ -1,33 +1,30 @@
-# Infra Packages
+# packages/infra
 
-`packages/infra/` 是本 repo 的**本地基礎設施原語層**。
-這些套件可被 `src/app/` 與 `src/modules/` 重用，但不得攜帶業務語意，也不得依賴外部服務。
+`packages/infra/` 是本 repo 的本地 infra primitive 集合。這份文件只維護實際子套件索引。
 
-## 套件清單
+## Navigation Index
 
-| 套件 | alias | 用途 |
-|---|---|---|
-| `client-state` | `@infra/client-state` | client-side 狀態工具 |
-| `date` | `@infra/date` | date-fns 日期解析、格式化與比較工具 |
-| `form` | `@infra/form` | TanStack Form headless 表單原語 |
-| `http` | `@infra/http` | HTTP 請求工具 |
-| `query` | `@infra/query` | TanStack Query server-state 原語 |
-| `serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
-| `state` | `@infra/state` | Zustand / XState 本地狀態原語 |
-| `table` | `@infra/table` | TanStack Table headless 表格原語 |
-| `trpc` | `@infra/trpc` | tRPC 客戶端與 Provider 原語 |
-| `uuid` | `@infra/uuid` | UUID 生成與驗證 |
-| `virtual` | `@infra/virtual` | 虛擬化列表 / 視窗化工具 |
-| `zod` | `@infra/zod` | Zod schema / brand helper 原語 |
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
 
-## Guardrails
+## Subpackage Index（actual directories）
 
-- 僅放置可跨模組重用的本地原語
-- 不得 import `src/modules/*`
-- 不得依賴 Firebase、Genkit、QStash 等外部服務
-- 每個子套件以自己的 `index.ts` 作為唯一公開入口
+| Package | Overview | Agent entry | Public boundary |
+|---|---|---|---|
+| `client-state/` | [README.md](client-state/README.md) | [AGENTS.md](client-state/AGENTS.md) | [index.ts](client-state/index.ts) |
+| `date/` | [README.md](date/README.md) | [AGENTS.md](date/AGENTS.md) | [index.ts](date/index.ts) |
+| `form/` | [README.md](form/README.md) | [AGENTS.md](form/AGENTS.md) | [index.ts](form/index.ts) |
+| `http/` | [README.md](http/README.md) | [AGENTS.md](http/AGENTS.md) | [index.ts](http/index.ts) |
+| `query/` | [README.md](query/README.md) | [AGENTS.md](query/AGENTS.md) | [index.ts](query/index.ts) |
+| `serialization/` | [README.md](serialization/README.md) | [AGENTS.md](serialization/AGENTS.md) | [index.ts](serialization/index.ts) |
+| `state/` | [README.md](state/README.md) | [AGENTS.md](state/AGENTS.md) | [index.ts](state/index.ts) |
+| `table/` | [README.md](table/README.md) | [AGENTS.md](table/AGENTS.md) | [index.ts](table/index.ts) |
+| `trpc/` | [README.md](trpc/README.md) | [AGENTS.md](trpc/AGENTS.md) | [index.ts](trpc/index.ts) |
+| `uuid/` | [README.md](uuid/README.md) | [AGENTS.md](uuid/AGENTS.md) | [index.ts](uuid/index.ts) |
+| `virtual/` | [README.md](virtual/README.md) | [AGENTS.md](virtual/AGENTS.md) | [index.ts](virtual/index.ts) |
+| `zod/` | [README.md](zod/README.md) | [AGENTS.md](zod/AGENTS.md) | [index.ts](zod/index.ts) |
 
-## Read Next
+## Pair Contract
 
-- `packages/infra/AGENTS.md`
-- `packages/README.md`
+- `README.md` 維護 infra 子套件實際索引。
+- `AGENTS.md` 維護放置與 routing 規則。
