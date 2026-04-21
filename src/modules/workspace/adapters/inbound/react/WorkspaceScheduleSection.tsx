@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * WorkspaceScheduleSection — workspace.schedule tab — project timeline / milestones.
+ * WorkspaceScheduleSection — workspace.schedule tab — workspace demand planning.
  */
 
-import { Badge, Button } from "@packages";
+import { Badge, Button, Input, Textarea } from "@packages";
 import { CalendarRange, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
-import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
+import type { DemandPriority, WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
 import { createWorkDemandAction } from "../server-actions/schedule-actions";
+import { parseLocalDatetimeInput, toLocalDatetimeInputValue } from "./workspace-schedule-datetime";
 const scheduleUseCases = createClientScheduleUseCases();
 
 interface WorkspaceScheduleSectionProps {
@@ -26,7 +27,15 @@ export function WorkspaceScheduleSection({
   const { listWorkDemandsByWorkspace } = scheduleUseCases;
   const [period, setPeriod] = useState("本週");
   const [demands, setDemands] = useState<WorkDemandSnapshot[]>([]);
-  const [isCreatingBaseline, setIsCreatingBaseline] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<DemandPriority>("medium");
+  const [scheduledAtLocal, setScheduledAtLocal] = useState(() => {
+    const nextDay = new Date();
+    nextDay.setDate(nextDay.getDate() + 1);
+    return toLocalDatetimeInputValue(nextDay);
+  });
+  const [isCreatingDemand, setIsCreatingDemand] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
   async function loadDemands(): Promise<void> {
@@ -44,32 +53,41 @@ export function WorkspaceScheduleSection({
     return () => { active = false; };
   }, [listWorkDemandsByWorkspace, workspaceId]);
 
-  async function handleCreateBaseline(): Promise<void> {
+  async function handleCreateDemand(): Promise<void> {
     if (!currentUserId) {
       setCreateError("尚未取得操作者身分，請重新登入後再試。");
       return;
     }
-    setIsCreatingBaseline(true);
+    const normalizedTitle = title.trim();
+    if (!normalizedTitle) {
+      setCreateError("請先輸入排程標題。");
+      return;
+    }
+    const scheduledAt = parseLocalDatetimeInput(scheduledAtLocal);
+    if (!scheduledAt) {
+      setCreateError("排程時間格式不正確，請重新選擇。");
+      return;
+    }
+    setIsCreatingDemand(true);
     setCreateError(null);
-    const now = new Date();
-    const baselineDate = new Date(now);
-    baselineDate.setDate(now.getDate() + 7);
     const result = await createWorkDemandAction({
       workspaceId,
       accountId,
       requesterId: currentUserId,
-      title: "基線里程碑",
-      description: "初始化工作區排程基線",
-      priority: "medium",
-      scheduledAt: baselineDate.toISOString(),
+      title: normalizedTitle,
+      description: description.trim(),
+      priority,
+      scheduledAt,
     });
     if (!result.success) {
       setCreateError(result.error.message);
-      setIsCreatingBaseline(false);
+      setIsCreatingDemand(false);
       return;
     }
+    setTitle("");
+    setDescription("");
     await loadDemands();
-    setIsCreatingBaseline(false);
+    setIsCreatingDemand(false);
   }
 
   return (
@@ -80,10 +98,49 @@ export function WorkspaceScheduleSection({
           <CalendarRange className="size-4 text-primary" />
           <h2 className="text-sm font-semibold">排程</h2>
         </div>
-        <Button size="sm" variant="outline" onClick={() => void handleCreateBaseline()} disabled={isCreatingBaseline}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void handleCreateDemand()}
+          disabled={isCreatingDemand || !title.trim()}
+        >
           <Plus className="size-3.5" />
-          {isCreatingBaseline ? "建立中…" : "建立基線"}
+          {isCreatingDemand ? "建立中…" : "新增排程事項"}
         </Button>
+      </div>
+
+      <div className="grid gap-2 rounded-xl border border-border/40 bg-card/30 p-3 sm:grid-cols-2">
+        <Input
+          placeholder="排程標題（例如：現場驗收）"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          maxLength={200}
+        />
+        <Input
+          type="datetime-local"
+          value={scheduledAtLocal}
+          onChange={(event) => setScheduledAtLocal(event.target.value)}
+        />
+        <select
+          value={priority}
+          onChange={(event) => setPriority(event.target.value as DemandPriority)}
+          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+          aria-label="排程優先度"
+        >
+          <option value="low">低</option>
+          <option value="medium">中</option>
+          <option value="high">高</option>
+        </select>
+        <div className="hidden sm:block" />
+        <div className="sm:col-span-2">
+          <Textarea
+            placeholder="工作內容說明（選填）"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            maxLength={2000}
+            rows={3}
+          />
+        </div>
       </div>
 
       {createError && (
@@ -128,20 +185,10 @@ export function WorkspaceScheduleSection({
           <div className="absolute left-6 top-0 h-full w-px bg-border/30" />
           <div className="px-4 py-8 text-center">
             <CalendarRange className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-            <p className="text-sm font-medium text-muted-foreground">尚無排程里程碑</p>
+            <p className="text-sm font-medium text-muted-foreground">尚無工作排程</p>
             <p className="mt-1 text-xs text-muted-foreground/70">
-              建立里程碑後，時間軸將顯示專案進度與截止日期。
+              建立排程事項後，將顯示此工作區何時需要執行哪些工作。
             </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-4"
-              onClick={() => void handleCreateBaseline()}
-              disabled={isCreatingBaseline}
-            >
-              <Plus className="size-3.5" />
-              {isCreatingBaseline ? "建立中…" : "建立第一個基線"}
-            </Button>
           </div>
         </div>
       )}

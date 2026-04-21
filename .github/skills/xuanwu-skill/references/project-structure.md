@@ -785,27 +785,6 @@ src/
             repositories/
               ConversationRepository.ts (15 lines)
             index.ts (0 lines)
-        document/
-          adapters/
-            inbound/
-              index.ts (2 lines)
-            outbound/
-              firestore/
-                FirestoreDocumentRepository.ts (108 lines)
-              memory/
-                InMemoryDocumentRepository.ts (14 lines)
-              index.ts (2 lines)
-            index.ts (1 lines)
-          application/
-            use-cases/
-              DocumentUseCases.ts (17 lines)
-            index.ts (0 lines)
-          domain/
-            entities/
-              Document.ts (106 lines)
-            repositories/
-              DocumentRepository.ts (24 lines)
-            index.ts (0 lines)
         notebook/
           adapters/
             inbound/
@@ -832,6 +811,8 @@ src/
             inbound/
               index.ts (1 lines)
             outbound/
+              firestore/
+                FirestoreIngestionSourceRepository.ts (117 lines)
               memory/
                 InMemoryIngestionSourceRepository.ts (14 lines)
               index.ts (0 lines)
@@ -842,7 +823,7 @@ src/
             index.ts (0 lines)
           domain/
             entities/
-              IngestionSource.ts (71 lines)
+              IngestionSource.ts (117 lines)
             repositories/
               IngestionSourceRepository.ts (24 lines)
             index.ts (0 lines)
@@ -863,7 +844,7 @@ src/
               SynthesisPort.ts (8 lines)
             index.ts (0 lines)
       AGENTS.md (59 lines)
-      index.ts (16 lines)
+      index.ts (14 lines)
       README.md (70 lines)
     notion/
       adapters/
@@ -1425,12 +1406,13 @@ src/
         inbound/
           react/
             account-scoped-workspace.ts (13 lines)
-            AccountRouteDispatcher.tsx (68 lines)
+            AccountRouteDispatcher.tsx (67 lines)
             index.ts (6 lines)
             useWorkspaceScope.ts (8 lines)
             workspace-audit-filter.ts (5 lines)
             workspace-nav-model.ts (174 lines)
             workspace-route-screens.tsx (84 lines)
+            workspace-schedule-datetime.ts (5 lines)
             workspace-shell-interop.tsx (166 lines)
             workspace-ui-stubs.tsx (18 lines)
             WorkspaceAccountDailySection.tsx (19 lines)
@@ -1443,7 +1425,7 @@ src/
             WorkspaceMembersSection.tsx (32 lines)
             WorkspaceOverviewSection.tsx (72 lines)
             WorkspaceQualitySection.tsx (30 lines)
-            WorkspaceScheduleSection.tsx (24 lines)
+            WorkspaceScheduleSection.tsx (25 lines)
             WorkspaceScopeProvider.tsx (39 lines)
             WorkspaceSettingsSection.tsx (26 lines)
             WorkspaceSettlementSection.tsx (31 lines)
