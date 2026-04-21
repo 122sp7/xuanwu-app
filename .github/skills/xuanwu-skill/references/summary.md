@@ -42,16 +42,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1181 files | 30,978 lines
+1181 files | 30,932 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 898 | 13,209 |
-| Markdown | 128 | 12,274 |
+| Markdown | 128 | 12,229 |
 | Python | 70 | 1,931 |
-| TypeScript (TSX) | 53 | 2,510 |
+| TypeScript (TSX) | 53 | 2,506 |
 | No Extension | 17 | 17 |
-| JSON | 6 | 724 |
+| JSON | 6 | 727 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
 | EXAMPLE | 1 | 65 |
@@ -61,7 +61,7 @@ This skill contains the following reference files:
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
-- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (374 lines)
+- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
 - `docs/decisions/domain/0005-purchase-order-source-domain-model.md` (283 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `src/modules/template/README.md` (266 lines)

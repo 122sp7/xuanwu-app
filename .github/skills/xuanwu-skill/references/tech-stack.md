@@ -90,6 +90,7 @@
 - eslint-plugin-react (^7.37.5)
 - eslint-plugin-react-hooks (^7.0.1)
 - eslint-plugin-sonarjs (^4.0.3)
+- markdownlint-cli2 (^0.22.0)
 - repomix (^1.12.0)
 - tailwindcss (^4)
 - tailwindcss-animate (^1.0.7)
