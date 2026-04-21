@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/main/schema/markdownlint-cli2-config-schema.json",
+  "gitignore": true,
+  "globs": [
+    "*.md",
+    ".github/**/*.md",
+    "docs/**/*.md",
+    "fn/**/*.md",
+    "packages/**/*.md",
+    "public/**/*.md",
+    "src/**/*.md"
+  ],
+  "ignores": [
+    ".github/skills/**/*.md",
+    ".serena/**/*.md"
+  ],
+  "noBanner": true,
+  "noProgress": true,
+  "config": {
+    // Keep the initial baseline intentionally narrow so the rule set matches
+    // the existing governance-heavy markdown corpus while still enforcing
+    // repo-wide style consistency for the most visible formatting choices.
+    "default": false,
+    "MD003": { "style": "atx" },
+    "MD004": { "style": "dash" },
+    "MD035": { "style": "---" },
+    "MD050": { "style": "asterisk" }
+  }
+}

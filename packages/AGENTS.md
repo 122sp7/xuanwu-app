@@ -11,9 +11,13 @@
 | 類型 | 正確套件 |
 |---|---|
 | client-side 狀態原語（非業務） | `infra/client-state/` → `@infra/client-state` |
+| 日期解析、格式化與比較 | `infra/date/` → `@infra/date` |
+| headless 表單狀態管理 | `infra/form/` → `@infra/form` |
 | HTTP 工具（fetch wrapper、retry） | `infra/http/` → `@infra/http` |
+| Server-state query / mutation 原語 | `infra/query/` → `@infra/query` |
 | 序列化 / 反序列化工具 | `infra/serialization/` → `@infra/serialization` |
 | 本地狀態管理原語（Zustand store factory、XState machine helpers） | `infra/state/` → `@infra/state` |
+| Headless 表格狀態管理 | `infra/table/` → `@infra/table` |
 | tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） | `infra/trpc/` → `@infra/trpc` |
 | UUID 生成（domain 層 id 的唯一來源） | `infra/uuid/` → `@infra/uuid` |
 | Zod 共用 schema 片段、brand helper | `infra/zod/` → `@infra/zod` |
@@ -87,9 +91,13 @@ import { getFirestore } from 'firebase/firestore'
 
 **infra/***
 - [infra/client-state/AGENTS.md](./infra/client-state/AGENTS.md)
+- [infra/date/AGENTS.md](./infra/date/AGENTS.md)
+- [infra/form/AGENTS.md](./infra/form/AGENTS.md)
 - [infra/http/AGENTS.md](./infra/http/AGENTS.md)
+- [infra/query/AGENTS.md](./infra/query/AGENTS.md)
 - [infra/serialization/AGENTS.md](./infra/serialization/AGENTS.md)
 - [infra/state/AGENTS.md](./infra/state/AGENTS.md)
+- [infra/table/AGENTS.md](./infra/table/AGENTS.md)
 - [infra/trpc/AGENTS.md](./infra/trpc/AGENTS.md)
 - [infra/uuid/AGENTS.md](./infra/uuid/AGENTS.md)
 - [infra/zod/AGENTS.md](./infra/zod/AGENTS.md)
