@@ -14,6 +14,7 @@ from firebase_functions import https_fn
 
 from application.use_cases.parse_document_command import execute_parse_document_command
 from application.use_cases.parse_document_pipeline import ParseDocumentCommand
+from core.auth_errors import AuthorizationError, UnauthenticatedError
 from core.storage_uri import parse_gs_uri
 from interface.handlers._https_helpers import _extract_auth_uid
 from interface.schemas.parse_document import ParseDocumentRequest
@@ -64,13 +65,16 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 run_rag=schema.run_rag,
             ),
         )
-    except PermissionError as exc:
-        code = (
-            https_fn.FunctionsErrorCode.UNAUTHENTICATED
-            if "登入" in str(exc)
-            else https_fn.FunctionsErrorCode.PERMISSION_DENIED
-        )
-        raise https_fn.HttpsError(code, str(exc)) from exc
+    except UnauthenticatedError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            str(exc),
+        ) from exc
+    except AuthorizationError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            str(exc),
+        ) from exc
     except ValueError as exc:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,

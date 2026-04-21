@@ -14,6 +14,7 @@ from firebase_functions import https_fn
 
 from application.use_cases.rag_reindex_command import execute_rag_reindex_command
 from application.use_cases.rag_reindex import RagReindexCommand
+from core.auth_errors import AuthorizationError, UnauthenticatedError
 from interface.handlers._https_helpers import _extract_auth_uid
 from interface.schemas.rag_reindex import RagReindexRequest
 
@@ -60,13 +61,16 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
             str(exc),
         ) from exc
-    except PermissionError as exc:
-        code = (
-            https_fn.FunctionsErrorCode.UNAUTHENTICATED
-            if "登入" in str(exc)
-            else https_fn.FunctionsErrorCode.PERMISSION_DENIED
-        )
-        raise https_fn.HttpsError(code, str(exc)) from exc
+    except UnauthenticatedError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            str(exc),
+        ) from exc
+    except AuthorizationError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            str(exc),
+        ) from exc
     except RuntimeError as exc:
         logger.exception(
             "rag_reindex_document failed for %s: %s", schema.doc_id, exc
