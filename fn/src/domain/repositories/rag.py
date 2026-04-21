@@ -250,16 +250,89 @@ def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None
 
 
 class _ComposedDocumentPipelineGateway:
-    def __getattr__(self, name: str) -> Any:
-        for gateway in (
-            get_document_parser_gateway(),
-            get_document_rate_limit_gateway(),
-            get_document_status_gateway(),
-            get_document_artifact_gateway(),
-        ):
-            if hasattr(gateway, name):
-                return getattr(gateway, name)
-        raise AttributeError(name)
+    """Legacy compatibility facade over the split document ports."""
+
+    def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any:
+        return get_document_parser_gateway().process_document_gcs(
+            gcs_uri=gcs_uri,
+            mime_type=mime_type,
+            parser=parser,
+        )
+
+    def redis_fixed_window_allow(
+        self,
+        key: str,
+        max_requests: int,
+        window_seconds: int,
+    ) -> tuple[bool, int]:
+        return get_document_rate_limit_gateway().redis_fixed_window_allow(
+            key=key,
+            max_requests=max_requests,
+            window_seconds=window_seconds,
+        )
+
+    def init_document(self, **kwargs: Any) -> None:
+        get_document_status_gateway().init_document(**kwargs)
+
+    def update_parsed(self, **kwargs: Any) -> None:
+        get_document_status_gateway().update_parsed(**kwargs)
+
+    def update_parsed_layout(self, **kwargs: Any) -> None:
+        get_document_status_gateway().update_parsed_layout(**kwargs)
+
+    def update_parsed_form(self, **kwargs: Any) -> None:
+        get_document_status_gateway().update_parsed_form(**kwargs)
+
+    def update_parsed_ocr(self, **kwargs: Any) -> None:
+        get_document_status_gateway().update_parsed_ocr(**kwargs)
+
+    def update_parsed_genkit(self, **kwargs: Any) -> None:
+        get_document_status_gateway().update_parsed_genkit(**kwargs)
+
+    def mark_rag_ready(self, **kwargs: Any) -> None:
+        get_document_status_gateway().mark_rag_ready(**kwargs)
+
+    def record_error(self, doc_id: str, message: str, account_id: str) -> None:
+        get_document_status_gateway().record_error(
+            doc_id=doc_id,
+            message=message,
+            account_id=account_id,
+        )
+
+    def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None:
+        get_document_status_gateway().record_rag_error(
+            doc_id=doc_id,
+            message=message,
+            account_id=account_id,
+        )
+
+    def parsed_json_path(self, upload_object_path: str) -> str:
+        return get_document_artifact_gateway().parsed_json_path(upload_object_path)
+
+    def layout_json_path(self, upload_object_path: str) -> str:
+        return get_document_artifact_gateway().layout_json_path(upload_object_path)
+
+    def form_json_path(self, upload_object_path: str) -> str:
+        return get_document_artifact_gateway().form_json_path(upload_object_path)
+
+    def ocr_json_path(self, upload_object_path: str) -> str:
+        return get_document_artifact_gateway().ocr_json_path(upload_object_path)
+
+    def genkit_json_path(self, upload_object_path: str) -> str:
+        return get_document_artifact_gateway().genkit_json_path(upload_object_path)
+
+    def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str:
+        return get_document_artifact_gateway().upload_json(
+            bucket_name=bucket_name,
+            object_path=object_path,
+            data=data,
+        )
+
+    def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes:
+        return get_document_artifact_gateway().download_bytes(
+            bucket_name=bucket_name,
+            object_path=object_path,
+        )
 
 
 def get_document_pipeline_gateway() -> DocumentPipelineGateway:

@@ -85,7 +85,9 @@ def execute_rag_reindex(
 
     text = str(payload.get("text", "")).strip()
     if not text:
-        raise ValueError("layout JSON 缺少 text 欄位，請先執行「解析文件(Layout Parser)」")
+        raise ValueError(
+            "artifact JSON 缺少 text 欄位，請先使用 Layout Parser 或 OCR Processor 解析文件"
+        )
 
     source_gcs_uri = cmd.source_gcs_uri or str(payload.get("source_gcs_uri", "")).strip()
 

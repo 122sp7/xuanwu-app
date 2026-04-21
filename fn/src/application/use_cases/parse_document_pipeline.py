@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable, Protocol
 
 from application.services.document_pipeline import (
     get_document_artifact_gateway,
@@ -29,6 +29,13 @@ from domain.repositories import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ParsedDocumentLike(Protocol):
+    text: str
+    page_count: int
+    chunks: list[dict[str, Any]]
+    entities: list[dict[str, Any]]
 
 
 @dataclass
@@ -163,7 +170,7 @@ def execute_parse_document(
 def _write_artifact_and_update_state(
     *,
     cmd: ParseDocumentCommand,
-    parsed: object,
+    parsed: ParsedDocumentLike,
     extraction_ms: int,
     artifact_gateway: DocumentArtifactGateway,
     status_gateway: DocumentStatusGateway,
