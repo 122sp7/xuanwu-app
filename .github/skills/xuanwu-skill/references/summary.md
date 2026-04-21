@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .github/copilot-instructions.md, docs/**, src/app/**, src/modules/ai/**, src/modules/analytics/**, src/modules/billing/**, src/modules/notebooklm/**, src/modules/notion/**, src/modules/platform/**, src/modules/shared/**, src/modules/template/**, src/modules/workspace/**, src/modules/iam/index.ts, src/packages/index.ts, fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, llms.txt, next.config.ts, package.json, postcss.config.mjs, tailwind.config.ts, tsconfig.json
+- Only files matching these patterns are included: .github/copilot-instructions.md, docs/**, src/app/**, src/modules/ai/**, src/modules/analytics/**, src/modules/billing/**, src/modules/notebooklm/**, src/modules/notion/**, src/modules/platform/**, src/modules/shared/**, src/modules/template/**, src/modules/workspace/**, src/modules/iam/**, src/packages/**, fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, llms.txt, next.config.ts, package.json, postcss.config.mjs, tailwind.config.ts, tsconfig.json
 - Files matching these patterns are excluded: fn/tests/**, **/*.test.ts, *.md, .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1047 files | 28,246 lines
+1182 files | 31,063 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 767 | 10,639 |
-| Markdown | 126 | 12,129 |
-| Python | 72 | 2,010 |
-| TypeScript (TSX) | 50 | 2,414 |
+| TypeScript | 897 | 13,210 |
+| Markdown | 128 | 12,274 |
+| Python | 72 | 2,017 |
+| TypeScript (TSX) | 53 | 2,508 |
 | No Extension | 17 | 17 |
 | JSON | 6 | 724 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
-| EXAMPLE | 1 | 65 |
+| YAML | 1 | 64 |
 | CSS | 1 | 47 |
-| Other | 2 | 83 |
+| Other | 2 | 84 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
