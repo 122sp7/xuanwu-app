@@ -14,9 +14,11 @@ from __future__ import annotations
 from interface.handlers.parse_document import handle_parse_document
 from interface.handlers.rag_query_handler import handle_rag_query
 from interface.handlers.rag_reindex_handler import handle_rag_reindex_document
+from interface.handlers.source_preview_signed_url import handle_document_preview_signed_url
 
 __all__ = [
     "handle_parse_document",
+    "handle_document_preview_signed_url",
     "handle_rag_query",
     "handle_rag_reindex_document",
 ]

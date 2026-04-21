@@ -87,6 +87,12 @@ const ReindexDocumentActionInputSchema = z.object({
   layoutJsonGcsUri: z.string().min(1, "layout_json_gcs_uri 為必填欄位（文件尚未完成 Layout Parser 解析？）"),
 });
 
+const DocumentPreviewSignedUrlInputSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+  gcsUri: z.string().min(1),
+});
+
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 /**
@@ -204,4 +210,28 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
     "rag_reindex_document",
     { account_id: input.accountId, doc_id: input.docId, json_gcs_uri: input.layoutJsonGcsUri },
   );
+}
+
+/**
+ * getDocumentPreviewSignedUrlAction — request short-lived signed URL for preview.
+ */
+export async function getDocumentPreviewSignedUrlAction(rawInput: unknown): Promise<{
+  preview_url: string;
+  expires_at_iso: string;
+}> {
+  const input = DocumentPreviewSignedUrlInputSchema.parse(rawInput);
+  return _callCallable<
+    {
+      account_id: string;
+      workspace_id: string;
+      gcs_uri: string;
+      expires_in_seconds: number;
+    },
+    { preview_url: string; expires_at_iso: string }
+  >("document_preview_signed_url", {
+    account_id: input.accountId,
+    workspace_id: input.workspaceId,
+    gcs_uri: input.gcsUri,
+    expires_in_seconds: 300,
+  });
 }

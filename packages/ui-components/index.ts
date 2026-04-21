@@ -51,3 +51,6 @@ export const EmptyState = ({ title, description }: EmptyStateProps) =>
       ? createElement("p", { className: "mt-2 text-sm text-muted-foreground" }, description)
       : null,
   );
+
+export const createGoogleViewerEmbedUrl = (sourceUrl: string): string =>
+  `https://docs.google.com/viewer?url=${encodeURIComponent(sourceUrl)}&embedded=true`;

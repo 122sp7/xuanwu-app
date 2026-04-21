@@ -13,7 +13,7 @@
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
-import { Button } from "@packages";
+import { Button, createGoogleViewerEmbedUrl } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -30,10 +30,10 @@ import {
   createDatabaseFromDocumentAction,
   parseDocumentAction,
   reindexDocumentAction,
+  getDocumentPreviewSignedUrlAction,
 } from "../server-actions/document-actions";
 import {
   uploadDocumentToStorage,
-  getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
@@ -57,10 +57,6 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tiff",
   "image/tif",
 ]);
-
-function googleDocViewerUrl(downloadUrl: string): string {
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(downloadUrl)}&embedded=true`;
-}
 
 // ── Per-document action state ─────────────────────────────────────────────────
 
@@ -153,8 +149,12 @@ export function NotebooklmSourcesSection({
     setPreviewError(null);
     setPreviewLoading(true);
     try {
-      const url = await getDocumentDownloadUrl(doc.storageUrl);
-      setPreviewUrl(url);
+      const signed = await getDocumentPreviewSignedUrlAction({
+        accountId,
+        workspaceId,
+        gcsUri: doc.storageUrl,
+      });
+      setPreviewUrl(signed.preview_url);
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : "無法取得預覽連結");
     } finally {
@@ -858,7 +858,7 @@ export function NotebooklmSourcesSection({
               )}
               {previewUrl && (
                 <iframe
-                  src={googleDocViewerUrl(previewUrl)}
+                  src={createGoogleViewerEmbedUrl(previewUrl)}
                   className="h-full w-full border-0"
                   title={`預覽：${previewDoc.name}`}
                   sandbox="allow-scripts allow-same-origin allow-popups"

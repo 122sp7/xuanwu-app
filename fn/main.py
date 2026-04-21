@@ -30,6 +30,7 @@ from core.config import UPLOAD_BUCKET, GCP_REGION
 from interface.handlers import (
     handle_object_finalized,
     handle_parse_document,
+    handle_document_preview_signed_url,
     handle_rag_query,
     handle_rag_reindex_document,
 )
@@ -83,3 +84,9 @@ def rag_query(req: https_fn.CallableRequest) -> dict:
 def rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     """手動重新整理文件（normalization + ingestion）。"""
     return handle_rag_reindex_document(req)
+
+
+@https_fn.on_call()
+def document_preview_signed_url(req: https_fn.CallableRequest) -> dict:
+    """產生來源檔案預覽用的短效 signed URL。"""
+    return handle_document_preview_signed_url(req)
