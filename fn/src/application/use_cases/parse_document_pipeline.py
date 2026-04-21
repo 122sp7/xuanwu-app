@@ -14,9 +14,19 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from typing import Callable
 
-from application.services.document_pipeline import get_document_pipeline
+from application.services.document_pipeline import (
+    get_document_artifact_gateway,
+    get_document_parser,
+    get_document_status_gateway,
+)
 from application.use_cases.rag_ingestion import ingest_document_for_rag
+from domain.repositories import (
+    DocumentArtifactGateway,
+    DocumentParserGateway,
+    DocumentStatusGateway,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,16 +61,25 @@ class ParseDocumentResult:
     rag_vector_count: int | None = None
 
 
-def execute_parse_document(cmd: ParseDocumentCommand) -> ParseDocumentResult:
+def execute_parse_document(
+    cmd: ParseDocumentCommand,
+    *,
+    parser_gateway: DocumentParserGateway | None = None,
+    artifact_gateway: DocumentArtifactGateway | None = None,
+    status_gateway: DocumentStatusGateway | None = None,
+    ingest_for_rag: Callable[..., object] = ingest_document_for_rag,
+) -> ParseDocumentResult:
     """Orchestrate the full parse pipeline for a single document.
 
     Raises:
         Exception: propagated from DocumentAI / GCS / Firestore calls;
                    callers are responsible for error recording.
     """
-    runtime = get_document_pipeline()
+    parser_gateway = parser_gateway or get_document_parser()
+    artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+    status_gateway = status_gateway or get_document_status_gateway()
 
-    runtime.init_document(
+    status_gateway.init_document(
         doc_id=cmd.doc_id,
         gcs_uri=cmd.gcs_uri,
         filename=cmd.filename,
@@ -71,21 +90,27 @@ def execute_parse_document(cmd: ParseDocumentCommand) -> ParseDocumentResult:
     )
 
     start_time = time.time()
-    parsed = runtime.process_document_gcs(
+    parsed = parser_gateway.process_document_gcs(
         gcs_uri=cmd.gcs_uri,
         mime_type=cmd.mime_type,
         parser=cmd.parser,
     )
     extraction_ms = int((time.time() - start_time) * 1000)
 
-    json_gcs_uri = _write_artifact_and_update_state(cmd, parsed, extraction_ms, runtime)
+    json_gcs_uri = _write_artifact_and_update_state(
+        cmd=cmd,
+        parsed=parsed,
+        extraction_ms=extraction_ms,
+        artifact_gateway=artifact_gateway,
+        status_gateway=status_gateway,
+    )
 
     rag_chunk_count: int | None = None
     rag_vector_count: int | None = None
     if cmd.run_rag and cmd.parser in ("layout", "ocr"):
         layout_chunks = parsed.chunks if cmd.parser == "layout" else None
         try:
-            rag = ingest_document_for_rag(
+            rag = ingest_for_rag(
                 doc_id=cmd.doc_id,
                 filename=cmd.filename,
                 source_gcs_uri=cmd.gcs_uri,
@@ -96,7 +121,7 @@ def execute_parse_document(cmd: ParseDocumentCommand) -> ParseDocumentResult:
                 workspace_id=cmd.workspace_id,
                 layout_chunks=layout_chunks or None,
             )
-            runtime.mark_rag_ready(
+            status_gateway.mark_rag_ready(
                 doc_id=cmd.doc_id,
                 chunk_count=rag.chunk_count,
                 vector_count=rag.vector_count,
@@ -112,7 +137,7 @@ def execute_parse_document(cmd: ParseDocumentCommand) -> ParseDocumentResult:
             rag_vector_count = rag.vector_count
         except Exception as rag_exc:
             logger.exception("RAG ingestion failed for %s: %s", cmd.doc_id, rag_exc)
-            runtime.record_rag_error(
+            status_gateway.record_rag_error(
                 cmd.doc_id, str(rag_exc)[:200], account_id=cmd.account_id
             )
 
@@ -135,7 +160,14 @@ def execute_parse_document(cmd: ParseDocumentCommand) -> ParseDocumentResult:
     )
 
 
-def _write_artifact_and_update_state(cmd: ParseDocumentCommand, parsed: object, extraction_ms: int, runtime: object) -> str:
+def _write_artifact_and_update_state(
+    *,
+    cmd: ParseDocumentCommand,
+    parsed: object,
+    extraction_ms: int,
+    artifact_gateway: DocumentArtifactGateway,
+    status_gateway: DocumentStatusGateway,
+) -> str:
     """Write the JSON artifact to GCS and update the Firestore state field.
 
     Returns the GCS URI of the written artifact.
@@ -153,12 +185,12 @@ def _write_artifact_and_update_state(cmd: ParseDocumentCommand, parsed: object, 
     }
 
     if cmd.parser == "layout":
-        json_path = runtime.layout_json_path(cmd.object_path)
+        json_path = artifact_gateway.layout_json_path(cmd.object_path)
         data = {**base, "text": parsed.text, "chunk_count": len(parsed.chunks), "chunks": parsed.chunks}
-        json_gcs_uri = runtime.upload_json(
+        json_gcs_uri = artifact_gateway.upload_json(
             bucket_name=cmd.bucket_name, object_path=json_path, data=data
         )
-        runtime.update_parsed_layout(
+        status_gateway.update_parsed_layout(
             doc_id=cmd.doc_id,
             layout_json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
@@ -169,17 +201,17 @@ def _write_artifact_and_update_state(cmd: ParseDocumentCommand, parsed: object, 
         return json_gcs_uri
 
     if cmd.parser == "ocr":
-        json_path = runtime.ocr_json_path(cmd.object_path)
+        json_path = artifact_gateway.ocr_json_path(cmd.object_path)
         data = {
             **base,
             "text": parsed.text,
             "chunk_count": 0,
             "chunks": [],
         }
-        json_gcs_uri = runtime.upload_json(
+        json_gcs_uri = artifact_gateway.upload_json(
             bucket_name=cmd.bucket_name, object_path=json_path, data=data
         )
-        runtime.update_parsed_ocr(
+        status_gateway.update_parsed_ocr(
             doc_id=cmd.doc_id,
             ocr_json_gcs_uri=json_gcs_uri,
             page_count=parsed.page_count,
@@ -189,16 +221,16 @@ def _write_artifact_and_update_state(cmd: ParseDocumentCommand, parsed: object, 
         return json_gcs_uri
 
     if cmd.parser == "form":
-        json_path = runtime.form_json_path(cmd.object_path)
+        json_path = artifact_gateway.form_json_path(cmd.object_path)
         data = {
             **base,
             "entities": parsed.entities,
             "entity_count": len(parsed.entities),
         }
-        json_gcs_uri = runtime.upload_json(
+        json_gcs_uri = artifact_gateway.upload_json(
             bucket_name=cmd.bucket_name, object_path=json_path, data=data
         )
-        runtime.update_parsed_form(
+        status_gateway.update_parsed_form(
             doc_id=cmd.doc_id,
             form_json_gcs_uri=json_gcs_uri,
             account_id=cmd.account_id,
@@ -208,7 +240,7 @@ def _write_artifact_and_update_state(cmd: ParseDocumentCommand, parsed: object, 
         return json_gcs_uri
 
     # "genkit"
-    json_path = runtime.genkit_json_path(cmd.object_path)
+    json_path = artifact_gateway.genkit_json_path(cmd.object_path)
     data = {
         **base,
         "mode": "genkit-ai",
@@ -216,10 +248,10 @@ def _write_artifact_and_update_state(cmd: ParseDocumentCommand, parsed: object, 
         "chunk_count": len(parsed.chunks),
         "chunks": parsed.chunks,
     }
-    json_gcs_uri = runtime.upload_json(
+    json_gcs_uri = artifact_gateway.upload_json(
         bucket_name=cmd.bucket_name, object_path=json_path, data=data
     )
-    runtime.update_parsed_genkit(
+    status_gateway.update_parsed_genkit(
         doc_id=cmd.doc_id,
         genkit_json_gcs_uri=json_gcs_uri,
         account_id=cmd.account_id,

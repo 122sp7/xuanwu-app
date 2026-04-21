@@ -12,7 +12,7 @@ import logging
 
 from firebase_functions import https_fn
 
-from application.services.document_pipeline import get_document_pipeline
+from application.services.document_pipeline import get_document_status_gateway
 from application.use_cases.parse_document_pipeline import ParseDocumentCommand, execute_parse_document
 from interface.schemas.parse_document import ParseDocumentRequest
 
@@ -44,7 +44,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
     logger.info("parse_document callable: %s → doc_id=%s", schema.gcs_uri, schema.doc_id)
 
-    runtime = get_document_pipeline()
+    status_gateway = get_document_status_gateway()
     try:
         execute_parse_document(
             ParseDocumentCommand(
@@ -65,7 +65,11 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
         raise
     except Exception as exc:
         logger.exception("parse_document failed for %s: %s", schema.doc_id, exc)
-        runtime.record_error(schema.doc_id, str(exc)[:200], account_id=schema.account_id)
+        status_gateway.record_error(
+            schema.doc_id,
+            str(exc)[:200],
+            account_id=schema.account_id,
+        )
 
     return {
         "account_scope": schema.account_id,

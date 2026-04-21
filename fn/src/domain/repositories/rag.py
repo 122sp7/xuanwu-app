@@ -41,9 +41,11 @@ class RagIngestionGateway(Protocol):
     def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int: ...
 
 
-class DocumentPipelineGateway(Protocol):
+class DocumentParserGateway(Protocol):
     def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
 
+
+class DocumentRateLimitGateway(Protocol):
     def redis_fixed_window_allow(
         self,
         key: str,
@@ -51,6 +53,8 @@ class DocumentPipelineGateway(Protocol):
         window_seconds: int,
     ) -> tuple[bool, int]: ...
 
+
+class DocumentStatusGateway(Protocol):
     def init_document(
         self,
         *,
@@ -134,6 +138,8 @@ class DocumentPipelineGateway(Protocol):
 
     def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
 
+
+class DocumentArtifactGateway(Protocol):
     def parsed_json_path(self, upload_object_path: str) -> str: ...
 
     def layout_json_path(self, upload_object_path: str) -> str: ...
@@ -149,8 +155,22 @@ class DocumentPipelineGateway(Protocol):
     def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
 
 
+class DocumentPipelineGateway(
+    DocumentParserGateway,
+    DocumentRateLimitGateway,
+    DocumentStatusGateway,
+    DocumentArtifactGateway,
+    Protocol,
+):
+    """Backward-compatible composite port built from the split document ports."""
+
+
 _rag_query_gateway: RagQueryGateway | None = None
 _rag_ingestion_gateway: RagIngestionGateway | None = None
+_document_parser_gateway: DocumentParserGateway | None = None
+_document_rate_limit_gateway: DocumentRateLimitGateway | None = None
+_document_status_gateway: DocumentStatusGateway | None = None
+_document_artifact_gateway: DocumentArtifactGateway | None = None
 _document_pipeline_gateway: DocumentPipelineGateway | None = None
 
 
@@ -176,12 +196,73 @@ def get_rag_ingestion_gateway() -> RagIngestionGateway:
     return _rag_ingestion_gateway
 
 
+def register_document_parser_gateway(gateway: DocumentParserGateway) -> None:
+    global _document_parser_gateway
+    _document_parser_gateway = gateway
+
+
+def get_document_parser_gateway() -> DocumentParserGateway:
+    if _document_parser_gateway is None:
+        raise RuntimeError("DocumentParserGateway is not registered")
+    return _document_parser_gateway
+
+
+def register_document_rate_limit_gateway(gateway: DocumentRateLimitGateway) -> None:
+    global _document_rate_limit_gateway
+    _document_rate_limit_gateway = gateway
+
+
+def get_document_rate_limit_gateway() -> DocumentRateLimitGateway:
+    if _document_rate_limit_gateway is None:
+        raise RuntimeError("DocumentRateLimitGateway is not registered")
+    return _document_rate_limit_gateway
+
+
+def register_document_status_gateway(gateway: DocumentStatusGateway) -> None:
+    global _document_status_gateway
+    _document_status_gateway = gateway
+
+
+def get_document_status_gateway() -> DocumentStatusGateway:
+    if _document_status_gateway is None:
+        raise RuntimeError("DocumentStatusGateway is not registered")
+    return _document_status_gateway
+
+
+def register_document_artifact_gateway(gateway: DocumentArtifactGateway) -> None:
+    global _document_artifact_gateway
+    _document_artifact_gateway = gateway
+
+
+def get_document_artifact_gateway() -> DocumentArtifactGateway:
+    if _document_artifact_gateway is None:
+        raise RuntimeError("DocumentArtifactGateway is not registered")
+    return _document_artifact_gateway
+
+
 def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None:
     global _document_pipeline_gateway
     _document_pipeline_gateway = gateway
+    register_document_parser_gateway(gateway)
+    register_document_rate_limit_gateway(gateway)
+    register_document_status_gateway(gateway)
+    register_document_artifact_gateway(gateway)
+
+
+class _ComposedDocumentPipelineGateway:
+    def __getattr__(self, name: str) -> Any:
+        for gateway in (
+            get_document_parser_gateway(),
+            get_document_rate_limit_gateway(),
+            get_document_status_gateway(),
+            get_document_artifact_gateway(),
+        ):
+            if hasattr(gateway, name):
+                return getattr(gateway, name)
+        raise AttributeError(name)
 
 
 def get_document_pipeline_gateway() -> DocumentPipelineGateway:
-    if _document_pipeline_gateway is None:
-        raise RuntimeError("DocumentPipelineGateway is not registered")
-    return _document_pipeline_gateway
+    if _document_pipeline_gateway is not None:
+        return _document_pipeline_gateway
+    return _ComposedDocumentPipelineGateway()

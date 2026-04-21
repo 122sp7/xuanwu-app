@@ -12,7 +12,7 @@ import logging
 
 from firebase_functions import https_fn
 
-from application.services.document_pipeline import get_document_pipeline
+from application.services.document_pipeline import get_document_status_gateway
 from application.use_cases.rag_reindex import RagReindexCommand, execute_rag_reindex
 from interface.schemas.rag_reindex import RagReindexRequest
 
@@ -29,7 +29,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             str(exc),
         ) from exc
 
-    runtime = get_document_pipeline()
+    status_gateway = get_document_status_gateway()
     try:
         result = execute_rag_reindex(
             RagReindexCommand(
@@ -64,7 +64,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
         logger.exception(
             "rag_reindex_document failed for %s: %s", schema.doc_id, exc
         )
-        runtime.record_rag_error(
+        status_gateway.record_rag_error(
             schema.doc_id, str(exc)[:200], account_id=schema.account_id
         )
         raise https_fn.HttpsError(

@@ -19,7 +19,7 @@ from typing import Any
 
 from firebase_functions import storage_fn
 
-from application.services.document_pipeline import get_document_pipeline
+from application.services.document_pipeline import get_document_status_gateway
 from application.use_cases.parse_document_pipeline import ParseDocumentCommand, execute_parse_document
 
 logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ def handle_object_finalized(
     gcs_uri = f"gs://{bucket_name}/{object_path}"
     logger.info("GCS finalized: %s → doc_id=%s", gcs_uri, doc_id)
 
-    runtime = get_document_pipeline()
+    status_gateway = get_document_status_gateway()
     try:
         execute_parse_document(
             ParseDocumentCommand(
@@ -159,4 +159,4 @@ def handle_object_finalized(
         )
     except Exception as exc:
         logger.exception("Document AI failed for %s: %s", doc_id, exc)
-        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
+        status_gateway.record_error(doc_id, str(exc)[:200], account_id=account_id)

@@ -10,9 +10,14 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from typing import Callable
 
-from application.services.document_pipeline import get_document_pipeline
+from application.services.document_pipeline import (
+    get_document_artifact_gateway,
+    get_document_status_gateway,
+)
 from application.use_cases.rag_ingestion import ingest_document_for_rag
+from domain.repositories import DocumentArtifactGateway, DocumentStatusGateway
 
 
 def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
@@ -55,17 +60,27 @@ class RagReindexResult:
     language_hint: str
 
 
-def execute_rag_reindex(cmd: RagReindexCommand) -> RagReindexResult:
+def execute_rag_reindex(
+    cmd: RagReindexCommand,
+    *,
+    artifact_gateway: DocumentArtifactGateway | None = None,
+    status_gateway: DocumentStatusGateway | None = None,
+    ingest_for_rag: Callable[..., object] = ingest_document_for_rag,
+) -> RagReindexResult:
     """Download the layout JSON, enrich fields, re-ingest into RAG index.
 
     Raises:
         ValueError: when required fields are absent from both cmd and the stored JSON.
         Exception:  propagated from GCS / embedding / vector calls.
     """
-    runtime = get_document_pipeline()
+    artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+    status_gateway = status_gateway or get_document_status_gateway()
 
     bucket_name, object_path = _parse_gs_uri(cmd.json_gcs_uri)
-    json_bytes = runtime.download_bytes(bucket_name=bucket_name, object_path=object_path)
+    json_bytes = artifact_gateway.download_bytes(
+        bucket_name=bucket_name,
+        object_path=object_path,
+    )
     payload: dict = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
 
     text = str(payload.get("text", "")).strip()
@@ -97,7 +112,7 @@ def execute_rag_reindex(cmd: RagReindexCommand) -> RagReindexResult:
 
     layout_chunks: list[dict] | None = payload.get("chunks") or None
 
-    rag = ingest_document_for_rag(
+    rag = ingest_for_rag(
         doc_id=cmd.doc_id,
         filename=filename,
         source_gcs_uri=source_gcs_uri,
@@ -109,7 +124,7 @@ def execute_rag_reindex(cmd: RagReindexCommand) -> RagReindexResult:
         layout_chunks=layout_chunks,
     )
 
-    runtime.mark_rag_ready(
+    status_gateway.mark_rag_ready(
         doc_id=cmd.doc_id,
         chunk_count=rag.chunk_count,
         vector_count=rag.vector_count,
