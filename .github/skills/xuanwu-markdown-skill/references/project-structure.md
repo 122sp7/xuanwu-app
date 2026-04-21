@@ -14,6 +14,7 @@ docs/
       0002-cross-runtime-nextjs-fn-bridge.md (71 lines)
       0003-module-public-api-surface.md (77 lines)
       0004-occam-gap-triage-baseline-focus.md (73 lines)
+      0005-ap8-source-to-task-54-item-delivery-contract.md (63 lines)
     data/
       0001-firestore-subdomain-collection-boundaries.md (101 lines)
       0002-upstash-vector-rag-storage.md (106 lines)
@@ -118,7 +119,7 @@ docs/
       integration-guidelines.md (110 lines)
       module-graph.system-wide.md (134 lines)
       project-delivery-milestones.md (109 lines)
-      source-to-task-flow.md (94 lines)
+      source-to-task-flow.md (100 lines)
       strategic-patterns.md (79 lines)
       ui-ux-closed-loop.md (134 lines)
   tooling/

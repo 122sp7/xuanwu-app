@@ -106,9 +106,9 @@ export function NotionDatabaseSection({
     setPropertyDrafts((prev) => ({
       ...prev,
       [databaseId]: {
-        name: "",
-        type: "text",
         ...prev[databaseId],
+        name: prev[databaseId]?.name ?? "",
+        type: prev[databaseId]?.type ?? "text",
         ...patch,
       },
     }));

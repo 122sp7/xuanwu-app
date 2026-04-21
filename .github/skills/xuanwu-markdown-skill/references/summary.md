@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-179 files | 15,129 lines
+180 files | 15,198 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 179 | 15,129 |
+| Markdown | 180 | 15,198 |
 
 **Largest files:**
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
@@ -57,5 +57,5 @@ This skill contains the following reference files:
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
 - `docs/structure/domain/ddd-strategic-design.md` (221 lines)
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
-- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
 - `docs/decisions/ai/0005-sap-po-structured-extraction-strategy.md` (215 lines)
+- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)

@@ -24,7 +24,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
 import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
@@ -101,9 +101,10 @@ export function WorkspaceTaskFormationSection({
   accountId,
   currentUserId,
 }: WorkspaceTaskFormationSectionProps): React.ReactElement {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [selectedSource, setSelectedSource] = useState<SourceKind>(null);
-  const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
+  const [selectedSourceOverride, setSelectedSourceOverride] = useState<SourceKind>(null);
+  const [selectedReferenceIdOverride, setSelectedReferenceIdOverride] = useState<string | null>(null);
   const [pages, setPages] = useState<PageSnapshot[]>([]);
   const [databases, setDatabases] = useState<DatabaseSnapshot[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -115,6 +116,13 @@ export function WorkspaceTaskFormationSection({
   const [isPending, startTransition] = useTransition();
 
   const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
+  const querySelectedSource = searchParams.get("sourceKind");
+  const querySelectedReferenceId = searchParams.get("sourceId");
+  const selectedSource = selectedSourceOverride
+    ?? (querySelectedSource === "page" || querySelectedSource === "database" || querySelectedSource === "research"
+      ? querySelectedSource
+      : null);
+  const selectedReferenceId = selectedReferenceIdOverride ?? querySelectedReferenceId;
 
   useEffect(() => {
     let mounted = true;
@@ -131,36 +139,25 @@ export function WorkspaceTaskFormationSection({
     };
   }, [accountId, workspaceId]);
 
-  useEffect(() => {
-    const querySourceKind = searchParams.get("sourceKind");
-    const querySourceId = searchParams.get("sourceId");
-    if (querySourceKind === "page" || querySourceKind === "database" || querySourceKind === "research") {
-      setSelectedSource(querySourceKind);
-      setSelectedReferenceId(querySourceId);
-    }
-  }, [searchParams]);
-
   const pageSources = useMemo(() => pages.map(buildPageSource), [pages]);
   const databaseSources = useMemo(
     () => databases.map((database) => buildDatabaseSource(database, pages)),
     [databases, pages],
   );
 
-  const availableConcreteSources = selectedSource === "page"
-    ? pageSources
-    : selectedSource === "database"
-      ? databaseSources
-      : [];
+  const availableConcreteSources = useMemo(
+    () => (selectedSource === "page"
+      ? pageSources
+      : selectedSource === "database"
+        ? databaseSources
+        : []),
+    [databaseSources, pageSources, selectedSource],
+  );
 
-  const selectedConcreteSource = availableConcreteSources.find((source) => source.id === selectedReferenceId) ?? null;
-
-  useEffect(() => {
-    if (selectedSource === "research") return;
-    if (!selectedReferenceId) return;
-    if (!availableConcreteSources.some((source) => source.id === selectedReferenceId)) {
-      setSelectedReferenceId(null);
-    }
-  }, [availableConcreteSources, selectedReferenceId, selectedSource]);
+  const selectedConcreteSource = useMemo(
+    () => availableConcreteSources.find((source) => source.id === selectedReferenceId) ?? null,
+    [availableConcreteSources, selectedReferenceId],
+  );
 
   const sources = [
     {
@@ -202,8 +199,14 @@ export function WorkspaceTaskFormationSection({
   }
 
   function handleSelectSource(nextSource: SourceKind) {
-    setSelectedSource((prev) => (prev === nextSource ? null : nextSource));
-    setSelectedReferenceId(null);
+    if (selectedSource === nextSource) {
+      router.replace(`${base}?tab=TaskFormation`, { scroll: false });
+      setSelectedSourceOverride(null);
+      setSelectedReferenceIdOverride(null);
+      return;
+    }
+    setSelectedSourceOverride(nextSource);
+    setSelectedReferenceIdOverride(null);
   }
 
   function handleExtract() {
@@ -254,9 +257,10 @@ export function WorkspaceTaskFormationSection({
   }
 
   function handleReset() {
+    router.replace(`${base}?tab=TaskFormation`, { scroll: false });
     setPhase("idle");
-    setSelectedSource(null);
-    setSelectedReferenceId(null);
+    setSelectedSourceOverride(null);
+    setSelectedReferenceIdOverride(null);
     setCandidates([]);
     setSelectedIndices(new Set());
     setJobId(null);
@@ -367,7 +371,7 @@ export function WorkspaceTaskFormationSection({
                       <button
                         key={source.id}
                         type="button"
-                        onClick={() => setSelectedReferenceId(source.id)}
+                        onClick={() => setSelectedReferenceIdOverride(source.id)}
                         className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                           isActive
                             ? "border-primary/40 bg-primary/5"
