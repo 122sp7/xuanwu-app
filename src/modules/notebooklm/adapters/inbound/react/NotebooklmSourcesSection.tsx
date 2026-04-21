@@ -13,7 +13,7 @@
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
-import { Button, createGoogleViewerEmbedUrl } from "@packages";
+import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -92,9 +92,20 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tif",
 ]);
 
-// Keep sourceText safely below Firestore's 1 MiB document limit while preserving
-// enough dense PO context (e.g. AP8 3RDTW + 小計 sequences) for task extraction.
+// Keep sourceText safely below Firestore's 1 MiB document limit. 80k chars is
+// ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
+// ample headroom for the rest of the page/database snapshot fields.
 const SOURCE_TEXT_MAX_CHARS = 80_000;
+const ARTIFACT_SNIPPET_MAX_CHARS = 300;
+
+const ArtifactPayloadSchema = z.object({
+  text: z.string().optional(),
+  chunks: z.array(z.object({ text: z.string().optional() })).optional(),
+  entities: z.array(z.object({
+    type: z.string().optional(),
+    mentionText: z.string().optional(),
+  })).optional(),
+});
 
 /**
  * Normalize parser artifacts written by fn parse_document:
@@ -102,29 +113,22 @@ const SOURCE_TEXT_MAX_CHARS = 80_000;
  * - form: fallback to entity key/value lines when plain text is unavailable
  */
 function extractTextFromArtifactPayload(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== "object") return undefined;
-  const record = payload as Record<string, unknown>;
-  const text = typeof record.text === "string" ? record.text.trim() : "";
+  const parsed = ArtifactPayloadSchema.safeParse(payload);
+  if (!parsed.success) return undefined;
+  const record = parsed.data;
+  const text = record.text?.trim() ?? "";
   if (text.length > 0) return text;
 
-  const chunks = Array.isArray(record.chunks) ? record.chunks : [];
-  const chunkText = chunks
-    .map((chunk) => {
-      if (!chunk || typeof chunk !== "object") return "";
-      const value = (chunk as Record<string, unknown>).text;
-      return typeof value === "string" ? value.trim() : "";
-    })
+  const chunkText = (record.chunks ?? [])
+    .map((chunk) => chunk.text?.trim() ?? "")
     .filter((value) => value.length > 0)
     .join("\n");
   if (chunkText.length > 0) return chunkText;
 
-  const entities = Array.isArray(record.entities) ? record.entities : [];
-  const entityText = entities
+  const entityText = (record.entities ?? [])
     .map((entity) => {
-      if (!entity || typeof entity !== "object") return "";
-      const obj = entity as Record<string, unknown>;
-      const key = typeof obj.type === "string" ? obj.type : "";
-      const mention = typeof obj.mentionText === "string" ? obj.mentionText : "";
+      const key = entity.type ?? "";
+      const mention = entity.mentionText ?? "";
       if (key && mention) return `${key}: ${mention}`;
       return mention || key;
     })
@@ -145,11 +149,7 @@ async function loadSourceTextFromArtifactUri(uri: string): Promise<string | unde
     const response = await fetch(artifactUrl);
     if (!response.ok) return undefined;
     return trimSourceText(extractTextFromArtifactPayload(await response.json()));
-  } catch (error) {
-    console.warn("[notebooklm.sources] unable to load parser artifact", {
-      uri,
-      error: error instanceof Error ? error.message : String(error),
-    });
+  } catch {
     return undefined;
   }
 }
@@ -425,7 +425,7 @@ export function NotebooklmSourcesSection({
         accountId,
         workspaceId,
         title: doc.name,
-        summary: sourceText?.slice(0, 300),
+        summary: sourceText?.slice(0, ARTIFACT_SNIPPET_MAX_CHARS),
         sourceLabel: `來源文件：${doc.name}`,
         sourceDocumentId: doc.id,
         sourceText,
@@ -452,7 +452,7 @@ export function NotebooklmSourcesSection({
         accountId,
         workspaceId,
         title: doc.name,
-        description: sourceText?.slice(0, 300),
+        description: sourceText?.slice(0, ARTIFACT_SNIPPET_MAX_CHARS),
         sourceDocumentId: doc.id,
         sourceText,
         createdByUserId: accountId,
