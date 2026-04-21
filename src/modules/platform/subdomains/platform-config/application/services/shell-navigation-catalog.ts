@@ -303,6 +303,7 @@ export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "org-schedule", href: "/schedule", label: "調度台", requiresOrganization: true, activeRoutePrefix: "/schedule" },
   { id: "org-audit", href: "/audit", label: "日誌", requiresOrganization: true, activeRoutePrefix: "/audit" },
   { id: "org-permissions", href: "/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/permissions" },
+  { id: "org-settings", href: "/settings", label: "設定", requiresOrganization: true, activeRoutePrefix: "/settings" },
 ];
 
 export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[] {

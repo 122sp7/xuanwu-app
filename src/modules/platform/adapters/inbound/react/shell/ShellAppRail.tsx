@@ -18,6 +18,7 @@ import {
   LayoutDashboard,
   NotebookText,
   Plus,
+  Settings,
   SlidersHorizontal,
   UserRound,
   Users,
@@ -90,6 +91,7 @@ const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
   "org-schedule": <CalendarDays className="size-[18px]" />,
   "org-audit": <ClipboardList className="size-[18px]" />,
   "org-permissions": <SlidersHorizontal className="size-[18px]" />,
+  "org-settings": <Settings className="size-[18px]" />,
   "dev-tools": <FlaskConical className="size-[18px]" />,
 };
 
