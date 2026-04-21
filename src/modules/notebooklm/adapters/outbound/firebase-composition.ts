@@ -87,9 +87,9 @@ export type { RagQueryInput, RagQueryOutput, ParseDocumentInput, ParseDocumentOu
 // ── Storage upload helper ─────────────────────────────────────────────────────
 
 /**
- * Upload a document to the GCS path expected by the fn Storage Trigger.
- * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
- * The Storage Trigger automatically runs parse + RAG on this prefix.
+ * Upload a document to a workspace-scoped source path.
+ * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+ * Parsing / indexing are triggered manually from the Sources UI.
  */
 export async function uploadDocumentToStorage(
   file: File,
@@ -99,7 +99,7 @@ export async function uploadDocumentToStorage(
   const storage = getFirebaseStorage();
   const uuid = crypto.randomUUID();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `uploads/${accountId}/${workspaceId}/${uuid}-${safeName}`;
+  const path = `workspaces/${workspaceId}/sources/${accountId}/${uuid}-${safeName}`;
   const storageRef = ref(storage, path);
   const metadata = {
     customMetadata: {
@@ -116,7 +116,7 @@ export async function uploadDocumentToStorage(
  * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
  * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
  *
- * Accepts both gs://bucket/path and relative paths like uploads/...
+ * Accepts both gs://bucket/path and relative paths like workspaces/...
  */
 export async function getDocumentDownloadUrl(storageUrl: string): Promise<string> {
   const storage = getFirebaseStorage();
@@ -126,6 +126,73 @@ export async function getDocumentDownloadUrl(storageUrl: string): Promise<string
 
 // keep firestore & firestoreApi accessible within this composition module
 export { getFirebaseFirestore, firestoreApi };
+
+// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
+
+const _STORAGE_BUCKET =
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ??
+  `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "xuanwu-i-00708880-4e2d8"}.firebasestorage.app`;
+
+/**
+ * Convert a relative Storage path to a gs:// URI.
+ * Already-absolute gs:// URIs are returned unchanged.
+ */
+export function toGcsUri(pathOrUri: string): string {
+  if (pathOrUri.startsWith("gs://")) return pathOrUri;
+  return `gs://${_STORAGE_BUCKET}/${pathOrUri.replace(/^\/+/, "")}`;
+}
+
+// ── Client-side Firestore source initialisation ───────────────────────────────
+
+/**
+ * Write an initial source-document record to Firestore so the document appears
+ * in the Sources list immediately after upload — even before fn parses it.
+ *
+ * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
+ * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
+ * so calling parse later will add parsed.* fields without overwriting these.
+ */
+export async function initSourceDocumentInFirestore(params: {
+  docId: string;
+  gcsUri: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string;
+  accountId: string;
+  workspaceId: string;
+}): Promise<void> {
+  const db = getFirebaseFirestore();
+  const { doc, setDoc, serverTimestamp } = firestoreApi;
+  const ref = doc(db, "accounts", params.accountId, "documents", params.docId);
+  await setDoc(
+    ref,
+    {
+      id: params.docId,
+      title: params.filename,
+      // "active" = upload done, ready to parse.
+      // fn's parse_document callable will overwrite with "processing" when it starts,
+      // then "completed" when done.
+      status: "active",
+      account_id: params.accountId,
+      spaceId: params.workspaceId,
+      source: {
+        gcs_uri: params.gcsUri,
+        filename: params.filename,
+        display_name: params.filename,
+        original_filename: params.filename,
+        size_bytes: params.sizeBytes,
+        uploaded_at: serverTimestamp(),
+        mime_type: params.mimeType,
+      },
+      metadata: {
+        filename: params.filename,
+        display_name: params.filename,
+        space_id: params.workspaceId,
+      },
+    },
+    { merge: true },
+  );
+}
 
 // ── Client-side Firestore query helper ───────────────────────────────────────
 

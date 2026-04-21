@@ -32,8 +32,8 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: .github/copilot-instructions.md, docs/**, src/app/**, src/modules/ai/**, src/modules/analytics/**, src/modules/billing/**, src/modules/notebooklm/**, src/modules/notion/**, src/modules/platform/**, src/modules/shared/**, src/modules/template/**, src/modules/workspace/**, src/modules/iam/**, src/packages/**, fn/**, AGENTS.md, CLAUDE.md, apphosting.yaml, components.json, eslint.config.mjs, firebase.apphosting.json, firebase.json, firestore.indexes.json, llms.txt, next.config.ts, package.json, postcss.config.mjs, tailwind.config.ts, tsconfig.json, firestore.rules, storage.rules
-- Files matching these patterns are excluded: fn/tests/**, **/*.test.ts, *.md, .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
+- Only files matching these patterns are included: src/**/*
+- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,30 +42,24 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1182 files | 28,631 lines
+995 files | 17,407 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 900 | 13,373 |
-| Markdown | 107 | 9,351 |
-| Python | 87 | 2,266 |
+| TypeScript | 913 | 13,558 |
 | TypeScript (TSX) | 53 | 2,523 |
-| No Extension | 18 | 18 |
-| JSON | 6 | 727 |
-| Text | 3 | 108 |
-| JavaScript (ESM) | 2 | 10 |
-| RULES | 2 | 60 |
-| YAML | 1 | 64 |
-| Other | 3 | 131 |
+| Markdown | 27 | 1,260 |
+| CSS | 1 | 47 |
+| PROMPT | 1 | 19 |
 
 **Largest files:**
-- `firestore.indexes.json` (437 lines)
-- `docs/structure/system/hard-rules-consolidated.md` (415 lines)
-- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
-- `docs/structure/domain/subdomains.md` (273 lines)
-- `fn/README.md` (236 lines)
-- `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
-- `docs/structure/domain/ddd-strategic-design.md` (221 lines)
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
-- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
-- `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)
+- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (202 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
+- `src/modules/iam/adapters/outbound/firebase-composition.ts` (169 lines)
+- `src/modules/workspace/subdomains/task-formation/AGENTS.md` (166 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (166 lines)
+- `src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts` (159 lines)
+- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (157 lines)
+- `src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts` (119 lines)

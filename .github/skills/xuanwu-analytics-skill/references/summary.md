@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/ai/**, docs/structure/contexts/ai/**
+- Only files matching these patterns are included: src/modules/analytics/**, docs/structure/contexts/analytics/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,22 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-111 files | 1,612 lines
+71 files | 684 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 100 | 934 |
-| Markdown | 10 | 659 |
-| PROMPT | 1 | 19 |
+| TypeScript | 63 | 457 |
+| Markdown | 8 | 227 |
 
 **Largest files:**
-- `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
-- `docs/structure/contexts/ai/subdomains.md` (96 lines)
-- `docs/structure/contexts/ai/AGENTS.md` (93 lines)
-- `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
-- `docs/structure/contexts/ai/README.md` (76 lines)
-- `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
-- `docs/structure/contexts/ai/ddd-strategic-design.md` (53 lines)
-- `docs/structure/contexts/ai/context-map.md` (50 lines)
-- `docs/structure/contexts/ai/ubiquitous-language.md` (49 lines)
-- `src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts` (49 lines)
+- `docs/structure/contexts/analytics/AGENTS.md` (65 lines)
+- `src/modules/analytics/subdomains/metrics/domain/entities/Metric.ts` (43 lines)
+- `src/modules/analytics/AGENTS.md` (43 lines)
+- `src/modules/analytics/subdomains/event-contracts/domain/entities/AnalyticsEvent.ts` (33 lines)
+- `src/modules/analytics/README.md` (30 lines)
+- `docs/structure/contexts/analytics/README.md` (27 lines)
+- `src/modules/analytics/subdomains/experimentation/domain/entities/Experiment.ts` (26 lines)
+- `src/modules/analytics/subdomains/realtime-insights/domain/entities/RealtimeMetric.ts` (26 lines)
+- `src/modules/analytics/subdomains/event-contracts/domain/repositories/AnalyticsEventRepository.ts` (25 lines)
+- `src/modules/analytics/subdomains/metrics/domain/repositories/MetricRepository.ts` (25 lines)

@@ -81,6 +81,8 @@ function mapPyFnStatus(
   if (ragStatus === "ready") return "active";
   // fn sets status="completed" after a successful parse but before RAG indexing.
   if (docStatus === "completed") return "active";
+  // TS-side initial write uses status="active" (upload done, not yet parsed).
+  if (docStatus === "active") return "active";
   return "processing";
 }
 

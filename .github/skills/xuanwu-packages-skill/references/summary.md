@@ -32,8 +32,8 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/ai/**, docs/structure/contexts/ai/**
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
+- Only files matching these patterns are included: packages/**/*
+- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-111 files | 1,612 lines
+135 files | 4,958 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 100 | 934 |
-| Markdown | 10 | 659 |
-| PROMPT | 1 | 19 |
+| TypeScript (TSX) | 58 | 790 |
+| Markdown | 48 | 3,340 |
+| TypeScript | 29 | 828 |
 
 **Largest files:**
-- `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
-- `docs/structure/contexts/ai/subdomains.md` (96 lines)
-- `docs/structure/contexts/ai/AGENTS.md` (93 lines)
-- `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
-- `docs/structure/contexts/ai/README.md` (76 lines)
-- `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
-- `docs/structure/contexts/ai/ddd-strategic-design.md` (53 lines)
-- `docs/structure/contexts/ai/context-map.md` (50 lines)
-- `docs/structure/contexts/ai/ubiquitous-language.md` (49 lines)
-- `src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts` (49 lines)
+- `packages/ui-dnd/README.md` (169 lines)
+- `packages/infra/table/README.md` (143 lines)
+- `packages/infra/virtual/README.md` (137 lines)
+- `packages/integration-queue/index.ts` (136 lines)
+- `packages/infra/form/README.md` (120 lines)
+- `packages/ui-shadcn/README.md` (109 lines)
+- `packages/ui-visualization/README.md` (105 lines)
+- `packages/ui-visualization/index.tsx` (101 lines)
+- `packages/integration-firebase/README.md` (99 lines)
+- `packages/infra/state/README.md` (94 lines)
