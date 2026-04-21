@@ -297,6 +297,7 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
 export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
   { id: "dashboard", href: "/dashboard", label: "儀表板", requiresOrganization: false, activeRoutePrefix: "/dashboard" },
+  { id: "settings", href: "/settings", label: "設定", requiresOrganization: false, activeRoutePrefix: "/settings" },
   { id: "org-members", href: "/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/members" },
   { id: "org-teams", href: "/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/teams" },
   { id: "org-daily", href: "/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/daily" },
