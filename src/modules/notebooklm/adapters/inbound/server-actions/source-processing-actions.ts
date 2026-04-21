@@ -105,12 +105,16 @@ export async function processSourceDocumentAction(rawInput: unknown) {
       workspaceId: string;
       title: string;
       sourceDocumentId: string;
+      summary?: string;
+      sourceLabel?: string;
       requestedByUserId?: string;
     }) => {
       const result = await createPage.execute({
         accountId: pageInput.accountId,
         workspaceId: pageInput.workspaceId,
         title: pageInput.title,
+        summary: pageInput.summary,
+        sourceLabel: pageInput.sourceLabel,
         createdByUserId: pageInput.requestedByUserId ?? "system",
       });
 

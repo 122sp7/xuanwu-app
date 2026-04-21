@@ -38,6 +38,10 @@ const FirestorePageSnapshotSchema = z.object({
   createdByUserId: z.string(),
   createdAtISO: z.string(),
   updatedAtISO: z.string(),
+  /** Optional document summary stored when creating a page from a parsed source document. */
+  summary: z.string().optional(),
+  /** Reference to the source document ID (IngestionSource.id) that generated this page. */
+  sourceLabel: z.string().optional(),
 });
 
 function toSnapshot(raw: unknown): PageSnapshot {

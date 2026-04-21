@@ -53,6 +53,8 @@ export interface CreateKnowledgePagePort {
     workspaceId: string;
     title: string;
     sourceDocumentId: string;
+    summary?: string;
+    sourceLabel?: string;
     requestedByUserId?: string;
   }): Promise<{ ok: boolean; pageId?: string; pageHref?: string; error?: string }>;
 }
@@ -106,6 +108,8 @@ export class ProcessSourceDocumentWorkflowUseCase {
       workspaceId: input.workspaceId,
       title: input.documentTitle,
       sourceDocumentId: input.documentId,
+      summary: input.parsedTextSummary,
+      sourceLabel: input.documentId,
       requestedByUserId: input.requestedByUserId,
     });
     if (pageResult.ok && pageResult.pageId) {

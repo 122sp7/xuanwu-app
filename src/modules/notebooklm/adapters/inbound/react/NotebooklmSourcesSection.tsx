@@ -25,8 +25,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
   registerUploadedDocumentAction,
-  createPageFromDocumentAction,
-  createDatabaseFromDocumentAction,
   parseDocumentAction,
   reindexDocumentAction,
 } from "../server-actions/document-actions";
@@ -35,6 +33,10 @@ import {
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
+import {
+  createPage as createNotionPage,
+  createDatabase as createNotionDatabase,
+} from "@/src/modules/notion/adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -307,14 +309,46 @@ export function NotebooklmSourcesSection({
   const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
-      const result = await createPageFromDocumentAction({
+      // Best-effort: fetch the Layout Parser JSON to use as page summary so that
+      // the task extractor can find "3RDTW" tokens and produce the full candidate set.
+      let summary: string | undefined;
+      if (doc.parsedLayoutJsonGcsUri) {
+        try {
+          const downloadUrl = await getDocumentDownloadUrl(doc.parsedLayoutJsonGcsUri);
+          const response = await fetch(downloadUrl);
+          if (response.ok) {
+            const json = await response.json() as Record<string, unknown>;
+            // Document AI Layout Parser JSON stores full OCR text in the top-level `text` field.
+            const rawText = typeof json["text"] === "string"
+              ? json["text"]
+              : typeof json["document"] === "object" && json["document"] !== null && typeof (json["document"] as Record<string, unknown>)["text"] === "string"
+                ? (json["document"] as Record<string, unknown>)["text"] as string
+                : undefined;
+            if (rawText) {
+              // Store up to 24 000 chars — enough to cover all 54 AP8 items across 12 pages.
+              summary = rawText.slice(0, 24000);
+            }
+          }
+        } catch {
+          // Non-fatal: page is still created without the layout text summary.
+        }
+      }
+      const result = await createNotionPage({
         accountId,
         workspaceId,
-        documentId: doc.id,
-        documentTitle: doc.name,
+        title: doc.name,
+        summary,
+        sourceLabel: doc.id,
+        createdByUserId: accountId,
       });
-      const href = result?.pageHref;
-      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: href ?? undefined });
+      if (!result.success) {
+        setDocAction(doc.id, { page: "error", message: result.error.message });
+        return;
+      }
+      const pageId = result.aggregateId;
+      const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
+      const pageHref = `${base}?tab=Pages`;
+      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: pageId ? pageHref : undefined });
     } catch (err) {
       setDocAction(doc.id, { page: "error", message: err instanceof Error ? err.message : "建立頁面失敗" });
     }
@@ -323,10 +357,18 @@ export function NotebooklmSourcesSection({
   const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
-      await createDatabaseFromDocumentAction({
+      const description = [
+        `來源文件：${doc.name}`,
+        doc.parsedFormEntityCount != null ? `Form 實體：${doc.parsedFormEntityCount} 個` : undefined,
+        doc.parsedLayoutChunkCount != null ? `Layout 分塊：${doc.parsedLayoutChunkCount} 個` : undefined,
+      ].filter(Boolean).join("　");
+      await createNotionDatabase({
         accountId,
         workspaceId,
-        documentTitle: doc.name,
+        parentPageId: null,
+        title: doc.name,
+        description,
+        createdByUserId: accountId,
       });
       const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
       setDocAction(doc.id, { database: "done", message: "資料庫已建立", databaseHref: `${base}?tab=Database` });
