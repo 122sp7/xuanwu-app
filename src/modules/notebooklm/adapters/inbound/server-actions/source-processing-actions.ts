@@ -31,6 +31,7 @@ import { CreateTaskUseCase } from "@/src/modules/workspace/subdomains/task/appli
 import { FirestoreTaskRepository } from "@/src/modules/workspace/subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
 import { createFirestoreLikeAdapter } from "@/src/modules/workspace/adapters/outbound/firebase-composition";
 import { createClientNotionPageUseCases } from "@/src/modules/notion/adapters/outbound/firebase-composition";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
 
 // ── Input schema ───────────────────────────────────────────────────────────────
 
@@ -129,4 +130,67 @@ export async function processSourceDocumentAction(rawInput: unknown) {
   // ── Execute workflow ─────────────────────────────────────────────────────────
   const useCase = new ProcessSourceDocumentWorkflowUseCase(taskAdapter, pagePort);
   return useCase.execute(input);
+}
+
+// ── Extract tasks from document (no auto-confirm) ─────────────────────────────
+
+const ExtractTasksFromDocumentInputSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().uuid(),
+  documentId: z.string().min(1),
+  documentTitle: z.string().min(1).max(500),
+  actorId: z.string().min(1),
+  parsedLayoutChunkCount: z.number().int().optional(),
+  ragVectorCount: z.number().int().optional(),
+});
+
+/**
+ * extractTasksFromDocumentAction — extract AI task candidates from a parsed document.
+ *
+ * Returns candidates for user review WITHOUT auto-confirming them.
+ * The caller (NotebooklmSourcesSection) displays the candidates in a modal
+ * and then calls confirmCandidatesAction with the selected indices.
+ *
+ * Uses GenkitTaskCandidateExtractor (same as processSourceDocumentAction).
+ */
+export async function extractTasksFromDocumentAction(rawInput: unknown): Promise<
+  | { success: false; error: { code: string; message: string }; jobId: null; candidates: ExtractedTaskCandidate[] }
+  | { success: true; jobId: string; candidates: ExtractedTaskCandidate[] }
+> {
+  const input = ExtractTasksFromDocumentInputSchema.parse(rawInput);
+
+  // Build source context from available document metadata to guide AI extraction.
+  const parts: string[] = [`文件名稱：${input.documentTitle}`];
+  if (input.parsedLayoutChunkCount != null) {
+    parts.push(`Layout Parser 分塊數：${input.parsedLayoutChunkCount}`);
+  }
+  if (input.ragVectorCount != null) {
+    parts.push(`RAG 向量數：${input.ragVectorCount}`);
+  }
+  const sourceText = parts.join("\n");
+
+  // Wire up Genkit-based task extraction (server-only — same infrastructure as processSourceDocumentAction).
+  const db = createFirestoreLikeAdapter();
+  const jobRepo = new FirestoreTaskFormationJobRepository(db);
+  const extractor = new GenkitTaskCandidateExtractor();
+  const extractUseCase = new ExtractTaskCandidatesUseCase(jobRepo, extractor);
+
+  const result = await extractUseCase.execute({
+    workspaceId: input.workspaceId,
+    actorId: input.actorId,
+    sourceType: "ai",
+    sourcePageIds: [input.documentId],
+    sourceText,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error, jobId: null, candidates: [] };
+  }
+
+  const snapshot = await jobRepo.findById(result.aggregateId);
+  return {
+    success: true,
+    jobId: result.aggregateId,
+    candidates: (snapshot?.candidates ?? []) as ExtractedTaskCandidate[],
+  };
 }

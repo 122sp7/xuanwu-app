@@ -11,9 +11,11 @@ import { z } from "zod";
 import {
   createClientNotebooklmSourceUseCases,
 } from "../../outbound/firebase-composition";
-import { processSourceDocumentAction } from "./source-processing-actions";
+import { processSourceDocumentAction, extractTasksFromDocumentAction } from "./source-processing-actions";
 import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
 import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallableAdapter";
+
+export { extractTasksFromDocumentAction };
 
 // ── Firebase HTTPS Callable server-side helper ────────────────────────────────
 // Calling Cloud Functions from a Server Action avoids CORS completely.

@@ -17,7 +17,7 @@ import { Button, createGoogleViewerEmbedUrl } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
-  Layers, Braces, BarChart2, CheckCircle2,
+  Layers, Braces, BarChart2, CheckCircle2, ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -29,7 +29,10 @@ import {
   createDatabaseFromDocumentAction,
   parseDocumentAction,
   reindexDocumentAction,
+  extractTasksFromDocumentAction,
 } from "../server-actions/document-actions";
+import { confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
 import {
   queryDocuments,
   uploadDocumentToStorage,
@@ -39,6 +42,7 @@ import {
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -71,9 +75,11 @@ interface DocActionState {
   reindex: DocActionStatus;
   page: DocActionStatus;
   database: DocActionStatus;
+  taskExtract: DocActionStatus;
   message?: string;
   pageHref?: string;
   databaseHref?: string;
+  taskHref?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -81,6 +87,7 @@ interface DocActionState {
 export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
+  currentUserId,
 }: NotebooklmSourcesSectionProps): React.ReactElement {
   const [documents, setDocuments] = useState<IngestionSourceSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -98,6 +105,15 @@ export function NotebooklmSourcesSection({
   // Per-document expanded / action state
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
+
+  // Task candidates confirmation modal state
+  const [taskModal, setTaskModal] = useState<{
+    doc: IngestionSourceSnapshot;
+    jobId: string;
+    candidates: ExtractedTaskCandidate[];
+    selectedIndices: Set<number>;
+    confirming: boolean;
+  } | null>(null);
 
   // JSON viewer modal state
   const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
@@ -176,7 +192,7 @@ export function NotebooklmSourcesSection({
     setActionState((prev) => {
       const current: DocActionState = prev[docId] ?? {
         parseLayout: "idle", parseForm: "idle", parseOcr: "idle", parseGenkit: "idle",
-        index: "idle", reindex: "idle", page: "idle", database: "idle",
+        index: "idle", reindex: "idle", page: "idle", database: "idle", taskExtract: "idle",
       };
       return { ...prev, [docId]: { ...current, ...patch } };
     });
@@ -335,6 +351,76 @@ export function NotebooklmSourcesSection({
     }
   };
 
+  const handleExtractTasks = async (doc: IngestionSourceSnapshot) => {
+    setDocAction(doc.id, { taskExtract: "running", message: undefined });
+    try {
+      const result = await extractTasksFromDocumentAction({
+        accountId,
+        workspaceId,
+        documentId: doc.id,
+        documentTitle: doc.name,
+        actorId: currentUserId ?? "system",
+        parsedLayoutChunkCount: doc.parsedLayoutChunkCount,
+        ragVectorCount: doc.ragVectorCount,
+      });
+
+      if (!result.success) {
+        setDocAction(doc.id, { taskExtract: "error", message: result.error.message ?? "任務提取失敗" });
+        return;
+      }
+
+      setDocAction(doc.id, { taskExtract: "idle", message: undefined });
+      setTaskModal({
+        doc,
+        jobId: result.jobId,
+        candidates: result.candidates,
+        selectedIndices: new Set(result.candidates.map((_, i) => i)),
+        confirming: false,
+      });
+    } catch (err) {
+      setDocAction(doc.id, { taskExtract: "error", message: err instanceof Error ? err.message : "任務提取失敗" });
+    }
+  };
+
+  const handleConfirmTasks = async () => {
+    if (!taskModal || taskModal.selectedIndices.size === 0) return;
+    setTaskModal((m) => m ? { ...m, confirming: true } : null);
+
+    const { doc, jobId } = taskModal;
+    const selectedIndices = [...taskModal.selectedIndices];
+
+    try {
+      const result = await confirmCandidatesAction({
+        jobId,
+        workspaceId,
+        actorId: currentUserId ?? "system",
+        selectedIndices,
+      });
+
+      setTaskModal(null);
+
+      const taskHref = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=TaskFormation`;
+      if (result.success) {
+        setDocAction(doc.id, {
+          taskExtract: "done",
+          message: `已建立 ${selectedIndices.length} 個任務`,
+          taskHref,
+        });
+      } else {
+        setDocAction(doc.id, {
+          taskExtract: "error",
+          message: result.error.message ?? "確認任務失敗",
+        });
+      }
+    } catch (err) {
+      setTaskModal((m) => m ? { ...m, confirming: false } : null);
+      setDocAction(doc.id, {
+        taskExtract: "error",
+        message: err instanceof Error ? err.message : "確認任務失敗",
+      });
+    }
+  };
+
   // ── Render helpers ───────────────────────────────────────────────────────────
 
   const isPending = isRefreshing || isUploading;
@@ -425,7 +511,8 @@ export function NotebooklmSourcesSection({
               state.parseLayout === "running" || state.parseForm === "running" ||
               state.parseOcr === "running" || state.parseGenkit === "running" ||
               state.index === "running" || state.reindex === "running" ||
-              state.page === "running" || state.database === "running"
+              state.page === "running" || state.database === "running" ||
+              state.taskExtract === "running"
             );
 
             return (
@@ -700,6 +787,37 @@ export function NotebooklmSourcesSection({
                             前往資料庫
                           </Link>
                         )}
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={
+                            state?.taskExtract === "running" || !!anyRunning ||
+                            (!doc.parsedLayoutJsonGcsUri && !doc.parsedGenkitJsonGcsUri && !(doc.ragVectorCount && doc.ragVectorCount > 0))
+                          }
+                          onClick={() => void handleExtractTasks(doc)}
+                          title={
+                            !doc.parsedLayoutJsonGcsUri && !doc.parsedGenkitJsonGcsUri && !(doc.ragVectorCount && doc.ragVectorCount > 0)
+                              ? "須先完成 Layout Parser 或 Genkit-AI 解析，或建立 RAG 索引"
+                              : "使用 AI 從文件中提取任務清單（需確認後建立）"
+                          }
+                        >
+                          {state?.taskExtract === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : state?.taskExtract === "done" ? (
+                            <CheckCircle2 className="size-3 text-amber-600" />
+                          ) : (
+                            <ClipboardList className="size-3 text-amber-600" />
+                          )}
+                          建立任務
+                        </Button>
+                        {state?.taskExtract === "done" && state.taskHref && (
+                          <Link
+                            href={state.taskHref}
+                            className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs text-amber-700 hover:bg-amber-500/10"
+                          >
+                            <ArrowRight className="size-3" />
+                            前往任務形成
+                          </Link>
+                        )}
                       </div>
                     </div>
 
@@ -707,7 +825,7 @@ export function NotebooklmSourcesSection({
                     {state?.message && (
                       <p className={`text-xs px-2 py-1 rounded ${
                         (state.parseLayout === "error" || state.parseForm === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
-                          || state.parseOcr === "error" || state.parseGenkit === "error"
+                          || state.parseOcr === "error" || state.parseGenkit === "error" || state.taskExtract === "error"
                           ? "bg-destructive/10 text-destructive"
                           : "bg-muted text-muted-foreground"
                       }`}>
@@ -750,8 +868,117 @@ export function NotebooklmSourcesSection({
         </div>
       )}
 
-      {/* JSON viewer modal — parsed output summary */}
-      {jsonViewer && (() => {
+      {/* Task candidates confirmation modal */}
+      {taskModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="AI 任務清單預覽"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setTaskModal(null); }}
+          onKeyDown={(e) => { if (e.key === "Escape") setTaskModal(null); }}
+        >
+          <div className="relative flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <ClipboardList className="size-4 text-amber-600" />
+                <span className="text-sm font-medium">AI 任務清單預覽</span>
+                <span className="text-xs text-muted-foreground truncate max-w-xs">{taskModal.doc.name}</span>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setTaskModal(null)} className="h-7 w-7 p-0">
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            {/* Summary + select-all controls */}
+            <div className="flex shrink-0 items-center gap-3 border-b border-border/20 px-4 py-2 text-xs text-muted-foreground">
+              <span>
+                共提取到 <span className="font-medium text-foreground">{taskModal.candidates.length}</span> 個任務候選
+              </span>
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => setTaskModal((m) => m ? { ...m, selectedIndices: new Set(m.candidates.map((_, i) => i)) } : null)}
+              >
+                全選
+              </button>
+              <button
+                type="button"
+                className="text-muted-foreground hover:underline"
+                onClick={() => setTaskModal((m) => m ? { ...m, selectedIndices: new Set() } : null)}
+              >
+                取消全選
+              </button>
+            </div>
+
+            {/* Candidate list */}
+            <div className="flex-1 overflow-auto px-4 py-2 space-y-1.5">
+              {taskModal.candidates.map((c, i) => {
+                const selected = taskModal.selectedIndices.has(i);
+                return (
+                  <label
+                    key={i}
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2 transition-colors ${selected ? "border-amber-500/40 bg-amber-500/5" : "border-border/30 hover:bg-muted/30"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 shrink-0 accent-amber-600"
+                      checked={selected}
+                      onChange={() => {
+                        setTaskModal((m) => {
+                          if (!m) return null;
+                          const next = new Set(m.selectedIndices);
+                          if (next.has(i)) { next.delete(i); } else { next.add(i); }
+                          return { ...m, selectedIndices: next };
+                        });
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium leading-snug">{c.title}</p>
+                      {c.description && (
+                        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{c.description}</p>
+                      )}
+                      {c.dueDate && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">截止：{c.dueDate}</p>
+                      )}
+                      <p className="mt-0.5 text-xs text-muted-foreground/50">
+                        信心度：{Math.round(c.confidence * 100)}%
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="flex shrink-0 items-center justify-between border-t border-border/40 px-4 py-3">
+              <span className="text-xs text-muted-foreground">
+                已選 {taskModal.selectedIndices.size} / {taskModal.candidates.length}
+              </span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setTaskModal(null)} disabled={taskModal.confirming}>
+                  取消
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={taskModal.selectedIndices.size === 0 || taskModal.confirming}
+                  onClick={() => void handleConfirmTasks()}
+                  className="gap-1.5"
+                >
+                  {taskModal.confirming ? (
+                    <><Loader2 className="size-3 animate-spin" />確認中…</>
+                  ) : (
+                    <><CheckCircle2 className="size-3" />確認建立任務</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* JSON viewer modal — parsed output summary */}      {jsonViewer && (() => {
         const { doc: jDoc, type } = jsonViewer;
         const payload =
           type === "layout"
