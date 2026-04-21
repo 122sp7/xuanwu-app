@@ -11,19 +11,18 @@ import logging
 
 from firebase_functions import https_fn
 
+from application.services.authorization import get_authorization
 from application.services.document_pipeline import allow_rag_query_rate_limit
+from application.services.rag_query_effects import persist_rag_query_effects
 from application.use_cases import execute_rag_query
+from core.auth_errors import AuthorizationError, UnauthenticatedError
 from core.config import (
     RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
     RAG_QUERY_REQUIRE_READY_STATUS,
     RAG_QUERY_RATE_LIMIT_MAX,
     RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
 )
-from interface.handlers._https_helpers import (
-    _assert_account_access,
-    _assert_workspace_belongs_account,
-    _extract_auth_uid,
-)
+from interface.handlers._https_helpers import _extract_auth_uid
 from interface.schemas.rag_query import RagQueryRequest
 
 logger = logging.getLogger(__name__)
@@ -32,6 +31,11 @@ logger = logging.getLogger(__name__)
 def handle_rag_query(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：RAG 查詢（Step 7）."""
     uid = _extract_auth_uid(req)
+    if not uid:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            "authentication required",
+        )
 
     try:
         schema = RagQueryRequest.from_raw(
@@ -40,15 +44,31 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
             default_require_ready=RAG_QUERY_REQUIRE_READY_STATUS,
         )
     except ValueError as exc:
-        code = (
-            https_fn.FunctionsErrorCode.UNAUTHENTICATED
-            if "登入" in str(exc)
-            else https_fn.FunctionsErrorCode.INVALID_ARGUMENT
-        )
-        raise https_fn.HttpsError(code, str(exc)) from exc
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            str(exc),
+        ) from exc
 
-    _assert_account_access(schema.uid, schema.account_id)
-    _assert_workspace_belongs_account(schema.account_id, schema.workspace_id)
+    auth_gateway = get_authorization()
+    try:
+        auth_gateway.assert_actor_can_access_account(
+            actor_id=schema.uid,
+            account_id=schema.account_id,
+        )
+        auth_gateway.assert_workspace_belongs_account(
+            account_id=schema.account_id,
+            workspace_id=schema.workspace_id,
+        )
+    except UnauthenticatedError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            str(exc),
+        ) from exc
+    except AuthorizationError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            str(exc),
+        ) from exc
 
     require_ready = (
         schema.require_ready
@@ -73,7 +93,7 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
             "RAG query rate limit exceeded, please try again later.",
         )
 
-    result = execute_rag_query(
+    execution = execute_rag_query(
         query=schema.query,
         top_k=schema.top_k,
         account_scope=schema.account_id,
@@ -82,6 +102,12 @@ def handle_rag_query(req: https_fn.CallableRequest) -> dict:
         max_age_days=max_age_days,
         require_ready=require_ready,
     )
+    result = execution.response
+    if execution.effect_plan is not None:
+        persist_rag_query_effects(
+            effect_plan=execution.effect_plan,
+            response=result,
+        )
     response = {
         "answer": result.get("answer", ""),
         "citations": result.get("citations", []),

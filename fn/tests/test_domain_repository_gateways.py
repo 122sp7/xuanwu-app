@@ -3,9 +3,11 @@ from __future__ import annotations
 from domain.repositories import (
     get_document_pipeline_gateway,
     get_rag_ingestion_gateway,
+    get_rag_query_effects_gateway,
     get_rag_query_gateway,
     register_document_pipeline_gateway,
     register_rag_ingestion_gateway,
+    register_rag_query_effects_gateway,
     register_rag_query_gateway,
 )
 
@@ -15,9 +17,6 @@ class _FakeRagQueryGateway:
         return f"{account_scope}:{query}:{top_k}"
 
     def get_query_cache(self, cache_key: str) -> dict | None:
-        return None
-
-    def save_query_cache(self, cache_key: str, payload: dict) -> None:
         return None
 
     def to_query_vector(self, query: str) -> list[float]:
@@ -31,6 +30,10 @@ class _FakeRagQueryGateway:
 
     def generate_answer(self, *, query: str, context_block: str) -> str:
         return query
+
+class _FakeRagQueryEffectsGateway:
+    def save_query_cache(self, cache_key: str, payload: dict) -> None:
+        return None
 
     def publish_query_audit(
         self,
@@ -189,14 +192,17 @@ class _FakeDocumentPipelineGateway:
 
 def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None:
     rag_query_gateway = _FakeRagQueryGateway()
+    rag_query_effects_gateway = _FakeRagQueryEffectsGateway()
     rag_ingestion_gateway = _FakeRagIngestionGateway()
     document_pipeline_gateway = _FakeDocumentPipelineGateway()
 
     register_rag_query_gateway(rag_query_gateway)
+    register_rag_query_effects_gateway(rag_query_effects_gateway)
     register_rag_ingestion_gateway(rag_ingestion_gateway)
     register_document_pipeline_gateway(document_pipeline_gateway)
 
     assert get_rag_query_gateway() is rag_query_gateway
+    assert get_rag_query_effects_gateway() is rag_query_effects_gateway
     assert get_rag_ingestion_gateway() is rag_ingestion_gateway
     assert get_document_pipeline_gateway() is document_pipeline_gateway
 
@@ -209,9 +215,13 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
         get_rag_ingestion_gateway as get_rag_ingestion_gateway_from_shim,
     )
     from application.ports.output.gateways import (
+        get_rag_query_effects_gateway as get_rag_query_effects_gateway_from_shim,
+    )
+    from application.ports.output.gateways import (
         get_rag_query_gateway as get_rag_query_gateway_from_shim,
     )
 
     assert get_rag_query_gateway_from_shim() is get_rag_query_gateway()
+    assert get_rag_query_effects_gateway_from_shim() is get_rag_query_effects_gateway()
     assert get_rag_ingestion_gateway_from_shim() is get_rag_ingestion_gateway()
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()

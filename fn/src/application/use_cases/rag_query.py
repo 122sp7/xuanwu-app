@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from application.dto import RagQueryEffectPlan, RagQueryExecution
 from core.config import RAG_QUERY_DEFAULT_MAX_AGE_DAYS, RAG_QUERY_TOP_K
 from domain.repositories import RagQueryGateway, get_rag_query_gateway
 from domain.services.rag_result_filter import (
@@ -98,7 +99,7 @@ def execute_rag_query(
     max_age_days: int | None,
     require_ready: bool,
     gateway: RagQueryGateway | None = None,
-) -> dict:
+) -> RagQueryExecution:
     """Application use case for RAG query orchestration."""
     gateway = gateway or get_rag_query_gateway()
 
@@ -114,18 +115,20 @@ def execute_rag_query(
         default_max_age_days=RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
     )
     if not request.has_query:
-        return {
-            "answer": "",
-            "citations": [],
-            "cache": "miss",
-            "vector_hits": 0,
-            "search_hits": 0,
-            "account_scope": request.account_scope,
-            "workspace_scope": request.workspace_scope,
-            "taxonomy_filters": list(request.taxonomy_filters),
-            "max_age_days": request.max_age_days,
-            "require_ready": request.require_ready,
-        }
+        return RagQueryExecution(
+            response={
+                "answer": "",
+                "citations": [],
+                "cache": "miss",
+                "vector_hits": 0,
+                "search_hits": 0,
+                "account_scope": request.account_scope,
+                "workspace_scope": request.workspace_scope,
+                "taxonomy_filters": list(request.taxonomy_filters),
+                "max_age_days": request.max_age_days,
+                "require_ready": request.require_ready,
+            }
+        )
 
     cache_key = gateway.build_query_cache_key(
         account_scope=request.account_scope,
@@ -141,15 +144,17 @@ def execute_rag_query(
     try:
         cached = gateway.get_query_cache(cache_key)
         if cached and isinstance(cached.get("answer"), str):
-            return {
-                "answer": cached.get("answer", ""),
-                "citations": cached.get("citations", []),
-                "cache": "hit",
-                "vector_hits": int(cached.get("vector_hits") or 0),
-                "search_hits": int(cached.get("search_hits") or 0),
-                "account_scope": cached.get("account_scope") or request.account_scope,
-                "workspace_scope": cached.get("workspace_scope") or request.workspace_scope,
-            }
+            return RagQueryExecution(
+                response={
+                    "answer": cached.get("answer", ""),
+                    "citations": cached.get("citations", []),
+                    "cache": "hit",
+                    "vector_hits": int(cached.get("vector_hits") or 0),
+                    "search_hits": int(cached.get("search_hits") or 0),
+                    "account_scope": cached.get("account_scope") or request.account_scope,
+                    "workspace_scope": cached.get("workspace_scope") or request.workspace_scope,
+                }
+            )
     except Exception as exc:
         logger.warning("redis query cache read failed: %s", exc)
 
@@ -174,35 +179,37 @@ def execute_rag_query(
 
     context_block = "\n\n---\n\n".join(contexts[: request.top_k])
     if not context_block:
-        return RagQueryResult(
-            answer="找不到足夠的相關內容。",
-            citations=(),
-            cache="miss",
-            vector_hits=len(vector_hits_raw),
-            search_hits=len(search_hits_raw),
-            account_scope=request.account_scope,
-            workspace_scope=request.workspace_scope,
-            taxonomy_filters=request.taxonomy_filters,
-            max_age_days=request.max_age_days,
-            require_ready=request.require_ready,
-            debug={
-                "vector_candidates": len(vector_hits_raw),
-                "search_candidates": len(search_hits_raw),
-                "retrieval_top_k": retrieval_top_k,
-                "workspace_scope": request.workspace_scope,
-                "taxonomy_filters": list(request.taxonomy_filters),
-                "max_age_days": request.max_age_days,
-                "require_ready": request.require_ready,
-                "dropped_by_workspace": dw1 + dw2,
-                "dropped_by_status": ds1 + ds2,
-                "dropped_by_freshness": df1 + df2,
-                "dropped_by_taxonomy": dt1 + dt2,
-                "reason": "no-context-after-scope-or-text-filter",
-            },
-        ).to_dict()
+        return RagQueryExecution(
+            response=RagQueryResult(
+                answer="找不到足夠的相關內容。",
+                citations=(),
+                cache="miss",
+                vector_hits=len(vector_hits_raw),
+                search_hits=len(search_hits_raw),
+                account_scope=request.account_scope,
+                workspace_scope=request.workspace_scope,
+                taxonomy_filters=request.taxonomy_filters,
+                max_age_days=request.max_age_days,
+                require_ready=request.require_ready,
+                debug={
+                    "vector_candidates": len(vector_hits_raw),
+                    "search_candidates": len(search_hits_raw),
+                    "retrieval_top_k": retrieval_top_k,
+                    "workspace_scope": request.workspace_scope,
+                    "taxonomy_filters": list(request.taxonomy_filters),
+                    "max_age_days": request.max_age_days,
+                    "require_ready": request.require_ready,
+                    "dropped_by_workspace": dw1 + dw2,
+                    "dropped_by_status": ds1 + ds2,
+                    "dropped_by_freshness": df1 + df2,
+                    "dropped_by_taxonomy": dt1 + dt2,
+                    "reason": "no-context-after-scope-or-text-filter",
+                },
+            ).to_dict()
+        )
 
     answer = gateway.generate_answer(query=request.query, context_block=context_block)
-    result = RagQueryResult(
+    response = RagQueryResult(
         answer=answer,
         citations=tuple(citations),
         cache="miss",
@@ -214,18 +221,14 @@ def execute_rag_query(
         max_age_days=request.max_age_days,
         require_ready=request.require_ready,
     ).to_dict()
-
-    try:
-        gateway.save_query_cache(cache_key, result)
-    except Exception as exc:
-        logger.warning("redis query cache write failed: %s", exc)
-
-    gateway.publish_query_audit(
-        query=request.query,
-        top_k=request.top_k,
-        citation_count=len(citations),
-        vector_hits=vector_hit_count,
-        search_hits=search_hit_count,
+    return RagQueryExecution(
+        response=response,
+        effect_plan=RagQueryEffectPlan(
+            cache_key=cache_key,
+            query=request.query,
+            top_k=request.top_k,
+            citation_count=len(citations),
+            vector_hits=vector_hit_count,
+            search_hits=search_hit_count,
+        ),
     )
-
-    return result

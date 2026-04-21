@@ -8,8 +8,6 @@ class RagQueryGateway(Protocol):
 
     def get_query_cache(self, cache_key: str) -> dict[str, Any] | None: ...
 
-    def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None: ...
-
     def to_query_vector(self, query: str) -> list[float]: ...
 
     def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]: ...
@@ -17,6 +15,9 @@ class RagQueryGateway(Protocol):
     def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]: ...
 
     def generate_answer(self, *, query: str, context_block: str) -> str: ...
+
+class RagQueryEffectsGateway(Protocol):
+    def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None: ...
 
     def publish_query_audit(
         self,
@@ -172,6 +173,7 @@ class DocumentPipelineGateway(
 
 
 _rag_query_gateway: RagQueryGateway | None = None
+_rag_query_effects_gateway: RagQueryEffectsGateway | None = None
 _rag_ingestion_gateway: RagIngestionGateway | None = None
 _document_parser_gateway: DocumentParserGateway | None = None
 _document_rate_limit_gateway: DocumentRateLimitGateway | None = None
@@ -191,6 +193,17 @@ def get_rag_query_gateway() -> RagQueryGateway:
     if _rag_query_gateway is None:
         raise RuntimeError("RagQueryGateway is not registered")
     return _rag_query_gateway
+
+
+def register_rag_query_effects_gateway(gateway: RagQueryEffectsGateway) -> None:
+    global _rag_query_effects_gateway
+    _rag_query_effects_gateway = gateway
+
+
+def get_rag_query_effects_gateway() -> RagQueryEffectsGateway:
+    if _rag_query_effects_gateway is None:
+        raise RuntimeError("RagQueryEffectsGateway is not registered")
+    return _rag_query_effects_gateway
 
 
 def register_rag_ingestion_gateway(gateway: RagIngestionGateway) -> None:

@@ -8,6 +8,7 @@ from domain.repositories.rag import (
     DocumentRateLimitGateway,
     DocumentStatusGateway,
     RagIngestionGateway,
+    RagQueryEffectsGateway,
     RagQueryGateway,
     get_authorization_gateway,
     get_document_artifact_gateway,
@@ -16,6 +17,7 @@ from domain.repositories.rag import (
     get_document_rate_limit_gateway,
     get_document_status_gateway,
     get_rag_ingestion_gateway,
+    get_rag_query_effects_gateway,
     get_rag_query_gateway,
     register_authorization_gateway,
     register_document_artifact_gateway,
@@ -24,6 +26,7 @@ from domain.repositories.rag import (
     register_document_rate_limit_gateway,
     register_document_status_gateway,
     register_rag_ingestion_gateway,
+    register_rag_query_effects_gateway,
     register_rag_query_gateway,
 )
 
@@ -35,6 +38,7 @@ __all__ = [
     "DocumentRateLimitGateway",
     "DocumentStatusGateway",
     "RagIngestionGateway",
+    "RagQueryEffectsGateway",
     "RagQueryGateway",
     "get_authorization_gateway",
     "get_document_artifact_gateway",
@@ -43,6 +47,7 @@ __all__ = [
     "get_document_rate_limit_gateway",
     "get_document_status_gateway",
     "get_rag_ingestion_gateway",
+    "get_rag_query_effects_gateway",
     "get_rag_query_gateway",
     "register_authorization_gateway",
     "register_document_artifact_gateway",
@@ -51,5 +56,6 @@ __all__ = [
     "register_document_rate_limit_gateway",
     "register_document_status_gateway",
     "register_rag_ingestion_gateway",
+    "register_rag_query_effects_gateway",
     "register_rag_query_gateway",
 ]
