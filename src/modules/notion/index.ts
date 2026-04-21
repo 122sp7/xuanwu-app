@@ -18,6 +18,11 @@ export * from "./subdomains/database/domain";
 export * from "./subdomains/database/application";
 export { InMemoryDatabaseRepository } from "./subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository";
 
+// knowledge (canonical KnowledgeArtifact aggregate)
+export * from "./subdomains/knowledge/domain";
+export * from "./subdomains/knowledge/application";
+export { InMemoryKnowledgeArtifactRepository } from "./subdomains/knowledge/adapters/outbound/memory/InMemoryKnowledgeArtifactRepository";
+
 // view
 export type {
   ViewSnapshot,

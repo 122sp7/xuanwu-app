@@ -1,38 +1,30 @@
 "use client";
 
 /**
- * WorkspaceScheduleSection — workspace.schedule tab — project timeline / milestones.
+ * WorkspaceScheduleSection — workspace.schedule tab — workspace work-demand schedule view.
  */
 
-import { Badge, Button } from "@packages";
-import { CalendarRange, Plus } from "lucide-react";
+import { Badge } from "@packages";
+import { CalendarRange } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
 import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
-import { createWorkDemandAction } from "../server-actions/schedule-actions";
 const scheduleUseCases = createClientScheduleUseCases();
 
 interface WorkspaceScheduleSectionProps {
   workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
+}
+
+function isDemandPriority(value: string): value is DemandPriority {
+  return (DEMAND_PRIORITIES as readonly string[]).includes(value);
 }
 
 export function WorkspaceScheduleSection({
   workspaceId,
-  accountId,
-  currentUserId,
 }: WorkspaceScheduleSectionProps): React.ReactElement {
   const { listWorkDemandsByWorkspace } = scheduleUseCases;
   const [period, setPeriod] = useState("本週");
   const [demands, setDemands] = useState<WorkDemandSnapshot[]>([]);
-  const [isCreatingBaseline, setIsCreatingBaseline] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadDemands(): Promise<void> {
-    const result = await listWorkDemandsByWorkspace.execute(workspaceId);
-    setDemands(result);
-  }
 
   useEffect(() => {
     let active = true;
@@ -44,53 +36,13 @@ export function WorkspaceScheduleSection({
     return () => { active = false; };
   }, [listWorkDemandsByWorkspace, workspaceId]);
 
-  async function handleCreateBaseline(): Promise<void> {
-    if (!currentUserId) {
-      setCreateError("尚未取得操作者身分，請重新登入後再試。");
-      return;
-    }
-    setIsCreatingBaseline(true);
-    setCreateError(null);
-    const now = new Date();
-    const baselineDate = new Date(now);
-    baselineDate.setDate(now.getDate() + 7);
-    const result = await createWorkDemandAction({
-      workspaceId,
-      accountId,
-      requesterId: currentUserId,
-      title: "基線里程碑",
-      description: "初始化工作區排程基線",
-      priority: "medium",
-      scheduledAt: baselineDate.toISOString(),
-    });
-    if (!result.success) {
-      setCreateError(result.error.message);
-      setIsCreatingBaseline(false);
-      return;
-    }
-    await loadDemands();
-    setIsCreatingBaseline(false);
-  }
-
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarRange className="size-4 text-primary" />
-          <h2 className="text-sm font-semibold">排程</h2>
-        </div>
-        <Button size="sm" variant="outline" onClick={() => void handleCreateBaseline()} disabled={isCreatingBaseline}>
-          <Plus className="size-3.5" />
-          {isCreatingBaseline ? "建立中…" : "建立基線"}
-        </Button>
+      <div className="flex items-center gap-2">
+        <CalendarRange className="size-4 text-primary" />
+        <h2 className="text-sm font-semibold">排程</h2>
       </div>
-
-      {createError && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {createError}
-        </p>
-      )}
 
       {/* Phase labels */}
       <div className="flex flex-wrap gap-2">
@@ -128,20 +80,10 @@ export function WorkspaceScheduleSection({
           <div className="absolute left-6 top-0 h-full w-px bg-border/30" />
           <div className="px-4 py-8 text-center">
             <CalendarRange className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-            <p className="text-sm font-medium text-muted-foreground">尚無排程里程碑</p>
+            <p className="text-sm font-medium text-muted-foreground">尚無工作排程需求</p>
             <p className="mt-1 text-xs text-muted-foreground/70">
-              建立里程碑後，時間軸將顯示專案進度與截止日期。
+              目前此工作區尚未提出待排程事項。
             </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-4"
-              onClick={() => void handleCreateBaseline()}
-              disabled={isCreatingBaseline}
-            >
-              <Plus className="size-3.5" />
-              {isCreatingBaseline ? "建立中…" : "建立第一個基線"}
-            </Button>
           </div>
         </div>
       )}

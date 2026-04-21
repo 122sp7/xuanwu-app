@@ -44,6 +44,41 @@ export function createClientFileStorageUseCases() {
   };
 }
 
+// ── Client-side file storage helpers ─────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+// The Firebase Web Client SDK requires a signed-in user in the browser context.
+// A Server Action has no active Firebase user session → Firestore Security Rules
+// block any operation (read or write) with "Missing or insufficient permissions".
+
+export async function listWorkspaceFiles(params: { workspaceId: string }) {
+  const { listStoredFiles } = createClientFileStorageUseCases();
+  const files = await listStoredFiles.execute({ ownerId: params.workspaceId });
+  return files.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
+}
+
+export async function registerUploadedFile(params: {
+  workspaceId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+}) {
+  const { createStoredFile } = createClientFileStorageUseCases();
+  return createStoredFile.execute({
+    ownerId: params.workspaceId,
+    fileName: params.fileName,
+    mimeType: params.mimeType,
+    sizeBytes: params.sizeBytes,
+    url: params.url,
+  });
+}
+
+export async function deleteWorkspaceFile(params: { fileId: string }) {
+  const { deleteStoredFile } = createClientFileStorageUseCases();
+  await deleteStoredFile.execute({ fileId: params.fileId });
+}
+
 // ── Storage helpers ───────────────────────────────────────────────────────────
 
 /**

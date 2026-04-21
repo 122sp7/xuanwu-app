@@ -5,7 +5,7 @@
  *
  * Manual Document AI pipeline controls:
  *   ① 上傳文件  — upload to Firebase Storage (fn Storage Trigger auto-runs parse+RAG)
- *   ② 解析文件  — manually trigger Layout Parser + Form Parser via callable
+ *   ② 解析文件  — manually trigger Layout/Form/OCR/Genkit-AI via callable
  *   ③ RAG 索引  — manually trigger RAG reindex via callable
  *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
  *   ⑤ 建立資料庫 — create Notion Database named after document (for Form Parser entities)
@@ -13,7 +13,7 @@
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
-import { Button } from "@packages";
+import { Button, createGoogleViewerEmbedUrl } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -22,9 +22,8 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  queryDocumentsAction,
   registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
@@ -32,6 +31,7 @@ import {
   reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
+  queryDocuments,
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
@@ -58,10 +58,6 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tif",
 ]);
 
-function googleDocViewerUrl(downloadUrl: string): string {
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(downloadUrl)}&embedded=true`;
-}
-
 // ── Per-document action state ─────────────────────────────────────────────────
 
 type DocActionStatus = "idle" | "running" | "done" | "error";
@@ -69,6 +65,8 @@ type DocActionStatus = "idle" | "running" | "done" | "error";
 interface DocActionState {
   parseLayout: DocActionStatus;
   parseForm: DocActionStatus;
+  parseOcr: DocActionStatus;
+  parseGenkit: DocActionStatus;
   index: DocActionStatus;
   reindex: DocActionStatus;
   page: DocActionStatus;
@@ -84,7 +82,7 @@ export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
 }: NotebooklmSourcesSectionProps): React.ReactElement {
-  const [documents, setDocuments] = useState<DocumentSnapshot[]>([]);
+  const [documents, setDocuments] = useState<IngestionSourceSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [isRefreshing, startRefresh] = useTransition();
   const [isUploading, startUpload] = useTransition();
@@ -92,7 +90,7 @@ export function NotebooklmSourcesSection({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Preview state
-  const [previewDoc, setPreviewDoc] = useState<DocumentSnapshot | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<IngestionSourceSnapshot | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -102,11 +100,11 @@ export function NotebooklmSourcesSection({
   const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
 
   // JSON viewer modal state
-  const [jsonViewer, setJsonViewer] = useState<{ doc: DocumentSnapshot; type: "layout" | "form" } | null>(null);
+  const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
 
   const load = () => {
     startRefresh(async () => {
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
       setLoaded(true);
     });
@@ -131,7 +129,7 @@ export function NotebooklmSourcesSection({
           mimeType: file.type || "application/octet-stream",
           sizeBytes: file.size,
         });
-        const result = await queryDocumentsAction({ accountId, workspaceId });
+        const result = await queryDocuments({ accountId, workspaceId });
         setDocuments(Array.isArray(result) ? result : []);
         setLoaded(true);
       } catch (err) {
@@ -144,13 +142,18 @@ export function NotebooklmSourcesSection({
     });
   };
 
-  const handlePreview = async (doc: DocumentSnapshot) => {
+  const handlePreview = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setPreviewDoc(doc);
     setPreviewUrl(null);
     setPreviewError(null);
     setPreviewLoading(true);
     try {
+      // Use Firebase Storage getDownloadURL() directly on the client.
+      // Storage rules allow read for authenticated users, so the Firebase JS SDK
+      // fetches a token-based download URL without any IAM signing.  The resulting
+      // URL is publicly accessible (token embedded in the URL) and works with
+      // Google Docs Viewer — no Cloud Function round-trip required.
       const url = await getDocumentDownloadUrl(doc.storageUrl);
       setPreviewUrl(url);
     } catch (err) {
@@ -172,13 +175,14 @@ export function NotebooklmSourcesSection({
   const setDocAction = (docId: string, patch: Partial<DocActionState>) => {
     setActionState((prev) => {
       const current: DocActionState = prev[docId] ?? {
-        parseLayout: "idle", parseForm: "idle", index: "idle", reindex: "idle", page: "idle", database: "idle",
+        parseLayout: "idle", parseForm: "idle", parseOcr: "idle", parseGenkit: "idle",
+        index: "idle", reindex: "idle", page: "idle", database: "idle",
       };
       return { ...prev, [docId]: { ...current, ...patch } };
     });
   };
 
-  const handleParseLayout = async (doc: DocumentSnapshot) => {
+  const handleParseLayout = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseLayout: "running", message: undefined });
     try {
@@ -193,14 +197,14 @@ export function NotebooklmSourcesSection({
         parser: "layout",
       });
       setDocAction(doc.id, { parseLayout: "done", message: "Layout Parser 解析完成（文字 + 語意分塊已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseLayout: "error", message: err instanceof Error ? err.message : "Layout Parser 解析失敗" });
     }
   };
 
-  const handleParseForm = async (doc: DocumentSnapshot) => {
+  const handleParseForm = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseForm: "running", message: undefined });
     try {
@@ -215,14 +219,58 @@ export function NotebooklmSourcesSection({
         parser: "form",
       });
       setDocAction(doc.id, { parseForm: "done", message: "Form Parser 解析完成（結構化欄位已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseForm: "error", message: err instanceof Error ? err.message : "Form Parser 解析失敗" });
     }
   };
 
-  const handleIndex = async (doc: DocumentSnapshot) => {
+  const handleParseOcr = async (doc: IngestionSourceSnapshot) => {
+    if (!doc.storageUrl) return;
+    setDocAction(doc.id, { parseOcr: "running", message: undefined });
+    try {
+      await parseDocumentAction({
+        accountId,
+        workspaceId,
+        docId: doc.id,
+        storageUrl: doc.storageUrl,
+        filename: doc.name,
+        mimeType: doc.mimeType || "application/pdf",
+        sizeBytes: doc.sizeBytes,
+        parser: "ocr",
+      });
+      setDocAction(doc.id, { parseOcr: "done", message: "Document OCR 解析完成（OCR JSON 已儲存）" });
+      const result = await queryDocuments({ accountId, workspaceId });
+      setDocuments(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setDocAction(doc.id, { parseOcr: "error", message: err instanceof Error ? err.message : "Document OCR 解析失敗" });
+    }
+  };
+
+  const handleParseGenkit = async (doc: IngestionSourceSnapshot) => {
+    if (!doc.storageUrl) return;
+    setDocAction(doc.id, { parseGenkit: "running", message: undefined });
+    try {
+      await parseDocumentAction({
+        accountId,
+        workspaceId,
+        docId: doc.id,
+        storageUrl: doc.storageUrl,
+        filename: doc.name,
+        mimeType: doc.mimeType || "application/pdf",
+        sizeBytes: doc.sizeBytes,
+        parser: "genkit",
+      });
+      setDocAction(doc.id, { parseGenkit: "done", message: "Genkit-AI 解析完成（Genkit JSON 已儲存）" });
+      const result = await queryDocuments({ accountId, workspaceId });
+      setDocuments(Array.isArray(result) ? result : []);
+    } catch (err) {
+      setDocAction(doc.id, { parseGenkit: "error", message: err instanceof Error ? err.message : "Genkit-AI 解析失敗" });
+    }
+  };
+
+  const handleIndex = async (doc: IngestionSourceSnapshot) => {
     if (!doc.id) return;
     if (!doc.parsedLayoutJsonGcsUri) {
       setDocAction(doc.id, { index: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
@@ -232,14 +280,14 @@ export function NotebooklmSourcesSection({
     try {
       await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成（使用 Layout Parser 產出物）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { index: "error", message: err instanceof Error ? err.message : "建立索引失敗" });
     }
   };
 
-  const handleReindex = async (doc: DocumentSnapshot) => {
+  const handleReindex = async (doc: IngestionSourceSnapshot) => {
     if (!doc.id) return;
     if (!doc.parsedLayoutJsonGcsUri) {
       setDocAction(doc.id, { reindex: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
@@ -249,14 +297,14 @@ export function NotebooklmSourcesSection({
     try {
       await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成（使用 Layout Parser 產出物）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { reindex: "error", message: err instanceof Error ? err.message : "重建索引失敗" });
     }
   };
 
-  const handleCreatePage = async (doc: DocumentSnapshot) => {
+  const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
       const result = await createPageFromDocumentAction({
@@ -272,7 +320,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleCreateDatabase = async (doc: DocumentSnapshot) => {
+  const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
       await createDatabaseFromDocumentAction({
@@ -375,6 +423,7 @@ export function NotebooklmSourcesSection({
             const isExpanded = expandedId === doc.id;
             const anyRunning = state && (
               state.parseLayout === "running" || state.parseForm === "running" ||
+              state.parseOcr === "running" || state.parseGenkit === "running" ||
               state.index === "running" || state.reindex === "running" ||
               state.page === "running" || state.database === "running"
             );
@@ -508,6 +557,54 @@ export function NotebooklmSourcesSection({
                             <CheckCircle2 className="size-4" />
                           </button>
                         )}
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={!doc.storageUrl || state?.parseOcr === "running" || !!anyRunning}
+                          onClick={() => void handleParseOcr(doc)}
+                          title="使用 OCR Processor 擷取掃描文件全文，供稠密 PDF 後續流程使用"
+                        >
+                          {state?.parseOcr === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <FileText className="size-3 text-emerald-600" />
+                          )}
+                          解析文件(Document OCR)
+                        </Button>
+                        {(doc.parsedOcrJsonGcsUri || state?.parseOcr === "done") && (
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full p-0.5 text-green-600 hover:bg-green-500/10 transition-colors"
+                            title="Document OCR 已解析 — 點擊查看 JSON 摘要"
+                            onClick={() => setJsonViewer({ doc, type: "ocr" })}
+                            aria-label="查看 Document OCR JSON"
+                          >
+                            <CheckCircle2 className="size-4" />
+                          </button>
+                        )}
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={!doc.storageUrl || state?.parseGenkit === "running" || !!anyRunning}
+                          onClick={() => void handleParseGenkit(doc)}
+                          title="使用 Genkit-AI 路徑產生可供後續 AI workflow 使用的 JSON 產出"
+                        >
+                          {state?.parseGenkit === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <ScanText className="size-3 text-fuchsia-600" />
+                          )}
+                          解析文件(Genkit-AI)
+                        </Button>
+                        {(doc.parsedGenkitJsonGcsUri || state?.parseGenkit === "done") && (
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full p-0.5 text-green-600 hover:bg-green-500/10 transition-colors"
+                            title="Genkit-AI 已解析 — 點擊查看 JSON 摘要"
+                            onClick={() => setJsonViewer({ doc, type: "genkit" })}
+                            aria-label="查看 Genkit-AI JSON"
+                          >
+                            <CheckCircle2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -610,6 +707,7 @@ export function NotebooklmSourcesSection({
                     {state?.message && (
                       <p className={`text-xs px-2 py-1 rounded ${
                         (state.parseLayout === "error" || state.parseForm === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
+                          || state.parseOcr === "error" || state.parseGenkit === "error"
                           ? "bg-destructive/10 text-destructive"
                           : "bg-muted text-muted-foreground"
                       }`}>
@@ -665,14 +763,35 @@ export function NotebooklmSourcesSection({
                 parsedLayoutChunkCount: jDoc.parsedLayoutChunkCount ?? null,
                 parsedLayoutJsonGcsUri: jDoc.parsedLayoutJsonGcsUri ?? null,
               }
-            : {
+            : type === "form"
+              ? {
                 parser: "form",
                 documentId: jDoc.id,
                 name: jDoc.name,
                 parsedFormEntityCount: jDoc.parsedFormEntityCount ?? null,
                 parsedFormJsonGcsUri: jDoc.parsedFormJsonGcsUri ?? null,
-              };
-        const title = type === "layout" ? "Layout Parser JSON 摘要" : "Form Parser JSON 摘要";
+              }
+              : type === "ocr"
+                ? {
+                  parser: "ocr",
+                  documentId: jDoc.id,
+                  name: jDoc.name,
+                  parsedOcrJsonGcsUri: jDoc.parsedOcrJsonGcsUri ?? null,
+                }
+                : {
+                  parser: "genkit",
+                  documentId: jDoc.id,
+                  name: jDoc.name,
+                  parsedGenkitJsonGcsUri: jDoc.parsedGenkitJsonGcsUri ?? null,
+                };
+        const title =
+          type === "layout"
+            ? "Layout Parser JSON 摘要"
+            : type === "form"
+              ? "Form Parser JSON 摘要"
+              : type === "ocr"
+                ? "Document OCR JSON 摘要"
+                : "Genkit-AI JSON 摘要";
         return (
           <div
             role="dialog"
@@ -740,7 +859,7 @@ export function NotebooklmSourcesSection({
               )}
               {previewUrl && (
                 <iframe
-                  src={googleDocViewerUrl(previewUrl)}
+                  src={createGoogleViewerEmbedUrl(previewUrl)}
                   className="h-full w-full border-0"
                   title={`預覽：${previewDoc.name}`}
                   sandbox="allow-scripts allow-same-origin allow-popups"

@@ -131,3 +131,33 @@ export {
   getWorkspaceFileDownloadUrl,
   createClientFileStorageUseCases,
 } from "./adapters/outbound/firebase-composition";
+
+// audit-log (platform governance)
+export type {
+  AuditLogEntrySnapshot,
+  AuditAction,
+  RecordAuditEntryInput,
+  AuditLogRepository,
+  AuditLogQuery,
+} from "./subdomains/audit-log/domain";
+export { AuditLogEntry } from "./subdomains/audit-log/domain";
+export { RecordAuditEntryUseCase, QueryAuditLogUseCase } from "./subdomains/audit-log/application";
+export { InMemoryAuditLogRepository } from "./subdomains/audit-log/adapters/outbound/memory/InMemoryAuditLogRepository";
+
+// feature-flag (incremental rollout governance)
+export type {
+  FeatureFlagSnapshot,
+  FlagScope,
+  CreateFeatureFlagInput,
+  FeatureFlagRepository,
+  FeatureFlagQuery,
+} from "./subdomains/feature-flag/domain";
+export { FeatureFlag } from "./subdomains/feature-flag/domain";
+export {
+  CreateFeatureFlagUseCase,
+  ToggleFeatureFlagUseCase,
+  QueryFeatureFlagsUseCase,
+  ResolveFeatureFlagUseCase,
+} from "./subdomains/feature-flag/application";
+export { InMemoryFeatureFlagRepository } from "./subdomains/feature-flag/adapters/outbound/memory/InMemoryFeatureFlagRepository";
+

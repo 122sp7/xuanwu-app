@@ -9,7 +9,7 @@
 
 import { z } from "zod";
 import {
-  createClientNotebooklmDocumentUseCases,
+  createClientNotebooklmSourceUseCases,
 } from "../../outbound/firebase-composition";
 import { processSourceDocumentAction } from "./source-processing-actions";
 import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
@@ -41,11 +41,6 @@ async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut
 
 // ── Input schemas ─────────────────────────────────────────────────────────────
 
-const QueryDocumentsInputSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().optional(),
-});
-
 const UploadDocumentMetaSchema = z.object({
   accountId: z.string().min(1),
   workspaceId: z.string().min(1),
@@ -76,8 +71,8 @@ const ParseDocumentActionInputSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.string().default("application/pdf"),
   sizeBytes: z.number().int().nonnegative().default(0),
-  /** Which Document AI processor to invoke: "layout" (default), "form", or "ocr". */
-  parser: z.enum(["layout", "form", "ocr"]).default("layout"),
+  /** Which parser to invoke: "layout" | "form" | "ocr" | "genkit". */
+  parser: z.enum(["layout", "form", "ocr", "genkit"]).default("layout"),
 });
 
 const ReindexDocumentActionInputSchema = z.object({
@@ -89,18 +84,11 @@ const ReindexDocumentActionInputSchema = z.object({
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-/**
- * queryDocumentsAction — list documents for a workspace.
- * Reads from Firestore (accounts/{accountId}/documents).
- */
-export async function queryDocumentsAction(rawInput: unknown) {
-  const input = QueryDocumentsInputSchema.parse(rawInput);
-  const { queryDocuments } = createClientNotebooklmDocumentUseCases();
-  return queryDocuments.execute({
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-  });
-}
+// NOTE: queryDocumentsAction was removed.
+// Querying accounts/{accountId}/documents via a Server Action fails with
+// "Missing or insufficient permissions" because the Firebase Web Client SDK
+// has no user auth context on the server.
+// Use queryDocuments() from firebase-composition.ts (client-side helper) instead.
 
 /**
  * registerUploadedDocumentAction — register a document snapshot after upload.
@@ -111,17 +99,17 @@ export async function queryDocumentsAction(rawInput: unknown) {
  */
 export async function registerUploadedDocumentAction(rawInput: unknown) {
   const input = UploadDocumentMetaSchema.parse(rawInput);
-  const { addDocument } = createClientNotebooklmDocumentUseCases();
-  return addDocument.execute({
+  const { registerSource } = createClientNotebooklmSourceUseCases();
+  return registerSource.execute({
     accountId: input.accountId,
     workspaceId: input.workspaceId,
     organizationId: "",
     name: input.filename,
     mimeType: input.mimeType,
     sizeBytes: input.sizeBytes,
-    status: "processing",
     storageUrl: input.gcsPath,
-  } as Parameters<typeof addDocument.execute>[0]);
+    originUri: input.gcsPath,
+  });
 }
 
 /**
@@ -176,7 +164,7 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
       mime_type: string;
       size_bytes: number;
       run_rag: false;
-      parser: "layout" | "form" | "ocr";
+       parser: "layout" | "form" | "ocr" | "genkit";
     },
     ParseDocumentOutput
   >("parse_document", {
@@ -205,3 +193,4 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
     { account_id: input.accountId, doc_id: input.docId, json_gcs_uri: input.layoutJsonGcsUri },
   );
 }
+

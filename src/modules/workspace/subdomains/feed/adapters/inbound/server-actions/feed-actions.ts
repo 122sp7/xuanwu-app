@@ -3,36 +3,14 @@
 /**
  * feed-actions — workspace/feed inbound server actions.
  *
- * Thin boundary layer: parse → use-case → return CommandResult / snapshot[].
- * All Firebase setup goes through the workspace firebase-composition root.
+ * NOTE: All feed Firestore operations have been moved to client-side helpers
+ * in workspace/adapters/outbound/firebase-composition.ts.
+ *
+ * The Firebase Web Client SDK requires a signed-in user session in the browser.
+ * Server Actions executing Firestore reads/writes via the web SDK have no user
+ * auth context → Security Rules block every operation with
+ * "Missing or insufficient permissions".
+ *
+ * Use listFeedPosts(), createFeedPost(), listAccountFeedPosts() from
+ * workspace/adapters/outbound/firebase-composition instead.
  */
-
-import type { CommandResult } from "../../../../../../shared";
-import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
-import {
-  CreateFeedPostSchema,
-  ListAccountFeedPostsSchema,
-  ListFeedPostsSchema,
-} from "../../../application";
-import { createClientFeedUseCases } from "../../../../../adapters/outbound/firebase-composition";
-
-/** Create a new feed post (text + optional photos). */
-export async function createFeedPostAction(rawInput: unknown): Promise<CommandResult> {
-  const input = CreateFeedPostSchema.parse(rawInput);
-  const { createFeedPost } = createClientFeedUseCases();
-  return createFeedPost.execute(input);
-}
-
-/** List feed posts for a workspace, optionally filtered by date (YYYY-MM-DD). */
-export async function listFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]> {
-  const input = ListFeedPostsSchema.parse(rawInput);
-  const { listFeedPosts } = createClientFeedUseCases();
-  return listFeedPosts.execute(input);
-}
-
-/** List feed posts across all workspaces within an account. */
-export async function listAccountFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]> {
-  const input = ListAccountFeedPostsSchema.parse(rawInput);
-  const { listAccountFeedPosts } = createClientFeedUseCases();
-  return listAccountFeedPosts.execute(input);
-}

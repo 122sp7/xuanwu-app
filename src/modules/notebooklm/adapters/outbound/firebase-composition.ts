@@ -8,13 +8,13 @@
  */
 
 import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
+import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
 import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
 import {
-  AddDocumentUseCase,
-  ArchiveDocumentUseCase,
-  QueryDocumentsUseCase,
-} from "../../subdomains/document/application/use-cases/DocumentUseCases";
+  RegisterIngestionSourceUseCase,
+  ArchiveIngestionSourceUseCase,
+  QueryIngestionSourcesUseCase,
+} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
 import {
   CreateNotebookUseCase,
   AddDocumentToNotebookUseCase,
@@ -25,12 +25,12 @@ import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInpu
 
 // ── Singleton repositories ────────────────────────────────────────────────────
 
-let _docRepo: FirestoreDocumentRepository | undefined;
+let _sourceRepo: FirestoreIngestionSourceRepository | undefined;
 let _notebookRepo: InMemoryNotebookRepository | undefined;
 
-function getDocumentRepo(): FirestoreDocumentRepository {
-  if (!_docRepo) _docRepo = new FirestoreDocumentRepository();
-  return _docRepo;
+function getSourceRepo(): FirestoreIngestionSourceRepository {
+  if (!_sourceRepo) _sourceRepo = new FirestoreIngestionSourceRepository();
+  return _sourceRepo;
 }
 
 function getNotebookRepo(): InMemoryNotebookRepository {
@@ -62,12 +62,12 @@ class RagQueryGenerationPort implements NotebookGenerationPort {
 
 // ── Factory functions ─────────────────────────────────────────────────────────
 
-export function createClientNotebooklmDocumentUseCases() {
-  const repo = getDocumentRepo();
+export function createClientNotebooklmSourceUseCases() {
+  const repo = getSourceRepo();
   return {
-    addDocument: new AddDocumentUseCase(repo),
-    archiveDocument: new ArchiveDocumentUseCase(repo),
-    queryDocuments: new QueryDocumentsUseCase(repo),
+    registerSource: new RegisterIngestionSourceUseCase(repo),
+    archiveSource: new ArchiveIngestionSourceUseCase(repo),
+    querySources: new QueryIngestionSourcesUseCase(repo),
   };
 }
 
@@ -126,3 +126,22 @@ export async function getDocumentDownloadUrl(storageUrl: string): Promise<string
 
 // keep firestore & firestoreApi accessible within this composition module
 export { getFirebaseFirestore, firestoreApi };
+
+// ── Client-side Firestore query helper ───────────────────────────────────────
+
+/**
+ * queryDocuments — query ingestion sources directly from the browser.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.  A Server Action
+ * has no active Firebase user session, which causes "Missing or insufficient
+ * permissions" even when rules only require `isSignedIn()`.
+ */
+export async function queryDocuments(params: {
+  accountId: string;
+  workspaceId?: string;
+}) {
+  const repo = getSourceRepo();
+  return repo.query(params);
+}

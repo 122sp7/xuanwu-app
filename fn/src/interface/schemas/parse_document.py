@@ -35,7 +35,7 @@ class ParseDocumentRequest:
     mime_type: str
     size_bytes: int
     run_rag: bool
-    parser: str  # "layout" | "form" | "ocr"
+    parser: str  # "layout" | "form" | "ocr" | "genkit"
 
     @classmethod
     def from_raw(cls, raw: dict) -> "ParseDocumentRequest":
@@ -88,8 +88,8 @@ class ParseDocumentRequest:
         run_rag = bool(raw.get("run_rag", True))
 
         parser = str(raw.get("parser", "layout")).strip().lower()
-        if parser not in ("layout", "form", "ocr"):
-            raise ValueError("parser 必須為 'layout'、'form' 或 'ocr'")
+        if parser not in ("layout", "form", "ocr", "genkit"):
+            raise ValueError("parser 必須為 'layout'、'form'、'ocr' 或 'genkit'")
 
         return cls(
             account_id=account_id,
