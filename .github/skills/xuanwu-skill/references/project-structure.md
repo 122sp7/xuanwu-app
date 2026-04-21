@@ -984,11 +984,13 @@ src/
       adapters/
         inbound/
           react/
+            document-artifact-payload.ts (30 lines)
+            document-artifact-utils.ts (24 lines)
             index.ts (4 lines)
             NotebooklmAiChatSection.tsx (25 lines)
             NotebooklmNotebookSection.tsx (18 lines)
-            NotebooklmResearchSection.tsx (28 lines)
-            NotebooklmSourcesSection.tsx (141 lines)
+            NotebooklmResearchSection.tsx (30 lines)
+            NotebooklmSourcesSection.tsx (145 lines)
           server-actions/
             document-actions.ts (75 lines)
             notebook-actions.ts (27 lines)
@@ -1172,7 +1174,7 @@ src/
             index.ts (0 lines)
           domain/
             entities/
-              Database.ts (59 lines)
+              Database.ts (63 lines)
             repositories/
               DatabaseRepository.ts (15 lines)
             index.ts (0 lines)
@@ -1212,7 +1214,7 @@ src/
             index.ts (0 lines)
           domain/
             entities/
-              Page.ts (66 lines)
+              Page.ts (72 lines)
             repositories/
               PageRepository.ts (26 lines)
             index.ts (0 lines)
@@ -1249,7 +1251,7 @@ src/
               View.ts (41 lines)
             index.ts (2 lines)
       AGENTS.md (62 lines)
-      index.ts (36 lines)
+      index.ts (44 lines)
       README.md (60 lines)
     platform/
       adapters/
@@ -1681,7 +1683,7 @@ src/
             WorkspaceScopeProvider.tsx (39 lines)
             WorkspaceSettingsSection.tsx (26 lines)
             WorkspaceSettlementSection.tsx (31 lines)
-            WorkspaceTaskFormationSection.tsx (68 lines)
+            WorkspaceTaskFormationSection.tsx (70 lines)
             WorkspaceTasksSection.tsx (47 lines)
           server-actions/
             approval-actions.ts (12 lines)

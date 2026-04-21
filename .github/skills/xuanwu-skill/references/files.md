@@ -18205,6 +18205,40 @@ adapters/inbound → application → domain ← adapters/outbound
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
+## File: src/modules/notebooklm/adapters/inbound/react/document-artifact-payload.ts
+````typescript
+import type { DatabaseProperty, PropertyType } from "@/src/modules/notion";
+⋮----
+function normalizeWhitespace(value: string): string
+⋮----
+function collectTextFragments(value: unknown, bag: string[]): void
+⋮----
+export function buildSourceTextFromArtifacts(
+  artifacts: ReadonlyArray<unknown>,
+  fallbackTitle: string,
+): string
+⋮----
+function inferPropertyType(value: unknown): PropertyType
+⋮----
+function formatPropertyName(path: ReadonlyArray<string>): string
+⋮----
+function addProperty(
+  properties: DatabaseProperty[],
+  seen: Set<string>,
+  path: ReadonlyArray<string>,
+  value: unknown,
+): void
+⋮----
+function collectProperties(
+  value: unknown,
+  path: string[],
+  properties: DatabaseProperty[],
+  seen: Set<string>,
+): void
+⋮----
+export function buildDatabasePropertiesFromArtifact(artifact: unknown): DatabaseProperty[]
+````
+
 ## File: src/modules/notebooklm/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -18289,6 +18323,8 @@ interface NotebooklmResearchSectionProps {
 ⋮----
 function taskFormationHref(accountId: string, workspaceId: string)
 ⋮----
+function getResearchCacheKey(accountId: string, workspaceId: string): string
+⋮----
 const handleSynthesize = () =>
 ⋮----
 {/* Closed-loop CTA: forward research result to task formation */}
@@ -18319,12 +18355,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  createWorkspaceKnowledgeDatabase,
+  createWorkspaceKnowledgePage,
+} from "@/src/modules/notion";
 ⋮----
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
   registerUploadedDocumentAction,
-  createPageFromDocumentAction,
-  createDatabaseFromDocumentAction,
   parseDocumentAction,
   reindexDocumentAction,
 } from "../server-actions/document-actions";
@@ -18333,10 +18371,12 @@ import {
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
+import { buildDocumentArtifactContext } from "./document-artifact-utils";
 ⋮----
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId: string;
 }
 ⋮----
 /** MIME types renderable via Google Doc Viewer */
@@ -20607,6 +20647,8 @@ export interface DatabaseSnapshot {
   readonly accountId: string;
   readonly title: string;
   readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly properties: DatabaseProperty[];
   readonly status: DatabaseStatus;
   readonly createdByUserId: string;
@@ -20620,6 +20662,8 @@ export interface CreateDatabaseInput {
   readonly accountId: string;
   readonly title: string;
   readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly properties?: DatabaseProperty[];
   readonly createdByUserId: string;
 }
@@ -20961,6 +21005,8 @@ export interface PageSnapshot {
   readonly title: string;
   readonly summary?: string;
   readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly slug: string;
   readonly parentPageId: string | null;
   readonly order: number;
@@ -20980,6 +21026,8 @@ export interface CreatePageInput {
   readonly title: string;
   readonly summary?: string;
   readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly parentPageId?: string | null;
   readonly createdByUserId: string;
   readonly order?: number;
@@ -21005,6 +21053,8 @@ get id(): string
 get title(): string
 get summary(): string | undefined
 get sourceLabel(): string | undefined
+get sourceDocumentId(): string | undefined
+get sourceText(): string | undefined
 get slug(): string
 get status(): PageStatus
 get blockIds(): readonly string[]
@@ -21313,8 +21363,8 @@ delete(id: string): Promise<void>;
  * All cross-module consumers must import from here only.
  */
 ⋮----
-import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
-import type { PageSnapshot } from "./subdomains/page/domain";
+import type { CreateDatabaseInput, DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
+import type { CreatePageInput, PageSnapshot } from "./subdomains/page/domain";
 import type { CommandResult } from "../shared";
 ⋮----
 // page
@@ -21339,6 +21389,14 @@ export async function listWorkspaceKnowledgePages(params: {
 export async function listWorkspaceKnowledgeDatabases(
   workspaceId: string,
 ): Promise<ReadonlyArray<DatabaseSnapshot>>
+⋮----
+export async function createWorkspaceKnowledgePage(
+  input: CreatePageInput,
+): Promise<CommandResult>
+⋮----
+export async function createWorkspaceKnowledgeDatabase(
+  input: CreateDatabaseInput,
+): Promise<CommandResult>
 ⋮----
 export async function addWorkspaceKnowledgeDatabaseProperty(
   databaseId: string,
@@ -27712,78 +27770,6 @@ const handleCreateInvoice = () =>
 const handleTransition = (invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROLLBACK") =>
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
-````typescript
-/**
- * WorkspaceTaskFormationSection — workspace.task-formation tab.
- *
- * Task formation keeps only source references in URL/query state, then resolves
- * concrete page/database context through the notion public boundary before
- * sending the source to the extractor.
- *
- * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
- * model" boundary behind this handoff.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import {
-  ListPlus,
-  ArrowRight,
-  FileText,
-  LayoutGrid,
-  BookOpen,
-  Upload,
-  ChevronRight,
-  Info,
-  Check,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
-⋮----
-import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
-import {
-  listWorkspaceKnowledgeDatabases,
-  listWorkspaceKnowledgePages,
-} from "@/src/modules/notion";
-import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
-import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
-⋮----
-interface WorkspaceTaskFormationSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
-}
-⋮----
-type SelectedSourceKind = "page" | "database" | "research" | null;
-type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
-⋮----
-type ConcreteSource = {
-  readonly id: string;
-  readonly kind: Exclude<SelectedSourceKind, null>;
-  readonly title: string;
-  readonly description: string;
-  readonly sourceText?: string;
-};
-⋮----
-function buildPageSource(page: PageSnapshot): ConcreteSource
-⋮----
-function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
-⋮----
-function toggleCandidate(i: number)
-⋮----
-function handleSelectSource(nextSource: SelectedSourceKind)
-⋮----
-function handleExtract()
-⋮----
-function handleConfirm()
-⋮----
-function handleReset()
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx
 ````typescript
 /**
@@ -33998,4 +33984,106 @@ import tailwindcssAnimate from 'tailwindcss-animate';
     "functions"
   ]
 }
+````
+
+## File: src/modules/notebooklm/adapters/inbound/react/document-artifact-utils.ts
+````typescript
+import type { CreateDatabaseInput } from "@/src/modules/notion";
+import { getDocumentDownloadUrl } from "../../outbound/firebase-composition";
+import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
+import {
+  buildDatabasePropertiesFromArtifact,
+  buildSourceTextFromArtifacts,
+} from "./document-artifact-payload";
+⋮----
+function normalizeWhitespace(value: string): string
+⋮----
+async function fetchJsonArtifact(storageUrl: string | undefined): Promise<unknown | null>
+⋮----
+export interface DocumentArtifactContext {
+  readonly pageSummary: string;
+  readonly pageSourceLabel: string;
+  readonly pageSourceText: string;
+  readonly databaseDescription: string;
+  readonly databaseProperties: CreateDatabaseInput["properties"];
+  readonly databaseSourceText: string;
+}
+⋮----
+export async function buildDocumentArtifactContext(
+  doc: IngestionSourceSnapshot,
+): Promise<DocumentArtifactContext>
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
+````typescript
+/**
+ * WorkspaceTaskFormationSection — workspace.task-formation tab.
+ *
+ * Task formation keeps only source references in URL/query state, then resolves
+ * concrete page/database context through the notion public boundary before
+ * sending the source to the extractor.
+ *
+ * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
+ * model" boundary behind this handoff.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import {
+  ListPlus,
+  ArrowRight,
+  FileText,
+  LayoutGrid,
+  BookOpen,
+  Upload,
+  ChevronRight,
+  Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
+⋮----
+import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
+import {
+  listWorkspaceKnowledgeDatabases,
+  listWorkspaceKnowledgePages,
+} from "@/src/modules/notion";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
+⋮----
+interface WorkspaceTaskFormationSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+type SelectedSourceKind = "page" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
+⋮----
+type ConcreteSource = {
+  readonly id: string;
+  readonly kind: Exclude<SelectedSourceKind, null>;
+  readonly title: string;
+  readonly description: string;
+  readonly sourceText?: string;
+};
+⋮----
+function getResearchCacheKey(accountId: string, workspaceId: string): string
+⋮----
+function buildPageSource(page: PageSnapshot): ConcreteSource
+⋮----
+function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
+⋮----
+function toggleCandidate(i: number)
+⋮----
+function handleSelectSource(nextSource: SelectedSourceKind)
+⋮----
+function handleExtract()
+⋮----
+function handleConfirm()
+⋮----
+function handleReset()
 ````
