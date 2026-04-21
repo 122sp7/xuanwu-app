@@ -63,9 +63,3 @@ flowchart LR
 - [context-map.md](./context-map.md)
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- 
-        param($m)
-        $dir = $m.Groups[1].Value
-        $file = $m.Groups[2].Value
-        "[$file](../../$dir/$file)"
-    
