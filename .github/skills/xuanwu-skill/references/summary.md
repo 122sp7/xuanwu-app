@@ -54,9 +54,9 @@ This skill contains the following reference files:
 | JSON | 6 | 724 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
-| EXAMPLE | 1 | 65 |
+| YAML | 1 | 64 |
 | CSS | 1 | 47 |
-| Other | 2 | 83 |
+| Other | 2 | 84 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
