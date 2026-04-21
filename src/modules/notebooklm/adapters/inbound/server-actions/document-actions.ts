@@ -14,7 +14,7 @@ import {
 import { processSourceDocumentAction } from "./source-processing-actions";
 import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
 import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallableAdapter";
-import { createServerTaskFormationUseCasesWithGenkit } from "@/src/modules/workspace/server";
+import { extractTaskCandidatesWithGenkit } from "@/src/modules/workspace/server";
 import type { ExtractedTaskCandidate } from "@/src/modules/workspace";
 
 // ── Firebase HTTPS Callable server-side helper ────────────────────────────────
@@ -85,7 +85,6 @@ const ReindexDocumentActionInputSchema = z.object({
 });
 
 const StartTaskFormationFromDocumentInputSchema = z.object({
-  accountId: z.string().min(1),
   workspaceId: z.string().uuid(),
   actorId: z.string().min(1),
   documentId: z.string().min(1),
@@ -93,16 +92,8 @@ const StartTaskFormationFromDocumentInputSchema = z.object({
   parsedArtifactSummary: z.string().optional(),
 });
 
-const ConfirmTaskFormationFromDocumentInputSchema = z.object({
-  jobId: z.string().uuid(),
-  workspaceId: z.string().uuid(),
-  actorId: z.string().min(1),
-  selectedIndices: z.array(z.number().int().min(0)).min(1),
-});
-
 export interface StartTaskFormationFromDocumentActionResult {
   readonly success: boolean;
-  readonly aggregateId?: string;
   readonly error?: { message: string };
   readonly candidates: readonly ExtractedTaskCandidate[];
 }
@@ -225,36 +216,25 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
  */
 export async function startTaskFormationFromDocumentAction(rawInput: unknown): Promise<StartTaskFormationFromDocumentActionResult> {
   const input = StartTaskFormationFromDocumentInputSchema.parse(rawInput);
-  const { extractTaskCandidates, getJobSnapshot } = createServerTaskFormationUseCasesWithGenkit();
 
   const sourceText = input.parsedArtifactSummary?.trim().length
     ? input.parsedArtifactSummary
     : `文件標題：${input.documentTitle}`;
 
-  const result = await extractTaskCandidates.execute({
-    workspaceId: input.workspaceId,
-    actorId: input.actorId,
-    sourceType: "ai",
-    sourcePageIds: [input.documentId],
-    sourceText,
-  });
-  if (!result.success) return { success: false, error: result.error, candidates: [] };
-
-  const snapshot = await getJobSnapshot(result.aggregateId);
-  return { success: true, aggregateId: result.aggregateId, candidates: snapshot?.candidates ?? [] };
-}
-
-/**
- * confirmTaskFormationFromDocumentAction — create tasks from selected candidate indices.
- */
-export async function confirmTaskFormationFromDocumentAction(rawInput: unknown) {
-  const input = ConfirmTaskFormationFromDocumentInputSchema.parse(rawInput);
-  const { confirmCandidates } = createServerTaskFormationUseCasesWithGenkit();
-
-  return confirmCandidates.execute({
-    jobId: input.jobId,
-    workspaceId: input.workspaceId,
-    actorId: input.actorId,
-    selectedIndices: input.selectedIndices,
-  });
+  try {
+    const candidates = await extractTaskCandidatesWithGenkit({
+      workspaceId: input.workspaceId,
+      actorId: input.actorId,
+      sourceType: "ai",
+      sourcePageIds: [input.documentId],
+      sourceText,
+    });
+    return { success: true, candidates };
+  } catch (error) {
+    return {
+      success: false,
+      error: { message: error instanceof Error ? error.message : "任務候選萃取失敗" },
+      candidates: [],
+    };
+  }
 }

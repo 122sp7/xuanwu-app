@@ -28,11 +28,13 @@ import {
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
   startTaskFormationFromDocumentAction,
-  confirmTaskFormationFromDocumentAction,
   parseDocumentAction,
   reindexDocumentAction,
 } from "../server-actions/document-actions";
-import type { ExtractedTaskCandidate } from "@/src/modules/workspace";
+import {
+  materializeTaskCandidatesClient,
+  type ExtractedTaskCandidate,
+} from "@/src/modules/workspace";
 import {
   queryDocuments,
   uploadDocumentToStorage,
@@ -84,7 +86,6 @@ interface DocActionState {
 
 interface TaskFormationReviewState {
   doc: IngestionSourceSnapshot;
-  jobId: string;
   candidates: ExtractedTaskCandidate[];
   selectedIndices: number[];
   isConfirming: boolean;
@@ -382,7 +383,6 @@ export function NotebooklmSourcesSection({
     setDocAction(doc.id, { taskFormation: "running", message: undefined });
     try {
       const result = await startTaskFormationFromDocumentAction({
-        accountId,
         workspaceId,
         actorId: currentUserId,
         documentId: doc.id,
@@ -396,11 +396,6 @@ export function NotebooklmSourcesSection({
       }
 
       const extractedCandidates = result.candidates;
-      const extractedJobId = result.aggregateId;
-      if (!extractedJobId) {
-        setDocAction(doc.id, { taskFormation: "error", message: "任務候選建立失敗（缺少工作流程編號）。" });
-        return;
-      }
       if (extractedCandidates.length === 0) {
         setDocAction(doc.id, { taskFormation: "done", message: "未產生可建立的任務，請補充來源產出物後再試。" });
         return;
@@ -408,7 +403,6 @@ export function NotebooklmSourcesSection({
 
       setTaskReview({
         doc,
-        jobId: extractedJobId,
         candidates: [...extractedCandidates],
         selectedIndices: extractedCandidates.map((_, i) => i),
         isConfirming: false,
@@ -423,11 +417,16 @@ export function NotebooklmSourcesSection({
     if (!taskReview || !currentUserId || taskReview.selectedIndices.length === 0) return;
     setTaskReview((prev) => (prev ? { ...prev, isConfirming: true, errorMessage: undefined } : prev));
     try {
-      const result = await confirmTaskFormationFromDocumentAction({
-        jobId: taskReview.jobId,
+      const selectedCandidates = taskReview.selectedIndices
+        .filter((index) => index >= 0 && index < taskReview.candidates.length)
+        .map((index) => taskReview.candidates[index]!)
+        .map((candidate) => ({
+          ...candidate,
+          sourceBlockId: taskReview.doc.id,
+        }));
+      const result = await materializeTaskCandidatesClient({
         workspaceId,
-        actorId: currentUserId,
-        selectedIndices: taskReview.selectedIndices,
+        candidates: selectedCandidates,
       });
       if (!result.success) {
         setTaskReview((prev) => (prev ? { ...prev, isConfirming: false, errorMessage: result.error.message } : prev));
@@ -435,7 +434,7 @@ export function NotebooklmSourcesSection({
       }
       setDocAction(taskReview.doc.id, {
         taskFormation: "done",
-        message: `已建立 ${taskReview.selectedIndices.length} 個任務`,
+        message: `已建立 ${result.createdCount} 個任務`,
         taskHref: `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=Tasks`,
       });
       setTaskReview(null);
@@ -1013,7 +1012,7 @@ export function NotebooklmSourcesSection({
                 const checked = taskReview.selectedIndices.includes(index);
                 return (
                   <button
-                    key={`${taskReview.jobId}-${index}`}
+                    key={`${taskReview.doc.id}-${index}`}
                     type="button"
                     disabled={taskReview.isConfirming}
                     onClick={() => setTaskReview((prev) => {
