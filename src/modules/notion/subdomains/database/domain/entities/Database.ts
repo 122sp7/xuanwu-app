@@ -77,7 +77,9 @@ export class Database {
   addProperty(property: DatabaseProperty): void {
     const nextName = property.name.trim();
     if (!nextName) throw new Error("Property name cannot be empty");
-    if (this._props.properties.some((p) => p.id === property.id)) throw new Error(`Property ${property.id} already exists`);
+    if (this._props.properties.some((p) => p.id === property.id)) {
+      throw new Error(`Property with ID '${property.id}' already exists`);
+    }
     if (this._props.properties.some((p) => p.name.trim().toLowerCase() === nextName.toLowerCase())) {
       throw new Error(`Property name '${nextName}' already exists (case-insensitive)`);
     }

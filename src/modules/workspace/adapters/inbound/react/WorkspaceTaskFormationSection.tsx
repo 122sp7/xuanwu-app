@@ -6,6 +6,9 @@
  * Task formation keeps only source references in URL/query state, then resolves
  * concrete page/database context through the notion public boundary before
  * sending the source to the extractor.
+ *
+ * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
+ * model" boundary behind this handoff.
  */
 
 import { Badge, Button } from "@packages";
@@ -129,11 +132,16 @@ export function WorkspaceTaskFormationSection({
     void Promise.all([
       listWorkspaceKnowledgePages({ accountId, workspaceId }),
       listWorkspaceKnowledgeDatabases(workspaceId),
-    ]).then(([pageResult, databaseResult]) => {
-      if (!mounted) return;
-      setPages([...pageResult]);
-      setDatabases([...databaseResult]);
-    });
+    ])
+      .then(([pageResult, databaseResult]) => {
+        if (!mounted) return;
+        setPages([...pageResult]);
+        setDatabases([...databaseResult]);
+      })
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        setErrorMessage(error instanceof Error ? error.message : "無法載入任務來源。");
+      });
     return () => {
       mounted = false;
     };
@@ -466,7 +474,7 @@ export function WorkspaceTaskFormationSection({
           <div className="space-y-2">
             {candidates.map((candidate, index) => (
               <button
-                key={`${candidate.title}-${index}`}
+                key={`${jobId ?? "task-formation"}-${index}`}
                 type="button"
                 onClick={() => toggleCandidate(index)}
                 className={`w-full rounded-xl border px-4 py-3 text-left transition ${
