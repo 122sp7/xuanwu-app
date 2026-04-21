@@ -15,13 +15,12 @@ Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
 
 import logging
 import os
-import time
 from typing import Any
 
 from firebase_functions import storage_fn
 
 from application.services.document_pipeline import get_document_pipeline
-from application.use_cases.rag_ingestion import ingest_document_for_rag
+from application.use_cases.parse_document_pipeline import ParseDocumentCommand, execute_parse_document
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +106,6 @@ def handle_object_finalized(
     - 初始化 → Document AI 解析 → 更新 Firestore
     - 異常時記錄至 Firestore。
     """
-    runtime = get_document_pipeline()
     data = event.data
     if data is None:
         logger.warning("storage event missing data, skipping")
@@ -136,97 +134,29 @@ def handle_object_finalized(
         logger.error("GCS: missing workspace_id for %s, skipping", object_path)
         return
 
-    # doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
     storage_filename = os.path.basename(object_path)
     display_filename = _extract_display_filename(object_path, data.metadata)
     doc_id, _ = os.path.splitext(storage_filename)
-
     gcs_uri = f"gs://{bucket_name}/{object_path}"
     logger.info("GCS finalized: %s → doc_id=%s", gcs_uri, doc_id)
 
-    # ── Step 1: 初始化 Firestore document ──────────────────────────────────
+    runtime = get_document_pipeline()
     try:
-        runtime.init_document(
-            doc_id=doc_id,
-            gcs_uri=gcs_uri,
-            filename=display_filename,
-            size_bytes=size_bytes,
-            mime_type=mime_type,
-            account_id=account_id,
-            workspace_id=workspace_id or "",
-        )
-    except Exception as exc:
-        logger.exception("Failed to init document %s: %s", doc_id, exc)
-        return
-
-    # ── Step 2: Document AI 解析（Layout Parser） ─────────────────────────
-    start_time = time.time()
-    try:
-        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, parser="layout")
-        extraction_ms = int((time.time() - start_time) * 1000)
-
-        # ── Step 3: 將解析全文寫回 GCS（files/ 前綴，.layout.json 副檔名）─
-        json_object_path = runtime.layout_json_path(object_path)
-        json_data = {
-            "doc_id": doc_id,
-            "account_id": account_id,
-            "workspace_id": workspace_id,
-            "source_gcs_uri": gcs_uri,
-            "filename": display_filename,
-            "display_name": display_filename,
-            "original_filename": display_filename,
-            "page_count": parsed.page_count,
-            "extraction_ms": extraction_ms,
-            "text": parsed.text,
-            "chunk_count": len(parsed.chunks),
-            "chunks": parsed.chunks,
-        }
-        json_gcs_uri = runtime.upload_json(
-            bucket_name=bucket_name,
-            object_path=json_object_path,
-            data=json_data,
-        )
-
-        # ── Step 4: 更新 Firestore 索引（layout 欄位）──────────────────────
-        runtime.update_parsed_layout(
-            doc_id=doc_id,
-            layout_json_gcs_uri=json_gcs_uri,
-            page_count=parsed.page_count,
-            extraction_ms=extraction_ms,
-            account_id=account_id,
-            chunk_count=len(parsed.chunks),
-        )
-
-        # ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
-        try:
-            rag = ingest_document_for_rag(
+        execute_parse_document(
+            ParseDocumentCommand(
                 doc_id=doc_id,
+                gcs_uri=gcs_uri,
+                bucket_name=bucket_name,
+                object_path=object_path,
                 filename=display_filename,
-                source_gcs_uri=gcs_uri,
-                json_gcs_uri=json_gcs_uri,
-                text=parsed.text,
-                page_count=parsed.page_count,
+                size_bytes=size_bytes,
+                mime_type=mime_type,
                 account_id=account_id,
                 workspace_id=workspace_id,
-                layout_chunks=parsed.chunks or None,
+                parser="layout",
+                run_rag=True,
             )
-            runtime.mark_rag_ready(
-                doc_id=doc_id,
-                chunk_count=rag.chunk_count,
-                vector_count=rag.vector_count,
-                embedding_model=rag.embedding_model,
-                embedding_dimensions=rag.embedding_dimensions,
-                raw_chars=rag.raw_chars,
-                normalized_chars=rag.normalized_chars,
-                normalization_version=rag.normalization_version,
-                language_hint=rag.language_hint,
-                account_id=account_id,
-            )
-        except Exception as rag_exc:
-            logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
-
-        logger.info("✓ Done: doc_id=%s (%d pages, %d ms) → %s", doc_id, parsed.page_count, extraction_ms, json_gcs_uri)
+        )
     except Exception as exc:
         logger.exception("Document AI failed for %s: %s", doc_id, exc)
         runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
