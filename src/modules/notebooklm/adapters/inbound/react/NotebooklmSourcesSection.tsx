@@ -24,10 +24,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  createPageFromDocumentAction,
-  createDatabaseFromDocumentAction,
-} from "../server-actions/document-actions";
-import {
   queryDocuments,
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
@@ -36,6 +32,10 @@ import {
   callParseDocument,
   callReindexDocument,
 } from "../../../adapters/outbound/firebase-composition";
+import {
+  createWorkspaceKnowledgeDatabase,
+  createWorkspaceKnowledgePage,
+} from "@/src/modules/notion";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -91,6 +91,57 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tiff",
   "image/tif",
 ]);
+
+const SOURCE_TEXT_MAX_CHARS = 80_000;
+
+function extractTextFromArtifactPayload(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const record = payload as Record<string, unknown>;
+  const text = typeof record.text === "string" ? record.text.trim() : "";
+  if (text.length > 0) return text;
+
+  const chunks = Array.isArray(record.chunks) ? record.chunks : [];
+  const chunkText = chunks
+    .map((chunk) => {
+      if (!chunk || typeof chunk !== "object") return "";
+      const value = (chunk as Record<string, unknown>).text;
+      return typeof value === "string" ? value.trim() : "";
+    })
+    .filter((value) => value.length > 0)
+    .join("\n");
+  if (chunkText.length > 0) return chunkText;
+
+  const entities = Array.isArray(record.entities) ? record.entities : [];
+  const entityText = entities
+    .map((entity) => {
+      if (!entity || typeof entity !== "object") return "";
+      const obj = entity as Record<string, unknown>;
+      const key = typeof obj.type === "string" ? obj.type : "";
+      const mention = typeof obj.mentionText === "string" ? obj.mentionText : "";
+      if (key && mention) return `${key}: ${mention}`;
+      return mention || key;
+    })
+    .filter((value) => value.length > 0)
+    .join("\n");
+  return entityText || undefined;
+}
+
+function trimSourceText(text: string | undefined): string | undefined {
+  const normalized = text?.trim();
+  if (!normalized) return undefined;
+  return normalized.slice(0, SOURCE_TEXT_MAX_CHARS);
+}
+
+async function loadSourceTextFromArtifactUri(uri: string): Promise<string | undefined> {
+  try {
+    const artifactUrl = await getDocumentDownloadUrl(uri);
+    const response = await fetch(artifactUrl);
+    if (!response.ok) return undefined;
+    return trimSourceText(extractTextFromArtifactPayload(await response.json()));
+  } catch {
+    return undefined;
+  }
+}
 
 // ── Per-document action state ─────────────────────────────────────────────────
 
@@ -355,14 +406,23 @@ export function NotebooklmSourcesSection({
   const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
-      const result = await createPageFromDocumentAction({
+      const sourceUri = doc.parsedLayoutJsonGcsUri ?? doc.parsedOcrJsonGcsUri ?? doc.parsedGenkitJsonGcsUri;
+      const sourceText = sourceUri ? await loadSourceTextFromArtifactUri(sourceUri) : undefined;
+      const result = await createWorkspaceKnowledgePage({
         accountId,
         workspaceId,
-        documentId: doc.id,
-        documentTitle: doc.name,
+        title: doc.name,
+        summary: sourceText?.slice(0, 300),
+        sourceLabel: `來源文件：${doc.name}`,
+        sourceDocumentId: doc.id,
+        sourceText,
+        createdByUserId: accountId,
       });
-      const href = result?.pageHref;
-      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: href ?? undefined });
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+      const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
+      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: `${base}?tab=Pages` });
     } catch (err) {
       setDocAction(doc.id, { page: "error", message: err instanceof Error ? err.message : "建立頁面失敗" });
     }
@@ -371,11 +431,20 @@ export function NotebooklmSourcesSection({
   const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
-      await createDatabaseFromDocumentAction({
+      const sourceUri = doc.parsedFormJsonGcsUri ?? doc.parsedLayoutJsonGcsUri;
+      const sourceText = sourceUri ? await loadSourceTextFromArtifactUri(sourceUri) : undefined;
+      const result = await createWorkspaceKnowledgeDatabase({
         accountId,
         workspaceId,
-        documentTitle: doc.name,
+        title: doc.name,
+        description: sourceText?.slice(0, 300),
+        sourceDocumentId: doc.id,
+        sourceText,
+        createdByUserId: accountId,
       });
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
       const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
       setDocAction(doc.id, { database: "done", message: "資料庫已建立", databaseHref: `${base}?tab=Database` });
     } catch (err) {
