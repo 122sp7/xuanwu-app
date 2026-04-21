@@ -1,5 +1,8 @@
 """
-Upstash Vector 客戶端 — 向量 upsert / query 操作。
+Upstash Vector 客戶端 — 向量 upsert / query / delete 操作。
+
+Chunk ID 命名慣例：``{doc_id}:{i:04d}``，其中 ``:`` 為分隔符。
+``delete_vectors_by_doc`` 使用 prefix ``{doc_id}:`` 刪除同份文件的所有 chunk 向量。
 """
 
 from __future__ import annotations
