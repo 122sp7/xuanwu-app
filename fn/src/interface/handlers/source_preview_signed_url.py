@@ -14,6 +14,7 @@ Implementation note — IAM-based signing:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import PurePosixPath
 
 import google.auth
 import google.auth.transport.requests
@@ -38,6 +39,8 @@ def _get_signing_credentials() -> tuple[str, str]:
     signBlob API — no private-key file required.
     """
     credentials, _ = google.auth.default(
+        # cloud-platform scope is required by the IAM signBlob API.
+        # Narrower GCS scopes (devstorage.*) are insufficient for blob signing.
         scopes=["https://www.googleapis.com/auth/cloud-platform"]
     )
     auth_request = google.auth.transport.requests.Request()
@@ -63,8 +66,12 @@ def handle_document_preview_signed_url(req: https_fn.CallableRequest) -> dict:
 
     bucket_name, object_path = _parse_gs_uri(schema.gcs_uri)
 
-    # Guard against path traversal: reject any path containing ".." segments.
-    if ".." in object_path.split("/"):
+    # Guard against path traversal: normalise the path with PurePosixPath and
+    # confirm none of the resulting parts are "..".  This catches both literal
+    # ".." segments and sequences that collapse to a parent reference after
+    # normalisation (e.g. "uploads/foo/../../../etc/passwd").
+    normalized_path = str(PurePosixPath(object_path))
+    if ".." in PurePosixPath(normalized_path).parts:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.PERMISSION_DENIED,
             "非法路徑",

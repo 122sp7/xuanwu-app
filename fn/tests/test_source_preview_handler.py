@@ -133,6 +133,21 @@ class TestHandleDocumentPreviewSignedUrl:
 
         assert exc_info.value.code == https_fn.FunctionsErrorCode.PERMISSION_DENIED
 
+    def test_pathTraversalDotSegments_RaisesPermissionDenied(self) -> None:
+        from firebase_functions import https_fn
+
+        req = _make_req(
+            gcs_uri="gs://bucket/uploads/acct-1/../acct-1/ws-1/file.pdf"
+        )
+        with (
+            patch("interface.handlers.source_preview_signed_url._assert_account_access"),
+            patch("interface.handlers.source_preview_signed_url._assert_workspace_belongs_account"),
+            pytest.raises(https_fn.HttpsError) as exc_info,
+        ):
+            handle_document_preview_signed_url(req)
+
+        assert exc_info.value.code == https_fn.FunctionsErrorCode.PERMISSION_DENIED
+
     def test_outOfScopePath_RaisesPermissionDenied(self) -> None:
         from firebase_functions import https_fn
 
