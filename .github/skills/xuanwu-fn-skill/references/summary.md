@@ -32,8 +32,8 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/ai/**, docs/structure/contexts/ai/**
-- Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
+- Only files matching these patterns are included: fn/**/*
+- Files matching these patterns are excluded: __pycache__/**, venv/**, tests/**, .pytest_cache/**, .cursor/**, .vscode/**, .serena/**, .cache/**, repomix-output.*, .env*, *.pem, *.key, *.crt, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Content has been formatted for parsing in markdown style
@@ -42,22 +42,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-111 files | 1,717 lines
+100 files | 3,042 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 100 | 934 |
-| Markdown | 10 | 764 |
-| PROMPT | 1 | 19 |
+| Python | 95 | 2,600 |
+| Text | 2 | 26 |
+| Markdown | 2 | 351 |
+| EXAMPLE | 1 | 65 |
 
 **Largest files:**
-- `src/modules/ai/README.md` (111 lines)
-- `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
-- `docs/structure/contexts/ai/subdomains.md` (96 lines)
-- `docs/structure/contexts/ai/AGENTS.md` (93 lines)
-- `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
-- `src/modules/ai/AGENTS.md` (76 lines)
-- `docs/structure/contexts/ai/README.md` (76 lines)
-- `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
-- `docs/structure/contexts/ai/ddd-strategic-design.md` (53 lines)
-- `docs/structure/contexts/ai/context-map.md` (50 lines)
+- `fn/README.md` (214 lines)
+- `fn/src/domain/repositories/rag.py` (172 lines)
+- `fn/src/domain/services/po_extraction.py` (169 lines)
+- `fn/src/infrastructure/external/documentai/client.py` (138 lines)
+- `fn/AGENTS.md` (137 lines)
+- `fn/src/infrastructure/persistence/firestore/document_repository.py` (129 lines)
+- `fn/tests/test_po_extraction.py` (125 lines)
+- `fn/src/infrastructure/persistence/storage/client.py` (104 lines)
+- `fn/src/infrastructure/external/upstash/search_client.py` (99 lines)
+- `fn/src/application/use_cases/parse_document_pipeline.py` (89 lines)
