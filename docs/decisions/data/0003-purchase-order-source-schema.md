@@ -200,4 +200,4 @@ match /po_extraction_categories/{sourceId}/categories/{categoryCode} {
 - [data/0002-upstash-vector-rag-storage.md](./0002-upstash-vector-rag-storage.md)
 - PDF 驗證文件：PO #4510250181（ABB Ltd.，配電盤 SCADA 工程，TWD 85,575,001）
 - Context7 驗證：`/websites/cloud_google_document-ai` → Firestore BigQuery integration
-- Firestore data model design: [firestore-schema.instructions.md](../../../../.github/instructions/firestore-schema.instructions.md)
+- Firestore data model design: [firestore-schema.instructions.md](../../../.github/instructions/firestore-schema.instructions.md)

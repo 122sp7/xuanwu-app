@@ -93,4 +93,4 @@ flowchart LR
 - [bounded-contexts.md](./bounded-contexts.md)
 - [context-map.md](./context-map.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
-- [subdomains.md](../domain/subdomains.md)
+- [subdomains.md](../../domain/subdomains.md)

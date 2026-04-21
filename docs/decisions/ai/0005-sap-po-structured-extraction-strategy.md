@@ -211,5 +211,5 @@ response = client.models.generate_content(
 - PDF 驗證文件：`4510250181-AP8_v0-8150.PDF`（SAP NetWeaver 750, PO #4510250181）
 - [data/0003-purchase-order-source-schema.md](../data/0003-purchase-order-source-schema.md)
 - [domain/0005-purchase-order-source-domain-model.md](../domain/0005-purchase-order-source-domain-model.md)
-- [fn/AGENTS.md](../../../../fn/AGENTS.md)
+- [fn/AGENTS.md](../../../fn/AGENTS.md)
 - [docs/structure/contexts/notebooklm/README.md](../../structure/contexts/notebooklm/README.md)
