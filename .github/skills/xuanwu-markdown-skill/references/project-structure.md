@@ -140,18 +140,12 @@ packages/
     client-state/
       AGENTS.md (33 lines)
       README.md (19 lines)
-    date/
-      AGENTS.md (0 lines)
-      README.md (0 lines)
     form/
       AGENTS.md (59 lines)
       README.md (101 lines)
     http/
       AGENTS.md (34 lines)
       README.md (38 lines)
-    query/
-      AGENTS.md (0 lines)
-      README.md (0 lines)
     serialization/
       AGENTS.md (33 lines)
       README.md (20 lines)
@@ -174,7 +168,6 @@ packages/
       AGENTS.md (34 lines)
       README.md (57 lines)
     AGENTS.md (47 lines)
-    README.md (0 lines)
   integration-ai/
     AGENTS.md (45 lines)
     README.md (69 lines)

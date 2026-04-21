@@ -10671,16 +10671,6 @@ import {
 - 禁止加入業務邏輯或 domain rule。
 ````
 
-## File: packages/infra/date/AGENTS.md
-````markdown
-
-````
-
-## File: packages/infra/date/README.md
-````markdown
-
-````
-
 ## File: packages/infra/form/AGENTS.md
 ````markdown
 # infra/form — Agent Rules
@@ -10927,16 +10917,6 @@ try {
 - 此套件封裝 fetch；integration 與 outbound adapter 層可使用。
 - `domain/` 與 `application/` 層禁止直接 import。
 - 需要 QStash / Firebase 等具體整合，改用對應 `@integration-*` 套件。
-````
-
-## File: packages/infra/query/AGENTS.md
-````markdown
-
-````
-
-## File: packages/infra/query/README.md
-````markdown
-
 ````
 
 ## File: packages/infra/serialization/AGENTS.md
@@ -11800,11 +11780,6 @@ export type WorkspaceId = typeof WorkspaceIdSchema._type
 | 需要 credentials / 網路 / 第三方帳號 | `packages/integration-*` |
 | 業務邏輯 | `src/modules/<context>/domain/` 或 `application/` |
 | UI 元件 | `packages/ui-*` |
-````
-
-## File: packages/infra/README.md
-````markdown
-
 ````
 
 ## File: packages/integration-ai/AGENTS.md
