@@ -27,7 +27,7 @@ const SHELL_COMMAND_CATALOG_ITEMS: readonly ShellCommandCatalogItem[] = [
   { href: "/permissions",            label: "組織 · 權限",       group: "導覽" },
   { href: "/workspaces",             label: "組織 · 工作區",     group: "導覽" },
   { href: "/daily",                  label: "帳號 · 每日",       group: "導覽" },
-  { href: "/schedule",               label: "帳號 · 排程",       group: "導覽" },
+  { href: "/schedule",               label: "帳號 · 調度台",     group: "導覽" },
   { href: "/schedule/dispatcher",    label: "帳號 · 調度台",     group: "導覽" },
   { href: "/audit",                  label: "帳號 · 日誌",       group: "導覽" },
 

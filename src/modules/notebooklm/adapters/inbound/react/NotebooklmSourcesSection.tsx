@@ -13,7 +13,7 @@
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
-import { Button } from "@packages";
+import { Button, createGoogleViewerEmbedUrl } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -22,9 +22,8 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  queryDocumentsAction,
   registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
@@ -32,6 +31,7 @@ import {
   reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
+  queryDocuments,
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
@@ -58,10 +58,6 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tif",
 ]);
 
-function googleDocViewerUrl(downloadUrl: string): string {
-  return `https://docs.google.com/viewer?url=${encodeURIComponent(downloadUrl)}&embedded=true`;
-}
-
 // ── Per-document action state ─────────────────────────────────────────────────
 
 type DocActionStatus = "idle" | "running" | "done" | "error";
@@ -86,7 +82,7 @@ export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
 }: NotebooklmSourcesSectionProps): React.ReactElement {
-  const [documents, setDocuments] = useState<DocumentSnapshot[]>([]);
+  const [documents, setDocuments] = useState<IngestionSourceSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [isRefreshing, startRefresh] = useTransition();
   const [isUploading, startUpload] = useTransition();
@@ -94,7 +90,7 @@ export function NotebooklmSourcesSection({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Preview state
-  const [previewDoc, setPreviewDoc] = useState<DocumentSnapshot | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<IngestionSourceSnapshot | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -104,11 +100,11 @@ export function NotebooklmSourcesSection({
   const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
 
   // JSON viewer modal state
-  const [jsonViewer, setJsonViewer] = useState<{ doc: DocumentSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
+  const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
 
   const load = () => {
     startRefresh(async () => {
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
       setLoaded(true);
     });
@@ -133,7 +129,7 @@ export function NotebooklmSourcesSection({
           mimeType: file.type || "application/octet-stream",
           sizeBytes: file.size,
         });
-        const result = await queryDocumentsAction({ accountId, workspaceId });
+        const result = await queryDocuments({ accountId, workspaceId });
         setDocuments(Array.isArray(result) ? result : []);
         setLoaded(true);
       } catch (err) {
@@ -146,13 +142,18 @@ export function NotebooklmSourcesSection({
     });
   };
 
-  const handlePreview = async (doc: DocumentSnapshot) => {
+  const handlePreview = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setPreviewDoc(doc);
     setPreviewUrl(null);
     setPreviewError(null);
     setPreviewLoading(true);
     try {
+      // Use Firebase Storage getDownloadURL() directly on the client.
+      // Storage rules allow read for authenticated users, so the Firebase JS SDK
+      // fetches a token-based download URL without any IAM signing.  The resulting
+      // URL is publicly accessible (token embedded in the URL) and works with
+      // Google Docs Viewer — no Cloud Function round-trip required.
       const url = await getDocumentDownloadUrl(doc.storageUrl);
       setPreviewUrl(url);
     } catch (err) {
@@ -181,7 +182,7 @@ export function NotebooklmSourcesSection({
     });
   };
 
-  const handleParseLayout = async (doc: DocumentSnapshot) => {
+  const handleParseLayout = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseLayout: "running", message: undefined });
     try {
@@ -196,14 +197,14 @@ export function NotebooklmSourcesSection({
         parser: "layout",
       });
       setDocAction(doc.id, { parseLayout: "done", message: "Layout Parser 解析完成（文字 + 語意分塊已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseLayout: "error", message: err instanceof Error ? err.message : "Layout Parser 解析失敗" });
     }
   };
 
-  const handleParseForm = async (doc: DocumentSnapshot) => {
+  const handleParseForm = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseForm: "running", message: undefined });
     try {
@@ -218,14 +219,14 @@ export function NotebooklmSourcesSection({
         parser: "form",
       });
       setDocAction(doc.id, { parseForm: "done", message: "Form Parser 解析完成（結構化欄位已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseForm: "error", message: err instanceof Error ? err.message : "Form Parser 解析失敗" });
     }
   };
 
-  const handleParseOcr = async (doc: DocumentSnapshot) => {
+  const handleParseOcr = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseOcr: "running", message: undefined });
     try {
@@ -240,14 +241,14 @@ export function NotebooklmSourcesSection({
         parser: "ocr",
       });
       setDocAction(doc.id, { parseOcr: "done", message: "Document OCR 解析完成（OCR JSON 已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseOcr: "error", message: err instanceof Error ? err.message : "Document OCR 解析失敗" });
     }
   };
 
-  const handleParseGenkit = async (doc: DocumentSnapshot) => {
+  const handleParseGenkit = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseGenkit: "running", message: undefined });
     try {
@@ -262,14 +263,14 @@ export function NotebooklmSourcesSection({
         parser: "genkit",
       });
       setDocAction(doc.id, { parseGenkit: "done", message: "Genkit-AI 解析完成（Genkit JSON 已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseGenkit: "error", message: err instanceof Error ? err.message : "Genkit-AI 解析失敗" });
     }
   };
 
-  const handleIndex = async (doc: DocumentSnapshot) => {
+  const handleIndex = async (doc: IngestionSourceSnapshot) => {
     if (!doc.id) return;
     if (!doc.parsedLayoutJsonGcsUri) {
       setDocAction(doc.id, { index: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
@@ -279,14 +280,14 @@ export function NotebooklmSourcesSection({
     try {
       await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成（使用 Layout Parser 產出物）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { index: "error", message: err instanceof Error ? err.message : "建立索引失敗" });
     }
   };
 
-  const handleReindex = async (doc: DocumentSnapshot) => {
+  const handleReindex = async (doc: IngestionSourceSnapshot) => {
     if (!doc.id) return;
     if (!doc.parsedLayoutJsonGcsUri) {
       setDocAction(doc.id, { reindex: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
@@ -296,14 +297,14 @@ export function NotebooklmSourcesSection({
     try {
       await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成（使用 Layout Parser 產出物）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { reindex: "error", message: err instanceof Error ? err.message : "重建索引失敗" });
     }
   };
 
-  const handleCreatePage = async (doc: DocumentSnapshot) => {
+  const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
       const result = await createPageFromDocumentAction({
@@ -319,7 +320,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleCreateDatabase = async (doc: DocumentSnapshot) => {
+  const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
       await createDatabaseFromDocumentAction({
@@ -858,7 +859,7 @@ export function NotebooklmSourcesSection({
               )}
               {previewUrl && (
                 <iframe
-                  src={googleDocViewerUrl(previewUrl)}
+                  src={createGoogleViewerEmbedUrl(previewUrl)}
                   className="h-full w-full border-0"
                   title={`預覽：${previewDoc.name}`}
                   sandbox="allow-scripts allow-same-origin allow-popups"

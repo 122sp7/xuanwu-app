@@ -209,7 +209,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/permissions": "組織 · 權限",
   "/workspaces": "組織 · 工作區",
   "/daily": "帳號 · 每日",
-  "/schedule": "帳號 · 排程",
+  "/schedule": "帳號 · 調度台",
   "/schedule/dispatcher": "帳號 · 調度台",
   "/audit": "帳號 · 日誌",
   "/workspace": "工作區中心",
@@ -253,7 +253,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   teams: "團隊",
   permissions: "權限",
   workspaces: "工作區清單",
-  schedule: "排程",
+  schedule: "調度台",
   daily: "每日",
   audit: "日誌",
   "task-formation": "任務形成",
@@ -271,8 +271,7 @@ export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
 // ── Account nav items ─────────────────────────────────────────────────────────
 
 export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "schedule", label: "排程", href: "/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/schedule/dispatcher" },
+  { id: "schedule", label: "調度台", href: "/schedule" },
   { id: "daily", label: "每日", href: "/daily" },
   { id: "audit", label: "日誌", href: "/audit" },
 ] as const;
@@ -283,7 +282,7 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   workspace: "工作區",
   dashboard: "儀表板",
   account: "帳號",
-  schedule: "排程",
+  schedule: "調度台",
   daily: "每日",
   audit: "日誌",
   members: "成員",
@@ -301,7 +300,7 @@ export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "org-members", href: "/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/members" },
   { id: "org-teams", href: "/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/teams" },
   { id: "org-daily", href: "/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/daily" },
-  { id: "org-schedule", href: "/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/schedule" },
+  { id: "org-schedule", href: "/schedule", label: "調度台", requiresOrganization: true, activeRoutePrefix: "/schedule" },
   { id: "org-audit", href: "/audit", label: "日誌", requiresOrganization: true, activeRoutePrefix: "/audit" },
   { id: "org-permissions", href: "/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/permissions" },
 ];
@@ -344,7 +343,7 @@ export const SHELL_ORG_PRIMARY_NAV_ITEMS: readonly ShellNavItem[] = [
 ];
 
 export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "schedule", label: "排程", href: "/schedule" },
+  { id: "schedule", label: "調度台", href: "/schedule" },
   { id: "daily", label: "每日", href: "/daily" },
   { id: "audit", label: "日誌", href: "/audit" },
 ];

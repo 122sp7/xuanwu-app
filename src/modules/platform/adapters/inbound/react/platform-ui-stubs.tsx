@@ -871,15 +871,9 @@ export function OrganizationScheduleRouteScreen(): React.ReactElement {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarRange className="size-4 text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight">排程</h1>
-        </div>
-        <Button size="sm" variant="outline" disabled>
-          <Plus className="size-3.5" />
-          新增里程碑
-        </Button>
+      <div className="flex items-center gap-2">
+        <CalendarRange className="size-4 text-primary" />
+        <h1 className="text-xl font-semibold tracking-tight">排程</h1>
       </div>
 
       {/* Period filter */}
@@ -904,9 +898,9 @@ export function OrganizationScheduleRouteScreen(): React.ReactElement {
         <div className="absolute left-6 top-0 h-full w-px bg-border/30" />
         <div className="px-4 py-8 text-center">
           <CalendarRange className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-          <p className="text-sm font-medium text-muted-foreground">尚無排程里程碑</p>
+          <p className="text-sm font-medium text-muted-foreground">尚無待調度事項</p>
           <p className="mt-1 text-xs text-muted-foreground/70">
-            建立工作區里程碑後，帳號排程將匯聚各工作區進度。
+            請前往「調度台」檢視並調派名下工作區的人力與工作需求。
           </p>
         </div>
       </div>

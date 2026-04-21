@@ -51,3 +51,10 @@ export const EmptyState = ({ title, description }: EmptyStateProps) =>
       ? createElement("p", { className: "mt-2 text-sm text-muted-foreground" }, description)
       : null,
   );
+
+/**
+ * Build Google Viewer embed URL from an HTTPS-accessible source URL.
+ * Typically used with short-lived signed URLs for private files.
+ */
+export const createGoogleViewerEmbedUrl = (sourceUrl: string): string =>
+  `https://docs.google.com/viewer?url=${encodeURIComponent(sourceUrl)}&embedded=true`;
