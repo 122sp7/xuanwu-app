@@ -1110,7 +1110,7 @@ src/
             page-actions.ts (18 lines)
             template-actions.ts (15 lines)
         outbound/
-          firebase-composition.ts (45 lines)
+          firebase-composition.ts (70 lines)
           notion-page-stub.ts (25 lines)
       orchestration/
         index.ts (3 lines)
@@ -1162,6 +1162,8 @@ src/
             inbound/
               index.ts (2 lines)
             outbound/
+              firestore/
+                FirestoreDatabaseRepository.ts (30 lines)
               memory/
                 InMemoryDatabaseRepository.ts (14 lines)
               index.ts (2 lines)
@@ -1200,6 +1202,8 @@ src/
             inbound/
               index.ts (2 lines)
             outbound/
+              firestore/
+                FirestorePageRepository.ts (34 lines)
               memory/
                 InMemoryPageRepository.ts (16 lines)
               index.ts (2 lines)

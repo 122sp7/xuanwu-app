@@ -10,7 +10,7 @@ import { Brain, Search } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
-import { ragQueryAction } from "../server-actions/notebook-actions";
+import { callRagQuery } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmNotebookSectionProps {
   workspaceId: string;
@@ -32,11 +32,11 @@ export function NotebooklmNotebookSection({
     setError(null);
     startTransition(async () => {
       try {
-        const output = (await ragQueryAction({
-          accountId,
-          workspaceId,
+        const output = await callRagQuery({
+          account_id: accountId,
+          workspace_id: workspaceId,
           query: trimmed,
-        })) as RagQueryOutput;
+        });
         setResult(output);
       } catch {
         setError("查詢失敗，請確認已上傳來源文件並完成向量索引後再試。");

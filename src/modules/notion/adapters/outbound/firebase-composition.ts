@@ -1,17 +1,20 @@
 /**
  * firebase-composition — notion module outbound composition root.
  *
- * Currently uses InMemory repositories — no Firestore adapter exists yet
- * for notion (it is pure TypeScript DDD; fn has no corresponding capability).
- * Replace InMemory repos with real Firestore implementations when the notion
- * Firestore schema is finalized.
+ * Uses Firestore for Pages (contentPages collection) and Databases
+ * (knowledgeDatabases collection). Templates remain in-memory.
+ *
+ * All exported helper functions MUST be called from client components,
+ * NOT from Server Actions. The Firebase Web Client SDK requires a signed-in
+ * user in the browser context so that Firestore Security Rules can evaluate
+ * request.auth.
  *
  * ESLint: @integration-firebase is allowed here — this file lives at
  * src/modules/notion/adapters/outbound/ which matches the permitted glob.
  */
 
-import { InMemoryPageRepository } from "../../subdomains/page/adapters/outbound/memory/InMemoryPageRepository";
-import { InMemoryDatabaseRepository } from "../../subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository";
+import { FirestorePageRepository } from "../../subdomains/page/adapters/outbound/firestore/FirestorePageRepository";
+import { FirestoreDatabaseRepository } from "../../subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository";
 import { InMemoryTemplateRepository } from "../../subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository";
 import {
   CreatePageUseCase,
@@ -27,20 +30,22 @@ import {
   QueryTemplatesUseCase,
   CreateTemplateUseCase,
 } from "../../subdomains/template/application/use-cases/TemplateUseCases";
+import type { CreatePageInput } from "../../subdomains/page/domain/entities/Page";
+import type { CreateDatabaseInput } from "../../subdomains/database/domain/entities/Database";
 
 // ── Singleton repositories ────────────────────────────────────────────────────
 
-let _pageRepo: InMemoryPageRepository | undefined;
-let _databaseRepo: InMemoryDatabaseRepository | undefined;
+let _pageRepo: FirestorePageRepository | undefined;
+let _databaseRepo: FirestoreDatabaseRepository | undefined;
 let _templateRepo: InMemoryTemplateRepository | undefined;
 
-function getPageRepo(): InMemoryPageRepository {
-  if (!_pageRepo) _pageRepo = new InMemoryPageRepository();
+function getPageRepo(): FirestorePageRepository {
+  if (!_pageRepo) _pageRepo = new FirestorePageRepository();
   return _pageRepo;
 }
 
-function getDatabaseRepo(): InMemoryDatabaseRepository {
-  if (!_databaseRepo) _databaseRepo = new InMemoryDatabaseRepository();
+function getDatabaseRepo(): FirestoreDatabaseRepository {
+  if (!_databaseRepo) _databaseRepo = new FirestoreDatabaseRepository();
   return _databaseRepo;
 }
 
@@ -49,7 +54,7 @@ function getTemplateRepo(): InMemoryTemplateRepository {
   return _templateRepo;
 }
 
-// ── Factory functions ─────────────────────────────────────────────────────────
+// ── Factory functions (kept for server-action compatibility) ──────────────────
 
 export function createClientNotionPageUseCases() {
   const repo = getPageRepo();
@@ -76,4 +81,42 @@ export function createClientNotionTemplateUseCases() {
     queryTemplates: new QueryTemplatesUseCase(repo),
     createTemplate: new CreateTemplateUseCase(repo),
   };
+}
+
+// ── Client-side page helpers ──────────────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+
+export async function queryPages(params: { accountId: string; workspaceId: string }) {
+  const { queryPages: uc } = createClientNotionPageUseCases();
+  return uc.execute({ accountId: params.accountId, workspaceId: params.workspaceId });
+}
+
+export async function createPage(input: CreatePageInput) {
+  const { createPage: uc } = createClientNotionPageUseCases();
+  return uc.execute(input);
+}
+
+export async function renamePage(pageId: string, title: string) {
+  const { renamePage: uc } = createClientNotionPageUseCases();
+  return uc.execute(pageId, title);
+}
+
+export async function archivePage(pageId: string) {
+  const { archivePage: uc } = createClientNotionPageUseCases();
+  return uc.execute(pageId);
+}
+
+// ── Client-side database helpers ──────────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+
+export async function queryDatabases(workspaceId: string) {
+  const repo = getDatabaseRepo();
+  return repo.findByWorkspaceId(workspaceId);
+}
+
+export async function createDatabase(input: CreateDatabaseInput) {
+  const { createDatabase: uc } = createClientNotionDatabaseUseCases();
+  return uc.execute(input);
 }

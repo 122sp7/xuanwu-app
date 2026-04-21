@@ -1,5 +1,77 @@
 # Files
 
+## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+````typescript
+/**
+ * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ *
+ * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a DatabaseSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+export class FirestoreDatabaseRepository implements DatabaseRepository
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByPageId(pageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
+````typescript
+/**
+ * FirestorePageRepository — Firestore adapter for the page subdomain.
+ *
+ * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a PageSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/page/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
+⋮----
+export class FirestorePageRepository implements PageRepository
+⋮----
+async save(snapshot: PageSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<PageSnapshot | null>
+⋮----
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+⋮----
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+// Build equality constraints — no composite index required for equality-only filters.
+⋮----
+async delete(id: string): Promise<void>
+````
+
 ## File: .github/copilot-instructions.md
 ````markdown
 ---
@@ -20094,7 +20166,7 @@ import { MessageSquare, Send } from "lucide-react";
 import { useState, useTransition } from "react";
 ⋮----
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
-import { ragQueryAction } from "../server-actions/notebook-actions";
+import { callRagQuery } from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotebooklmAiChatSectionProps {
   workspaceId: string;
@@ -20123,7 +20195,7 @@ import { Brain, Search } from "lucide-react";
 import { useState, useTransition } from "react";
 ⋮----
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
-import { ragQueryAction } from "../server-actions/notebook-actions";
+import { callRagQuery } from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotebooklmNotebookSectionProps {
   workspaceId: string;
@@ -21790,7 +21862,7 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 ⋮----
 import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
-import { queryDatabasesAction, createDatabaseAction } from "../server-actions/database-actions";
+import { queryDatabases, createDatabase } from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotionDatabaseSectionProps {
   workspaceId: string;
@@ -21852,11 +21924,11 @@ import { useEffect, useState, useTransition } from "react";
 ⋮----
 import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
 import {
-  queryPagesAction,
-  createPageAction,
-  renamePageAction,
-  archivePageAction,
-} from "../server-actions/page-actions";
+  queryPages,
+  createPage,
+  renamePage,
+  archivePage,
+} from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotionPagesSectionProps {
   workspaceId: string;
@@ -21981,17 +22053,20 @@ export async function createTemplateAction(rawInput: unknown)
 /**
  * firebase-composition — notion module outbound composition root.
  *
- * Currently uses InMemory repositories — no Firestore adapter exists yet
- * for notion (it is pure TypeScript DDD; fn has no corresponding capability).
- * Replace InMemory repos with real Firestore implementations when the notion
- * Firestore schema is finalized.
+ * Uses Firestore for Pages (contentPages collection) and Databases
+ * (knowledgeDatabases collection). Templates remain in-memory.
+ *
+ * All exported helper functions MUST be called from client components,
+ * NOT from Server Actions. The Firebase Web Client SDK requires a signed-in
+ * user in the browser context so that Firestore Security Rules can evaluate
+ * request.auth.
  *
  * ESLint: @integration-firebase is allowed here — this file lives at
  * src/modules/notion/adapters/outbound/ which matches the permitted glob.
  */
 ⋮----
-import { InMemoryPageRepository } from "../../subdomains/page/adapters/outbound/memory/InMemoryPageRepository";
-import { InMemoryDatabaseRepository } from "../../subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository";
+import { FirestorePageRepository } from "../../subdomains/page/adapters/outbound/firestore/FirestorePageRepository";
+import { FirestoreDatabaseRepository } from "../../subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository";
 import { InMemoryTemplateRepository } from "../../subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository";
 import {
   CreatePageUseCase,
@@ -22007,22 +22082,44 @@ import {
   QueryTemplatesUseCase,
   CreateTemplateUseCase,
 } from "../../subdomains/template/application/use-cases/TemplateUseCases";
+import type { CreatePageInput } from "../../subdomains/page/domain/entities/Page";
+import type { CreateDatabaseInput } from "../../subdomains/database/domain/entities/Database";
 ⋮----
 // ── Singleton repositories ────────────────────────────────────────────────────
 ⋮----
-function getPageRepo(): InMemoryPageRepository
+function getPageRepo(): FirestorePageRepository
 ⋮----
-function getDatabaseRepo(): InMemoryDatabaseRepository
+function getDatabaseRepo(): FirestoreDatabaseRepository
 ⋮----
 function getTemplateRepo(): InMemoryTemplateRepository
 ⋮----
-// ── Factory functions ─────────────────────────────────────────────────────────
+// ── Factory functions (kept for server-action compatibility) ──────────────────
 ⋮----
 export function createClientNotionPageUseCases()
 ⋮----
 export function createClientNotionDatabaseUseCases()
 ⋮----
 export function createClientNotionTemplateUseCases()
+⋮----
+// ── Client-side page helpers ──────────────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+⋮----
+export async function queryPages(params:
+⋮----
+export async function createPage(input: CreatePageInput)
+⋮----
+export async function renamePage(pageId: string, title: string)
+⋮----
+export async function archivePage(pageId: string)
+⋮----
+// ── Client-side database helpers ──────────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+⋮----
+export async function queryDatabases(workspaceId: string)
+⋮----
+export async function createDatabase(input: CreateDatabaseInput)
 ````
 
 ## File: src/modules/notion/adapters/outbound/notion-page-stub.ts
