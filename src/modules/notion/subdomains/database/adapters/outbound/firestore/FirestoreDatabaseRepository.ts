@@ -13,8 +13,7 @@
  * which matches the extended outbound glob.
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import { z } from "@packages";
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
 import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
 
