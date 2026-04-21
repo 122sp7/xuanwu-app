@@ -2307,33 +2307,6 @@ export default function ShellLayout({
 }: Readonly<
 ````
 
-## File: src/app/AGENTS.md
-````markdown
-# src/app — Agent Guide
-
-路由組合層。只做 page / layout 組裝，不承載業務邏輯。
-
-## Route Here
-
-- 新增 page、layout 或 route group。
-- account-scoped 頁面或 parallel / intercepting routes。
-
-## Route Elsewhere
-
-| 需求 | 目標 |
-|---|---|
-| 業務邏輯 | `src/modules/<context>/application/use-cases/` |
-| Server Action | `modules/<context>/interfaces/_actions/` |
-| 共享 UI 元件 | `packages/ui-shadcn/` |
-| 業務無關 hook | `packages/ui-components/` |
-
-## Hard Rules
-
-- 不呼叫 repository、Firebase SDK，不引用模組內部路徑。
-- Route props 只傳 `accountId`、`workspaceId`，不傳 aggregate 物件。
-- 能用既有 route group 就不要新開 group。
-````
-
 ## File: src/app/globals.css
 ````css
 @theme inline {
@@ -2397,109 +2370,6 @@ import { PlatformBootstrap } from "@/src/modules/platform/adapters/inbound/react
 export default function RootLayout({
   children,
 }: Readonly<
-````
-
-## File: src/app/README.md
-````markdown
-# src/app — Next.js App Router 路由入口
-
-`src/app/` 是 Next.js 16 App Router 的路由組合層，只做 layout 組裝與 page slot 分發，不承載業務邏輯。
-
-## 路由群組
-
-| 群組 | 用途 |
-|---|---|
-| `(public)` | 登入前公開頁面 |
-| `(shell)` | 登入後帶 shell chrome 的應用頁面 |
-| `(shell)/(account)/[accountId]` | account-scoped 頁面 |
-| `[[...slug]]` | account scope 下的 catch-all |
-
-## 規則
-
-- 只組合路由與 layout，不寫業務規則。
-- 業務行為來自 `src/modules/<context>/index.ts`。
-- Server Action 來自 `modules/<context>/interfaces/_actions/`。
-- Route props 只傳 `accountId`、`workspaceId` 等 scope identifier。
-````
-
-## File: src/modules/ai/AGENTS.md
-````markdown
-# AI Module — Agent Guide
-
-## Purpose
-
-`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
-
-> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
-| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
-| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
-| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
-| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
-| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
-| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
-| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
-| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
-| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
-> - `document`（來源文件管理）→ `notebooklm` 所有  
-> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
-- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
-- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
-
-## task-formation 歸屬決策
-
-`task-formation` 子域屬於 **`workspace`**，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 觸發者（使用者指定生成任務）是 workspace 層業務流程
-- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
-
-## Route Here When
-
-- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
-- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
-- 需要 `src/modules/ai/` 層的骨架結構作為起點。
-
-## Route Elsewhere When
-
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENTS.md`
-- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
-- 知識文件 / Page 管理 → `src/modules/notion/`
-- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
-- 跨模組 API boundary → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
-| 跨模組 API boundary | `src/modules/ai/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
-- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/ai/orchestration/AiFacade.ts
@@ -2621,121 +2491,6 @@ resolve(key: string): PromptKey | null;
 ## File: src/modules/ai/prompts/versions.ts
 ````typescript
 import type { PromptKey } from "./registry/prompt-types";
-````
-
-## File: src/modules/ai/README.md
-````markdown
-# AI Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
-> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
-| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
-| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
-| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
-| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
-| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
-
----
-
-## task-formation 歸屬決策
-
-| 子域 | 歸屬 | 理由 |
-|---|---|---|
-| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/ai/
-  index.ts                      ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENTS.md
-  orchestration/
-    AiFacade.ts                 ← 對外統一 Facade
-    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
-  shared/
-    domain/index.ts
-    application/index.ts
-    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
-    errors/index.ts
-    types/index.ts
-  subdomains/
-    embedding/
-      domain/
-      application/
-      adapters/outbound/
-    pipeline/
-      domain/
-      application/
-      adapters/outbound/
-    evaluation/
-    generation/
-    chunk/
-    retrieval/
-    context/
-    citation/
-    memory/
-    tool-calling/
-```
-
----
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
----
-
-## 子域邊界示意（ai vs notebooklm）
-
-```
-notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
-notebooklm/document      ←使用→  ai/embedding（向量化文件）
-notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
-notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
-notebooklm/document      ─切塊→  ai/chunk（分塊計算）
-```
-
-ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 在 ai 定義使用者對話 UX | 屬 notebooklm |
-| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/ai/shared/errors/index.ts
@@ -3781,61 +3536,6 @@ listAvailable(): Promise<AiTool[]>;
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/analytics/AGENTS.md
-````markdown
-# Analytics Module — Agent Guide
-
-## Purpose
-
-`src/modules/analytics` 是 **Analytics 能力模組**，為 Xuanwu 系統提供事件投影、指標計算、洞察報表等分析能力的實作落點。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `event-contracts` | 事件契約定義（Published Language）| 🔨 骨架建立，實作進行中 |
-| `event-ingestion` | 事件接收 / 攝取 | 🔨 骨架建立，實作進行中 |
-| `event-projection` | 事件投影（讀模型計算）| 🔨 骨架建立，實作進行中 |
-| `experimentation` | A/B 測試與功能實驗管理 | 🔨 骨架建立，實作進行中 |
-| `insights` | 洞察報表 | 🔨 骨架建立，實作進行中 |
-| `metrics` | 指標計算 | 🔨 骨架建立，實作進行中 |
-| `realtime-insights` | 即時洞察 | 🔨 骨架建立，實作進行中 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 Analytics 的新 use case、entity、adapter 實作。
-- 實作事件投影、指標計算 port 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/analytics/AGENTS.md`
-- 跨模組 API boundary → `src/modules/analytics/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/analytics/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/analytics/`（本層） |
-| 跨模組 API boundary | `src/modules/analytics/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/analytics/index.ts
 ````typescript
 /**
@@ -3863,74 +3563,6 @@ listAvailable(): Promise<AiTool[]>;
 // analytics — orchestration layer
 // Cross-subdomain composition and facade lives here.
 // TODO: implement AnalyticsFacade if needed.
-````
-
-## File: src/modules/analytics/README.md
-````markdown
-# Analytics Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
-| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
-| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
-| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
-| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
-| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
-| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/analytics/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-  shared/
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    event-projection/
-      domain/
-      application/
-      adapters/outbound/
-    metrics/
-    event-ingestion/
-    event-contracts/
-    experimentation/
-    insights/
-    realtime-insights/
-```
-
----
-
-## 依賴方向
-
-```
-adapters/inbound → application → domain ← adapters/outbound
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/analytics/shared/errors/index.ts
@@ -4613,56 +4245,6 @@ queryWindow(metric: string, windowSeconds: number): Promise<RealtimeMetricWindow
 // TODO: export entities, value-objects, repositories, events, services
 ````
 
-## File: src/modules/billing/AGENTS.md
-````markdown
-# Billing Module — Agent Guide
-
-## Purpose
-
-`src/modules/billing` 是 **Billing 能力模組**，為 Xuanwu 系統提供訂閱管理與授權配額（Entitlement）的實作落點。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `entitlement` | 授權配額信號（能力准入）| 🔨 骨架建立，實作進行中 |
-| `subscription` | 訂閱計劃管理 | 🔨 骨架建立，實作進行中 |
-| `usage-metering` | 用量計量（API 呼叫、Token 消耗等）| 🔨 骨架建立，實作進行中 |
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- Entitlement 信號是上游 Published Language；下游（workspace、notion 等）僅消費，不定義。
-- `subscription` ≠ `entitlement`：billing plan（計費）vs capability signal（能力信號）。
-
-## Route Here When
-
-- 撰寫 Billing 的新 use case、entity、adapter 實作。
-- 實作 entitlement check port、subscription repository 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/billing/AGENTS.md`
-- 跨模組 API boundary → `src/modules/billing/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/billing/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/billing/`（本層）|
-| 跨模組 API boundary | `src/modules/billing/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/billing/index.ts
 ````typescript
 /**
@@ -4682,67 +4264,6 @@ queryWindow(metric: string, windowSeconds: number): Promise<RealtimeMetricWindow
 // billing — orchestration layer
 // Cross-subdomain composition and facade lives here.
 // TODO: implement BillingFacade if needed.
-````
-
-## File: src/modules/billing/README.md
-````markdown
-# Billing Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `entitlement` | 🔨 骨架建立，實作進行中 | 授權配額信號（能力准入）|
-| `subscription` | 🔨 骨架建立，實作進行中 | 訂閱計劃管理 |
-| `usage-metering` | 🔨 骨架建立，實作進行中 | API 呼叫、Token 消耗等用量計量 |
-
-**術語提醒：**
-- `Subscription` = 計費計劃（billing plan）
-- `Entitlement` = 能力信號（capability signal，下游模組按此准入）
-
----
-
-## 預期目錄結構
-
-```
-src/modules/billing/
-  index.ts
-  README.md
-  AGENTS.md
-  shared/
-    events/index.ts             ← EntitlementGranted / SubscriptionChanged 等 Published Language Events
-    types/index.ts
-  subdomains/
-    entitlement/
-      domain/
-      application/
-      adapters/outbound/
-    subscription/
-      domain/
-      application/
-      adapters/outbound/
-    usage-metering/
-      domain/
-      application/
-      adapters/outbound/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 混用 Subscription / Entitlement 術語 | 違反 Ubiquitous Language |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/billing/shared/errors/index.ts
@@ -5827,72 +5348,6 @@ async signOut(): Promise<void>
 getCurrentUser(): IdentityEntity | null
 ````
 
-## File: src/modules/iam/AGENTS.md
-````markdown
-# IAM Module — Agent Guide
-
-## Purpose
-
-`src/modules/iam` 是 **IAM（Identity & Access Management）模組**，整合了身份、存取控制、帳號、組織等能力（含原先分散在 `platform/account`、`platform/organization` 的子域）。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `account` | 帳號 Profile 管理 | ✅ 完成 |
-| `access-control` | 存取控制規則 | ✅ 完成 |
-| `authentication` | 認證流程 | ✅ 完成 |
-| `authorization` | 授權決策 | ✅ 完成 |
-| `federation` | SSO / 聯合身份 | ✅ 完成 |
-| `identity` | 身份核心（Actor）| ✅ 完成 |
-| `organization` | 組織 / 成員 / 團隊（原 platform/org）| ✅ 完成 |
-| `security-policy` | 安全策略 | ✅ 完成 |
-| `session` | 會話管理 | ✅ 完成 |
-| `tenant` | 租戶隔離 | ✅ 完成 |
-
-## 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已**完全遷入** `iam`：
-- `src/modules/iam/subdomains/account/` — AccountProfile read-model（getProfile / updateProfile）
-- `src/modules/iam/subdomains/organization/` — OrganizationTeam aggregate、成員管理、Team CRUD
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、HTTP client 或任何框架。
-- `organization/` 使用 `OrganizationTeam` aggregate；不得混用 `Actor`（身份）與 `Membership`（工作區參與）術語。
-- `identity` 是唯一定義 Actor 概念的子域。
-
-## Route Here When
-
-- 撰寫 IAM 的新 use case、entity、adapter 實作（account、session、access-control 等）。
-- 擴展 organization 子域的 team / member 功能。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/iam/AGENTS.md`
-- 跨模組 API boundary → `src/modules/iam/index.ts`
-- workspace 的 Membership 概念 → `src/modules/workspace/subdomains/membership/`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/iam/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/iam/`（本層）|
-| 跨模組 API boundary | `src/modules/iam/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/subdomains/` 下新增 account / org 相關程式碼（已遷入 iam）
-- ❌ 在 `domain/` 匯入 Firebase SDK、React
-- ❌ 混用 Actor（身份）與 User（業務角色）術語
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/iam/index.ts
 ````typescript
 /**
@@ -5999,93 +5454,6 @@ getCurrentUser(): IdentityEntity | null
 // iam — orchestration layer
 // Cross-subdomain composition and facade lives here.
 // TODO: implement IamFacade if needed.
-````
-
-## File: src/modules/iam/README.md
-````markdown
-# IAM Module
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `account` | ✅ 完成 | AccountProfile read-model |
-| `access-control` | ✅ 完成 | 存取控制規則 |
-| `authentication` | ✅ 完成 | 認證流程 |
-| `authorization` | ✅ 完成 | 授權決策 |
-| `federation` | ✅ 完成 | SSO / 聯合身份 |
-| `identity` | ✅ 完成 | 身份核心（Actor）|
-| `organization` | ✅ 完成 | 組織 / 成員 / 團隊（原 platform/org）|
-| `security-policy` | ✅ 完成 | 安全策略 |
-| `session` | ✅ 完成 | 會話管理 |
-| `tenant` | ✅ 完成 | 租戶隔離 |
-
-### account / organization 遷入說明
-
-`platform/account` 與 `platform/organization` 子域已完全遷移至 `src/modules/iam/`：
-- `src/modules/iam/` 公開入口（`index.ts`）提供 account 與 org API
-
----
-
-## 目錄結構
-
-```
-src/modules/iam/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-    IamFacade.ts
-    IamCoordinator.ts
-  shared/
-    domain/index.ts             ← Actor value object（跨子域共用）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    account/
-      domain/
-      application/
-      adapters/outbound/
-    organization/
-      domain/
-      application/
-      adapters/outbound/
-    authentication/
-    authorization/
-    access-control/
-    session/
-    tenant/
-    identity/
-    security-policy/
-    federation/
-```
-
----
-
-## 依賴方向
-
-```
-adapters/inbound → application → domain ← adapters/outbound
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/subdomains/` 下新增 account / org 程式碼 | 已遷入 iam，禁止回寫 |
-| 混用 Actor（身份）與 Membership（工作區參與）術語 | 違反 Ubiquitous Language |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/iam/shared/errors/index.ts
@@ -8812,69 +8180,6 @@ const handleSynthesize = () =>
 href=
 ````
 
-## File: src/modules/notebooklm/AGENTS.md
-````markdown
-# NotebookLM Module — Agent Guide
-
-## Purpose
-
-`src/modules/notebooklm` 是 **NotebookLM RAG 核心能力模組**，為 Xuanwu 系統提供來源文件（Document）、使用者對話（Conversation）、筆記本（Notebook）等 RAG 使用者體驗能力的實作落點。
-
-> **⚠ 邊界警示：** notebooklm 擁有 RAG **使用者體驗**（對話流程、文件接收、筆記本管理）。  
-> AI **機制**（embedding、retrieval、generation、citation）屬 `ai` 模組，notebooklm 透過 Port 消費。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `document` | Document 實體（來源文件接收、RagDocument 生命週期、metadata）| 🔨 骨架建立，實作進行中 |
-| `conversation` | Conversation 實體（使用者對話 Session、問答流程、Synthesis 輸出）| 🔨 骨架建立，實作進行中 |
-| `notebook` | Notebook 實體（筆記本生命週期、Document 集合）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `synthesis`（合成推理）是 `conversation` 的**應用層流程**，不獨立成子域  
-> - AI 機制（embedding、retrieval、generation）屬 `ai` 模組；notebooklm 透過 Port 注入消費  
-> - `conversation`（AI 模型上下文管理）屬 `ai/context`；`conversation`（使用者對話 UX）屬本模組  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK 或任何框架。
-- AI 能力（embedding、retrieval、generation、citation）透過 Port 注入，消費 `src/modules/ai/index.ts`，不直接呼叫 Genkit。
-- `document` 子域持有 `RagDocument` entity；`Page`（notion 的 KnowledgeArtifact）是由 notion 提供的 reference，notebooklm 只讀取。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 NotebookLM 的新 use case、entity、adapter 實作。
-- 實作 document ingestion、conversation 管理、notebook lifecycle 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/notebooklm/AGENTS.md`
-- AI 能力（embedding / retrieval / generation）→ `src/modules/ai/index.ts`（不直接呼叫 Genkit）
-- KnowledgeArtifact（只讀）→ `src/modules/notion/index.ts`
-- 跨模組 API boundary → `src/modules/notebooklm/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/notebooklm/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notebooklm/`（本層）|
-| 跨模組 API boundary | `src/modules/notebooklm/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 notebooklm `domain/` 中定義 AI 機制（embedding、retrieval、generation 屬 `ai`）
-- ❌ 新建獨立 `synthesis` 子域（合成邏輯屬 `conversation` 應用層）
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/notebooklm/infrastructure/ai/synthesis.flow.ts
 ````typescript
 import { ai } from "@/packages/integration-ai/genkit";
@@ -8890,80 +8195,6 @@ const buildSynthesisPrompt = (input: NotebooklmSynthesisInput): string
 ````typescript
 // notebooklm — orchestration layer
 // Cross-subdomain composition and facade lives here.
-````
-
-## File: src/modules/notebooklm/README.md
-````markdown
-# NotebookLM Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** `synthesis`（合成推理）是 `conversation` 的應用層流程，不獨立成子域。AI 機制（embedding / retrieval / generation）屬 `ai` 模組。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `document` | 🔨 骨架建立，實作進行中 | Document 實體（來源文件接收、RagDocument 生命週期、ingestion 狀態）|
-| `conversation` | 🔨 骨架建立，實作進行中 | Conversation 實體（使用者對話 Session、問答流程、合成輸出）|
-| `notebook` | 🔨 骨架建立，實作進行中 | Notebook 實體（筆記本生命週期、Document 集合管理）|
-
----
-
-## 子域邊界示意（notebooklm vs ai）
-
-```
-notebooklm/document     ─ingestion→  ai/embedding（文件向量化）
-notebooklm/document     ─切塊委託→  ai/chunk（分塊計算）
-notebooklm/conversation ─問答觸發→  ai/retrieval（找相關 chunk）
-notebooklm/conversation ─生成觸發→  ai/generation（生成回答）
-notebooklm/conversation ─引用取得→  ai/citation（標注來源）
-```
-
-notebooklm 持有**使用者體驗流程**；ai 提供**計算機制**。
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notebooklm/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-    NotebooklmFacade.ts
-    NotebooklmCoordinator.ts    ← document→embedding→conversation 跨子域流程
-  shared/
-    domain/index.ts
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    document/
-      domain/
-      application/
-      adapters/outbound/
-    conversation/
-    notebook/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 notebooklm `domain/` 定義 AI 機制子域 | AI 機制（embedding / retrieval / generation）屬 `ai` |
-| 新建獨立 `synthesis` 子域 | 合成邏輯屬 `conversation` 應用層 |
-| 直接呼叫 Genkit（不透過 port）| 破壞 port/adapter 邊界 |
-| `Page` / `Block` 在 notebooklm 設為可寫 | 只能唯讀引用（notion 所有）|
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notebooklm/shared/errors/index.ts
@@ -9357,141 +8588,11 @@ export async function createKnowledgePage(
 ): Promise<CreateKnowledgePageResult>
 ````
 
-## File: src/modules/notion/AGENTS.md
-````markdown
-# Notion Module — Agent Guide
-
-## Purpose
-
-`src/modules/notion` 是 **Notion 知識內容能力模組**，為 Xuanwu 系統提供知識頁面（Page）、內容區塊（Block）、資料庫（Database）、視圖（View）、協作（Collaboration）、模板（Template）等正典知識能力的實作落點。
-
-> **⚠ 邊界警示：** notion 是 `KnowledgeArtifact`（Page / Block / Database）的**唯一可寫所有者**。notebooklm 只能透過 `src/modules/notion/index.ts` 唯讀引用；workspace 不直接修改 notion 內容。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `page` | Page 實體（知識文件創作、編輯、版本）| 🔨 骨架建立，實作進行中 |
-| `block` | Block 實體（Page 內內容區塊：文字、圖片、代碼等）| 🔨 骨架建立，實作進行中 |
-| `database` | Database 實體（結構化知識庫）| 🔨 骨架建立，實作進行中 |
-| `view` | View 實體（Database 的顯示方式 / 篩選 / 排序）| 🔨 骨架建立，實作進行中 |
-| `collaboration` | Collaboration 實體（協作評論、共編、提及）| 🔨 骨架建立，實作進行中 |
-| `template` | Template 實體（Page / Database 模板）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `taxonomy`（分類/標籤）的標籤能力整合至 `page` / `database` 的 metadata；不設獨立 taxonomy 子域  
-> - `relations`（關聯圖）以 `view` 呈現；Page 間的關聯是 View 的一種形式  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Page` 與 `Block` 是 notion 核心 Aggregate；`Database` 是另一個 Aggregate。
-- 其他模組（notebooklm、workspace）只能透過 `src/modules/notion/index.ts` 唯讀引用 notion 內容。
-- `database` 是 `knowledge-database` 的語意化名稱（已完成重命名）；禁止使用舊名。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`。
-
-## Route Here When
-
-- 撰寫 notion 的新 use case、entity、adapter 實作。
-- 實作 page authoring、database CRUD、collaboration、template 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/notion/AGENTS.md`
-- 跨模組 API boundary → `src/modules/notion/index.ts`
-- RAG / 知識檢索 → `src/modules/notebooklm/`（notebooklm 消費 notion 內容）
-- AI 生成輔助 → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/notion/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/notion/`（本層）|
-| 跨模組 API boundary | `src/modules/notion/index.ts` |
-
-**嚴禁事項：**
-- ❌ 讓 notebooklm 或 workspace 直接修改 `Page` / `Block` / `Database`（只可讀取）
-- ❌ 在 barrel 使用 `export *`
-- ❌ 使用 `database` 以外的舊名（`knowledge-database`、`knowledge` 已整合至 `page`）
-- ❌ 在 notion 模組定義 AI 生成能力（屬 ai）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/notion/orchestration/index.ts
 ````typescript
 // notion — orchestration layer
 // Cross-subdomain composition and facade lives here.
 // TODO: implement NotionFacade if needed.
-````
-
-## File: src/modules/notion/README.md
-````markdown
-# Notion Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體。  
-> **子域不重複原則：** 分類法（標籤）整合至 `page` / `database` metadata；關聯圖以 `view` 呈現。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `page` | 🔨 骨架建立，實作進行中 | Page 實體（知識文件創作、版本、metadata）|
-| `block` | 🔨 骨架建立，實作進行中 | Block 實體（Page 內容區塊：文字、圖片、代碼、嵌入等）|
-| `database` | 🔨 骨架建立，實作進行中 | Database 實體（結構化知識庫、欄位定義）|
-| `view` | 🔨 骨架建立，實作進行中 | View 實體（Database / Page 關聯的顯示方式、篩選、排序）|
-| `collaboration` | 🔨 骨架建立，實作進行中 | Collaboration 實體（協作評論、共編、提及通知）|
-| `template` | 🔨 骨架建立，實作進行中 | Template 實體（Page / Database 的可重用模板）|
-
----
-
-## 預期目錄結構
-
-```
-src/modules/notion/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-    NotionFacade.ts
-  shared/
-    domain/index.ts             ← PageRef / BlockRef（跨子域共用 reference VO）
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    page/
-      domain/
-      application/
-      adapters/outbound/
-    block/
-    database/
-    view/
-    collaboration/
-    template/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 讓其他模組直接修改 `Page` / `Block` / `Database` | notion 是唯一可寫的所有者 |
-| 使用 `knowledge-database` / `authoring` / `relations` / `taxonomy` 作為子域名 | 已整合至名詞域（`database` / `page` / `view` / `template`）|
-| 在 barrel 使用 `export *` | 破壞可追蹤性 |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/notion/shared/errors/index.ts
@@ -10865,68 +9966,6 @@ export function useAccountRouteContext(): AccountRouteContextValue
  */
 ````
 
-## File: src/modules/platform/AGENTS.md
-````markdown
-# Platform Module — Agent Guide
-
-## Purpose
-
-`src/modules/platform` 是 **Platform 橫切治理能力模組**，為 Xuanwu 系統提供通知（Notification）、背景工作（Background Job）、平台設定（Platform Config）、搜尋（Search）等橫切服務能力的實作落點。
-
-> **注意：** `platform/subdomains/account` 與 `platform/subdomains/organization` 已**完全遷入** `src/modules/iam/`。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `background-job` | 背景工作排程（BackgroundJob / JobDocument / JobChunk）| ✅ 完成 |
-| `cache` | 快取管理（鍵值快取、TTL 設定）| ✅ 完成 |
-| `file-storage` | 檔案儲存服務（上傳、下載、生命週期）| ✅ 完成 |
-| `notification` | 通知發送 | ✅ 完成 |
-| `platform-config` | 平台設定 | ✅ 完成 |
-| `search` | 跨域搜尋 | ✅ 完成 |
-
-**已遷移子域（不在 platform）：**
-- `account` → `src/modules/iam/subdomains/account/`
-- `organization` → `src/modules/iam/subdomains/organization/`
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- Platform 是 T1 operational support（iam/billing 為其上游），不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-- `background-job` 使用泛化命名（BackgroundJob / JobDocument / JobChunk），不使用已棄用的 Ingestion* 命名。
-
-## Route Here When
-
-- 撰寫 platform 橫切服務的新 use case、entity、adapter 實作。
-- 實作 notification、background-job 等骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/platform/AGENTS.md`
-- Account / Organization → `src/modules/iam/`（已遷入）
-- 跨模組 API boundary → `src/modules/platform/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/platform/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/platform/`（本層）|
-| 跨模組 API boundary | `src/modules/platform/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `src/modules/platform/` 重建 account / org 子域（已遷入 iam）
-- ❌ 使用 `Ingestion*` 命名（已語意化為 BackgroundJob / JobDocument / JobChunk）
-- ❌ platform 依賴 workspace / notion / notebooklm（違反上游方向）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/platform/orchestration/index.ts
 ````typescript
 import {
@@ -10950,94 +9989,6 @@ registerBackgroundJob(input: RegisterJobDocumentInput): Promise<JobResult<Backgr
 advanceBackgroundJob(input: AdvanceJobStageInput): Promise<JobResult<BackgroundJob>>
 ⋮----
 listWorkspaceBackgroundJobs(input: ListWorkspaceJobsInput): Promise<readonly BackgroundJob[]>
-````
-
-## File: src/modules/platform/README.md
-````markdown
-# Platform Module
-
-> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
-
-## 子域清單
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
-| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
-| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
-| `notification` | ✅ 完成 | 通知發送 |
-| `platform-config` | ✅ 完成 | 平台設定 |
-| `search` | ✅ 完成 | 跨域搜尋 |
-
-**已遷移（不在 platform）：**
-
-| 子域 | 遷移目標 |
-|---|---|
-| `account` | `src/modules/iam/subdomains/account/` |
-| `organization` | `src/modules/iam/subdomains/organization/` |
-
----
-
-## 目錄結構
-
-```
-src/modules/platform/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-    PlatformFacade.ts
-  shared/
-    domain/index.ts
-    events/index.ts             ← Platform Published Language Events
-    types/index.ts
-  subdomains/
-    notification/
-      domain/
-      application/
-      adapters/outbound/
-    background-job/
-      domain/                   ← BackgroundJob / JobDocument / JobChunk
-      application/
-      adapters/outbound/
-    cache/
-    file-storage/
-    platform-config/
-    search/
-```
-
----
-
-## 依賴方向
-
-Platform 是 T1 operational support，依賴方向固定：
-
-```
-iam     → platform
-billing → platform (entitlement governance)
-platform → workspace
-(platform 也被 notion, notebooklm 以 Service API 形式消費)
-```
-
-Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
-| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/platform/shared/errors/index.ts
@@ -12198,276 +11149,6 @@ createTemplate(input: CreateTemplateDTO): Promise<TemplateResponseDTO>
 updateTemplate(input: UpdateTemplateDTO): Promise<TemplateResponseDTO>
 ⋮----
 deleteTemplate(id: string): Promise<void>
-````
-
-## File: src/modules/template/README.md
-````markdown
-# Template Module
-
-`src/modules/template` 是一個可複製的 **Hexagonal Architecture + DDD 多子域骨架**，示範多 subdomain 分層結構、具名匯出規範與跨子域協調模式。
-
-## 目錄結構
-
-```
-src/modules/template/
-  index.ts                          ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENTS.md
-  orchestration/
-    TemplateFacade.ts               ← 對外統一 Facade（委派各子域 use case）
-    TemplateCoordinator.ts          ← 跨子域流程協調（document→generation→ingestion→workflow）
-  shared/
-    domain/index.ts                 ← 跨子域共用 domain 概念（Value Object、Policy）
-    application/index.ts            ← 跨子域共用 DTO / Port
-    config/index.ts                 ← 模組設定
-    constants/index.ts              ← 模組常數
-    errors/index.ts                 ← 共用錯誤類型
-    events/index.ts                 ← 跨子域 Published Language Events
-    infrastructure/index.ts         ← 共用 infrastructure 工具
-    types/index.ts                  ← 共用 TypeScript 型別
-    utils/index.ts                  ← 共用工具函式
-  subdomains/
-    document/                       ← 核心子域（CRUD 完整實作）
-      domain/
-        entities/Template.ts
-        value-objects/TemplateId.ts
-        value-objects/TemplateName.ts
-        events/TemplateCreatedEvent.ts
-        events/TemplateUpdatedEvent.ts
-        repositories/TemplateRepository.ts
-        services/TemplateDomainService.ts
-        index.ts
-      application/
-        use-cases/{Create,Update,Delete}TemplateUseCase.ts
-        dto/{Create,Update,Response}TemplateDTO.ts
-        ports/inbound/CreateTemplatePort.ts
-        ports/outbound/{TemplateRepositoryPort,CachePort,ExternalApiPort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{TemplateController,routes}.ts
-          queue/TemplateQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/{FirestoreTemplateRepository,FirestoreMapper}.ts
-          cache/TemplateCacheAdapter.ts
-          external-api/TemplateApiClient.ts
-          index.ts
-        index.ts
-    generation/                     ← 生成子域（完整實作）
-      domain/
-        entities/GeneratedTemplate.ts   ← id: GenerationId（VO）
-        value-objects/GenerationId.ts
-        repositories/GenerationRepository.ts
-        services/GenerationDomainService.ts
-        events/GenerationCompletedEvent.ts
-        index.ts
-      application/
-        use-cases/GenerateTemplateUseCase.ts
-        dto/{GenerateTemplate,GenerationResult}DTO.ts
-        ports/inbound/GenerateTemplatePort.ts
-        ports/outbound/{GenerationRepositoryPort,AiGenerationPort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{GenerationController,routes}.ts
-          queue/GenerationQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/FirestoreGenerationRepository.ts
-          ai/AiGenerationAdapter.ts             ← stub, TODO: wire Genkit
-          index.ts
-        index.ts
-    ingestion/                      ← 匯入子域（完整實作）
-      domain/
-        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
-        value-objects/IngestionId.ts
-        repositories/IngestionJobRepository.ts
-        services/IngestionDomainService.ts
-        events/IngestionJobEvents.ts
-        index.ts
-      application/
-        use-cases/StartIngestionUseCase.ts
-        dto/{StartIngestion,IngestionJobResponse}DTO.ts
-        ports/inbound/StartIngestionPort.ts
-        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{IngestionController,routes}.ts
-          queue/IngestionQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/FirestoreIngestionJobRepository.ts
-          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
-          index.ts
-        index.ts
-    workflow/                       ← 流程子域（完整實作）
-      domain/
-        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
-        value-objects/WorkflowId.ts
-        repositories/TemplateWorkflowRepository.ts
-        services/WorkflowDomainService.ts
-        events/WorkflowEvents.ts
-        index.ts
-      application/
-        use-cases/InitiateWorkflowUseCase.ts
-        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
-        ports/inbound/InitiateWorkflowPort.ts
-        ports/outbound/WorkflowRepositoryPort.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
-          index.ts
-        outbound/
-          firestore/FirestoreWorkflowRepository.ts
-          index.ts
-        
-        entities/IngestionJob.ts        ← id: IngestionId（VO）+ markProcessing()
-        value-objects/IngestionId.ts
-        repositories/IngestionJobRepository.ts
-        services/IngestionDomainService.ts
-        events/IngestionJobEvents.ts
-        index.ts
-      application/
-        use-cases/StartIngestionUseCase.ts
-        dto/{StartIngestion,IngestionJobResponse}DTO.ts
-        ports/inbound/StartIngestionPort.ts
-        ports/outbound/{IngestionRepositoryPort,StoragePort}.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{IngestionController,routes}.ts
-          queue/IngestionQueueHandler.ts
-          index.ts
-        outbound/
-          firestore/FirestoreIngestionJobRepository.ts
-          storage/CloudStorageAdapter.ts        ← stub, TODO: wire Cloud Storage
-          index.ts
-        index.ts
-    workflow/                       ← 流程子域（完整實作）
-      domain/
-        entities/TemplateWorkflow.ts    ← id: WorkflowId（VO）
-        value-objects/WorkflowId.ts
-        repositories/TemplateWorkflowRepository.ts
-        services/WorkflowDomainService.ts
-        events/WorkflowEvents.ts
-        index.ts
-      application/
-        use-cases/InitiateWorkflowUseCase.ts
-        dto/{InitiateWorkflow,WorkflowResponse}DTO.ts
-        ports/inbound/InitiateWorkflowPort.ts
-        ports/outbound/WorkflowRepositoryPort.ts
-        index.ts
-      adapters/
-        inbound/
-          http/{WorkflowController,routes}.ts   ← HTTP only，無 queue handler
-          index.ts
-        outbound/
-          firestore/FirestoreWorkflowRepository.ts
-          index.ts
-        index.ts
-```
-
-## Barrel 結構（具名匯出原則）
-
-所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
-
-| 檔案 | 覆蓋範圍 |
-|---|---|
-| `index.ts` | 模組對外唯一公開入口：重新匯出全部四個子域的 domain + application 符號 |
-| `subdomains/document/domain/index.ts` | entities、value-objects、events、repositories、services |
-| `subdomains/document/application/index.ts` | use-cases、dto、ports |
-| `subdomains/generation/domain/index.ts` | GeneratedTemplate、GenerationId、events、service、repo |
-| `subdomains/generation/application/index.ts` | GenerateTemplateUseCase、dto、ports（含 AiGenerationPort）|
-| `subdomains/ingestion/domain/index.ts` | IngestionJob、IngestionId、events、service、repo |
-| `subdomains/ingestion/application/index.ts` | StartIngestionUseCase、dto、ports（含 StoragePort）|
-| `subdomains/workflow/domain/index.ts` | TemplateWorkflow、WorkflowId、events、service、repo |
-| `subdomains/workflow/application/index.ts` | InitiateWorkflowUseCase、dto、ports |
-| `shared/*/index.ts` | 各共用層的對外出口 |
-
-### 根 index.ts 匯出範例
-
-```ts
-// src/modules/template/index.ts
-export {
-  Template, TemplateId, TemplateName,
-  TemplateCreatedEvent, TemplateUpdatedEvent, TemplateDomainService,
-} from './subdomains/document/domain';
-export type { TemplateProps, TemplateRepository } from './subdomains/document/domain';
-export {
-  CreateTemplateUseCase, UpdateTemplateUseCase, DeleteTemplateUseCase,
-} from './subdomains/document/application';
-export type {
-  CreateTemplateDTO, UpdateTemplateDTO, TemplateResponseDTO,
-  CreateTemplatePort, TemplateRepositoryPort, CachePort, ExternalApiPort,
-} from './subdomains/document/application';
-
-// generation
-export { GeneratedTemplate, GenerationId, GenerationDomainService, GenerationCompletedEvent } from './subdomains/generation/domain';
-export type { GenerationRepository } from './subdomains/generation/domain';
-export { GenerateTemplateUseCase } from './subdomains/generation/application';
-export type { GenerateTemplateDTO, GenerationResultDTO, GenerateTemplatePort, GenerationRepositoryPort, AiGenerationPort } from './subdomains/generation/application';
-
-// ingestion
-export { IngestionJob, IngestionId, IngestionDomainService, IngestionJobStartedEvent, IngestionJobCompletedEvent } from './subdomains/ingestion/domain';
-export type { IngestionJobRepository, IngestionStatus } from './subdomains/ingestion/domain';
-export { StartIngestionUseCase } from './subdomains/ingestion/application';
-export type { StartIngestionDTO, IngestionJobResponseDTO, StartIngestionPort, IngestionRepositoryPort, StoragePort } from './subdomains/ingestion/application';
-
-// workflow
-export { TemplateWorkflow, WorkflowId, WorkflowDomainService, WorkflowInitiatedEvent, WorkflowCompletedEvent } from './subdomains/workflow/domain';
-export type { TemplateWorkflowRepository, WorkflowStatus } from './subdomains/workflow/domain';
-export { InitiateWorkflowUseCase } from './subdomains/workflow/application';
-export type { InitiateWorkflowDTO, WorkflowResponseDTO, InitiateWorkflowPort, WorkflowRepositoryPort } from './subdomains/workflow/application';
-```
-
-所有 source 檔內部 import 使用**直接相對路徑**，不依賴 barrel index，確保 barrel 可獨立修改。
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
-## 如何複製成新模組
-
-1. 複製整個 `src/modules/template/` 資料夾。
-2. 全域取代 `Template` → `<YourEntity>`（保留大小寫規律），各子域實體名稱也一併取代。
-3. 保留實際有業務需求的子域；刪除不需要的子域（generation / ingestion / workflow 可視業務選用）。
-4. 依 DDD 開發順序填入業務規則：Domain → Application → Ports → Adapters → Orchestration。
-5. 更新根 `index.ts` barrel，僅匯出有實作的子域符號。
-
----
-
-## 路由規則
-
-- 讀取邊界規則、published language → `src/modules/<context>/AGENTS.md`
-- 撰寫新實作程式碼 → `src/modules/<context>/`，以本模組為骨架基線
-- 需要跨模組 API boundary → `src/modules/<context>/index.ts`
-
----
-
-## 衝突防護
-
-1. **不在 `domain/` 匯入 Firebase SDK、React、HTTP client 或 ORM。**
-2. `template` 模組本身不代表任何業務邊界；真實業務請在對應 `src/modules/<context>/` 實作。
-
----
-
-## 文件網絡
-
-- [src/modules/README.md](../README.md) — 模組層狀態總覽
-- [src/modules/template/AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-- [docs/structure/domain/bounded-context-subdomain-template.md](../../../docs/structure/domain/bounded-context-subdomain-template.md) — 設計藍圖
 ````
 
 ## File: src/modules/template/shared/application/index.ts
@@ -14296,6 +12977,51 @@ export function appendWorkspaceContextQuery(
  */
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceApprovalSection.tsx
+````typescript
+/**
+ * WorkspaceApprovalSection — workspace.approval tab — acceptance review queue.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import { ClipboardList, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+⋮----
+import {
+  listApprovalDecisionsAction,
+  createApprovalDecisionAction,
+  approveTaskAction,
+  rejectApprovalAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/approval-actions";
+import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { openIssueAction, listIssuesByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
+import type { ApprovalDecisionSnapshot } from "@/src/modules/workspace/subdomains/approval/domain/entities/ApprovalDecision";
+import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
+import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
+⋮----
+interface WorkspaceApprovalSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+export function WorkspaceApprovalSection({
+  workspaceId,
+  accountId: _accountId,
+  currentUserId,
+}: WorkspaceApprovalSectionProps): React.ReactElement
+⋮----
+// Count open acceptance-stage issues per taskId for block guard UI
+⋮----
+const handleCreateDecision = (taskId: string) =>
+⋮----
+const handleApprove = (decision: ApprovalDecisionSnapshot) =>
+⋮----
+const handleReject = (decision: ApprovalDecisionSnapshot) =>
+⋮----
+onClick=
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceContext.tsx
 ````typescript
 /**
@@ -14345,6 +13071,123 @@ export function WorkspaceContextProvider({
 })
 ⋮----
 export function useWorkspaceContext(): WorkspaceContextValue
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx
+````typescript
+/**
+ * WorkspaceIssuesSection — workspace.issues tab — issue tracker with full lifecycle management.
+ *
+ * Supports:
+ * - Listing workspace issues with status filter
+ * - Creating issues manually via dialog (task + stage + title + description)
+ * - Transitioning issue status via FSM-derived action buttons
+ * - Viewing closed issues separately
+ */
+⋮----
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@packages";
+import { AlertCircle, Plus, AlertTriangle, Info, Loader2, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+⋮----
+import {
+  listIssuesByWorkspaceAction,
+  openIssueAction,
+  transitionIssueStatusAction,
+  resolveIssueAction,
+  closeIssueAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
+import {
+  listTasksByWorkspaceAction,
+  transitionTaskStatusAction,
+} from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
+import { startQualityReviewAction } from "@/src/modules/workspace/adapters/inbound/server-actions/quality-actions";
+import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
+import type { IssueStatus } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus";
+import type { IssueStage } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStage";
+import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
+import {
+  getIssueTransitionEvents,
+  ISSUE_EVENT_TO_STATUS,
+  ISSUE_EVENT_LABEL,
+} from "@/src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine";
+⋮----
+// ── Types & constants ────────────────────────────────────────────────────────
+⋮----
+interface WorkspaceIssuesSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+type IssueFilter = "全部" | "開啟" | "處理中" | "已關閉";
+⋮----
+// ── CreateIssueDialog ────────────────────────────────────────────────────────
+⋮----
+interface CreateIssueDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workspaceId: string;
+  currentUserId: string;
+  tasks: TaskSnapshot[];
+  onCreated: () => void;
+}
+⋮----
+const handleClose = () =>
+⋮----
+const handleSubmit = () =>
+⋮----
+{/* Task selection */}
+⋮----
+onValueChange=
+⋮----
+{/* Title */}
+⋮----
+onChange=
+⋮----
+{/* Description */}
+⋮----
+// ── IssueRow ─────────────────────────────────────────────────────────────────
+⋮----
+// Resolved issues with a qa/acceptance stage get a re-route shortcut
+⋮----
+{/* Lifecycle transition buttons */}
+⋮----
+onClick=
+⋮----
+{/* Re-route CTA: send resolved issue's task back to QA or acceptance */}
+⋮----
+// ── WorkspaceIssuesSection ───────────────────────────────────────────────────
+⋮----
+const handleTransition = (issueId: string, targetStatus: IssueStatus) =>
+⋮----
+const handleReroute = (issue: IssueSnapshot) =>
+⋮----
+const handleCreated = () =>
+⋮----
+{/* Header */}
+⋮----
+{/* Status filter */}
+⋮----
+{/* Severity legend */}
+⋮----
+{/* Issues list */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceOverviewSection.tsx
@@ -14649,85 +13492,6 @@ subscribeToWorkspacesForAccount(
 ): Unsubscribe
 ````
 
-## File: src/modules/workspace/AGENTS.md
-````markdown
-# Workspace Module — Agent Guide
-
-## Purpose
-
-`src/modules/workspace` 是 **Workspace 協作容器能力模組**，為 Xuanwu 系統提供任務（Task）、議題（Issue）、生命週期（Lifecycle）、編排（Orchestration）、成員資格（Membership）等工作區協作能力的實作落點。
-
-> **注意：** `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation 七個子域。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `activity` | 活動記錄實體（使用者操作歷程）| 🔨 骨架建立，實作進行中 |
-| `api-key` | API 金鑰管理實體 | 🔨 骨架建立，實作進行中 |
-| `approval` | 審批實體（審批流程與決策）| 🔨 骨架建立，實作進行中 |
-| `audit` | 日誌紀錄實體 | 🔨 骨架建立，實作進行中 |
-| `feed` | 活動動態實體 | 🔨 骨架建立，實作進行中 |
-| `invitation` | 邀請實體（工作區邀請管理）| 🔨 骨架建立，實作進行中 |
-| `issue` | 議題實體（議題管理）| 🔨 骨架建立，實作進行中 |
-| `lifecycle` | 生命週期實體（工作區生命週期）| 🔨 骨架建立，實作進行中 |
-| `membership` | 成員資格實體（Membership）| 🔨 骨架建立，實作進行中 |
-| `orchestration` | 跨子域編排（原 workspace-workflow）| 🔨 骨架建立，實作進行中 |
-| `quality` | 品質管控實體 | 🔨 骨架建立，實作進行中 |
-| `resource` | 資源實體（工作區資源配額與管理）| 🔨 骨架建立，實作進行中 |
-| `schedule` | 排程實體 | 🔨 骨架建立，實作進行中 |
-| `settlement` | 結算實體 | 🔨 骨架建立，實作進行中 |
-| `share` | 分享實體（對外發布）| 🔨 骨架建立，實作進行中 |
-| `task` | 任務實體（任務管理）| 🔨 骨架建立，實作進行中 |
-| `task-formation` | 任務生成實體（AI 輔助任務生成）| 🔨 骨架建立，實作進行中 |
-
-## task-formation 歸屬決策
-
-`task-formation` 屬於 **`workspace`** 子域，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 業務流程（使用者確認候選任務）是 workspace 層關注點
-- AI 生成能力由 `ai/generation` Port 注入（透過 `src/modules/ai/index.ts`），workspace 消費
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK 或任何框架。
-- `Membership`（工作區參與）≠ `Actor`（身份）：前者屬於 workspace，後者屬於 iam。
-- `orchestration/` 是跨子域流程協調層，不包含業務規則。
-- workspace 不直接呼叫 Firestore；透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）。
-
-## Route Here When
-
-- 撰寫 workspace 的新 use case、entity、adapter 實作。
-- 實作 task / issue / lifecycle 等子域骨架。
-
-## Route Elsewhere When
-
-- 讀取邊界規則 → `src/modules/workspace/AGENTS.md`
-- 跨模組 API boundary → `src/modules/workspace/index.ts`
-- AI 任務提取能力 → `src/modules/ai/index.ts`（generation）
-- 成員身份驗證 → `src/modules/iam/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/workspace/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/workspace/`（本層）|
-| 跨模組 API boundary | `src/modules/workspace/index.ts` |
-
-**嚴禁事項：**
-- ❌ 新建或恢復 `workspace-workflow` 子域（已拆解）
-- ❌ 在 workspace 直接呼叫 Firestore（透過 src/modules/platform/index.ts）
-- ❌ 使用 `approve` 作為子域名（已更正為名詞 `approval`）
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/workspace/index.ts
 ````typescript
 /**
@@ -14752,95 +13516,6 @@ subscribeToWorkspacesForAccount(
  * workspace — orchestration layer
  * Cross-subdomain coordination and facade composition.
  */
-````
-
-## File: src/modules/workspace/README.md
-````markdown
-# Workspace Module
-
-> `workspace-workflow` 子域已移除（2026-04-15）。其能力已分散至 task、issue、settlement、approval、quality、orchestration、task-formation。
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名（`approval` 不用 `approve`；`schedule` 不用 `scheduling`；`share` 不用 `sharing`）。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `activity` | 🔨 骨架建立，實作進行中 | 活動記錄實體 |
-| `api-key` | 🔨 骨架建立，實作進行中 | API 金鑰生命週期 |
-| `approval` | 🔨 骨架建立，實作進行中 | 審批實體（審批流程與決策記錄）|
-| `audit` | 🔨 骨架建立，實作進行中 | 日誌紀錄實體 |
-| `feed` | ✅ 實作完成 | 每日動態貼文（IG 風格：文字 + 照片，未來擴展今日任務 / 出勤）|
-| `invitation` | 🔨 骨架建立，實作進行中 | 邀請實體（邀請連結、邀請狀態）|
-| `issue` | 🔨 骨架建立，實作進行中 | 議題實體（議題管理）|
-| `lifecycle` | 🔨 骨架建立，實作進行中 | 生命週期實體（工作區生命週期）|
-| `membership` | 🔨 骨架建立，實作進行中 | 成員資格實體（Membership）|
-| `orchestration` | 🔨 骨架建立，實作進行中 | 跨子域編排（原 workspace-workflow）|
-| `quality` | 🔨 骨架建立，實作進行中 | 品質管控實體 |
-| `resource` | 🔨 骨架建立，實作進行中 | 資源實體（工作區資源配額與管理）|
-| `schedule` | 🔨 骨架建立，實作進行中 | 排程實體 |
-| `settlement` | 🔨 骨架建立，實作進行中 | 結算實體 |
-| `share` | 🔨 骨架建立，實作進行中 | 分享實體（對外發布）|
-| `task` | 🔨 骨架建立，實作進行中 | 任務實體（任務管理）|
-| `task-formation` | 🔨 骨架建立，實作進行中 | 任務生成實體（AI 輔助 + 使用者確認流程）|
-
----
-
-## 目錄結構
-
-```
-src/modules/workspace/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-    WorkspaceFacade.ts
-    WorkspaceCoordinator.ts     ← 跨子域流程（task→settlement 等）
-  shared/
-    domain/index.ts             ← WorkspaceId、MembershipRef 等共用 VO
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    lifecycle/
-      domain/
-      application/
-      adapters/outbound/
-    task/
-    issue/
-    membership/
-    orchestration/
-    activity/
-    api-key/
-    approval/
-    invitation/
-    resource/
-    settlement/
-    quality/
-    task-formation/
-    schedule/
-    share/
-    feed/
-    audit/
-```
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 新建或恢復 `workspace-workflow` 子域 | 已拆解，禁止回歸 |
-| 使用 `approve` / `scheduling` / `sharing` 作為子域名 | 已更正為名詞（`approval` / `schedule` / `share`）|
-| 混用 Membership（工作區參與）與 Actor（身份）術語 | 違反 Ubiquitous Language |
-| workspace 直接呼叫 Firestore | 必須透過 `src/modules/platform/index.ts`（FileAPI、PermissionAPI）|
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/workspace/shared/errors/index.ts
@@ -15274,6 +13949,36 @@ async delete(decisionId: string): Promise<void>
 ## File: src/modules/workspace/subdomains/approval/application/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { ApprovalDecisionRepository } from "../../domain/repositories/ApprovalDecisionRepository";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
+import { ApprovalDecision } from "../../domain/entities/ApprovalDecision";
+import type { CreateApprovalDecisionInput } from "../../domain/entities/ApprovalDecision";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+⋮----
+export class CreateApprovalDecisionUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: CreateApprovalDecisionInput): Promise<CommandResult>
+⋮----
+export class ApproveTaskUseCase {
+⋮----
+async execute(decisionId: string, comments?: string): Promise<CommandResult>
+⋮----
+export class RejectApprovalUseCase {
+⋮----
+export class ListApprovalDecisionsUseCase {
+⋮----
+constructor(private readonly decisionRepo: ApprovalDecisionRepository)
+⋮----
+async execute(workspaceId: string): Promise<import("../../domain/entities/ApprovalDecision").ApprovalDecisionSnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/approval/domain/entities/ApprovalDecision.ts
@@ -16980,6 +15685,36 @@ async delete(reviewId: string): Promise<void>
 
 ````
 
+## File: src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { QualityReviewRepository } from "../../domain/repositories/QualityReviewRepository";
+import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
+import { QualityReview } from "../../domain/entities/QualityReview";
+import type { StartQualityReviewInput } from "../../domain/entities/QualityReview";
+import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
+⋮----
+export class StartQualityReviewUseCase {
+⋮----
+constructor(
+⋮----
+async execute(input: StartQualityReviewInput): Promise<CommandResult>
+⋮----
+export class PassQualityReviewUseCase {
+⋮----
+async execute(reviewId: string, notes?: string): Promise<CommandResult>
+⋮----
+export class FailQualityReviewUseCase {
+⋮----
+export class ListQualityReviewsUseCase {
+⋮----
+constructor(private readonly reviewRepo: QualityReviewRepository)
+⋮----
+async execute(workspaceId: string): Promise<import("../../domain/entities/QualityReview").QualityReviewSnapshot[]>
+````
+
 ## File: src/modules/workspace/subdomains/quality/domain/entities/QualityReview.ts
 ````typescript
 import { v4 as uuid } from "uuid";
@@ -18588,6 +17323,35 @@ import { z } from "zod";
 export type TaskId = z.infer<typeof TaskIdSchema>;
 ⋮----
 export function createTaskId(raw: string): TaskId
+````
+
+## File: src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus.ts
+````typescript
+export type TaskStatus =
+  | "draft"
+  | "in_progress"
+  | "qa"
+  | "acceptance"
+  | "accepted"
+  | "archived"
+  | "cancelled";
+⋮----
+/**
+ * TASK_NEXT defines valid forward transitions for each status.
+ *
+ * "in_progress" has two valid next states:
+ *   - "qa"          → normal path (first submission or after QA failure)
+ *   - "acceptance"  → post-rejection rework (approval was rejected; developer skips re-QA)
+ *
+ * The first entry in each array is the "primary" next status returned by
+ * nextTaskStatus() for UI hints; canTransitionTaskStatus() accepts any listed value.
+ */
+⋮----
+export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean
+⋮----
+export function nextTaskStatus(current: TaskStatus): TaskStatus | null
+⋮----
+export function isTerminalTaskStatus(status: TaskStatus): boolean
 ````
 
 ## File: tailwind.config.ts
@@ -23261,6 +22025,103 @@ page_count = int(raw.get("page_count", 0) or 0)
 page_count = 0
 ````
 
+## File: src/app/AGENTS.md
+````markdown
+# src/app — Agent Guide
+
+## Immediate Index
+
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
+
+## Route Here When
+
+- 新增或修改 page、layout、route group、parallel route。
+- 調整 App Router composition、slot 組合或 route-level loading / error surface。
+
+## Route Elsewhere When
+
+- 業務規則、use case、domain entity → `src/modules/<context>/`
+- 共享 UI primitive → `packages/`
+- 背景 worker / parsing / embedding pipeline → `fn/`
+
+## Drift Guard
+
+- `AGENTS.md` 管路由與 routing。
+- `README.md` 管 App Router 概覽。
+````
+
+## File: src/app/README.md
+````markdown
+# src/app
+
+`src/app/` 是 Next.js App Router composition layer。這裡只做 route / layout / slot 組合。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
+
+## Ownership
+
+- Route files 專注在 composition 與 rendering。
+- 業務邏輯仍由 `src/modules/<context>/index.ts` 提供。
+````
+
+## File: src/modules/ai/AGENTS.md
+````markdown
+# AI Module — Agent Guide
+
+## Purpose
+
+`src/modules/ai/` 是 AI 機制能力模組；提供 AI mechanism，使用者體驗仍由其他模組組合。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/chunk/`
+- `subdomains/citation/`
+- `subdomains/context/`
+- `subdomains/embedding/`
+- `subdomains/evaluation/`
+- `subdomains/generation/`
+- `subdomains/memory/`
+- `subdomains/pipeline/`
+- `subdomains/retrieval/`
+- `subdomains/safety/`
+- `subdomains/tool-calling/`
+
+## Route Here When
+
+- 需要在 `src/modules/ai/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- 使用者對話與 RAG UX → `src/modules/notebooklm/`
+- 知識內容寫入 → `src/modules/notion/`
+- 任務生成業務流程 → `src/modules/workspace/`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/ai/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
 ## File: src/modules/ai/index.ts
 ````typescript
 /**
@@ -23291,6 +22152,44 @@ page_count = 0
 // memory
 ⋮----
 // tool-calling
+````
+
+## File: src/modules/ai/README.md
+````markdown
+# AI Module
+
+`src/modules/ai/` 是 AI 機制能力模組；提供 AI mechanism，使用者體驗仍由其他模組組合。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/chunk/`
+- `subdomains/citation/`
+- `subdomains/context/`
+- `subdomains/embedding/`
+- `subdomains/evaluation/`
+- `subdomains/generation/`
+- `subdomains/memory/`
+- `subdomains/pipeline/`
+- `subdomains/retrieval/`
+- `subdomains/safety/`
+- `subdomains/tool-calling/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/ai/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
@@ -23452,6 +22351,247 @@ check(input: ContentSafetyInput): Promise<SafetyCheckResult>;
 ## File: src/modules/ai/subdomains/safety/domain/index.ts
 ````typescript
 
+````
+
+## File: src/modules/analytics/AGENTS.md
+````markdown
+# Analytics Module — Agent Guide
+
+## Purpose
+
+`src/modules/analytics/` 是 分析能力模組；承接事件、指標、洞察與實驗相關實作。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/event-contracts/`
+- `subdomains/event-ingestion/`
+- `subdomains/event-projection/`
+- `subdomains/experimentation/`
+- `subdomains/insights/`
+- `subdomains/metrics/`
+- `subdomains/realtime-insights/`
+
+## Route Here When
+
+- 需要在 `src/modules/analytics/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- UI 路由與頁面組合 → `src/app/`
+- 跨模組消費 → `src/modules/analytics/index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/analytics/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
+## File: src/modules/analytics/README.md
+````markdown
+# Analytics Module
+
+`src/modules/analytics/` 是 分析能力模組；承接事件、指標、洞察與實驗相關實作。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/event-contracts/`
+- `subdomains/event-ingestion/`
+- `subdomains/event-projection/`
+- `subdomains/experimentation/`
+- `subdomains/insights/`
+- `subdomains/metrics/`
+- `subdomains/realtime-insights/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/analytics/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
+````
+
+## File: src/modules/billing/AGENTS.md
+````markdown
+# Billing Module — Agent Guide
+
+## Purpose
+
+`src/modules/billing/` 是 計費能力模組；處理 entitlement、subscription、usage-metering。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/entitlement/`
+- `subdomains/subscription/`
+- `subdomains/usage-metering/`
+
+## Route Here When
+
+- 需要在 `src/modules/billing/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- 跨模組消費 entitlement / plan → `src/modules/billing/index.ts`
+- 帳號 / 組織 / session → `src/modules/iam/`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/billing/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
+## File: src/modules/billing/README.md
+````markdown
+# Billing Module
+
+`src/modules/billing/` 是 計費能力模組；處理 entitlement、subscription、usage-metering。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/entitlement/`
+- `subdomains/subscription/`
+- `subdomains/usage-metering/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/billing/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
+````
+
+## File: src/modules/iam/AGENTS.md
+````markdown
+# IAM Module — Agent Guide
+
+## Purpose
+
+`src/modules/iam/` 是 Identity & Access Management 模組；account / organization 已集中於此。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/access-control/`
+- `subdomains/account/`
+- `subdomains/authentication/`
+- `subdomains/authorization/`
+- `subdomains/federation/`
+- `subdomains/identity/`
+- `subdomains/organization/`
+- `subdomains/security-policy/`
+- `subdomains/session/`
+- `subdomains/tenant/`
+
+## Route Here When
+
+- 需要在 `src/modules/iam/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- 工作區 Membership → `src/modules/workspace/`
+- 跨模組消費身份能力 → `src/modules/iam/index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/iam/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
+## File: src/modules/iam/README.md
+````markdown
+# IAM Module
+
+`src/modules/iam/` 是 Identity & Access Management 模組；account / organization 已集中於此。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/access-control/`
+- `subdomains/account/`
+- `subdomains/authentication/`
+- `subdomains/authorization/`
+- `subdomains/federation/`
+- `subdomains/identity/`
+- `subdomains/organization/`
+- `subdomains/security-policy/`
+- `subdomains/session/`
+- `subdomains/tenant/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/iam/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/iam/subdomains/organization/application/index.ts
@@ -23623,6 +22763,51 @@ async materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksRe
 // Legacy path: pre-extracted candidates provided directly
 ````
 
+## File: src/modules/notebooklm/AGENTS.md
+````markdown
+# NotebookLM Module — Agent Guide
+
+## Purpose
+
+`src/modules/notebooklm/` 是 NotebookLM 使用者體驗模組；實際子域以目錄結構為準。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/conversation/`
+- `subdomains/notebook/`
+- `subdomains/source/`
+- `subdomains/synthesis/`
+
+## Route Here When
+
+- 需要在 `src/modules/notebooklm/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- AI mechanism → `src/modules/ai/`
+- KnowledgeArtifact 可寫內容 → `src/modules/notion/`
+- 跨模組 API → `src/modules/notebooklm/index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/notebooklm/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
 ## File: src/modules/notebooklm/orchestration/TaskMaterializationWorkflowPort.ts
 ````typescript
 /**
@@ -23669,6 +22854,37 @@ export interface TaskMaterializationWorkflowPort {
 }
 ⋮----
 materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
+````
+
+## File: src/modules/notebooklm/README.md
+````markdown
+# NotebookLM Module
+
+`src/modules/notebooklm/` 是 NotebookLM 使用者體驗模組；實際子域以目錄結構為準。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/conversation/`
+- `subdomains/notebook/`
+- `subdomains/source/`
+- `subdomains/synthesis/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/notebooklm/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/notebooklm/subdomains/source/adapters/inbound/index.ts
@@ -24013,6 +23229,88 @@ export async function queryTemplatesAction(rawInput: unknown): Promise<Template[
 export async function createTemplateAction(rawInput: unknown)
 ````
 
+## File: src/modules/notion/AGENTS.md
+````markdown
+# Notion Module — Agent Guide
+
+## Purpose
+
+`src/modules/notion/` 是 KnowledgeArtifact 模組；Page / Block / Database 等可寫內容由此所有。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/block/`
+- `subdomains/collaboration/`
+- `subdomains/database/`
+- `subdomains/knowledge/`
+- `subdomains/page/`
+- `subdomains/template/`
+- `subdomains/view/`
+
+## Route Here When
+
+- 需要在 `src/modules/notion/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- RAG UX / conversation flow → `src/modules/notebooklm/`
+- AI mechanism → `src/modules/ai/`
+- 跨模組 API → `src/modules/notion/index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/notion/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
+## File: src/modules/notion/README.md
+````markdown
+# Notion Module
+
+`src/modules/notion/` 是 KnowledgeArtifact 模組；Page / Block / Database 等可寫內容由此所有。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/block/`
+- `subdomains/collaboration/`
+- `subdomains/database/`
+- `subdomains/knowledge/`
+- `subdomains/page/`
+- `subdomains/template/`
+- `subdomains/view/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/notion/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
+````
+
 ## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
 ````typescript
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
@@ -24298,96 +23596,6 @@ async function handleSubmit(e: React.FormEvent)
 onOpenChange(nextOpen);
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
-````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
-import { CreateOrganizationDialog } from "../platform-ui-stubs";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "../../../../index";
-import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/packages/ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/packages/ui-shadcn/ui/tooltip";
-⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-⋮----
-function getInitial(name: string | undefined | null): string
-⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
-````
-
 ## File: src/modules/platform/adapters/inbound/server-actions/file-actions.ts
 ````typescript
 /**
@@ -24482,6 +23690,54 @@ export async function uploadWorkspaceFile(
 export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
 ````
 
+## File: src/modules/platform/AGENTS.md
+````markdown
+# Platform Module — Agent Guide
+
+## Purpose
+
+`src/modules/platform/` 是 平台橫切能力模組；account / organization 已遷入 iam。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/audit-log/`
+- `subdomains/background-job/`
+- `subdomains/cache/`
+- `subdomains/feature-flag/`
+- `subdomains/file-storage/`
+- `subdomains/notification/`
+- `subdomains/platform-config/`
+- `subdomains/search/`
+
+## Route Here When
+
+- 需要在 `src/modules/platform/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- account / organization → `src/modules/iam/`
+- 跨模組 API → `src/modules/platform/index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/platform/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
 ## File: src/modules/platform/index.ts
 ````typescript
 /**
@@ -24492,6 +23748,41 @@ export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<
 // audit-log (platform governance)
 ⋮----
 // feature-flag (incremental rollout governance)
+````
+
+## File: src/modules/platform/README.md
+````markdown
+# Platform Module
+
+`src/modules/platform/` 是 平台橫切能力模組；account / organization 已遷入 iam。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/audit-log/`
+- `subdomains/background-job/`
+- `subdomains/cache/`
+- `subdomains/feature-flag/`
+- `subdomains/file-storage/`
+- `subdomains/notification/`
+- `subdomains/platform-config/`
+- `subdomains/search/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/platform/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/platform/subdomains/audit-log/adapters/inbound/index.ts
@@ -24798,104 +24089,6 @@ query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-// ── Types ──────────────────────────────────────────────────────────────────────
-⋮----
-export type ShellNavSection =
-  | "workspace"
-  | "dashboard"
-  | "account"
-  | "schedule"
-  | "daily"
-  | "audit"
-  | "members"
-  | "teams"
-  | "permissions"
-  | "organization"
-  | "other";
-⋮----
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
-⋮----
-export interface ShellRailCatalogItem {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-  /** If true, this item is only visible to organization accounts. */
-  readonly requiresOrganization: boolean;
-  /** Route prefix for active-state matching. When absent, defaults to href. */
-  readonly activeRoutePrefix?: string;
-}
-⋮----
-/** If true, this item is only visible to organization accounts. */
-⋮----
-/** Route prefix for active-state matching. When absent, defaults to href. */
-⋮----
-export interface ShellContextSectionConfig {
-  readonly title: string;
-  readonly items: readonly { href: string; label: string }[];
-}
-⋮----
-export interface ShellRouteContext {
-  readonly accountId?: string | null;
-  readonly workspaceId?: string | null;
-}
-⋮----
-function parseHref(href: string):
-⋮----
-function joinHref(path: string, query: string): string
-⋮----
-function isAccountScopedWorkspacePath(pathname: string): boolean
-⋮----
-export function normalizeShellRoutePath(pathname: string): string
-⋮----
-export function buildShellContextualHref(
-  href: string,
-  context: ShellRouteContext,
-): string
-⋮----
-// ── Route-matching utility ────────────────────────────────────────────────────
-⋮----
-export function isExactOrChildPath(targetPath: string, pathname: string): boolean
-⋮----
-// ── Account section matchers ──────────────────────────────────────────────────
-⋮----
-// ── Route titles & breadcrumb labels ──────────────────────────────────────────
-⋮----
-// Workspace tabs (query-param based, resolved via workspace:${tab} key in resolveShellPageTitle)
-// workspace group
-⋮----
-// notion group
-⋮----
-// notebooklm group
-⋮----
-// ── Organization management items ─────────────────────────────────────────────
-⋮----
-// ── Account nav items ─────────────────────────────────────────────────────────
-⋮----
-// ── Section labels ────────────────────────────────────────────────────────────
-⋮----
-// ── Rail catalog ──────────────────────────────────────────────────────────────
-⋮----
-export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
-⋮----
-// ── Context section config ────────────────────────────────────────────────────
-⋮----
-// ── Mobile & organization nav items ───────────────────────────────────────────
-⋮----
-// ── Section resolvers ─────────────────────────────────────────────────────────
-⋮----
-export function resolveShellNavSection(pathname: string): ShellNavSection
-⋮----
-export function resolveShellPageTitle(pathname: string, tab?: string | null): string
-⋮----
-export function resolveShellBreadcrumbLabel(segment: string): string
-````
-
 ## File: src/modules/platform/subdomains/search/application/services/shell-command-catalog.ts
 ````typescript
 export interface ShellCommandCatalogItem {
@@ -24929,107 +24122,35 @@ export interface ShellCommandCatalogItem {
 export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
 ````
 
-## File: src/modules/template/AGENTS.md
+## File: src/modules/template/README.md
 ````markdown
-# Template Module — Agent Guide
+# Template Module
 
-## Purpose
+`src/modules/template/` 是 可複製骨架模組；提供新 bounded context 的結構參考。
 
-`src/modules/template` 是**可複製的 Hexagonal Architecture + DDD 多子域骨架**，示範正確的多 subdomain 分層結構、具名匯出規範與跨子域協調模式。用來當作新模組的起點，或作為架構參照。
+## Navigation Index
 
-## Structure At a Glance
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
 
-```
-index.ts              ← 唯一對外入口（重新匯出全部四個子域的 domain + application 符號）
-orchestration/        ← 跨子域 Facade + Coordinator
-shared/               ← 跨子域共用層（domain / application / config / constants /
-                         errors / events / infrastructure / types / utils）
-subdomains/
-  document/           ← 核心子域，完整 domain + application + adapters
-  generation/         ← 生成子域，完整 domain + application + adapters
-  ingestion/          ← 匠入子域，完整 domain + application + adapters
-  workflow/           ← 流程子域，完整 domain + application + adapters
-```
+## Directory Index（actual directories）
 
-## Boundary Rules
+- `subdomains/document/`
+- `subdomains/generation/`
+- `subdomains/ingestion/`
+- `subdomains/workflow/`
 
-- `subdomains/*/domain/` 不得匯入 React、Firebase SDK、HTTP client、ORM 或任何框架。
-- `subdomains/*/application/` 只依賴同子域 `domain/` 抽象，不依賴 adapter 實作。
-- Adapters 只實作 port 介面，不承載業務規則。
-- 跨子域協調只能透過 `orchestration/` 或 `shared/events/`，**禁止直接跨 subdomain import**。
-- 外部消費者只能透過 `src/modules/template/index.ts`（具名匯出）存取。
+## Pair Contract
 
-## Barrel & Named Export Rules
+- `README.md` 維護 `src/modules/template/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
 
-- 所有 barrel 使用明確的 `export { X }` 與 `export type { X }`，嚴禁 `export *`。
-- 每個子域各有自己的 barrel 層（domain/index.ts、application/index.ts、adapters/index.ts）。
-- Source 檔案之間的 import 使用**直接相對路徑**（例如 `'../../../domain/value-objects/TemplateId'`），不依賴 barrel，確保 barrel 可獨立變更。
-- `shared/*/index.ts` 為各共用層的匯出出口，由需要者直接引用。
+## Read Next
 
-## Route Here When
-
-- 需要新建一個多子域 DDD module 骨架。
-- 需要查閱正確的 barrel 結構、具名匯出寫法或跨子域協調模式。
-- 需要確認 Hexagonal 依賴方向、多子域邂界、VO ID 模式、FirestoreLike 抄象、AI adapter stub 鮣變的範例。
-
-## Route Elsewhere When
-
-- 真實業務需求 → 依對應 bounded context 建立新的 `src/modules/<context>/`。
-- 共享 UI 元件 → `packages/ui-shadcn/`。
-- 共享工具函式 → `packages/shared-utils/`。
-
-## Development Order（新子域展開順序）
-
-1. `subdomains/<name>/domain/`：定義 Entity、Value Object（VO ID）、Domain Event、Repository Port。
-2. `subdomains/<name>/application/`：定義 Use Case、DTO、Inbound / Outbound Port。
-3. `subdomains/<name>/adapters/outbound/`：實作 Repository Port（FirestoreLike 抄象）與其他 outbound adapter。
-4. `subdomains/<name>/adapters/inbound/`：實作 HTTP / Queue adapter（workflow 僅需 HTTP）。
-5. 更新各層 barrel index，確保具名匯出完整。
-6. 如有跨子域流程需求，在 `orchestration/TemplateCoordinator.ts` 注入相關 use case。
-7. 更新根 `index.ts` 補露新符號。
-
-## Delivery Style
-
-- 奈卡姆剥刀：本模組四個子域均已完整實作，可直接複製作為新模組起點。
-- 複製時只保留有實際業務需求的子域；generation / ingestion / workflow 可依業務選手。
-- AI adapter（`AiGenerationAdapter`）與 Storage adapter（`CloudStorageAdapter`）為 stub，待雞 Genkit / Cloud Storage 連接時再完善。
-
----
-
-## 已確立模式（Pattern Reference）
-
-| 模式 | 說明 |
-|---|---|
-| **VO ID** | 每個 Entity 的 `id` 字段使用 Value Object（`FooId`），含 `create(raw)`、`generate()`、`toString()`、`equals()` |
-| **FirestoreLike adapter** | Outbound adapter 內嵌 `FirestoreLike` interface（`get/set/delete`），不直接匯入 Firebase SDK |
-| **Port type alias** | `export type FooRepositoryPort = FooRepository`（type alias，不重新宣告）|
-| **AI adapter stub** | `throw new Error('not yet implemented')` + TODO comment（gap：Genkit wiring 尚未完成）|
-| **Storage adapter stub** | `throw new Error('not yet implemented')` + TODO comment（gap：Cloud Storage wiring 尚未完成）|
-| **Adapter import depth** | `adapters/inbound/http/*.ts` 需用 `../../../application/...`（三層上）|
-| **無 queue handler** | workflow 子域為 HTTP-only，`adapters/inbound/` 不包含 queue handler |
-
----
-
-## 衝突防護（src/modules vs modules/）
-
-`src/modules/template` 屬於**模組實作層（`src/modules/`）**。
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/<context>/AGENTS.md` |
-| 撰寫新 use case / adapter / entity 實作 | `src/modules/<context>/`（從本骨架複製）|
-| 跨模組 API boundary | `src/modules/<context>/index.ts` |
-| 新模組起點 | 複製 `src/modules/template/`，取代 Template→YourEntity |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 React、Firebase SDK、HTTP client、ORM
-- ❌ 在 barrel 使用 `export *`
-
-## 文件網絡
-
-- [README.md](README.md) — 模組詳細說明（目錄樹、barrel 表、複製步驟）
-- [src/modules/README.md](../README.md) — 模組層狀態總覽（模組清單與進度）
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-audit-filter.ts
@@ -25039,51 +24160,6 @@ import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entiti
 export type EventTypeFilter = (typeof AUDIT_EVENT_TYPES)[number];
 ⋮----
 export function matchesAuditEventType(entry: AuditEntrySnapshot, eventType: EventTypeFilter): boolean
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceApprovalSection.tsx
-````typescript
-/**
- * WorkspaceApprovalSection — workspace.approval tab — acceptance review queue.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import { ClipboardList, CheckCircle2, XCircle, Clock, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-⋮----
-import {
-  listApprovalDecisionsAction,
-  createApprovalDecisionAction,
-  approveTaskAction,
-  rejectApprovalAction,
-} from "@/src/modules/workspace/adapters/inbound/server-actions/approval-actions";
-import { listTasksByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
-import { openIssueAction, listIssuesByWorkspaceAction } from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
-import type { ApprovalDecisionSnapshot } from "@/src/modules/workspace/subdomains/approval/domain/entities/ApprovalDecision";
-import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
-import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
-⋮----
-interface WorkspaceApprovalSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
-}
-⋮----
-export function WorkspaceApprovalSection({
-  workspaceId,
-  accountId: _accountId,
-  currentUserId,
-}: WorkspaceApprovalSectionProps): React.ReactElement
-⋮----
-// Count open acceptance-stage issues per taskId for block guard UI
-⋮----
-const handleCreateDecision = (taskId: string) =>
-⋮----
-const handleApprove = (decision: ApprovalDecisionSnapshot) =>
-⋮----
-const handleReject = (decision: ApprovalDecisionSnapshot) =>
-⋮----
-onClick=
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
@@ -25155,121 +24231,55 @@ const handleDelete = async (fileId: string) =>
 {/* File grid */}
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx
 ````typescript
 /**
- * WorkspaceIssuesSection — workspace.issues tab — issue tracker with full lifecycle management.
- *
- * Supports:
- * - Listing workspace issues with status filter
- * - Creating issues manually via dialog (task + stage + title + description)
- * - Transitioning issue status via FSM-derived action buttons
- * - Viewing closed issues separately
+ * WorkspaceTasksSection — workspace.tasks tab — task list with status filters.
  */
 ⋮----
-import {
-  Badge,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea,
-} from "@packages";
-import { AlertCircle, Plus, AlertTriangle, Info, Loader2, ChevronRight } from "lucide-react";
+import { Badge, Button } from "@packages";
+import { CheckSquare, Loader2, RefreshCw, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 ⋮----
-import {
-  listIssuesByWorkspaceAction,
-  openIssueAction,
-  transitionIssueStatusAction,
-  resolveIssueAction,
-  closeIssueAction,
-} from "@/src/modules/workspace/adapters/inbound/server-actions/issue-actions";
 import {
   listTasksByWorkspaceAction,
   transitionTaskStatusAction,
 } from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
 import { startQualityReviewAction } from "@/src/modules/workspace/adapters/inbound/server-actions/quality-actions";
-import type { IssueSnapshot } from "@/src/modules/workspace/subdomains/issue/domain/entities/Issue";
-import type { IssueStatus } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStatus";
-import type { IssueStage } from "@/src/modules/workspace/subdomains/issue/domain/value-objects/IssueStage";
+import { listApprovalDecisionsAction } from "@/src/modules/workspace/adapters/inbound/server-actions/approval-actions";
 import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
-import {
-  getIssueTransitionEvents,
-  ISSUE_EVENT_TO_STATUS,
-  ISSUE_EVENT_LABEL,
-} from "@/src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine";
+import type { TaskStatus } from "@/src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus";
 ⋮----
-// ── Types & constants ────────────────────────────────────────────────────────
-⋮----
-interface WorkspaceIssuesSectionProps {
+interface WorkspaceTasksSectionProps {
   workspaceId: string;
   accountId: string;
   currentUserId?: string;
 }
 ⋮----
-type IssueFilter = "全部" | "開啟" | "處理中" | "已關閉";
+type TaskFilter = "全部" | "待執行" | "進行中" | "已完成" | "已取消";
 ⋮----
-// ── CreateIssueDialog ────────────────────────────────────────────────────────
+// A task is in "rejection-rework" mode when it has at least one rejected
+// decision and no currently-pending decision (pending would mean it is
+// already back in the acceptance review queue).
 ⋮----
-interface CreateIssueDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  workspaceId: string;
-  currentUserId: string;
-  tasks: TaskSnapshot[];
-  onCreated: () => void;
-}
+const handleRefresh = () =>
 ⋮----
-const handleClose = () =>
+const handleAdvance = (task: TaskSnapshot) =>
 ⋮----
-const handleSubmit = () =>
+// Post-rejection rework: approval previously rejected this task.
+// Skip re-QA and send directly back to acceptance for re-review.
 ⋮----
-{/* Task selection */}
+// Normal first-pass or post-QA-failure path: send through QA.
 ⋮----
-onValueChange=
+const getActionConfig = (task: TaskSnapshot):
+    | { label: string; onClick: () => void; disabled?: boolean }
+    | { label: string; href: string }
+    | null => {
+if (task.status === "draft")
 ⋮----
-{/* Title */}
-⋮----
-onChange=
-⋮----
-{/* Description */}
-⋮----
-// ── IssueRow ─────────────────────────────────────────────────────────────────
-⋮----
-// Resolved issues with a qa/acceptance stage get a re-route shortcut
-⋮----
-{/* Lifecycle transition buttons */}
-⋮----
-onClick=
-⋮----
-{/* Re-route CTA: send resolved issue's task back to QA or acceptance */}
-⋮----
-// ── WorkspaceIssuesSection ───────────────────────────────────────────────────
-⋮----
-const handleTransition = (issueId: string, targetStatus: IssueStatus) =>
-⋮----
-const handleReroute = (issue: IssueSnapshot) =>
-⋮----
-const handleCreated = () =>
-⋮----
-{/* Header */}
-⋮----
-{/* Status filter */}
-⋮----
-{/* Severity legend */}
-⋮----
-{/* Issues list */}
+// Show "重新送驗" when approval was previously rejected (bypass re-QA);
+// show "送交質檢" for the normal first-pass or post-QA-failure path.
 ````
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/audit-actions.ts
@@ -25346,34 +24356,106 @@ export async function deleteTaskAction(taskId: string): Promise<CommandResult>
 export async function listTasksByWorkspaceAction(workspaceId: string): Promise<TaskSnapshot[]>
 ````
 
-## File: src/modules/workspace/subdomains/approval/application/use-cases/ApprovalUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { ApprovalDecisionRepository } from "../../domain/repositories/ApprovalDecisionRepository";
-import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
-import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
-import { ApprovalDecision } from "../../domain/entities/ApprovalDecision";
-import type { CreateApprovalDecisionInput } from "../../domain/entities/ApprovalDecision";
-import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
-⋮----
-export class CreateApprovalDecisionUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: CreateApprovalDecisionInput): Promise<CommandResult>
-⋮----
-export class ApproveTaskUseCase {
-⋮----
-async execute(decisionId: string, comments?: string): Promise<CommandResult>
-⋮----
-export class RejectApprovalUseCase {
-⋮----
-export class ListApprovalDecisionsUseCase {
-⋮----
-constructor(private readonly decisionRepo: ApprovalDecisionRepository)
-⋮----
-async execute(workspaceId: string): Promise<import("../../domain/entities/ApprovalDecision").ApprovalDecisionSnapshot[]>
+## File: src/modules/workspace/AGENTS.md
+````markdown
+# Workspace Module — Agent Guide
+
+## Purpose
+
+`src/modules/workspace/` 是 工作區協作模組；workspace-workflow 已拆分，現況以子目錄索引為準。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/activity/`
+- `subdomains/api-key/`
+- `subdomains/approval/`
+- `subdomains/audit/`
+- `subdomains/feed/`
+- `subdomains/invitation/`
+- `subdomains/issue/`
+- `subdomains/lifecycle/`
+- `subdomains/membership/`
+- `subdomains/orchestration/`
+- `subdomains/quality/`
+- `subdomains/resource/`
+- `subdomains/schedule/`
+- `subdomains/settlement/`
+- `subdomains/share/`
+- `subdomains/task/`
+- `subdomains/task-formation/`
+
+## Route Here When
+
+- 需要在 `src/modules/workspace/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- 身份與權限 → `src/modules/iam/`
+- AI mechanism → `src/modules/ai/`
+- 跨模組 API → `src/modules/workspace/index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/workspace/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
+## File: src/modules/workspace/README.md
+````markdown
+# Workspace Module
+
+`src/modules/workspace/` 是 工作區協作模組；workspace-workflow 已拆分，現況以子目錄索引為準。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/activity/`
+- `subdomains/api-key/`
+- `subdomains/approval/`
+- `subdomains/audit/`
+- `subdomains/feed/`
+- `subdomains/invitation/`
+- `subdomains/issue/`
+- `subdomains/lifecycle/`
+- `subdomains/membership/`
+- `subdomains/orchestration/`
+- `subdomains/quality/`
+- `subdomains/resource/`
+- `subdomains/schedule/`
+- `subdomains/settlement/`
+- `subdomains/share/`
+- `subdomains/task/`
+- `subdomains/task-formation/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/workspace/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/workspace/subdomains/audit/application/use-cases/AuditUseCases.ts
@@ -25564,36 +24646,6 @@ can(input: PermissionCheckInput): Promise<boolean>;
 ## File: src/modules/workspace/subdomains/membership/domain/index.ts
 ````typescript
 
-````
-
-## File: src/modules/workspace/subdomains/quality/application/use-cases/QualityUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { QualityReviewRepository } from "../../domain/repositories/QualityReviewRepository";
-import type { TaskRepository } from "../../../task/domain/repositories/TaskRepository";
-import type { IssueRepository } from "../../../issue/domain/repositories/IssueRepository";
-import { QualityReview } from "../../domain/entities/QualityReview";
-import type { StartQualityReviewInput } from "../../domain/entities/QualityReview";
-import { canTransitionTaskStatus } from "../../../task/domain/value-objects/TaskStatus";
-⋮----
-export class StartQualityReviewUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: StartQualityReviewInput): Promise<CommandResult>
-⋮----
-export class PassQualityReviewUseCase {
-⋮----
-async execute(reviewId: string, notes?: string): Promise<CommandResult>
-⋮----
-export class FailQualityReviewUseCase {
-⋮----
-export class ListQualityReviewsUseCase {
-⋮----
-constructor(private readonly reviewRepo: QualityReviewRepository)
-⋮----
-async execute(workspaceId: string): Promise<import("../../domain/entities/QualityReview").QualityReviewSnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/schedule/application/use-cases/ScheduleUseCases.ts
@@ -25922,33 +24974,28 @@ getSnapshot(): Readonly<TaskSnapshot>
 pullDomainEvents(): TaskDomainEventType[]
 ````
 
-## File: src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus.ts
-````typescript
-export type TaskStatus =
-  | "draft"
-  | "in_progress"
-  | "qa"
-  | "acceptance"
-  | "accepted"
-  | "archived"
-  | "cancelled";
-⋮----
-/**
- * TASK_NEXT defines valid forward transitions for each status.
- *
- * "in_progress" has two valid next states:
- *   - "qa"          → normal path (first submission or after QA failure)
- *   - "acceptance"  → post-rejection rework (approval was rejected; developer skips re-QA)
- *
- * The first entry in each array is the "primary" next status returned by
- * nextTaskStatus() for UI hints; canTransitionTaskStatus() accepts any listed value.
- */
-⋮----
-export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean
-⋮----
-export function nextTaskStatus(current: TaskStatus): TaskStatus | null
-⋮----
-export function isTerminalTaskStatus(status: TaskStatus): boolean
+## File: storage.rules
+````
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Private document uploads: only authenticated users may write.
+    // Read access is intentionally absent here — previews are served through
+    // short-lived signed URLs generated by the Cloud Function, which bypass
+    // these rules and do not expose a long-lived public token.
+    match /uploads/{allPaths=**} {
+      allow write: if request.auth != null;
+      // Direct reads require auth; preview must use the signed-URL callable.
+      allow read: if request.auth != null;
+    }
+
+    // Workspace-scoped general assets (e.g. feed images).
+    match /workspaces/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
 ````
 
 ## File: tsconfig.json
@@ -27842,6 +26889,50 @@ Each module enforces its own subset of these rules. Key mapping:
 - Firebase CLI: `npx firebase` (no global install required)
 ````
 
+## File: firestore.rules
+````
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMembershipRole(role) {
+      return role in ["owner", "admin", "member", "guest"];
+    }
+
+    function isMembershipStatus(status) {
+      return status in ["active", "suspended", "removed"];
+    }
+
+    match /workspace_members/{memberId} {
+      allow read: if isSignedIn() && resource.data.actorId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.workspaceId is string
+        && request.resource.data.actorId is string
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.role == "owner"
+        && request.resource.data.status == "active"
+        && exists(/databases/$(database)/documents/workspaces/$(request.resource.data.workspaceId))
+        && isMembershipStatus(request.resource.data.status);
+      allow update: if isSignedIn()
+        && resource.data.actorId == request.auth.uid
+        && request.resource.data.workspaceId == resource.data.workspaceId
+        && request.resource.data.actorId == resource.data.actorId
+        && isMembershipRole(request.resource.data.role)
+        && isMembershipStatus(request.resource.data.status);
+      allow delete: if isSignedIn() && resource.data.actorId == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
+````
+
 ## File: fn/src/application/dto/__init__.py
 ````python
 """Application DTOs."""
@@ -28644,6 +27735,239 @@ getSnapshot(): Readonly<PageSnapshot>
 pullDomainEvents()
 ````
 
+## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  Settings,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
+import { CreateOrganizationDialog } from "../platform-ui-stubs";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/packages/ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/packages/ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+````
+
+## File: src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
+⋮----
+export type ShellNavSection =
+  | "workspace"
+  | "dashboard"
+  | "account"
+  | "schedule"
+  | "daily"
+  | "audit"
+  | "members"
+  | "teams"
+  | "permissions"
+  | "organization"
+  | "other";
+⋮----
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+⋮----
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
+⋮----
+/** If true, this item is only visible to organization accounts. */
+⋮----
+/** Route prefix for active-state matching. When absent, defaults to href. */
+⋮----
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
+⋮----
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+⋮----
+function parseHref(href: string):
+⋮----
+function joinHref(path: string, query: string): string
+⋮----
+function isAccountScopedWorkspacePath(pathname: string): boolean
+⋮----
+export function normalizeShellRoutePath(pathname: string): string
+⋮----
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string
+⋮----
+// ── Route-matching utility ────────────────────────────────────────────────────
+⋮----
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean
+⋮----
+// ── Account section matchers ──────────────────────────────────────────────────
+⋮----
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
+⋮----
+// Workspace tabs (query-param based, resolved via workspace:${tab} key in resolveShellPageTitle)
+// workspace group
+⋮----
+// notion group
+⋮----
+// notebooklm group
+⋮----
+// ── Organization management items ─────────────────────────────────────────────
+⋮----
+// ── Account nav items ─────────────────────────────────────────────────────────
+⋮----
+// ── Section labels ────────────────────────────────────────────────────────────
+⋮----
+// ── Rail catalog ──────────────────────────────────────────────────────────────
+⋮----
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[]
+⋮----
+// ── Context section config ────────────────────────────────────────────────────
+⋮----
+// ── Mobile & organization nav items ───────────────────────────────────────────
+⋮----
+// ── Section resolvers ─────────────────────────────────────────────────────────
+⋮----
+export function resolveShellNavSection(pathname: string): ShellNavSection
+⋮----
+export function resolveShellPageTitle(pathname: string, tab?: string | null): string
+⋮----
+export function resolveShellBreadcrumbLabel(segment: string): string
+````
+
+## File: src/modules/template/AGENTS.md
+````markdown
+# Template Module — Agent Guide
+
+## Purpose
+
+`src/modules/template/` 是 可複製骨架模組；提供新 bounded context 的結構參考。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/document/`
+- `subdomains/generation/`
+- `subdomains/ingestion/`
+- `subdomains/workflow/`
+
+## Route Here When
+
+- 需要在 `src/modules/template/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- 真實業務實作 → `src/modules/<context>/`
+- 共享套件 → `packages/`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/template/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/account-scoped-workspace.ts
 ````typescript
 import type { WorkspaceEntity } from "./WorkspaceContext";
@@ -28980,57 +28304,6 @@ function resolveNextStatus(invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROL
 const handleCreateInvoice = () =>
 ⋮----
 const handleTransition = (invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROLLBACK") =>
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx
-````typescript
-/**
- * WorkspaceTasksSection — workspace.tasks tab — task list with status filters.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import { CheckSquare, Loader2, RefreshCw, ArrowRight } from "lucide-react";
-import Link from "next/link";
-import { useCallback, useEffect, useState, useTransition } from "react";
-⋮----
-import {
-  listTasksByWorkspaceAction,
-  transitionTaskStatusAction,
-} from "@/src/modules/workspace/adapters/inbound/server-actions/task-actions";
-import { startQualityReviewAction } from "@/src/modules/workspace/adapters/inbound/server-actions/quality-actions";
-import { listApprovalDecisionsAction } from "@/src/modules/workspace/adapters/inbound/server-actions/approval-actions";
-import type { TaskSnapshot } from "@/src/modules/workspace/subdomains/task/domain/entities/Task";
-import type { TaskStatus } from "@/src/modules/workspace/subdomains/task/domain/value-objects/TaskStatus";
-⋮----
-interface WorkspaceTasksSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
-}
-⋮----
-type TaskFilter = "全部" | "待執行" | "進行中" | "已完成" | "已取消";
-⋮----
-// A task is in "rejection-rework" mode when it has at least one rejected
-// decision and no currently-pending decision (pending would mean it is
-// already back in the acceptance review queue).
-⋮----
-const handleRefresh = () =>
-⋮----
-const handleAdvance = (task: TaskSnapshot) =>
-⋮----
-// Post-rejection rework: approval previously rejected this task.
-// Skip re-QA and send directly back to acceptance for re-review.
-⋮----
-// Normal first-pass or post-QA-failure path: send through QA.
-⋮----
-const getActionConfig = (task: TaskSnapshot):
-    | { label: string; onClick: () => void; disabled?: boolean }
-    | { label: string; href: string }
-    | null => {
-if (task.status === "draft")
-⋮----
-// Show "重新送驗" when approval was previously rejected (bypass re-QA);
-// show "送交質檢" for the normal first-pass or post-QA-failure path.
 ````
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/membership-actions.ts
@@ -29779,147 +29052,6 @@ flowchart LR
 - [source-to-task-flow.md](./source-to-task-flow.md) — 技術邊界與組裝路徑
 - [context-map.md](./context-map.md) — 主域關係圖
 - [architecture-overview.md](./architecture-overview.md) — 全域架構概述
-````
-
-## File: fn/AGENTS.md
-````markdown
-# fn — Agent Guide
-
-## Purpose
-
-`fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。
-
-> **遷移說明**：`fn/` 取代舊的 `fn/`，採相同 Hexagonal Architecture，
-> 全面對齊 `.github/copilot-instructions.md` 20 條 Mandatory Compliance Rules。
-
----
-
-## Runtime Boundary
-
-| 執行時 | 負責項目 |
-|---|---|
-| `fn/` (Python) | parse、clean、taxonomy、chunk、embed、persistence pipeline |
-| Next.js (`src/`) | upload UX、browser-facing API、response orchestration |
-
-兩者互動**只透過**：
-- QStash 訊息
-- Firestore trigger
-- 事件契約
-
----
-
-## Route Here When
-
-- 需要解析、清洗文件內容（PDF、Markdown、HTML）
-- 需要呼叫 Document AI（Layout Parser / Form Parser）
-- 需要 chunk、embed、存入向量資料庫（Upstash Vector）
-- 需要可重試的背景作業或批次處理
-- 需要 Firestore 寫入（ingestion 管線）
-
-## Route Elsewhere When
-
-- 需要 browser-facing API 或即時回應 → `src/app/`
-- 需要 use case 業務邏輯（workspace、notion、notebooklm 邊界） → `src/modules/<context>/`
-- 需要 session / auth / permission 判斷 → `src/modules/iam/`
-
----
-
-## Architecture（Hexagonal）
-
-```text
-fn/src/
-├─ app/           # 應用入口（bootstrap、container、設定）
-├─ application/   # use cases、DTO、ports、application services
-├─ domain/        # entities、value objects、repositories、domain services（零外部依賴）
-├─ infrastructure/# Firestore、Storage、Document AI、OpenAI、Upstash adapters
-├─ interface/     # Cloud Function handler（inbound adapter）+ schema validation
-└─ core/          # 全層共用常數、config（環境變數唯一入口）
-```
-
-**依賴方向**（不可逆）：
-```
-interface → application → domain ← infrastructure
-app → interface / application / infrastructure / core
-domain → only core
-```
-
-詳細架構規範見 [README.md](README.md)。
-
----
-
-## Document AI Processors（US Region）
-
-⚠️ 兩個 processor 均位於 **US region**，client endpoint 必須使用 `us-documentai.googleapis.com`。
-
-| Processor | 用途 | Resource Name |
-|---|---|---|
-| **Layout Parser（主）** | 語意分塊（標題、段落、表格各自成 chunk） | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
-| **Form Parser（副）** | 結構化欄位擷取（PO號、金額、日期、供應商） | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
-
-### 雙通道設計
-
-```text
-GCS Document
-    ├─ Layout Parser  →  ParsedDocument.chunks   →  RAG 語意分塊（主）
-    └─ Form Parser    →  ParsedDocument.entities  →  結構化欄位（副，best-effort）
-```
-
-- 主通道（Layout Parser）失敗 → 整體 pipeline 失敗（拋例外）
-- 副通道（Form Parser）失敗 → 記錄 `WARNING`，以空 `entities` 繼續（不阻斷主流程）
-
-### 環境變數
-
-| 變數 | 預設值 | 說明 |
-|---|---|---|
-| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser（主，不可空） |
-| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser（設空字串可停用） |
-| `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | 不可改為 eu 或 global |
-
----
-
-## Mandatory Compliance Mapping
-
-| Rule | 在 fn/ 的體現 |
-|---|---|
-| Rule 4 — Contract / Schema | `interface/schemas/` 驗證所有 Cloud Function input |
-| Rule 10 — Failure Strategy | 每個外部呼叫皆有 raise / warning / dead-letter 路徑 |
-| Rule 12 — Hexagonal Architecture | `domain/` 零 SDK import；所有外部依賴在 `infrastructure/` |
-| Rule 13 — Dependency Direction | interface → application → domain ← infrastructure（不可逆） |
-| Rule 15 — Observability | 所有跨層呼叫使用 `logging.getLogger(__name__)`，不用 print |
-
----
-
-## Cloud Functions Entry Points
-
-| 函式名稱 | 觸發類型 | 說明 |
-|---|---|---|
-| `on_document_uploaded` | Storage trigger（`UPLOAD_BUCKET`） | GCS 新物件 → Document AI → Firestore |
-| `parse_document` | HTTPS Callable | 手動觸發解析，回傳解析摘要 |
-| `rag_query` | HTTPS Callable | RAG 檢索 + 生成查詢 |
-| `rag_reindex_document` | HTTPS Callable | 手動重新 chunk + embed 文件 |
-
----
-
-## Development Checklist
-
-修改 `fn/` 時，依序確認：
-
-1. **依賴方向**：`domain/` 是否引入了外部 SDK？ → 移到 `infrastructure/`
-2. **Schema 驗證**：新的 Cloud Function input 是否在 `interface/schemas/` 驗證？
-3. **Failure Strategy**：新的外部呼叫是否定義了失敗路徑（raise / warning / dead-letter）？
-4. **Observability**：新的跨層呼叫是否用 `logger.info/warning/error` 記錄？
-5. **US Endpoint**：Document AI client 是否仍使用 `us-documentai.googleapis.com`？
-6. **Tests**：`tests/` 中是否有對應覆蓋？
-
----
-
-## Validation Commands
-
-```bash
-cd fn
-python -m compileall -q .
-python -m pytest tests/ -v
-```
 ````
 
 ## File: fn/main.py
@@ -31446,222 +30578,167 @@ flowchart LR
 - decisions/0002-bounded-contexts.md
 ````
 
-## File: fn/README.md
+## File: fn/AGENTS.md
 ````markdown
-# fn — Python Cloud Functions 架構規範
+# fn — Agent Guide
 
-`fn/` 是 Python Cloud Functions worker 層，負責 ingestion、parsing、chunking、embedding 與 background job。
-這份規範以「路徑級依賴」為核心，看完整路徑判斷依賴方向，而非單看資料夾名稱。
+<!-- nested-index:start -->
+## Immediate Index
 
-> **遷移說明**：`fn/` 取代舊的 `fn/`，依相同 Hexagonal Architecture 重建，
-> 全面對齊 `.github/copilot-instructions.md` 的 20 條 Mandatory Compliance Rules。
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+
+## Package / Directory Index
+
+- `.env.example`
+- `main.py`
+- `requirements-dev.txt`
+- `requirements.txt`
+- `src/`
+- `tests/`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `fn/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
+
+## Purpose
+
+`fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。
+
+> **遷移說明**：`fn/` 取代舊的 `fn/`，採相同 Hexagonal Architecture，
+> 全面對齊 `.github/copilot-instructions.md` 20 條 Mandatory Compliance Rules。
 
 ---
 
-## 0. Document AI 雙通道設計（US Region）
+## Runtime Boundary
 
-⚠️ 兩個 processor 均位於 **US region**，`DOCAI_API_ENDPOINT` 必須為 `us-documentai.googleapis.com`。
+| 執行時 | 負責項目 |
+|---|---|
+| `fn/` (Python) | parse、clean、taxonomy、chunk、embed、persistence pipeline |
+| Next.js (`src/`) | upload UX、browser-facing API、response orchestration |
 
-| Processor | 用途 | 完整 Resource Name |
+兩者互動**只透過**：
+- QStash 訊息
+- Firestore trigger
+- 事件契約
+
+---
+
+## Route Here When
+
+- 需要解析、清洗文件內容（PDF、Markdown、HTML）
+- 需要呼叫 Document AI（Layout Parser / Form Parser）
+- 需要 chunk、embed、存入向量資料庫（Upstash Vector）
+- 需要可重試的背景作業或批次處理
+- 需要 Firestore 寫入（ingestion 管線）
+
+## Route Elsewhere When
+
+- 需要 browser-facing API 或即時回應 → `src/app/`
+- 需要 use case 業務邏輯（workspace、notion、notebooklm 邊界） → `src/modules/<context>/`
+- 需要 session / auth / permission 判斷 → `src/modules/iam/`
+
+---
+
+## Architecture（Hexagonal）
+
+```text
+fn/src/
+├─ app/           # 應用入口（bootstrap、container、設定）
+├─ application/   # use cases、DTO、ports、application services
+├─ domain/        # entities、value objects、repositories、domain services（零外部依賴）
+├─ infrastructure/# Firestore、Storage、Document AI、OpenAI、Upstash adapters
+├─ interface/     # Cloud Function handler（inbound adapter）+ schema validation
+└─ core/          # 全層共用常數、config（環境變數唯一入口）
+```
+
+**依賴方向**（不可逆）：
+```
+interface → application → domain ← infrastructure
+app → interface / application / infrastructure / core
+domain → only core
+```
+
+詳細架構規範見 [README.md](README.md)。
+
+---
+
+## Document AI Processors（US Region）
+
+⚠️ 兩個 processor 均位於 **US region**，client endpoint 必須使用 `us-documentai.googleapis.com`。
+
+| Processor | 用途 | Resource Name |
 |---|---|---|
-| **Layout Parser（主）** | 語意分塊：標題、段落、表格各自成 chunk，保留溯源引用鏈 | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
-| **Form Parser（副）** | 結構化欄位擷取：PO號、金額、日期、供應商等 KV entity | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
+| **Layout Parser（主）** | 語意分塊（標題、段落、表格各自成 chunk） | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
+| **Form Parser（副）** | 結構化欄位擷取（PO號、金額、日期、供應商） | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
 
-**API Endpoint（強制）**：
-```
-https://us-documentai.googleapis.com/v1/...
-```
-
-### 雙通道流程
+### 雙通道設計
 
 ```text
 GCS Document
-    ├─ Layout Parser  → ParsedDocument.chunks   → RAG 語意分塊（chunking_strategy="layout-v1"）
-    └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
+    ├─ Layout Parser  →  ParsedDocument.chunks   →  RAG 語意分塊（主）
+    └─ Form Parser    →  ParsedDocument.entities  →  結構化欄位（副，best-effort）
 ```
 
-- **主通道（Layout Parser）**若回傳空輸出（0 page 且無 text/chunk）→ 自動改走後備 OCR/Form processor 補齊文字，再繼續流程
-- **主通道（Layout Parser）**API 失敗（拋例外）→ 整體 pipeline 失敗（Rule 10）
-- **副通道（Form Parser）**失敗 → 記錄 `WARNING`，以空 `entities` 繼續，不阻斷主流程（Rule 10）
+- 主通道（Layout Parser）失敗 → 整體 pipeline 失敗（拋例外）
+- 副通道（Form Parser）失敗 → 記錄 `WARNING`，以空 `entities` 繼續（不阻斷主流程）
 
 ### 環境變數
 
 | 變數 | 預設值 | 說明 |
 |---|---|---|
-| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser 資源名稱（主通道，不可空） |
-| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser 資源名稱（設為空字串可停用副通道） |
-| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填，建議 US region） |
-| `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | **不可改為 eu 或 global** |
-| `DOCAI_LOCATION` | `us` | processor 所在 region |
+| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser（主，不可空） |
+| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser（設空字串可停用） |
+| `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | 不可改為 eu 或 global |
 
-### Form Parser 擷取欄位（AP8 採購訂購單示例）
+---
 
-| 欄位 | Document AI Entity Type |
+## Mandatory Compliance Mapping
+
+| Rule | 在 fn/ 的體現 |
 |---|---|
-| 訂購單號 | `id` / 自定義 KV |
-| 供應商 | `organization` |
-| 買方 | `organization` |
-| 金額小計 | `price` / `quantity` |
-| 交貨日期 | `date_time` |
-| 聯絡人 | `person` + `phone` + `email` |
+| Rule 4 — Contract / Schema | `interface/schemas/` 驗證所有 Cloud Function input |
+| Rule 10 — Failure Strategy | 每個外部呼叫皆有 raise / warning / dead-letter 路徑 |
+| Rule 12 — Hexagonal Architecture | `domain/` 零 SDK import；所有外部依賴在 `infrastructure/` |
+| Rule 13 — Dependency Direction | interface → application → domain ← infrastructure（不可逆） |
+| Rule 15 — Observability | 所有跨層呼叫使用 `logging.getLogger(__name__)`，不用 print |
 
 ---
 
-## 1. 全域依賴方向（Rule 12、13）
+## Cloud Functions Entry Points
 
-```text
-interface  → application → domain
-infrastructure → application → domain
-app        → interface / application / infrastructure / core
-core       → all layers（只允許向外）
-domain     → only core（零框架依賴）
-```
-
-**禁止反向**：`domain` 不得 import `infrastructure`、`application`、`interface`。
-
----
-
-## 2. 目錄結構
-
-```text
-fn/
-├─ src/
-│  ├─ app/                    # 應用入口
-│  │  ├─ bootstrap/           # Firebase Admin SDK 一次初始化
-│  │  ├─ container/           # DI / runtime_dependencies
-│  │  ├─ config/              # 僅 app-layer 設定（功能開關等）
-│  │  └─ settings/            # 部署環境設定覆寫
-│  ├─ application/            # Use Cases、DTO、Ports、Services、Mappers
-│  │  ├─ use_cases/           # 業務流程編排（不含 domain invariant）
-│  │  ├─ dto/                 # 跨層傳輸物件（不含 domain entity）
-│  │  ├─ ports/               # Port 介面（input / output）
-│  │  │  ├─ input/
-│  │  │  └─ output/
-│  │  ├─ services/            # Application services（不含 domain rule）
-│  │  └─ mappers/             # domain ↔ DTO 轉換
-│  ├─ domain/                 # 純業務規則（零外部依賴）
-│  │  ├─ entities/            # 聚合、子實體
-│  │  ├─ value_objects/       # 不可變值對象
-│  │  ├─ repositories/        # Repository 介面（僅介面）
-│  │  ├─ services/            # Domain services（無狀態業務邏輯）
-│  │  ├─ events/              # Domain events
-│  │  └─ exceptions/          # Domain exceptions
-│  ├─ infrastructure/         # 外部依賴實作（永遠在最外層）
-│  │  ├─ external/
-│  │  │  └─ documentai/       # Document AI client（US endpoint）
-│  │  ├─ persistence/
-│  │  │  ├─ firestore/        # Firestore repository 實作
-│  │  │  └─ storage/          # GCS client
-│  │  ├─ cache/               # Redis / Upstash cache
-│  │  ├─ audit/               # QStash audit publisher
-│  │  └─ external/
-│  │     └─ openai/           # OpenAI embeddings / LLM
-│  ├─ interface/              # Function handler（inbound adapter）
-│  │  ├─ handlers/            # Cloud Functions handler 實作
-│  │  └─ schemas/             # Input schema validation（Pydantic / dataclass）
-│  └─ core/                   # 全層共用常數、型別、config
-│     └─ config.py            # 所有環境變數讀取（唯一真實來源）
-├─ tests/                     # pytest 單元測試
-├─ main.py                    # Firebase Functions 入口（裝飾器宣告）
-├─ requirements.txt
-├─ requirements-dev.txt
-├─ AGENTS.md                  # Agent 任務指引
-└─ README.md                  # 本文件
-```
-
----
-
-## 3. 層級職責（Rule 12、17、18）
-
-| 路徑前綴 | 職責 | 禁止 |
+| 函式名稱 | 觸發類型 | 說明 |
 |---|---|---|
-| `domain/` | 業務規則、不變量、Entity、Value Object、Repository 介面 | import Firebase、HTTP、ORM、任何 SDK |
-| `application/` | Use case 編排、DTO、Port 定義、Application service | 直接呼叫 SDK；包含 domain invariant |
-| `infrastructure/` | Port 實作、Firestore repo、Storage client、Document AI client | 包含 business rule；反向依賴 domain 實作 |
-| `interface/` | Cloud Function handler、input schema 驗證 | 直接呼叫 repository；bypass use case |
-| `core/` | 環境變數、常數、工具函式 | 依賴 domain/application/infrastructure |
-| `app/` | Bootstrap、DI container、全域選項 | 包含 business logic |
+| `on_document_uploaded` | Storage trigger（`UPLOAD_BUCKET`） | GCS 新物件 → Document AI → Firestore |
+| `parse_document` | HTTPS Callable | 手動觸發解析，回傳解析摘要 |
+| `rag_query` | HTTPS Callable | RAG 檢索 + 生成查詢 |
+| `rag_reindex_document` | HTTPS Callable | 手動重新 chunk + embed 文件 |
 
 ---
 
-## 4. Schema 驗證規則（Rule 4）
+## Development Checklist
 
-所有進入系統的外部輸入（Cloud Function request、Storage event）必須先通過 schema 驗證，才能傳遞給 use case。
+修改 `fn/` 時，依序確認：
 
-```python
-# ✅ 正確：interface/handlers/ 在呼叫 use case 前先驗證
-from interface.schemas.parse_document import ParseDocumentRequest
-req_data = ParseDocumentRequest(**raw_data)   # raises ValidationError if invalid
-result = handle_parse_document_use_case(req_data)
-
-# ❌ 錯誤：直接將 req.data 傳給 use case
-result = ingest_document_for_rag(**req.data)
-```
+1. **依賴方向**：`domain/` 是否引入了外部 SDK？ → 移到 `infrastructure/`
+2. **Schema 驗證**：新的 Cloud Function input 是否在 `interface/schemas/` 驗證？
+3. **Failure Strategy**：新的外部呼叫是否定義了失敗路徑（raise / warning / dead-letter）？
+4. **Observability**：新的跨層呼叫是否用 `logger.info/warning/error` 記錄？
+5. **US Endpoint**：Document AI client 是否仍使用 `us-documentai.googleapis.com`？
+6. **Tests**：`tests/` 中是否有對應覆蓋？
 
 ---
 
-## 5. Failure Strategy（Rule 10）
-
-| 呼叫類型 | 策略 |
-|---|---|
-| Layout Parser（主通道） | 失敗時拋例外，pipeline 整體中止 |
-| Form Parser（副通道） | 失敗時 `logger.warning`，以空 `entities` 繼續 |
-| OpenAI Embeddings | 失敗時拋例外，由上層 retry / dead-letter |
-| Upstash Search 同步 | 失敗時 `logger.warning`，不阻斷主流程 |
-| Redis doc summary | 失敗時 `logger.warning`，不阻斷主流程 |
-| Firestore 寫入 | 失敗時拋例外，由上層 retry |
-
----
-
-## 6. 命名規則（Rule 3）
-
-| 概念 | 命名 | 禁止 |
-|---|---|---|
-| Use case 函式 | `verb_noun(…)` e.g. `ingest_document_for_rag` | `doXxx`, `processXxx` |
-| Repository 介面 | `XxxGateway` / `XxxRepository` | `IXxx`, `XxxService`（用於 domain service） |
-| Domain event | 過去式 e.g. `DocumentIngested` | 現在式 |
-| DTO | `XxxRequest` / `XxxResult` / `XxxJob` | `XxxData`, `XxxPayload`（除非已在 glossary） |
-| Config 常數 | `UPPER_SNAKE_CASE` | camelCase |
-
----
-
-## 7. RAG Pipeline 流程
-
-```text
-1. Cloud Storage trigger → on_document_uploaded
-2. interface/handlers/storage.py → handle_object_finalized
-3. application/services/document_pipeline.py → orchestrate
-4. infrastructure/external/documentai/client.py → process_document_gcs_with_form
-   ├─ Layout Parser → ParsedDocument.chunks
-   └─ Form Parser   → ParsedDocument.entities (best-effort)
-5. application/use_cases/rag_ingestion.py → ingest_document_for_rag
-   ├─ layout_chunks 非空 → layout_chunks_to_rag_chunks (chunking_strategy="layout-v1")
-   └─ layout_chunks 為空 → chunk_text char-split (chunking_strategy="char-split-v2")
-6. gateway.embed_texts → OpenAI text-embedding-3-small
-7. gateway.upsert_vectors → Upstash Vector
-8. gateway.upsert_search_documents → Upstash Search (best-effort)
-9. gateway.redis_set_json → Upstash Redis doc summary (best-effort)
-10. infrastructure/persistence/firestore/document_repository.py → mark status=ready
-```
-
----
-
-## 8. 驗證指令
+## Validation Commands
 
 ```bash
 cd fn
 python -m compileall -q .
 python -m pytest tests/ -v
 ```
-
----
-
-## 9. 相關文件
-
-- `.github/copilot-instructions.md` — 全系統 20 條 Mandatory Compliance Rules
-- `.github/instructions/cloud-functions.instructions.md` — Cloud Functions 邊界規則
-- `.github/instructions/rag-architecture.instructions.md` — RAG 架構規則
-- `docs/structure/system/architecture-overview.md` — 主域關係圖
 ````
 
 ## File: fn/src/application/ports/output/gateways.py
@@ -32451,6 +31528,246 @@ SINK  ANALYTICS
   bounded-contexts.md        — 主域與子域所有權詳目
   context-map.md             — Upstream/Downstream published language 對照
   ubiquitous-language.md     — 戰略術語權威
+````
+
+## File: fn/README.md
+````markdown
+# fn — Python Cloud Functions 架構規範
+
+<!-- nested-index:start -->
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+
+## Package / Directory Index
+
+- `.env.example`
+- `main.py`
+- `requirements-dev.txt`
+- `requirements.txt`
+- `src/`
+- `tests/`
+
+## Pair Contract
+
+- `README.md` 保留最短概覽與實際目錄索引。
+- `AGENTS.md` 保留 routing 與放置決策。
+<!-- nested-index:end -->
+
+
+`fn/` 是 Python Cloud Functions worker 層，負責 ingestion、parsing、chunking、embedding 與 background job。
+這份規範以「路徑級依賴」為核心，看完整路徑判斷依賴方向，而非單看資料夾名稱。
+
+> **遷移說明**：`fn/` 取代舊的 `fn/`，依相同 Hexagonal Architecture 重建，
+> 全面對齊 `.github/copilot-instructions.md` 的 20 條 Mandatory Compliance Rules。
+
+---
+
+## 0. Document AI 雙通道設計（US Region）
+
+⚠️ 兩個 processor 均位於 **US region**，`DOCAI_API_ENDPOINT` 必須為 `us-documentai.googleapis.com`。
+
+| Processor | 用途 | 完整 Resource Name |
+|---|---|---|
+| **Layout Parser（主）** | 語意分塊：標題、段落、表格各自成 chunk，保留溯源引用鏈 | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
+| **Form Parser（副）** | 結構化欄位擷取：PO號、金額、日期、供應商等 KV entity | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
+
+**API Endpoint（強制）**：
+```
+https://us-documentai.googleapis.com/v1/...
+```
+
+### 雙通道流程
+
+```text
+GCS Document
+    ├─ Layout Parser  → ParsedDocument.chunks   → RAG 語意分塊（chunking_strategy="layout-v1"）
+    └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
+```
+
+- **主通道（Layout Parser）**若回傳空輸出（0 page 且無 text/chunk）→ 自動改走後備 OCR/Form processor 補齊文字，再繼續流程
+- **主通道（Layout Parser）**API 失敗（拋例外）→ 整體 pipeline 失敗（Rule 10）
+- **副通道（Form Parser）**失敗 → 記錄 `WARNING`，以空 `entities` 繼續，不阻斷主流程（Rule 10）
+
+### 環境變數
+
+| 變數 | 預設值 | 說明 |
+|---|---|---|
+| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser 資源名稱（主通道，不可空） |
+| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser 資源名稱（設為空字串可停用副通道） |
+| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填，建議 US region） |
+| `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | **不可改為 eu 或 global** |
+| `DOCAI_LOCATION` | `us` | processor 所在 region |
+
+### Form Parser 擷取欄位（AP8 採購訂購單示例）
+
+| 欄位 | Document AI Entity Type |
+|---|---|
+| 訂購單號 | `id` / 自定義 KV |
+| 供應商 | `organization` |
+| 買方 | `organization` |
+| 金額小計 | `price` / `quantity` |
+| 交貨日期 | `date_time` |
+| 聯絡人 | `person` + `phone` + `email` |
+
+---
+
+## 1. 全域依賴方向（Rule 12、13）
+
+```text
+interface  → application → domain
+infrastructure → application → domain
+app        → interface / application / infrastructure / core
+core       → all layers（只允許向外）
+domain     → only core（零框架依賴）
+```
+
+**禁止反向**：`domain` 不得 import `infrastructure`、`application`、`interface`。
+
+---
+
+## 2. 目錄結構
+
+```text
+fn/
+├─ src/
+│  ├─ app/                    # 應用入口
+│  │  ├─ bootstrap/           # Firebase Admin SDK 一次初始化
+│  │  ├─ container/           # DI / runtime_dependencies
+│  │  ├─ config/              # 僅 app-layer 設定（功能開關等）
+│  │  └─ settings/            # 部署環境設定覆寫
+│  ├─ application/            # Use Cases、DTO、Ports、Services、Mappers
+│  │  ├─ use_cases/           # 業務流程編排（不含 domain invariant）
+│  │  ├─ dto/                 # 跨層傳輸物件（不含 domain entity）
+│  │  ├─ ports/               # Port 介面（input / output）
+│  │  │  ├─ input/
+│  │  │  └─ output/
+│  │  ├─ services/            # Application services（不含 domain rule）
+│  │  └─ mappers/             # domain ↔ DTO 轉換
+│  ├─ domain/                 # 純業務規則（零外部依賴）
+│  │  ├─ entities/            # 聚合、子實體
+│  │  ├─ value_objects/       # 不可變值對象
+│  │  ├─ repositories/        # Repository 介面（僅介面）
+│  │  ├─ services/            # Domain services（無狀態業務邏輯）
+│  │  ├─ events/              # Domain events
+│  │  └─ exceptions/          # Domain exceptions
+│  ├─ infrastructure/         # 外部依賴實作（永遠在最外層）
+│  │  ├─ external/
+│  │  │  └─ documentai/       # Document AI client（US endpoint）
+│  │  ├─ persistence/
+│  │  │  ├─ firestore/        # Firestore repository 實作
+│  │  │  └─ storage/          # GCS client
+│  │  ├─ cache/               # Redis / Upstash cache
+│  │  ├─ audit/               # QStash audit publisher
+│  │  └─ external/
+│  │     └─ openai/           # OpenAI embeddings / LLM
+│  ├─ interface/              # Function handler（inbound adapter）
+│  │  ├─ handlers/            # Cloud Functions handler 實作
+│  │  └─ schemas/             # Input schema validation（Pydantic / dataclass）
+│  └─ core/                   # 全層共用常數、型別、config
+│     └─ config.py            # 所有環境變數讀取（唯一真實來源）
+├─ tests/                     # pytest 單元測試
+├─ main.py                    # Firebase Functions 入口（裝飾器宣告）
+├─ requirements.txt
+├─ requirements-dev.txt
+├─ AGENTS.md                  # Agent 任務指引
+└─ README.md                  # 本文件
+```
+
+---
+
+## 3. 層級職責（Rule 12、17、18）
+
+| 路徑前綴 | 職責 | 禁止 |
+|---|---|---|
+| `domain/` | 業務規則、不變量、Entity、Value Object、Repository 介面 | import Firebase、HTTP、ORM、任何 SDK |
+| `application/` | Use case 編排、DTO、Port 定義、Application service | 直接呼叫 SDK；包含 domain invariant |
+| `infrastructure/` | Port 實作、Firestore repo、Storage client、Document AI client | 包含 business rule；反向依賴 domain 實作 |
+| `interface/` | Cloud Function handler、input schema 驗證 | 直接呼叫 repository；bypass use case |
+| `core/` | 環境變數、常數、工具函式 | 依賴 domain/application/infrastructure |
+| `app/` | Bootstrap、DI container、全域選項 | 包含 business logic |
+
+---
+
+## 4. Schema 驗證規則（Rule 4）
+
+所有進入系統的外部輸入（Cloud Function request、Storage event）必須先通過 schema 驗證，才能傳遞給 use case。
+
+```python
+# ✅ 正確：interface/handlers/ 在呼叫 use case 前先驗證
+from interface.schemas.parse_document import ParseDocumentRequest
+req_data = ParseDocumentRequest(**raw_data)   # raises ValidationError if invalid
+result = handle_parse_document_use_case(req_data)
+
+# ❌ 錯誤：直接將 req.data 傳給 use case
+result = ingest_document_for_rag(**req.data)
+```
+
+---
+
+## 5. Failure Strategy（Rule 10）
+
+| 呼叫類型 | 策略 |
+|---|---|
+| Layout Parser（主通道） | 失敗時拋例外，pipeline 整體中止 |
+| Form Parser（副通道） | 失敗時 `logger.warning`，以空 `entities` 繼續 |
+| OpenAI Embeddings | 失敗時拋例外，由上層 retry / dead-letter |
+| Upstash Search 同步 | 失敗時 `logger.warning`，不阻斷主流程 |
+| Redis doc summary | 失敗時 `logger.warning`，不阻斷主流程 |
+| Firestore 寫入 | 失敗時拋例外，由上層 retry |
+
+---
+
+## 6. 命名規則（Rule 3）
+
+| 概念 | 命名 | 禁止 |
+|---|---|---|
+| Use case 函式 | `verb_noun(…)` e.g. `ingest_document_for_rag` | `doXxx`, `processXxx` |
+| Repository 介面 | `XxxGateway` / `XxxRepository` | `IXxx`, `XxxService`（用於 domain service） |
+| Domain event | 過去式 e.g. `DocumentIngested` | 現在式 |
+| DTO | `XxxRequest` / `XxxResult` / `XxxJob` | `XxxData`, `XxxPayload`（除非已在 glossary） |
+| Config 常數 | `UPPER_SNAKE_CASE` | camelCase |
+
+---
+
+## 7. RAG Pipeline 流程
+
+```text
+1. Cloud Storage trigger → on_document_uploaded
+2. interface/handlers/storage.py → handle_object_finalized
+3. application/services/document_pipeline.py → orchestrate
+4. infrastructure/external/documentai/client.py → process_document_gcs_with_form
+   ├─ Layout Parser → ParsedDocument.chunks
+   └─ Form Parser   → ParsedDocument.entities (best-effort)
+5. application/use_cases/rag_ingestion.py → ingest_document_for_rag
+   ├─ layout_chunks 非空 → layout_chunks_to_rag_chunks (chunking_strategy="layout-v1")
+   └─ layout_chunks 為空 → chunk_text char-split (chunking_strategy="char-split-v2")
+6. gateway.embed_texts → OpenAI text-embedding-3-small
+7. gateway.upsert_vectors → Upstash Vector
+8. gateway.upsert_search_documents → Upstash Search (best-effort)
+9. gateway.redis_set_json → Upstash Redis doc summary (best-effort)
+10. infrastructure/persistence/firestore/document_repository.py → mark status=ready
+```
+
+---
+
+## 8. 驗證指令
+
+```bash
+cd fn
+python -m compileall -q .
+python -m pytest tests/ -v
+```
+
+---
+
+## 9. 相關文件
+
+- `.github/copilot-instructions.md` — 全系統 20 條 Mandatory Compliance Rules
+- `.github/instructions/cloud-functions.instructions.md` — Cloud Functions 邊界規則
+- `.github/instructions/rag-architecture.instructions.md` — RAG 架構規則
+- `docs/structure/system/architecture-overview.md` — 主域關係圖
 ````
 
 ## File: fn/src/interface/handlers/storage.py
