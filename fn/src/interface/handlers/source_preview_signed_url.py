@@ -37,6 +37,14 @@ def handle_document_preview_signed_url(req: https_fn.CallableRequest) -> dict:
     _assert_workspace_belongs_account(schema.account_id, schema.workspace_id)
 
     bucket_name, object_path = _parse_gs_uri(schema.gcs_uri)
+
+    # Guard against path traversal: reject any path containing ".." segments.
+    if ".." in object_path.split("/"):
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            "非法路徑",
+        )
+
     expected_prefix = f"uploads/{schema.account_id}/{schema.workspace_id}/"
     if not object_path.startswith(expected_prefix):
         raise https_fn.HttpsError(

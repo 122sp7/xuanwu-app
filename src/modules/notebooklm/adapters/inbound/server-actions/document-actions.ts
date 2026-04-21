@@ -87,12 +87,6 @@ const ReindexDocumentActionInputSchema = z.object({
   layoutJsonGcsUri: z.string().min(1, "layout_json_gcs_uri 為必填欄位（文件尚未完成 Layout Parser 解析？）"),
 });
 
-const DocumentPreviewSignedUrlInputSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-  gcsUri: z.string().min(1),
-});
-
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 /**
@@ -212,26 +206,8 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
   );
 }
 
-/**
- * getDocumentPreviewSignedUrlAction — request short-lived signed URL for preview.
- */
-export async function getDocumentPreviewSignedUrlAction(rawInput: unknown): Promise<{
-  preview_url: string;
-  expires_at_iso: string;
-}> {
-  const input = DocumentPreviewSignedUrlInputSchema.parse(rawInput);
-  return _callCallable<
-    {
-      account_id: string;
-      workspace_id: string;
-      gcs_uri: string;
-      expires_in_seconds: number;
-    },
-    { preview_url: string; expires_at_iso: string }
-  >("document_preview_signed_url", {
-    account_id: input.accountId,
-    workspace_id: input.workspaceId,
-    gcs_uri: input.gcsUri,
-    expires_in_seconds: 300,
-  });
-}
+// NOTE: document_preview_signed_url must be invoked from the browser via
+// httpsCallable() so the Firebase ID token is automatically attached.
+// A server action cannot forward the client's auth token, which causes
+// UNAUTHENTICATED errors on the callable side.
+// See: NotebooklmSourcesSection.tsx → handlePreview() for the correct usage.
