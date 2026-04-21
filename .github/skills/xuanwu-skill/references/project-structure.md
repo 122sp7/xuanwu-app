@@ -18,6 +18,7 @@ docs/
       0002-cross-runtime-nextjs-fn-bridge.md (71 lines)
       0003-module-public-api-surface.md (77 lines)
       0004-occam-gap-triage-baseline-focus.md (73 lines)
+      0005-ap8-source-to-task-direct-materialization.md (168 lines)
     data/
       .gitkeep (0 lines)
       0001-firestore-subdomain-collection-boundaries.md (101 lines)
