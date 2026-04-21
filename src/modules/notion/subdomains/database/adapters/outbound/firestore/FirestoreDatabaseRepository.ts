@@ -14,10 +14,38 @@
  */
 
 import { getFirebaseFirestore, firestoreApi } from "@packages";
+import { z } from "@packages";
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
 import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
 
 const COLLECTION = "knowledgeDatabases";
+
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+
+const FirestoreDatabasePropertySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: z.enum(["text", "number", "select", "multi_select", "date", "checkbox", "url", "email", "file", "relation"]),
+  options: z.array(z.string()).optional(),
+});
+
+const FirestoreDatabaseSnapshotSchema = z.object({
+  id: z.string(),
+  pageId: z.string(),
+  workspaceId: z.string(),
+  accountId: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  properties: z.array(FirestoreDatabasePropertySchema),
+  status: z.enum(["active", "archived"]),
+  createdByUserId: z.string(),
+  createdAtISO: z.string(),
+  updatedAtISO: z.string(),
+});
+
+function toSnapshot(raw: unknown): DatabaseSnapshot {
+  return FirestoreDatabaseSnapshotSchema.parse(raw) as DatabaseSnapshot;
+}
 
 export class FirestoreDatabaseRepository implements DatabaseRepository {
   async save(snapshot: DatabaseSnapshot): Promise<void> {
@@ -31,7 +59,7 @@ export class FirestoreDatabaseRepository implements DatabaseRepository {
     const { doc, getDoc } = firestoreApi;
     const snap = await getDoc(doc(db, COLLECTION, id));
     if (!snap.exists()) return null;
-    return snap.data() as DatabaseSnapshot;
+    return toSnapshot({ id: snap.id, ...snap.data() });
   }
 
   async findByPageId(pageId: string): Promise<DatabaseSnapshot[]> {
@@ -39,7 +67,7 @@ export class FirestoreDatabaseRepository implements DatabaseRepository {
     const { collection, query, where, getDocs } = firestoreApi;
     const q = query(collection(db, COLLECTION), where("pageId", "==", pageId));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as DatabaseSnapshot);
+    return snap.docs.map((d) => toSnapshot({ id: d.id, ...d.data() }));
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]> {
@@ -47,7 +75,7 @@ export class FirestoreDatabaseRepository implements DatabaseRepository {
     const { collection, query, where, getDocs } = firestoreApi;
     const q = query(collection(db, COLLECTION), where("workspaceId", "==", workspaceId));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as DatabaseSnapshot);
+    return snap.docs.map((d) => toSnapshot({ id: d.id, ...d.data() }));
   }
 
   async delete(id: string): Promise<void> {

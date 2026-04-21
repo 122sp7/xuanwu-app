@@ -14,10 +14,35 @@
  */
 
 import { getFirebaseFirestore, firestoreApi } from "@packages";
+import { z } from "@packages";
 import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
 import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
 
 const COLLECTION = "contentPages";
+
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+
+const FirestorePageSnapshotSchema = z.object({
+  id: z.string(),
+  accountId: z.string(),
+  workspaceId: z.string().optional(),
+  title: z.string(),
+  slug: z.string(),
+  parentPageId: z.string().nullable(),
+  order: z.number(),
+  blockIds: z.array(z.string()),
+  status: z.enum(["active", "archived"]),
+  ownerId: z.string().optional(),
+  iconUrl: z.string().optional(),
+  coverUrl: z.string().optional(),
+  createdByUserId: z.string(),
+  createdAtISO: z.string(),
+  updatedAtISO: z.string(),
+});
+
+function toSnapshot(raw: unknown): PageSnapshot {
+  return FirestorePageSnapshotSchema.parse(raw) as PageSnapshot;
+}
 
 export class FirestorePageRepository implements PageRepository {
   async save(snapshot: PageSnapshot): Promise<void> {
@@ -31,7 +56,7 @@ export class FirestorePageRepository implements PageRepository {
     const { doc, getDoc } = firestoreApi;
     const snap = await getDoc(doc(db, COLLECTION, id));
     if (!snap.exists()) return null;
-    return snap.data() as PageSnapshot;
+    return toSnapshot({ id: snap.id, ...snap.data() });
   }
 
   async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null> {
@@ -44,7 +69,8 @@ export class FirestorePageRepository implements PageRepository {
     );
     const snap = await getDocs(q);
     if (snap.empty) return null;
-    return snap.docs[0].data() as PageSnapshot;
+    const d = snap.docs[0];
+    return toSnapshot({ id: d.id, ...d.data() });
   }
 
   async findChildren(parentPageId: string): Promise<PageSnapshot[]> {
@@ -55,7 +81,7 @@ export class FirestorePageRepository implements PageRepository {
       where("parentPageId", "==", parentPageId),
     );
     const snap = await getDocs(q);
-    return snap.docs.map((d) => d.data() as PageSnapshot);
+    return snap.docs.map((d) => toSnapshot({ id: d.id, ...d.data() }));
   }
 
   async query(params: PageQuery): Promise<PageSnapshot[]> {
@@ -73,7 +99,7 @@ export class FirestorePageRepository implements PageRepository {
     const q = query(collection(db, COLLECTION), ...constraints);
     const snap = await getDocs(q);
 
-    const all = snap.docs.map((d) => d.data() as PageSnapshot);
+    const all = snap.docs.map((d) => toSnapshot({ id: d.id, ...d.data() }));
     const offset = params.offset ?? 0;
     const lim = params.limit ?? 100;
     return all.slice(offset, offset + lim);
