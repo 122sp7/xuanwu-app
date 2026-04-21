@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1182 files | 28,252 lines
+1182 files | 28,697 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 900 | 13,384 |
-| Markdown | 107 | 8,958 |
+| TypeScript | 900 | 13,413 |
+| Markdown | 107 | 9,343 |
 | Python | 87 | 2,266 |
-| TypeScript (TSX) | 53 | 2,526 |
+| TypeScript (TSX) | 53 | 2,557 |
 | No Extension | 18 | 18 |
 | JSON | 6 | 727 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
 | RULES | 2 | 60 |
-| YAML | 1 | 64 |
-| Other | 3 | 131 |
+| EXAMPLE | 1 | 65 |
+| Other | 3 | 130 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
@@ -67,5 +67,5 @@ This skill contains the following reference files:
 - `docs/structure/domain/ddd-strategic-design.md` (221 lines)
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
+- `fn/README.md` (207 lines)
 - `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
-- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)
