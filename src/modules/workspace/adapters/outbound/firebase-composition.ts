@@ -321,6 +321,45 @@ export function createClientFeedUseCases() {
   };
 }
 
+// ── Client-side feed helpers ──────────────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+// The Firebase Web Client SDK requires a signed-in user in the browser context.
+// A Server Action has no active Firebase user session → Firestore Security Rules
+// block any operation (read or write) with "Missing or insufficient permissions".
+
+export async function listFeedPosts(params: {
+  accountId: string;
+  workspaceId: string;
+  dateKey?: string;
+  limit?: number;
+}) {
+  const { listFeedPosts: uc } = createClientFeedUseCases();
+  return uc.execute(params);
+}
+
+export async function createFeedPost(params: {
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  content: string;
+  photoUrls?: string[];
+  replyToPostId?: string;
+  repostOfPostId?: string;
+}) {
+  const { createFeedPost: uc } = createClientFeedUseCases();
+  return uc.execute(params);
+}
+
+export async function listAccountFeedPosts(params: {
+  accountId: string;
+  dateKey?: string;
+  limit?: number;
+}) {
+  const { listAccountFeedPosts: uc } = createClientFeedUseCases();
+  return uc.execute(params);
+}
+
 export function createClientScheduleUseCases() {
   const db = createFirestoreLikeAdapter();
   const demandRepo = new FirestoreDemandRepository(db);

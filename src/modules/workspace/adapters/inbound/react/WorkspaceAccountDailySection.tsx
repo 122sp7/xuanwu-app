@@ -3,7 +3,7 @@
 import { Badge } from "@packages";
 import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { listAccountFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
+import { listAccountFeedPosts } from "../../../adapters/outbound/firebase-composition";
 import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
 import { useWorkspaceContext } from "./WorkspaceContext";
 
@@ -50,7 +50,7 @@ export function WorkspaceAccountDailySection({
 
   useEffect(() => {
     let active = true;
-    void listAccountFeedPostsAction({
+    void listAccountFeedPosts({
       accountId,
       dateKey,
       limit: 200,
