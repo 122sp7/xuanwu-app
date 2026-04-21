@@ -441,7 +441,7 @@ export function NotebooklmSourcesSection({
         <p className="text-sm text-muted-foreground">
           尚無來源文件。請點擊「上傳文件」，或直接上傳至
           <code className="mx-1 rounded bg-muted px-1 text-xs">
-            sources/{"{accountId}"}/{"{workspaceId}"}/
+            workspaces/{"{workspaceId}"}/sources/{"{accountId}"}/
           </code>
           前綴；是否解析與建立索引由使用者手動決定。
         </p>

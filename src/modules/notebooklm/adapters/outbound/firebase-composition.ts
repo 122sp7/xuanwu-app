@@ -89,7 +89,7 @@ export type { RagQueryInput, RagQueryOutput, ParseDocumentInput, ParseDocumentOu
 
 /**
  * Upload a document to the user-managed source prefix.
- * Path: sources/{accountId}/{workspaceId}/{uuid}-{filename}
+ * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
  * Manual parse / index actions decide when downstream processing runs.
  */
 export async function uploadDocumentToStorage(
@@ -142,7 +142,7 @@ export async function registerUploadedDocument(params: {
  * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
  * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
  *
- * Accepts both gs://bucket/path and relative paths like sources/... / uploads/...
+ * Accepts both gs://bucket/path and relative paths like workspaces/... / sources/... / uploads/...
  */
 export async function getDocumentDownloadUrl(storageUrl: string): Promise<string> {
   const storage = getFirebaseStorage();
