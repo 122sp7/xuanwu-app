@@ -12,9 +12,10 @@ import logging
 
 from firebase_functions import https_fn
 
-from application.services.document_pipeline import get_document_status_gateway
-from application.use_cases.parse_document_pipeline import ParseDocumentCommand, execute_parse_document
+from application.use_cases.parse_document_command import execute_parse_document_command
+from application.use_cases.parse_document_pipeline import ParseDocumentCommand
 from core.storage_uri import parse_gs_uri
+from interface.handlers._https_helpers import _extract_auth_uid
 from interface.schemas.parse_document import ParseDocumentRequest
 
 logger = logging.getLogger(__name__)
@@ -27,6 +28,7 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
     All external input is validated through ParseDocumentRequest before
     reaching the application layer (Rule 4).
     """
+    actor_id = _extract_auth_uid(req)
     try:
         schema = ParseDocumentRequest.from_raw(req.data or {})
     except ValueError as exc:
@@ -45,10 +47,10 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
 
     logger.info("parse_document callable: %s → doc_id=%s", schema.gcs_uri, schema.doc_id)
 
-    status_gateway = get_document_status_gateway()
     try:
-        execute_parse_document(
-            ParseDocumentCommand(
+        execute_parse_document_command(
+            actor_id=actor_id,
+            cmd=ParseDocumentCommand(
                 doc_id=schema.doc_id,
                 gcs_uri=schema.gcs_uri,
                 bucket_name=bucket_name,
@@ -60,17 +62,32 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
                 workspace_id=schema.workspace_id,
                 parser=schema.parser,
                 run_rag=schema.run_rag,
-            )
+            ),
         )
-    except https_fn.HttpsError:
-        raise
+    except PermissionError as exc:
+        code = (
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED
+            if "登入" in str(exc)
+            else https_fn.FunctionsErrorCode.PERMISSION_DENIED
+        )
+        raise https_fn.HttpsError(code, str(exc)) from exc
+    except ValueError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            str(exc),
+        ) from exc
+    except RuntimeError as exc:
+        logger.exception("parse_document failed for %s: %s", schema.doc_id, exc)
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            "parse_document 失敗",
+        ) from exc
     except Exception as exc:
         logger.exception("parse_document failed for %s: %s", schema.doc_id, exc)
-        status_gateway.record_error(
-            schema.doc_id,
-            str(exc)[:200],
-            account_id=schema.account_id,
-        )
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            "parse_document 失敗",
+        ) from exc
 
     return {
         "account_scope": schema.account_id,

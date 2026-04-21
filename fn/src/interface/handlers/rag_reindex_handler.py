@@ -12,8 +12,9 @@ import logging
 
 from firebase_functions import https_fn
 
-from application.services.document_pipeline import get_document_status_gateway
-from application.use_cases.rag_reindex import RagReindexCommand, execute_rag_reindex
+from application.use_cases.rag_reindex_command import execute_rag_reindex_command
+from application.use_cases.rag_reindex import RagReindexCommand
+from interface.handlers._https_helpers import _extract_auth_uid
 from interface.schemas.rag_reindex import RagReindexRequest
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion."""
+    actor_id = _extract_auth_uid(req)
     try:
         schema = RagReindexRequest.from_raw(req.data or {})
     except ValueError as exc:
@@ -29,10 +31,10 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             str(exc),
         ) from exc
 
-    status_gateway = get_document_status_gateway()
     try:
-        result = execute_rag_reindex(
-            RagReindexCommand(
+        result = execute_rag_reindex_command(
+            actor_id=actor_id,
+            cmd=RagReindexCommand(
                 doc_id=schema.doc_id,
                 json_gcs_uri=schema.json_gcs_uri,
                 account_id=schema.account_id,
@@ -40,7 +42,7 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
                 workspace_id=schema.workspace_id,
                 filename=schema.filename,
                 page_count=schema.page_count,
-            )
+            ),
         )
         return {
             "account_scope": result.account_id,
@@ -58,16 +60,26 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
             str(exc),
         ) from exc
-    except https_fn.HttpsError:
-        raise
+    except PermissionError as exc:
+        code = (
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED
+            if "登入" in str(exc)
+            else https_fn.FunctionsErrorCode.PERMISSION_DENIED
+        )
+        raise https_fn.HttpsError(code, str(exc)) from exc
+    except RuntimeError as exc:
+        logger.exception(
+            "rag_reindex_document failed for %s: %s", schema.doc_id, exc
+        )
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            "rag_reindex_document 失敗",
+        ) from exc
     except Exception as exc:
         logger.exception(
             "rag_reindex_document failed for %s: %s", schema.doc_id, exc
         )
-        status_gateway.record_rag_error(
-            schema.doc_id, str(exc)[:200], account_id=schema.account_id
-        )
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INTERNAL,
-            f"rag_reindex_document 失敗：{str(exc)[:200]}",
+            "rag_reindex_document 失敗",
         ) from exc

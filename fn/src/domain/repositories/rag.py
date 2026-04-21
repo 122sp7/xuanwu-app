@@ -155,6 +155,12 @@ class DocumentArtifactGateway(Protocol):
     def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
 
 
+class AuthorizationGateway(Protocol):
+    def assert_actor_can_access_account(self, *, actor_id: str, account_id: str) -> None: ...
+
+    def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str) -> None: ...
+
+
 class DocumentPipelineGateway(
     DocumentParserGateway,
     DocumentRateLimitGateway,
@@ -172,6 +178,7 @@ _document_rate_limit_gateway: DocumentRateLimitGateway | None = None
 _document_status_gateway: DocumentStatusGateway | None = None
 _document_artifact_gateway: DocumentArtifactGateway | None = None
 _document_pipeline_gateway: DocumentPipelineGateway | None = None
+_authorization_gateway: AuthorizationGateway | None = None
 
 
 def register_rag_query_gateway(gateway: RagQueryGateway) -> None:
@@ -238,6 +245,17 @@ def get_document_artifact_gateway() -> DocumentArtifactGateway:
     if _document_artifact_gateway is None:
         raise RuntimeError("DocumentArtifactGateway is not registered")
     return _document_artifact_gateway
+
+
+def register_authorization_gateway(gateway: AuthorizationGateway) -> None:
+    global _authorization_gateway
+    _authorization_gateway = gateway
+
+
+def get_authorization_gateway() -> AuthorizationGateway:
+    if _authorization_gateway is None:
+        raise RuntimeError("AuthorizationGateway is not registered")
+    return _authorization_gateway
 
 
 def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None:

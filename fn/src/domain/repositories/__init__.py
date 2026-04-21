@@ -1,6 +1,7 @@
 """Domain repository contracts."""
 
 from domain.repositories.rag import (
+    AuthorizationGateway,
     DocumentArtifactGateway,
     DocumentPipelineGateway,
     DocumentParserGateway,
@@ -8,6 +9,7 @@ from domain.repositories.rag import (
     DocumentStatusGateway,
     RagIngestionGateway,
     RagQueryGateway,
+    get_authorization_gateway,
     get_document_artifact_gateway,
     get_document_pipeline_gateway,
     get_document_parser_gateway,
@@ -15,6 +17,7 @@ from domain.repositories.rag import (
     get_document_status_gateway,
     get_rag_ingestion_gateway,
     get_rag_query_gateway,
+    register_authorization_gateway,
     register_document_artifact_gateway,
     register_document_pipeline_gateway,
     register_document_parser_gateway,
@@ -25,6 +28,7 @@ from domain.repositories.rag import (
 )
 
 __all__ = [
+    "AuthorizationGateway",
     "DocumentArtifactGateway",
     "DocumentPipelineGateway",
     "DocumentParserGateway",
@@ -32,6 +36,7 @@ __all__ = [
     "DocumentStatusGateway",
     "RagIngestionGateway",
     "RagQueryGateway",
+    "get_authorization_gateway",
     "get_document_artifact_gateway",
     "get_document_pipeline_gateway",
     "get_document_parser_gateway",
@@ -39,6 +44,7 @@ __all__ = [
     "get_document_status_gateway",
     "get_rag_ingestion_gateway",
     "get_rag_query_gateway",
+    "register_authorization_gateway",
     "register_document_artifact_gateway",
     "register_document_pipeline_gateway",
     "register_document_parser_gateway",
