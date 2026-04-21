@@ -22,7 +22,16 @@ interface NotebooklmResearchSectionProps {
 }
 
 function taskFormationHref(accountId: string, workspaceId: string) {
-  return `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=TaskFormation`;
+  const params = new URLSearchParams({
+    tab: "TaskFormation",
+    sourceKind: "research",
+    sourceId: "latest",
+  });
+  return `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?${params.toString()}`;
+}
+
+function getResearchCacheKey(accountId: string, workspaceId: string): string {
+  return `xuanwu:task-formation:research:${accountId}:${workspaceId}`;
 }
 
 export function NotebooklmResearchSection({
@@ -42,6 +51,7 @@ export function NotebooklmResearchSection({
           workspaceId,
         })) as RagQueryOutput;
         setResult(output);
+        window.localStorage.setItem(getResearchCacheKey(accountId, workspaceId), output.answer);
       } catch {
         setError("合成失敗，請確認已上傳來源文件並完成向量索引後再試。");
       }

@@ -55,6 +55,10 @@ type ConcreteSource = {
   readonly sourceText?: string;
 };
 
+function getResearchCacheKey(accountId: string, workspaceId: string): string {
+  return `xuanwu:task-formation:research:${accountId}:${workspaceId}`;
+}
+
 const PIPELINE_STAGES = [
   { label: "需求收集", color: "bg-blue-500/20 text-blue-600 border-blue-500/30" },
   { label: "評估分析", color: "bg-purple-500/20 text-purple-600 border-purple-500/30" },
@@ -75,7 +79,7 @@ function buildPageSource(page: PageSnapshot): ConcreteSource {
     kind: "page",
     title: page.title,
     description: page.summary ?? "尚未提供摘要，將以頁面標題與來源脈絡作為任務形成輸入。",
-    sourceText: parts.join("\n"),
+    sourceText: page.sourceText?.trim() || parts.join("\n"),
   };
 }
 
@@ -95,7 +99,7 @@ function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<Pa
     kind: "database",
     title: database.title,
     description: database.description ?? `共有 ${database.properties.length} 個欄位可供任務形成使用。`,
-    sourceText: parts.join("\n"),
+    sourceText: database.sourceText?.trim() || parts.join("\n"),
   };
 }
 
@@ -116,6 +120,7 @@ export function WorkspaceTaskFormationSection({
   const [jobId, setJobId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmedCount, setConfirmedCount] = useState(0);
+  const [researchSourceText, setResearchSourceText] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
@@ -147,10 +152,27 @@ export function WorkspaceTaskFormationSection({
     };
   }, [accountId, workspaceId]);
 
+  useEffect(() => {
+    const cached = window.localStorage.getItem(getResearchCacheKey(accountId, workspaceId)) ?? "";
+    setResearchSourceText(cached);
+  }, [accountId, workspaceId]);
+
   const pageSources = useMemo(() => pages.map(buildPageSource), [pages]);
   const databaseSources = useMemo(
     () => databases.map((database) => buildDatabaseSource(database, pages)),
     [databases, pages],
+  );
+  const researchSources = useMemo<ConcreteSource[]>(
+    () => (researchSourceText.trim().length > 0
+      ? [{
+          id: "latest",
+          kind: "research",
+          title: "最新 AI 研究摘要",
+          description: `${researchSourceText.trim().slice(0, 120)}${researchSourceText.length > 120 ? "…" : ""}`,
+          sourceText: researchSourceText.trim(),
+        }]
+      : []),
+    [researchSourceText],
   );
 
   const availableConcreteSources = useMemo(
@@ -158,13 +180,17 @@ export function WorkspaceTaskFormationSection({
       ? pageSources
       : selectedSource === "database"
         ? databaseSources
-        : []),
-    [databaseSources, pageSources, selectedSource],
+        : selectedSource === "research"
+          ? researchSources
+          : []),
+    [databaseSources, pageSources, researchSources, selectedSource],
   );
 
+  const resolvedReferenceId = selectedReferenceId
+    ?? (availableConcreteSources.length === 1 ? availableConcreteSources[0]?.id ?? null : null);
   const selectedConcreteSource = useMemo(
-    () => availableConcreteSources.find((source) => source.id === selectedReferenceId) ?? null,
-    [availableConcreteSources, selectedReferenceId],
+    () => availableConcreteSources.find((source) => source.id === resolvedReferenceId) ?? null,
+    [availableConcreteSources, resolvedReferenceId],
   );
 
   const sources = [
@@ -219,11 +245,11 @@ export function WorkspaceTaskFormationSection({
 
   function handleExtract() {
     if (!selectedSource || !currentUserId) return;
-    if ((selectedSource === "page" || selectedSource === "database") && !selectedConcreteSource) return;
+    if (!selectedConcreteSource) return;
     setPhase("extracting");
     setErrorMessage(null);
     startTransition(async () => {
-      const sourceIds = selectedConcreteSource ? [selectedConcreteSource.id] : [selectedSource];
+      const sourceIds = [selectedConcreteSource.id];
       const result = await startExtractionAction({
         workspaceId,
         actorId: currentUserId,
@@ -278,7 +304,7 @@ export function WorkspaceTaskFormationSection({
 
   const extractDisabled = !currentUserId
     || !selectedSource
-    || ((selectedSource === "page" || selectedSource === "database") && !selectedConcreteSource);
+    || !selectedConcreteSource;
 
   return (
     <div className="space-y-5">
@@ -364,17 +390,19 @@ export function WorkspaceTaskFormationSection({
             </div>
           </div>
 
-          {(selectedSource === "page" || selectedSource === "database") && (
+          {(selectedSource === "page" || selectedSource === "database" || selectedSource === "research") && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">選定具體來源</p>
               {availableConcreteSources.length === 0 ? (
                 <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-4 text-sm text-muted-foreground">
-                  目前沒有可用的{selectedSource === "page" ? "頁面" : "資料庫"}，請先建立來源後再回來。
+                  {selectedSource === "research"
+                    ? "目前沒有可用的研究摘要，請先到 Research 分頁執行研究合成後再回來。"
+                    : `目前沒有可用的${selectedSource === "page" ? "頁面" : "資料庫"}，請先建立來源後再回來。`}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {availableConcreteSources.map((source) => {
-                    const isActive = selectedReferenceId === source.id;
+                    const isActive = resolvedReferenceId === source.id;
                     return (
                       <button
                         key={source.id}

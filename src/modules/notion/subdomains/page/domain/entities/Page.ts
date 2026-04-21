@@ -12,6 +12,8 @@ export interface PageSnapshot {
   readonly title: string;
   readonly summary?: string;
   readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly slug: string;
   readonly parentPageId: string | null;
   readonly order: number;
@@ -31,6 +33,8 @@ export interface CreatePageInput {
   readonly title: string;
   readonly summary?: string;
   readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly parentPageId?: string | null;
   readonly createdByUserId: string;
   readonly order?: number;
@@ -54,13 +58,15 @@ export class Page {
     const page = new Page({
       id: uuid(),
       accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      summary: input.summary?.trim() || undefined,
-      sourceLabel: input.sourceLabel?.trim() || undefined,
-      slug: slugify(input.title),
-      parentPageId: input.parentPageId ?? null,
-      order: input.order ?? 0,
+        workspaceId: input.workspaceId,
+        title: input.title,
+        summary: input.summary?.trim() || undefined,
+        sourceLabel: input.sourceLabel?.trim() || undefined,
+        sourceDocumentId: input.sourceDocumentId?.trim() || undefined,
+        sourceText: input.sourceText?.trim() || undefined,
+        slug: slugify(input.title),
+        parentPageId: input.parentPageId ?? null,
+        order: input.order ?? 0,
       blockIds: [],
       status: "active",
       ownerId: input.createdByUserId,
@@ -115,6 +121,8 @@ export class Page {
   get title(): string { return this._props.title; }
   get summary(): string | undefined { return this._props.summary; }
   get sourceLabel(): string | undefined { return this._props.sourceLabel; }
+  get sourceDocumentId(): string | undefined { return this._props.sourceDocumentId; }
+  get sourceText(): string | undefined { return this._props.sourceText; }
   get slug(): string { return this._props.slug; }
   get status(): PageStatus { return this._props.status; }
   get blockIds(): readonly string[] { return this._props.blockIds; }

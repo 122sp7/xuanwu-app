@@ -21,12 +21,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  createWorkspaceKnowledgeDatabase,
+  createWorkspaceKnowledgePage,
+} from "@/src/modules/notion";
 
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
   registerUploadedDocumentAction,
-  createPageFromDocumentAction,
-  createDatabaseFromDocumentAction,
   parseDocumentAction,
   reindexDocumentAction,
 } from "../server-actions/document-actions";
@@ -35,10 +37,12 @@ import {
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
+import { buildDocumentArtifactContext } from "./document-artifact-utils";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId: string;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -81,6 +85,7 @@ interface DocActionState {
 export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
+  currentUserId,
 }: NotebooklmSourcesSectionProps): React.ReactElement {
   const [documents, setDocuments] = useState<IngestionSourceSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -307,14 +312,22 @@ export function NotebooklmSourcesSection({
   const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
-      const result = await createPageFromDocumentAction({
+      const artifactContext = await buildDocumentArtifactContext(doc);
+      const result = await createWorkspaceKnowledgePage({
         accountId,
         workspaceId,
-        documentId: doc.id,
-        documentTitle: doc.name,
+        title: doc.name,
+        summary: artifactContext.pageSummary,
+        sourceLabel: artifactContext.pageSourceLabel,
+        sourceDocumentId: doc.id,
+        sourceText: artifactContext.pageSourceText,
+        createdByUserId: currentUserId,
       });
-      const href = result?.pageHref;
-      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: href ?? undefined });
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+      const href = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=Pages&sourceId=${encodeURIComponent(result.aggregateId)}`;
+      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: href });
     } catch (err) {
       setDocAction(doc.id, { page: "error", message: err instanceof Error ? err.message : "建立頁面失敗" });
     }
@@ -323,13 +336,22 @@ export function NotebooklmSourcesSection({
   const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
-      await createDatabaseFromDocumentAction({
+      const artifactContext = await buildDocumentArtifactContext(doc);
+      const result = await createWorkspaceKnowledgeDatabase({
         accountId,
         workspaceId,
-        documentTitle: doc.name,
+        title: doc.name,
+        description: artifactContext.databaseDescription,
+        sourceDocumentId: doc.id,
+        sourceText: artifactContext.databaseSourceText,
+        createdByUserId: currentUserId,
+        properties: artifactContext.databaseProperties,
       });
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
       const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
-      setDocAction(doc.id, { database: "done", message: "資料庫已建立", databaseHref: `${base}?tab=Database` });
+      setDocAction(doc.id, { database: "done", message: "資料庫已建立", databaseHref: `${base}?tab=Database&sourceId=${encodeURIComponent(result.aggregateId)}` });
     } catch (err) {
       setDocAction(doc.id, { database: "error", message: err instanceof Error ? err.message : "建立資料庫失敗" });
     }
