@@ -8,8 +8,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from firebase_functions import https_fn
 import firebase_admin.firestore as fb_firestore
+from firebase_functions import https_fn
+
+from core.storage_uri import parse_gs_uri
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +94,4 @@ def _to_bool(raw_value: Any, default_value: bool) -> bool:
 
 
 def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
-    if not gs_uri.startswith("gs://"):
-        raise ValueError("gcs uri must start with gs://")
-    path_part = gs_uri.split("gs://", 1)[1]
-    if "/" not in path_part:
-        raise ValueError("gcs uri must include object path")
-    bucket_name, object_path = path_part.split("/", 1)
-    return bucket_name, object_path
+    return parse_gs_uri(gs_uri)

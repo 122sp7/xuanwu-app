@@ -14,6 +14,7 @@ from firebase_functions import https_fn
 
 from application.services.document_pipeline import get_document_status_gateway
 from application.use_cases.parse_document_pipeline import ParseDocumentCommand, execute_parse_document
+from core.storage_uri import parse_gs_uri
 from interface.schemas.parse_document import ParseDocumentRequest
 
 logger = logging.getLogger(__name__)
@@ -34,13 +35,13 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             str(exc),
         ) from exc
 
-    path_part = schema.gcs_uri.split("gs://", 1)[1]
-    if "/" not in path_part:
+    try:
+        bucket_name, object_path = parse_gs_uri(schema.gcs_uri)
+    except ValueError as exc:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "gcs_uri must include object path after bucket name",
-        )
-    bucket_name, object_path = path_part.split("/", 1)
+            str(exc),
+        ) from exc
 
     logger.info("parse_document callable: %s → doc_id=%s", schema.gcs_uri, schema.doc_id)
 

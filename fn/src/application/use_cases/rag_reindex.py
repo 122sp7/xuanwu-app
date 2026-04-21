@@ -17,17 +17,8 @@ from application.services.document_pipeline import (
     get_document_status_gateway,
 )
 from application.use_cases.rag_ingestion import ingest_document_for_rag
+from core.storage_uri import parse_gs_uri
 from domain.repositories import DocumentArtifactGateway, DocumentStatusGateway
-
-
-def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
-    if not gs_uri.startswith("gs://"):
-        raise ValueError("gcs uri must start with gs://")
-    path_part = gs_uri.split("gs://", 1)[1]
-    if "/" not in path_part:
-        raise ValueError("gcs uri must include object path")
-    bucket_name, object_path = path_part.split("/", 1)
-    return bucket_name, object_path
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +67,7 @@ def execute_rag_reindex(
     artifact_gateway = artifact_gateway or get_document_artifact_gateway()
     status_gateway = status_gateway or get_document_status_gateway()
 
-    bucket_name, object_path = _parse_gs_uri(cmd.json_gcs_uri)
+    bucket_name, object_path = parse_gs_uri(cmd.json_gcs_uri)
     json_bytes = artifact_gateway.download_bytes(
         bucket_name=bucket_name,
         object_path=object_path,
