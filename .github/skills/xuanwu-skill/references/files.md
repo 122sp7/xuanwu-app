@@ -1,77 +1,5 @@
 # Files
 
-## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
-````typescript
-/**
- * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
- *
- * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a DatabaseSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/database/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import type { DatabaseSnapshot } from "../../../domain/entities/Database";
-import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
-⋮----
-export class FirestoreDatabaseRepository implements DatabaseRepository
-⋮----
-async save(snapshot: DatabaseSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<DatabaseSnapshot | null>
-⋮----
-async findByPageId(pageId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
-````
-
-## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
-````typescript
-/**
- * FirestorePageRepository — Firestore adapter for the page subdomain.
- *
- * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a PageSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/page/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
-⋮----
-export class FirestorePageRepository implements PageRepository
-⋮----
-async save(snapshot: PageSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<PageSnapshot | null>
-⋮----
-async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
-⋮----
-async findChildren(parentPageId: string): Promise<PageSnapshot[]>
-⋮----
-async query(params: PageQuery): Promise<PageSnapshot[]>
-⋮----
-// Build equality constraints — no composite index required for equality-only filters.
-⋮----
-async delete(id: string): Promise<void>
-````
-
 ## File: .github/copilot-instructions.md
 ````markdown
 ---
@@ -10572,77 +10500,11 @@ Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 
 ## File: fn/src/app/container/runtime_dependencies.py
 ````python
-logger = logging.getLogger(__name__)
-⋮----
-class InfraRagQueryGateway
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-⋮----
-class InfraRagIngestionGateway
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
-⋮----
-def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any
-⋮----
-def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int
-⋮----
-def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None
-⋮----
-class InfraDocumentPipelineGateway
-⋮----
-@staticmethod
-    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
-⋮----
-@staticmethod
-    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
-⋮----
-lines = [line.strip() for line in text.splitlines() if line.strip()]
-⋮----
-chunks: list[dict[str, Any]] = []
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
-⋮----
-# Genkit-AI parse uses OCR text as the canonical source for scanned PDFs.
-⋮----
-# parser == "layout" (default)
-layout_parsed = process_document_gcs(
-⋮----
-fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
-⋮----
-fallback_parsed = process_document_gcs(
-fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
-# Layout path may return [] when processor yields no semantic chunks.
-fallback_chunks = (
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def layout_json_path(self, upload_object_path: str) -> str
-⋮----
-def form_json_path(self, upload_object_path: str) -> str
-⋮----
-def ocr_json_path(self, upload_object_path: str) -> str
-⋮----
-def genkit_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+"""Dependency registration — thin composer wiring gateways into the registry.
+
+Each gateway implementation lives in its own module under
+infrastructure/gateways/ following SRP. This file only wires them.
+"""
 ⋮----
 def register_runtime_dependencies() -> None
 ````
@@ -10764,9 +10626,18 @@ __all__ = [
 
 ````
 
+## File: fn/src/application/services/authorization.py
+````python
+def get_authorization() -> AuthorizationGateway
+````
+
 ## File: fn/src/application/services/document_pipeline.py
 ````python
-def get_document_pipeline() -> DocumentPipelineGateway
+def get_document_parser() -> DocumentParserGateway
+⋮----
+def get_document_artifact_gateway() -> DocumentArtifactGateway
+⋮----
+def get_document_status_gateway() -> DocumentStatusGateway
 ````
 
 ## File: fn/src/application/use_cases/__init__.py
@@ -10774,6 +10645,107 @@ def get_document_pipeline() -> DocumentPipelineGateway
 """Application use cases."""
 ⋮----
 __all__ = [
+````
+
+## File: fn/src/application/use_cases/parse_document_command.py
+````python
+"""Authorized command wrapper for parse-document callable entry."""
+⋮----
+auth_gateway = auth_gateway or get_authorization()
+status_gateway = status_gateway or get_document_status_gateway()
+````
+
+## File: fn/src/application/use_cases/parse_document_pipeline.py
+````python
+"""
+Parse-document application use case.
+
+Orchestrates the full parse pipeline for a single document:
+    init Firestore → Document AI parse → write JSON artifact to GCS
+    → update Firestore state → (optionally) ingest into RAG index.
+
+Both the HTTPS Callable handler and the Storage trigger handler
+delegate to this use case, keeping interface-layer files thin.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+class ParsedDocumentLike(Protocol)
+⋮----
+text: str
+page_count: int
+chunks: list[dict[str, Any]]
+entities: list[dict[str, Any]]
+⋮----
+@dataclass
+class ParseDocumentCommand
+⋮----
+"""Input contract for the parse-document use case."""
+⋮----
+doc_id: str
+gcs_uri: str
+bucket_name: str
+object_path: str
+filename: str
+size_bytes: int
+mime_type: str
+account_id: str
+workspace_id: str
+parser: str = "layout"   # "layout" | "ocr" | "form" | "genkit"
+run_rag: bool = True
+⋮----
+@dataclass
+class ParseDocumentResult
+⋮----
+"""Output contract for the parse-document use case."""
+⋮----
+parser: str
+⋮----
+extraction_ms: int
+json_gcs_uri: str
+rag_chunk_count: int | None = None
+rag_vector_count: int | None = None
+⋮----
+"""Orchestrate the full parse pipeline for a single document.
+
+    Raises:
+        Exception: propagated from DocumentAI / GCS / Firestore calls;
+                   callers are responsible for error recording.
+    """
+parser_gateway = parser_gateway or get_document_parser()
+artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+status_gateway = status_gateway or get_document_status_gateway()
+⋮----
+start_time = time.time()
+parsed = parser_gateway.process_document_gcs(
+extraction_ms = int((time.time() - start_time) * 1000)
+⋮----
+json_gcs_uri = _write_artifact_and_update_state(
+⋮----
+layout_chunks = parsed.chunks if cmd.parser == "layout" else None
+⋮----
+rag = ingest_for_rag(
+⋮----
+rag_chunk_count = rag.chunk_count
+rag_vector_count = rag.vector_count
+⋮----
+"""Write the JSON artifact to GCS and update the Firestore state field.
+
+    Returns the GCS URI of the written artifact.
+    """
+base = {
+⋮----
+json_path = artifact_gateway.layout_json_path(cmd.object_path)
+data = {**base, "text": parsed.text, "chunk_count": len(parsed.chunks), "chunks": parsed.chunks}
+json_gcs_uri = artifact_gateway.upload_json(
+⋮----
+json_path = artifact_gateway.ocr_json_path(cmd.object_path)
+data = {
+⋮----
+json_path = artifact_gateway.form_json_path(cmd.object_path)
+⋮----
+# "genkit"
+json_path = artifact_gateway.genkit_json_path(cmd.object_path)
 ````
 
 ## File: fn/src/application/use_cases/rag_ingestion.py
@@ -10806,6 +10778,14 @@ normalization_version = "layout-v1"
 base_chunks = chunk_text(
 chunking_strategy = "char-split-v2"
 normalization_version = "v2"
+⋮----
+# ── 刪除舊向量（冪等保護：先清除再 upsert，防止 orphan chunks）──────────
+# 失敗時僅警告，不中斷 ingestion：向量索引的舊資料頂多造成 stale 結果，
+# 而中斷 ingestion 會讓文件永遠無法被查詢，危害更大。
+⋮----
+deleted = gateway.delete_vectors_by_doc(doc_id=doc_id, namespace=RAG_VECTOR_NAMESPACE)
+⋮----
+except Exception as del_exc:  # noqa: BLE001  — best-effort; ingestion must proceed
 ⋮----
 texts = [item["text"] for item in base_chunks]
 vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
@@ -10874,6 +10854,86 @@ answer = gateway.generate_answer(query=request.query, context_block=context_bloc
 result = RagQueryResult(
 ````
 
+## File: fn/src/application/use_cases/rag_reindex_command.py
+````python
+"""Authorized command wrapper for rag-reindex callable entry."""
+⋮----
+auth_gateway = auth_gateway or get_authorization()
+status_gateway = status_gateway or get_document_status_gateway()
+````
+
+## File: fn/src/application/use_cases/rag_reindex.py
+````python
+"""
+RAG reindex application use case.
+
+Downloads the layout JSON artifact from GCS, enriches missing fields,
+then re-runs the RAG ingestion pipeline and marks the document ready.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+@dataclass
+class RagReindexCommand
+⋮----
+"""Input contract for the rag-reindex use case."""
+⋮----
+doc_id: str
+json_gcs_uri: str
+account_id: str
+# Optional fields — enriched from the stored JSON artifact when absent.
+source_gcs_uri: str = ""
+workspace_id: str = ""
+filename: str = ""
+page_count: int = 0
+⋮----
+@dataclass
+class RagReindexResult
+⋮----
+"""Output contract for the rag-reindex use case."""
+⋮----
+chunk_count: int
+vector_count: int
+raw_chars: int
+normalized_chars: int
+normalization_version: str
+language_hint: str
+⋮----
+"""Download the layout JSON, enrich fields, re-ingest into RAG index.
+
+    Raises:
+        ValueError: when required fields are absent from both cmd and the stored JSON.
+        Exception:  propagated from GCS / embedding / vector calls.
+    """
+artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+status_gateway = status_gateway or get_document_status_gateway()
+⋮----
+json_bytes = artifact_gateway.download_bytes(
+payload: dict = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
+⋮----
+text = str(payload.get("text", "")).strip()
+⋮----
+source_gcs_uri = cmd.source_gcs_uri or str(payload.get("source_gcs_uri", "")).strip()
+⋮----
+workspace_id = cmd.workspace_id
+⋮----
+workspace_id = str(payload.get("workspace_id", "")).strip()
+⋮----
+workspace_id = str((payload.get("metadata") or {}).get("space_id", "")).strip()
+⋮----
+filename = cmd.filename
+⋮----
+filename = (
+⋮----
+page_count = cmd.page_count
+⋮----
+page_count = int(payload.get("page_count", 0) or 0)
+⋮----
+layout_chunks: list[dict] | None = payload.get("chunks") or None
+⋮----
+rag = ingest_for_rag(
+````
+
 ## File: fn/src/application/__init__.py
 ````python
 
@@ -10882,6 +10942,17 @@ result = RagQueryResult(
 ## File: fn/src/core/__init__.py
 ````python
 
+````
+
+## File: fn/src/core/auth_errors.py
+````python
+class UnauthenticatedError(PermissionError)
+⋮----
+"""Raised when a callable command requires an authenticated actor."""
+⋮----
+class AuthorizationError(PermissionError)
+⋮----
+"""Raised when an actor lacks access to the requested scope."""
 ````
 
 ## File: fn/src/core/config.py
@@ -10961,6 +11032,13 @@ RAG_DOC_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_DOC_CACHE_TTL_SECONDS",
 RAG_REDIS_PREFIX: str = os.environ.get("RAG_REDIS_PREFIX", "rag").strip()
 ````
 
+## File: fn/src/core/storage_uri.py
+````python
+def parse_gs_uri(gs_uri: str) -> tuple[str, str]
+⋮----
+path_part = gs_uri.split("gs://", 1)[1]
+````
+
 ## File: fn/src/domain/events/__init__.py
 ````python
 
@@ -11006,13 +11084,21 @@ def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int: ...
 ⋮----
 def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None: ...
 ⋮----
-class DocumentPipelineGateway(Protocol)
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int: ...
+⋮----
+class DocumentParserGateway(Protocol)
 ⋮----
 def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
+⋮----
+class DocumentRateLimitGateway(Protocol)
+⋮----
+class DocumentStatusGateway(Protocol)
 ⋮----
 def record_error(self, doc_id: str, message: str, account_id: str) -> None: ...
 ⋮----
 def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
+⋮----
+class DocumentArtifactGateway(Protocol)
 ⋮----
 def parsed_json_path(self, upload_object_path: str) -> str: ...
 ⋮----
@@ -11028,9 +11114,25 @@ def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any
 ⋮----
 def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
 ⋮----
+class AuthorizationGateway(Protocol)
+⋮----
+def assert_actor_can_access_account(self, *, actor_id: str, account_id: str) -> None: ...
+⋮----
+def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str) -> None: ...
+⋮----
+class DocumentPipelineGateway(
+⋮----
+"""Backward-compatible composite port built from the split document ports."""
+⋮----
 _rag_query_gateway: RagQueryGateway | None = None
 _rag_ingestion_gateway: RagIngestionGateway | None = None
+_document_parser_gateway: DocumentParserGateway | None = None
+_document_rate_limit_gateway: DocumentRateLimitGateway | None = None
+_document_status_gateway: DocumentStatusGateway | None = None
+_document_artifact_gateway: DocumentArtifactGateway | None = None
 _document_pipeline_gateway: DocumentPipelineGateway | None = None
+_authorization_gateway: AuthorizationGateway | None = None
+_composed_document_pipeline_gateway: DocumentPipelineGateway | None = None
 ⋮----
 def register_rag_query_gateway(gateway: RagQueryGateway) -> None
 ⋮----
@@ -11044,11 +11146,81 @@ _rag_ingestion_gateway = gateway
 ⋮----
 def get_rag_ingestion_gateway() -> RagIngestionGateway
 ⋮----
+def register_document_parser_gateway(gateway: DocumentParserGateway) -> None
+⋮----
+_document_parser_gateway = gateway
+⋮----
+def get_document_parser_gateway() -> DocumentParserGateway
+⋮----
+def register_document_rate_limit_gateway(gateway: DocumentRateLimitGateway) -> None
+⋮----
+_document_rate_limit_gateway = gateway
+⋮----
+def get_document_rate_limit_gateway() -> DocumentRateLimitGateway
+⋮----
+def register_document_status_gateway(gateway: DocumentStatusGateway) -> None
+⋮----
+_document_status_gateway = gateway
+⋮----
+def get_document_status_gateway() -> DocumentStatusGateway
+⋮----
+def register_document_artifact_gateway(gateway: DocumentArtifactGateway) -> None
+⋮----
+_document_artifact_gateway = gateway
+⋮----
+def get_document_artifact_gateway() -> DocumentArtifactGateway
+⋮----
+def register_authorization_gateway(gateway: AuthorizationGateway) -> None
+⋮----
+_authorization_gateway = gateway
+⋮----
+def get_authorization_gateway() -> AuthorizationGateway
+⋮----
 def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None
 ⋮----
 _document_pipeline_gateway = gateway
 ⋮----
+class _ComposedDocumentPipelineGateway
+⋮----
+"""Legacy compatibility facade over the split document ports."""
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
+⋮----
+def init_document(self, **kwargs: Any) -> None
+⋮----
+def update_parsed(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_layout(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_form(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_ocr(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_genkit(self, **kwargs: Any) -> None
+⋮----
+def mark_rag_ready(self, **kwargs: Any) -> None
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+⋮----
 def get_document_pipeline_gateway() -> DocumentPipelineGateway
+⋮----
+_composed_document_pipeline_gateway = _ComposedDocumentPipelineGateway()
 ````
 
 ## File: fn/src/domain/services/__init__.py
@@ -11872,6 +12044,32 @@ metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {
 ⋮----
 index = get_search_index()
 ⋮----
+def delete_search_documents_by_doc(doc_id: str) -> int
+⋮----
+"""刪除屬於指定 doc_id 的所有搜尋索引文件（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Search SDK 的 prefix delete，與 vector 刪除搭配使用，
+    確保 Upstash Search 與 Upstash Vector 的資料一致性。
+
+    Args:
+        doc_id: 文件識別碼，對應 search doc ID 格式 ``{doc_id}:{i:04d}``。
+
+    Returns:
+        int: 實際刪除的文件數量（0 表示無資料、未設定或操作失敗）。
+    """
+⋮----
+prefix = f"{doc_id}:"
+⋮----
+result = index.delete(prefix=prefix)
+⋮----
+deleted = result
+⋮----
+deleted = int(result.deleted or 0)
+⋮----
+deleted = int(result.get("deleted", 0))
+⋮----
+deleted = 0
+⋮----
 def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]
 ⋮----
 """
@@ -11918,7 +12116,10 @@ candidates = payload
 ## File: fn/src/infrastructure/external/upstash/vector_client.py
 ````python
 """
-Upstash Vector 客戶端 — 向量 upsert / query 操作。
+Upstash Vector 客戶端 — 向量 upsert / query / delete 操作。
+
+Chunk ID 命名慣例：``{doc_id}:{i:04d}``，其中 ``:`` 為分隔符。
+``delete_vectors_by_doc`` 使用 prefix ``{doc_id}:`` 刪除同份文件的所有 chunk 向量。
 """
 ⋮----
 _VECTOR_INDEX: Any | None = None
@@ -11950,6 +12151,33 @@ index = get_vector_index()
 sdk_payload = [
 tuples_payload = [
 ⋮----
+def delete_vectors_by_doc(doc_id: str, namespace: str = "") -> int
+⋮----
+"""刪除屬於指定 doc_id 的所有向量（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Vector SDK 的 prefix delete，一次清除整份文件的所有 chunk
+    向量，避免重新索引後留下孤立 (orphan) chunk 資料。
+
+    Args:
+        doc_id:    文件識別碼，對應 chunk ID 格式 ``{doc_id}:{i:04d}``。
+        namespace: Upstash Vector 命名空間（與 upsert 時一致）。
+
+    Returns:
+        int: 實際刪除的向量數量（0 表示無向量或操作失敗）。
+    """
+⋮----
+prefix = f"{doc_id}:"
+⋮----
+result = index.delete(prefix=prefix, namespace=namespace)
+⋮----
+deleted = result
+⋮----
+deleted = int(result.deleted or 0)
+⋮----
+deleted = int(result.get("deleted", 0))
+⋮----
+deleted = 0
+⋮----
 """查詢 Upstash Vector，統一輸出為 list[dict]。"""
 ⋮----
 result = index.query(
@@ -11962,6 +12190,149 @@ candidates = result.get("result") or result.get("matches") or result.get("data")
 ## File: fn/src/infrastructure/external/__init__.py
 ````python
 
+````
+
+## File: fn/src/infrastructure/gateways/__init__.py
+````python
+
+````
+
+## File: fn/src/infrastructure/gateways/authorization_gateway.py
+````python
+"""Infrastructure implementation of AuthorizationGateway."""
+⋮----
+class FirestoreAuthorizationGateway
+⋮----
+def assert_actor_can_access_account(self, *, actor_id: str, account_id: str) -> None
+⋮----
+db = fb_firestore.client()
+snap = db.collection("accounts").document(account_id).get()
+⋮----
+data = snap.to_dict() or {}
+owner_id = str(data.get("ownerId", "")).strip()
+member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
+member_set = {str(item or "").strip() for item in member_ids}
+⋮----
+def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str) -> None
+⋮----
+snap = db.collection("workspaces").document(workspace_id).get()
+⋮----
+bound_account_id = str(data.get("accountId", "")).strip()
+````
+
+## File: fn/src/infrastructure/gateways/document_artifact_gateway.py
+````python
+"""Infrastructure implementation of DocumentArtifactGateway."""
+⋮----
+class InfraDocumentArtifactGateway
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+````
+
+## File: fn/src/infrastructure/gateways/document_parser_gateway.py
+````python
+"""Infrastructure implementation of DocumentParserGateway."""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+class InfraDocumentParserGateway
+⋮----
+@staticmethod
+    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
+⋮----
+@staticmethod
+    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
+⋮----
+lines = [line.strip() for line in text.splitlines() if line.strip()]
+⋮----
+layout_parsed = process_document_gcs(
+⋮----
+fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
+⋮----
+fallback_parsed = process_document_gcs(
+fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
+fallback_chunks = (
+````
+
+## File: fn/src/infrastructure/gateways/document_rate_limit_gateway.py
+````python
+"""Infrastructure implementation of DocumentRateLimitGateway."""
+⋮----
+class InfraDocumentRateLimitGateway
+````
+
+## File: fn/src/infrastructure/gateways/document_status_gateway.py
+````python
+"""Infrastructure implementation of DocumentStatusGateway."""
+⋮----
+class InfraDocumentStatusGateway
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+````
+
+## File: fn/src/infrastructure/gateways/rag_ingestion_gateway.py
+````python
+"""Infrastructure implementation of RagIngestionGateway.
+
+Handles embedding generation, vector/search upsert, Redis metadata
+writes, and stale-vector cleanup — all delegated to focused clients.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+class InfraRagIngestionGateway
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+⋮----
+def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any
+⋮----
+def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int
+⋮----
+def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None
+⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
+⋮----
+deleted_vec = _delete_vectors_by_doc(doc_id=doc_id, namespace=namespace)
+deleted_search = _delete_search_documents_by_doc(doc_id=doc_id)
+````
+
+## File: fn/src/infrastructure/gateways/rag_query_gateway.py
+````python
+"""Infrastructure implementation of RagQueryGateway.
+
+Aggregates cache, vector/search retrieval, LLM answer generation,
+and audit publication — all delegated to focused infrastructure clients.
+"""
+⋮----
+class InfraRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
 ````
 
 ## File: fn/src/infrastructure/persistence/firestore/__init__.py
@@ -12270,8 +12641,6 @@ def _to_bool(raw_value: Any, default_value: bool) -> bool
 raw = str(raw_value or "").strip().lower()
 ⋮----
 def _parse_gs_uri(gs_uri: str) -> tuple[str, str]
-⋮----
-path_part = gs_uri.split("gs://", 1)[1]
 ````
 
 ## File: fn/src/interface/handlers/https.py
@@ -12296,7 +12665,8 @@ __all__ = [
 HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
 
 Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
-before any application-layer call.
+before any application-layer call.  All pipeline orchestration is delegated
+to the parse_document_pipeline use case.
 """
 ⋮----
 logger = logging.getLogger(__name__)
@@ -12309,42 +12679,9 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict
     All external input is validated through ParseDocumentRequest before
     reaching the application layer (Rule 4).
     """
-runtime = get_document_pipeline()
+actor_id = _extract_auth_uid(req)
 ⋮----
 schema = ParseDocumentRequest.from_raw(req.data or {})
-⋮----
-# Derive bucket / object_path from the validated URI.
-path_part = schema.gcs_uri.split("gs://", 1)[1]
-⋮----
-# ── 初始化 Firestore document ───────────────────────────────────────────
-⋮----
-# ── 同步解析 ─────────────────────────────────────────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-json_object_path = runtime.layout_json_path(object_path)
-json_gcs_uri = runtime.upload_json(
-⋮----
-rag = ingest_document_for_rag(
-⋮----
-# OCR Processor — full-page text extraction with dedicated OCR JSON artifact.
-# char-split-v2 chunking is applied since OCR gives no semantic chunks.
-json_object_path = runtime.ocr_json_path(object_path)
-⋮----
-# OCR does not return semantic chunks; `ingest_document_for_rag`
-# will apply char-split-v2 chunking when layout_chunks=None.
-⋮----
-# OCR has no layout chunks → char-split-v2 fallback.
-⋮----
-json_object_path = runtime.form_json_path(object_path)
-⋮----
-else:  # "genkit"
-json_object_path = runtime.genkit_json_path(object_path)
-⋮----
-# OCR-first text baseline for scanned / dense PDFs
-# (e.g. 4510250181-AP8_v0-8150.PDF) before downstream AI workflows.
 ````
 
 ## File: fn/src/interface/handlers/rag_query_handler.py
@@ -12380,7 +12717,8 @@ response = {
 HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
 
 Schema validation (Rule 4) is performed via RagReindexRequest.from_raw()
-before any application-layer call.
+before any application-layer call.  All orchestration is delegated to the
+rag_reindex use case.
 """
 ⋮----
 logger = logging.getLogger(__name__)
@@ -12388,36 +12726,11 @@ logger = logging.getLogger(__name__)
 def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict
 ⋮----
 """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion."""
-runtime = get_document_pipeline()
+actor_id = _extract_auth_uid(req)
 ⋮----
 schema = RagReindexRequest.from_raw(req.data or {})
 ⋮----
-json_bytes = runtime.download_bytes(
-parsed_payload: dict = (
-⋮----
-text = str(parsed_payload.get("text", "")).strip()
-⋮----
-# Enrich from the JSON payload when schema fields were left empty.
-source_gcs_uri = schema.source_gcs_uri or str(
-⋮----
-workspace_id = schema.workspace_id
-⋮----
-workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
-⋮----
-workspace_id = str(
-⋮----
-filename = schema.filename
-⋮----
-filename = (
-⋮----
-page_count = schema.page_count
-⋮----
-page_count = int(parsed_payload.get("page_count", 0) or 0)
-⋮----
-# Read stored layout chunks; passes None when absent (falls back to char-split).
-layout_chunks: list[dict] | None = parsed_payload.get("chunks") or None
-⋮----
-rag = ingest_document_for_rag(
+result = execute_rag_reindex_command(
 ````
 
 ## File: fn/src/interface/handlers/storage.py
@@ -12483,7 +12796,6 @@ filename = str(candidate or "").strip()
     - 初始化 → Document AI 解析 → 更新 Firestore
     - 異常時記錄至 Firestore。
     """
-runtime = get_document_pipeline()
 data = event.data
 ⋮----
 bucket_name: str = data.bucket
@@ -12498,30 +12810,12 @@ account_id = _extract_account_id(object_path, data.metadata)
 ⋮----
 workspace_id = _extract_workspace_id(data.metadata)
 ⋮----
-# doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
 storage_filename = os.path.basename(object_path)
 display_filename = _extract_display_filename(object_path, data.metadata)
 ⋮----
 gcs_uri = f"gs://{bucket_name}/{object_path}"
 ⋮----
-# ── Step 1: 初始化 Firestore document ──────────────────────────────────
-⋮----
-# ── Step 2: Document AI 解析（Layout Parser） ─────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, parser="layout")
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，.layout.json 副檔名）─
-json_object_path = runtime.layout_json_path(object_path)
-json_data = {
-json_gcs_uri = runtime.upload_json(
-⋮----
-# ── Step 4: 更新 Firestore 索引（layout 欄位）──────────────────────
-⋮----
-# ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
-⋮----
-rag = ingest_document_for_rag(
+status_gateway = get_document_status_gateway()
 ````
 
 ## File: fn/src/interface/schemas/__init__.py
@@ -22421,6 +22715,45 @@ delete(id: string): Promise<void>;
 // TODO: export server actions / route handlers
 ````
 
+## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+````typescript
+/**
+ * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ *
+ * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a DatabaseSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import { z } from "@packages";
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): DatabaseSnapshot
+⋮----
+export class FirestoreDatabaseRepository implements DatabaseRepository
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByPageId(pageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
 ## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
 ````typescript
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
@@ -22728,6 +23061,49 @@ delete(id: string): Promise<void>;
 ````typescript
 // page — inbound adapters placeholder
 // TODO: export server actions / route handlers
+````
+
+## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
+````typescript
+/**
+ * FirestorePageRepository — Firestore adapter for the page subdomain.
+ *
+ * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a PageSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/page/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import { z } from "@packages";
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): PageSnapshot
+⋮----
+export class FirestorePageRepository implements PageRepository
+⋮----
+async save(snapshot: PageSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<PageSnapshot | null>
+⋮----
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+⋮----
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+// Build equality constraints — no composite index required for equality-only filters.
+⋮----
+async delete(id: string): Promise<void>
 ````
 
 ## File: src/modules/notion/subdomains/page/adapters/outbound/memory/InMemoryPageRepository.ts
