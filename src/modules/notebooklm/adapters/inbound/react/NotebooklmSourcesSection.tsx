@@ -24,7 +24,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  queryDocumentsAction,
   registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
@@ -32,6 +31,7 @@ import {
   reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
+  queryDocuments,
   uploadDocumentToStorage,
 } from "../../../adapters/outbound/firebase-composition";
 
@@ -118,7 +118,7 @@ export function NotebooklmSourcesSection({
 
   const load = () => {
     startRefresh(async () => {
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
       setLoaded(true);
     });
@@ -143,7 +143,7 @@ export function NotebooklmSourcesSection({
           mimeType: file.type || "application/octet-stream",
           sizeBytes: file.size,
         });
-        const result = await queryDocumentsAction({ accountId, workspaceId });
+        const result = await queryDocuments({ accountId, workspaceId });
         setDocuments(Array.isArray(result) ? result : []);
         setLoaded(true);
       } catch (err) {
@@ -228,7 +228,7 @@ export function NotebooklmSourcesSection({
         parser: "layout",
       });
       setDocAction(doc.id, { parseLayout: "done", message: "Layout Parser 解析完成（文字 + 語意分塊已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseLayout: "error", message: err instanceof Error ? err.message : "Layout Parser 解析失敗" });
@@ -250,7 +250,7 @@ export function NotebooklmSourcesSection({
         parser: "form",
       });
       setDocAction(doc.id, { parseForm: "done", message: "Form Parser 解析完成（結構化欄位已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseForm: "error", message: err instanceof Error ? err.message : "Form Parser 解析失敗" });
@@ -272,7 +272,7 @@ export function NotebooklmSourcesSection({
         parser: "ocr",
       });
       setDocAction(doc.id, { parseOcr: "done", message: "Document OCR 解析完成（OCR JSON 已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseOcr: "error", message: err instanceof Error ? err.message : "Document OCR 解析失敗" });
@@ -294,7 +294,7 @@ export function NotebooklmSourcesSection({
         parser: "genkit",
       });
       setDocAction(doc.id, { parseGenkit: "done", message: "Genkit-AI 解析完成（Genkit JSON 已儲存）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { parseGenkit: "error", message: err instanceof Error ? err.message : "Genkit-AI 解析失敗" });
@@ -311,7 +311,7 @@ export function NotebooklmSourcesSection({
     try {
       await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成（使用 Layout Parser 產出物）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { index: "error", message: err instanceof Error ? err.message : "建立索引失敗" });
@@ -328,7 +328,7 @@ export function NotebooklmSourcesSection({
     try {
       await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成（使用 Layout Parser 產出物）" });
-      const result = await queryDocumentsAction({ accountId, workspaceId });
+      const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
       setDocAction(doc.id, { reindex: "error", message: err instanceof Error ? err.message : "重建索引失敗" });

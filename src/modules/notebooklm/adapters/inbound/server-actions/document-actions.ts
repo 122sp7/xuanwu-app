@@ -41,11 +41,6 @@ async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut
 
 // ── Input schemas ─────────────────────────────────────────────────────────────
 
-const QueryDocumentsInputSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().optional(),
-});
-
 const UploadDocumentMetaSchema = z.object({
   accountId: z.string().min(1),
   workspaceId: z.string().min(1),
@@ -89,18 +84,11 @@ const ReindexDocumentActionInputSchema = z.object({
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-/**
- * queryDocumentsAction — list documents for a workspace.
- * Reads from Firestore (accounts/{accountId}/documents).
- */
-export async function queryDocumentsAction(rawInput: unknown) {
-  const input = QueryDocumentsInputSchema.parse(rawInput);
-  const { querySources } = createClientNotebooklmSourceUseCases();
-  return querySources.execute({
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-  });
-}
+// NOTE: queryDocumentsAction was removed.
+// Querying accounts/{accountId}/documents via a Server Action fails with
+// "Missing or insufficient permissions" because the Firebase Web Client SDK
+// has no user auth context on the server.
+// Use queryDocuments() from firebase-composition.ts (client-side helper) instead.
 
 /**
  * registerUploadedDocumentAction — register a document snapshot after upload.
