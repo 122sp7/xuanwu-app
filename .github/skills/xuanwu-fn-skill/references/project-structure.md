@@ -8,7 +8,7 @@ fn/
         __init__.py (7 lines)
       container/
         __init__.py (0 lines)
-        runtime_dependencies.py (73 lines)
+        runtime_dependencies.py (78 lines)
       __init__.py (0 lines)
     application/
       dto/
@@ -28,7 +28,7 @@ fn/
         document_pipeline.py (1 lines)
       use_cases/
         __init__.py (3 lines)
-        rag_ingestion.py (44 lines)
+        rag_ingestion.py (52 lines)
         rag_query.py (46 lines)
       __init__.py (0 lines)
     core/
@@ -41,7 +41,7 @@ fn/
         __init__.py (0 lines)
       repositories/
         __init__.py (3 lines)
-        rag.py (69 lines)
+        rag.py (71 lines)
       services/
         __init__.py (3 lines)
         po_extraction.py (169 lines)
@@ -75,8 +75,8 @@ fn/
           qstash_client.py (33 lines)
           rag_query.py (3 lines)
           redis_client.py (41 lines)
-          search_client.py (73 lines)
-          vector_client.py (40 lines)
+          search_client.py (99 lines)
+          vector_client.py (70 lines)
         __init__.py (0 lines)
       persistence/
         firestore/
@@ -105,7 +105,7 @@ fn/
   tests/
     __init__.py (0 lines)
     conftest.py (1 lines)
-    test_domain_repository_gateways.py (47 lines)
+    test_domain_repository_gateways.py (57 lines)
     test_input_schemas.py (63 lines)
     test_po_extraction.py (125 lines)
     test_rag_ingestion_text.py (24 lines)

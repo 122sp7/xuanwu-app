@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-81 files | 2,634 lines
+81 files | 2,715 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Python | 76 | 2,192 |
+| Python | 76 | 2,273 |
 | Markdown | 2 | 351 |
 | Text | 2 | 26 |
 | EXAMPLE | 1 | 65 |
@@ -60,5 +60,5 @@ This skill contains the following reference files:
 - `fn/tests/test_po_extraction.py` (125 lines)
 - `fn/src/infrastructure/persistence/storage/client.py` (104 lines)
 - `fn/src/interface/handlers/storage.py` (100 lines)
-- `fn/src/app/container/runtime_dependencies.py` (73 lines)
-- `fn/src/core/config.py` (73 lines)
+- `fn/src/infrastructure/external/upstash/search_client.py` (99 lines)
+- `fn/src/app/container/runtime_dependencies.py` (78 lines)

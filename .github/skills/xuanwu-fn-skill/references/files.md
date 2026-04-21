@@ -46,6 +46,11 @@ def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int
 ⋮----
 def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None
 ⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
+⋮----
+deleted_vec = _delete_vectors_by_doc(doc_id=doc_id, namespace=namespace)
+deleted_search = _delete_search_documents_by_doc(doc_id=doc_id)
+⋮----
 class InfraDocumentPipelineGateway
 ⋮----
 @staticmethod
@@ -253,6 +258,14 @@ base_chunks = chunk_text(
 chunking_strategy = "char-split-v2"
 normalization_version = "v2"
 ⋮----
+# ── 刪除舊向量（冪等保護：先清除再 upsert，防止 orphan chunks）──────────
+# 失敗時僅警告，不中斷 ingestion：向量索引的舊資料頂多造成 stale 結果，
+# 而中斷 ingestion 會讓文件永遠無法被查詢，危害更大。
+⋮----
+deleted = gateway.delete_vectors_by_doc(doc_id=doc_id, namespace=RAG_VECTOR_NAMESPACE)
+⋮----
+except Exception as del_exc:  # noqa: BLE001  — best-effort; ingestion must proceed
+⋮----
 texts = [item["text"] for item in base_chunks]
 vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
 ⋮----
@@ -451,6 +464,8 @@ def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> An
 def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int: ...
 ⋮----
 def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None: ...
+⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int: ...
 ⋮----
 class DocumentPipelineGateway(Protocol)
 ⋮----
@@ -1318,6 +1333,32 @@ metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {
 ⋮----
 index = get_search_index()
 ⋮----
+def delete_search_documents_by_doc(doc_id: str) -> int
+⋮----
+"""刪除屬於指定 doc_id 的所有搜尋索引文件（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Search SDK 的 prefix delete，與 vector 刪除搭配使用，
+    確保 Upstash Search 與 Upstash Vector 的資料一致性。
+
+    Args:
+        doc_id: 文件識別碼，對應 search doc ID 格式 ``{doc_id}:{i:04d}``。
+
+    Returns:
+        int: 實際刪除的文件數量（0 表示無資料、未設定或操作失敗）。
+    """
+⋮----
+prefix = f"{doc_id}:"
+⋮----
+result = index.delete(prefix=prefix)
+⋮----
+deleted = result
+⋮----
+deleted = int(result.deleted or 0)
+⋮----
+deleted = int(result.get("deleted", 0))
+⋮----
+deleted = 0
+⋮----
 def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]
 ⋮----
 """
@@ -1364,7 +1405,10 @@ candidates = payload
 ## File: fn/src/infrastructure/external/upstash/vector_client.py
 ````python
 """
-Upstash Vector 客戶端 — 向量 upsert / query 操作。
+Upstash Vector 客戶端 — 向量 upsert / query / delete 操作。
+
+Chunk ID 命名慣例：``{doc_id}:{i:04d}``，其中 ``:`` 為分隔符。
+``delete_vectors_by_doc`` 使用 prefix ``{doc_id}:`` 刪除同份文件的所有 chunk 向量。
 """
 ⋮----
 _VECTOR_INDEX: Any | None = None
@@ -1395,6 +1439,33 @@ def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any
 index = get_vector_index()
 sdk_payload = [
 tuples_payload = [
+⋮----
+def delete_vectors_by_doc(doc_id: str, namespace: str = "") -> int
+⋮----
+"""刪除屬於指定 doc_id 的所有向量（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Vector SDK 的 prefix delete，一次清除整份文件的所有 chunk
+    向量，避免重新索引後留下孤立 (orphan) chunk 資料。
+
+    Args:
+        doc_id:    文件識別碼，對應 chunk ID 格式 ``{doc_id}:{i:04d}``。
+        namespace: Upstash Vector 命名空間（與 upsert 時一致）。
+
+    Returns:
+        int: 實際刪除的向量數量（0 表示無向量或操作失敗）。
+    """
+⋮----
+prefix = f"{doc_id}:"
+⋮----
+result = index.delete(prefix=prefix, namespace=namespace)
+⋮----
+deleted = result
+⋮----
+deleted = int(result.deleted or 0)
+⋮----
+deleted = int(result.get("deleted", 0))
+⋮----
+deleted = 0
 ⋮----
 """查詢 Upstash Vector，統一輸出為 list[dict]。"""
 ⋮----
@@ -2176,57 +2247,6 @@ page_count = 0
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 ````
 
-## File: fn/tests/test_domain_repository_gateways.py
-````python
-class _FakeRagQueryGateway
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict | None
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict) -> None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-⋮----
-class _FakeRagIngestionGateway
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
-⋮----
-def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
-⋮----
-def upsert_search_documents(self, documents: list[dict]) -> int
-⋮----
-def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
-⋮----
-class _FakeDocumentPipelineGateway
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
-⋮----
-def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
-⋮----
-rag_query_gateway = _FakeRagQueryGateway()
-rag_ingestion_gateway = _FakeRagIngestionGateway()
-document_pipeline_gateway = _FakeDocumentPipelineGateway()
-⋮----
-def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
-````
-
 ## File: fn/tests/test_input_schemas.py
 ````python
 """
@@ -2956,4 +2976,65 @@ upstash-vector>=0.8.0,<1.0.0
 upstash-redis>=1.0.0,<2.0.0
 upstash-search>=0.1.1,<1.0.0
 qstash>=3.0.0,<4.0.0
+````
+
+## File: fn/tests/test_domain_repository_gateways.py
+````python
+class _FakeRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict | None
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict) -> None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
+⋮----
+class _FakeRagIngestionGateway
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+⋮----
+def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
+⋮----
+def upsert_search_documents(self, documents: list[dict]) -> int
+⋮----
+def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
+⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
+⋮----
+class _FakeDocumentPipelineGateway
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+⋮----
+def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
+⋮----
+rag_query_gateway = _FakeRagQueryGateway()
+rag_ingestion_gateway = _FakeRagIngestionGateway()
+document_pipeline_gateway = _FakeDocumentPipelineGateway()
+⋮----
+def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
 ````
