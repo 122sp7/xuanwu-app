@@ -18,6 +18,15 @@ export * from "./subdomains/conversation/domain";
 export * from "./subdomains/conversation/application";
 export { InMemoryConversationRepository } from "./subdomains/conversation/adapters/outbound/memory/InMemoryConversationRepository";
 
+// source (canonical ubiquitous-language term for ingested document)
+export * from "./subdomains/source/domain";
+export * from "./subdomains/source/application";
+export { InMemoryIngestionSourceRepository } from "./subdomains/source/adapters/outbound/memory/InMemoryIngestionSourceRepository";
+
+// synthesis (RAG answer generation)
+export * from "./subdomains/synthesis/domain";
+export * from "./subdomains/synthesis/application";
+
 // orchestration — source processing workflow
 export type {
   TaskMaterializationWorkflowPort,

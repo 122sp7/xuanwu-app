@@ -32,6 +32,10 @@ export { ContextSession } from "./subdomains/context/domain/entities/ContextSess
 export type { ContextSessionRepository } from "./subdomains/context/domain/repositories/ContextSessionRepository";
 export { CreateContextSessionUseCase, AddContextMessageUseCase } from "./subdomains/context/application/use-cases/ContextUseCases";
 
+// safety (content safety policy)
+export * from "./subdomains/safety/domain";
+export * from "./subdomains/safety/application";
+
 // pipeline
 export type {
   PromptTemplate,
