@@ -15,6 +15,7 @@
     ".serena/**/*.md"
   ],
   "noBanner": true,
+  "noInlineConfig": true,
   "noProgress": true,
   "config": {
     // Keep the initial baseline intentionally narrow so the rule set matches

@@ -50,4 +50,4 @@ Generic Domain（可外包／第三方替換）
 - [bounded-contexts.md](./bounded-contexts.md) — 邊界責任定義
 - [context-map.md](./context-map.md) — 與其他 context 的關係圖
 - [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
-- [bounded-contexts.md](../domain/bounded-contexts.md) — 全域主域所有權地圖
+- [bounded-contexts.md](../../domain/bounded-contexts.md) — 全域主域所有權地圖

@@ -31,7 +31,7 @@ Proposed
 
 ### Ubiquitous Language 確認
 
-依 [ubiquitous-language.md](../../../../docs/structure/domain/ubiquitous-language.md)：
+依 [ubiquitous-language.md](../../structure/domain/ubiquitous-language.md)：
 - `notebooklm` bounded context 擁有：Notebook, Ingestion, Retrieval, Grounding, **Synthesis**, Evaluation
 - Source 屬於 `source` subdomain（前身為 `document`，已在 domain/0001 正式更名）
 - `PurchaseOrder` 不在現有詞彙表中 → **需要在本 ADR 中引入新術語**
@@ -280,4 +280,4 @@ export interface SourceStructuredExtractionCompleted {
 - [domain/0001-notebooklm-document-to-source-rename.md](./0001-notebooklm-document-to-source-rename.md)
 - PDF 驗證：`4510250181-AP8_v0-8150.PDF`（ABB PO #4510250181，配電盤 SCADA 工程）
 - [docs/structure/domain/ubiquitous-language.md](../../structure/domain/ubiquitous-language.md)
-- [src/modules/notebooklm/AGENTS.md](../../../../src/modules/notebooklm/AGENTS.md)
+- [src/modules/notebooklm/AGENTS.md](../../../src/modules/notebooklm/AGENTS.md)

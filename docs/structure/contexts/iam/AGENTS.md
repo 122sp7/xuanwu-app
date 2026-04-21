@@ -75,15 +75,3 @@ flowchart LR
         $file = $m.Groups[2].Value
         "[$file](../../$dir/$file)"
     
-- 
-        param($m)
-        $dir = $m.Groups[1].Value
-        $file = $m.Groups[2].Value
-        "[$file](../../$dir/$file)"
-    
-- 
-        param($m)
-        $dir = $m.Groups[1].Value
-        $file = $m.Groups[2].Value
-        "[$file](../../$dir/$file)"
-    

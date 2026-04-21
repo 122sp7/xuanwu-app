@@ -107,8 +107,8 @@ flowchart LR
 - [subdomains.md](./subdomains.md)
 - [ubiquitous-language.md](./ubiquitous-language.md)
 - [README.md](../../../README.md)
-- [architecture-overview.md](../system/architecture-overview.md)
-- [integration-guidelines.md](../system/integration-guidelines.md)
+- [architecture-overview.md](../../system/architecture-overview.md)
+- [integration-guidelines.md](../../system/integration-guidelines.md)
 
 ## Constraints
 
