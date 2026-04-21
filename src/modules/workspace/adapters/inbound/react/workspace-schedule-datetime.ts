@@ -8,21 +8,11 @@ export function parseLocalDatetimeInput(value: string): string | null {
   if (!matched) {
     return null;
   }
-  const [, year, month, day, hour, minute] = matched;
-  const parsed = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-  );
-  if (
-    parsed.getFullYear() !== Number(year) ||
-    parsed.getMonth() !== Number(month) - 1 ||
-    parsed.getDate() !== Number(day) ||
-    parsed.getHours() !== Number(hour) ||
-    parsed.getMinutes() !== Number(minute)
-  ) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  if (toLocalDatetimeInputValue(parsed) !== value) {
     return null;
   }
   return parsed.toISOString();

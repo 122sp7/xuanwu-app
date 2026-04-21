@@ -16,5 +16,6 @@ describe("WorkspaceScheduleSection datetime helpers", () => {
 
   it("returns null for invalid datetime-local input", () => {
     expect(parseLocalDatetimeInput("invalid-datetime")).toBeNull();
+    expect(parseLocalDatetimeInput("2000-02-30T08:05")).toBeNull();
   });
 });

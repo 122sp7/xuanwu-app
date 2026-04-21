@@ -43,6 +43,7 @@ export function WorkspaceScheduleSection({
   const [scheduledAtLocal, setScheduledAtLocal] = useState(() => {
     const nextDay = new Date();
     nextDay.setDate(nextDay.getDate() + 1);
+    nextDay.setHours(9, 0, 0, 0);
     return toLocalDatetimeInputValue(nextDay);
   });
   const [isCreatingDemand, setIsCreatingDemand] = useState(false);
