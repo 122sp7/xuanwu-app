@@ -42,15 +42,15 @@ This skill contains the following reference files:
 
 ## Statistics
 
-179 files | 15,177 lines
+179 files | 15,180 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 179 | 15,177 |
+| Markdown | 179 | 15,180 |
 
 **Largest files:**
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
-- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (374 lines)
+- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
 - `docs/decisions/domain/0005-purchase-order-source-domain-model.md` (283 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `src/modules/template/README.md` (266 lines)

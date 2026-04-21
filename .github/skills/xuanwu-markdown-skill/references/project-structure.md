@@ -40,7 +40,7 @@ docs/
       feature/
         AGENTS.md (8 lines)
         notebooklm-source-processing-task-flow.md (86 lines)
-        py-fn-ts-capability-bridge.md (374 lines)
+        py-fn-ts-capability-bridge.md (377 lines)
         README.md (12 lines)
         workspace-nav-notion-notebooklm-implementation-guide.md (215 lines)
   structure/

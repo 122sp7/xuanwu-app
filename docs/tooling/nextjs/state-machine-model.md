@@ -27,7 +27,7 @@
 ### 存放位置
 
 ```
-src/modules/<context>/adapters/inbound/react/stores/<name>.store.ts
+src/modules/<context>/interfaces/stores/<name>.store.ts
 ```
 
 若 store 完全屬於 app shell composition（不屬於任何主域），放在：
@@ -47,7 +47,7 @@ src/app/(shell)/stores/<name>.store.ts
 每個 store 拆成 **state** 與 **actions** 兩個 slice，防止整個 store 重新渲染：
 
 ```typescript
-// src/modules/workspace/adapters/inbound/react/stores/panel.store.ts
+// src/modules/workspace/interfaces/stores/panel.store.ts
 import { create } from 'zustand';
 
 interface PanelState {

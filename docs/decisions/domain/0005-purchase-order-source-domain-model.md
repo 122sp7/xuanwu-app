@@ -23,7 +23,7 @@ Proposed
 ### 現行 notebooklm Source 模型的限制
 
 現有 `notebooklm/source` subdomain 將所有 Source 視為同質的「文件 + RAG chunks」：
-- `DocumentSnapshot`（見 `src/modules/notebooklm/subdomains/document/domain/entities/Document.ts`）提供：
+- `IngestionSourceSnapshot`（見 `src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts`）提供：
   - `parsedPageCount`, `parsedChunkCount`, `parsedEntityCount`
   - `ragChunkCount`, `ragVectorCount`, `ragStatus`
 - **缺口**：無法表達「這個 source 是 PurchaseOrder，有 54 個 line items」
