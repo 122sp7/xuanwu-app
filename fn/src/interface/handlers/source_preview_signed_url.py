@@ -2,12 +2,21 @@
 HTTPS Callable — handle_document_preview_signed_url.
 
 Generates a short-lived signed URL for private source preview through Google Viewer.
+
+Implementation note — IAM-based signing:
+  Cloud Functions runs under Compute Engine (Application Default) credentials,
+  which cannot sign bytes locally.  To generate a v4 signed URL we must pass
+  ``service_account_email`` + ``access_token`` so the google-cloud-storage
+  library delegates signing to the IAM Credentials API instead.
+  See: https://cloud.google.com/storage/docs/access-control/signed-urls
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import google.auth
+import google.auth.transport.requests
 from firebase_functions import https_fn
 import firebase_admin.storage as fb_storage
 
@@ -18,6 +27,22 @@ from interface.handlers._https_helpers import (
     _parse_gs_uri,
 )
 from interface.schemas.source_preview import SourcePreviewSignedUrlRequest
+
+
+def _get_signing_credentials() -> tuple[str, str]:
+    """Return (service_account_email, access_token) from ADC.
+
+    On Cloud Functions the runtime credentials are Compute Engine credentials.
+    Refreshing them fetches ``service_account_email`` from the metadata server
+    and a short-lived ``token`` that the GCS library uses to call the IAM
+    signBlob API — no private-key file required.
+    """
+    credentials, _ = google.auth.default(
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
+    auth_request = google.auth.transport.requests.Request()
+    credentials.refresh(auth_request)
+    return credentials.service_account_email, credentials.token
 
 
 def handle_document_preview_signed_url(req: https_fn.CallableRequest) -> dict:
@@ -61,10 +86,16 @@ def handle_document_preview_signed_url(req: https_fn.CallableRequest) -> dict:
             "找不到來源檔案",
         )
 
+    # Delegate signing to IAM Credentials API — required on Cloud Functions
+    # because runtime credentials cannot sign bytes locally.
+    sa_email, access_token = _get_signing_credentials()
+
     signed_url = blob.generate_signed_url(
         version="v4",
         method="GET",
         expiration=expires_at,
+        service_account_email=sa_email,
+        access_token=access_token,
     )
 
     return {

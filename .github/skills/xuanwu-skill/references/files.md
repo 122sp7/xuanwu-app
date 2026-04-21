@@ -12332,7 +12332,26 @@ rag = ingest_document_for_rag(
 HTTPS Callable — handle_document_preview_signed_url.
 
 Generates a short-lived signed URL for private source preview through Google Viewer.
+
+Implementation note — IAM-based signing:
+  Cloud Functions runs under Compute Engine (Application Default) credentials,
+  which cannot sign bytes locally.  To generate a v4 signed URL we must pass
+  ``service_account_email`` + ``access_token`` so the google-cloud-storage
+  library delegates signing to the IAM Credentials API instead.
+  See: https://cloud.google.com/storage/docs/access-control/signed-urls
 """
+⋮----
+def _get_signing_credentials() -> tuple[str, str]
+⋮----
+"""Return (service_account_email, access_token) from ADC.
+
+    On Cloud Functions the runtime credentials are Compute Engine credentials.
+    Refreshing them fetches ``service_account_email`` from the metadata server
+    and a short-lived ``token`` that the GCS library uses to call the IAM
+    signBlob API — no private-key file required.
+    """
+⋮----
+auth_request = google.auth.transport.requests.Request()
 ⋮----
 def handle_document_preview_signed_url(req: https_fn.CallableRequest) -> dict
 ⋮----
@@ -12348,6 +12367,9 @@ expected_prefix = f"uploads/{schema.account_id}/{schema.workspace_id}/"
 ⋮----
 expires_at = datetime.now(timezone.utc) + timedelta(seconds=schema.expires_in_seconds)
 blob = fb_storage.bucket(bucket_name).blob(object_path)
+⋮----
+# Delegate signing to IAM Credentials API — required on Cloud Functions
+# because runtime credentials cannot sign bytes locally.
 ⋮----
 signed_url = blob.generate_signed_url(
 ````
@@ -20654,213 +20676,6 @@ export function subscribeToProfile(
  */
 ````
 
-## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
-````typescript
-/**
- * platform-ui-stubs — platform inbound adapter (React).
- *
- * Remaining stubs for platform UI elements not yet implemented as real
- * components.  Items that have been promoted to real implementations are
- * re-exported from their canonical files below.
- *
- * Account / organization route screens are owned here because they belong to
- * the platform bounded context (account lifecycle, org management) rather than
- * to the workspace bounded context.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import { useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  Bell,
-  BellOff,
-  BriefcaseBusiness,
-  CalendarDays,
-  CalendarRange,
-  CheckCircle2,
-  ChevronRight,
-  Circle,
-  Clock,
-  Filter,
-  FolderOpen,
-  LayoutDashboard,
-  Lock,
-  Play,
-  Plus,
-  Settings2,
-  Shield,
-  Users,
-  UserPlus,
-  Zap,
-} from "lucide-react";
-⋮----
-// ── Shell theme toggle + language switcher ────────────────────────────────────
-// Imported locally so they can be composed in ShellHeaderControls below,
-// then re-exported so callers that want direct access can import from here.
-⋮----
-import { ShellThemeToggle } from "./shell/ShellThemeToggle";
-import { ShellLanguageSwitcher } from "./shell/ShellLanguageSwitcher";
-import {
-  createOrganizationTeam,
-  recruitOrganizationMember,
-  listOrganizationMembers,
-  listOrganizationTeams,
-  updateOrganizationMemberRole,
-} from "../../../../iam/adapters/outbound/firebase-composition";
-import { useAccountRouteContext } from "./useAccountRouteContext";
-⋮----
-// ── Real implementations (promoted from stubs) ────────────────────────────────
-⋮----
-// ── Account route context ─────────────────────────────────────────────────────
-⋮----
-// ── Shell breadcrumbs ─────────────────────────────────────────────────────────
-⋮----
-export function ShellAppBreadcrumbs(): null
-⋮----
-// ── Shell header controls (theme toggle + language switcher) ──────────────────
-⋮----
-export function ShellHeaderControls(): React.ReactElement
-⋮----
-// ── Global search ─────────────────────────────────────────────────────────────
-⋮----
-export function ShellGlobalSearchDialog(
-  _props: ShellGlobalSearchDialogProps,
-): null
-⋮----
-export function useShellGlobalSearch():
-⋮----
-// ── Route screens ─────────────────────────────────────────────────────────────
-⋮----
-// ── AccountDashboardRouteScreen ───────────────────────────────────────────────
-⋮----
-export function AccountDashboardRouteScreen(): React.ReactElement
-⋮----
-{/* Header */}
-⋮----
-{/* Stats */}
-⋮----
-{/* Recent activity */}
-⋮----
-// ── OrganizationOverviewRouteScreen ──────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Stats */}
-⋮----
-{/* Navigation */}
-⋮----
-// ── OrganizationMembersRouteScreen ────────────────────────────────────────────
-⋮----
-async function loadMembers(organizationId: string): Promise<void>
-⋮----
-async function handleInviteMember(): Promise<void>
-⋮----
-// Temporary mapping: email is used as member identity key until IAM directory lookup is available.
-⋮----
-async function handleMemberRoleChange(memberId: string, role: "Owner" | "Admin" | "Member"): Promise<void>
-⋮----
-{/* Header */}
-⋮----
-{/* Role filter */}
-⋮----
-// ── OrganizationTeamsRouteScreen ──────────────────────────────────────────────
-⋮----
-async function loadTeams(organizationId: string): Promise<void>
-⋮----
-async function handleCreateTeam(): Promise<void>
-⋮----
-{/* Header */}
-⋮----
-// ── OrganizationPermissionsRouteScreen ────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Role descriptions */}
-⋮----
-{/* Permissions matrix */}
-⋮----
-// ── SettingsNotificationsRouteScreen ─────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Channels */}
-⋮----
-{/* Event types */}
-⋮----
-// ── Account / organization route screens ──────────────────────────────────────
-// These screens belong to the platform bounded context (account lifecycle and
-// organization management) and were previously misplaced in workspace-ui-stubs.
-⋮----
-// ── OrganizationWorkspacesRouteScreen ─────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Stats */}
-⋮----
-{/* Workspace list — empty state */}
-⋮----
-// ── OrganizationDailyRouteScreen ──────────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Stats */}
-⋮----
-].map((stat) => (
-          <div
-            key={stat.label}
-            className="flex flex-col gap-1.5 rounded-xl border border-border/40 bg-card/60 px-3 py-3"
-          >
-            <div className="flex items-center gap-1.5">
-              {stat.icon}
-              <span className="text-xs text-muted-foreground">{stat.label}</span>
-            </div>
-            <p className="text-xl font-semibold">{stat.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Today's tasks — empty state */}
-      <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-8 text-center">
-        <CalendarDays className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium text-muted-foreground">今日尚無排程任務</p>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          工作區任務指派截止日後，將自動匯聚到帳號每日視圖。
-        </p>
-      </div>
-    </div>
-  ) as React.ReactElement;
-⋮----
-{/* Today's tasks — empty state */}
-⋮----
-// ── OrganizationScheduleRouteScreen ──────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Period filter */}
-⋮----
-{/* Timeline — empty state */}
-⋮----
-// ── OrganizationDispatcherRouteScreen ────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Queue summary */}
-⋮----
-{/* Active queue label */}
-⋮----
-{/* Queue list — empty state */}
-⋮----
-{/* Auto-dispatch rules info */}
-⋮----
-// ── OrganizationAuditRouteScreen ──────────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Event type filter */}
-⋮----
-{/* Log — empty state */}
-````
-
 ## File: src/modules/platform/adapters/inbound/react/PlatformBootstrap.tsx
 ````typescript
 /**
@@ -20987,101 +20802,6 @@ export function useAccountRouteContext(): AccountRouteContextValue
  *
  * Returns: { state: AppState, dispatch: Dispatch<AppAction> }
  */
-````
-
-## File: src/modules/platform/adapters/inbound/server-actions/file-actions.ts
-````typescript
-/**
- * file-actions — platform file storage server actions.
- *
- * Manages workspace-scoped file metadata in Firestore.
- * Actual binary upload is done client-side via uploadWorkspaceFile() (Firebase Storage).
- * These actions handle the metadata lifecycle only.
- */
-⋮----
-import { z } from "zod";
-import { createClientFileStorageUseCases } from "../../outbound/firebase-composition";
-⋮----
-// ── Input schemas ─────────────────────────────────────────────────────────────
-⋮----
-// ── Actions ───────────────────────────────────────────────────────────────────
-⋮----
-/**
- * listWorkspaceFilesAction — list all (non-deleted) files for a workspace.
- * Returns StoredFile[] ordered by createdAtISO descending (client-sorted).
- */
-export async function listWorkspaceFilesAction(rawInput: unknown)
-⋮----
-/**
- * registerUploadedFileAction — register a file's metadata after client-side upload.
- *
- * Call this after uploadWorkspaceFile() completes on the client.
- * ownerId is set to workspaceId to scope the file to the workspace.
- */
-export async function registerUploadedFileAction(rawInput: unknown)
-⋮----
-/**
- * deleteWorkspaceFileAction — soft-delete a stored file by fileId.
- * Sets deletedAtISO on the Firestore document; storage object is not removed.
- */
-export async function deleteWorkspaceFileAction(rawInput: unknown)
-````
-
-## File: src/modules/platform/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — platform module outbound composition root.
- *
- * This file is a pure composition root. It:
- *   - Assembles use-case instances against FirestoreFileStorageRepository
- *   - Provides Firebase Storage upload/download helpers
- *
- * Infrastructure logic lives in the subdomain adapter:
- *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
- *
- * ESLint: @integration-firebase/storage is allowed here — this file lives at
- * src/modules/platform/adapters/outbound/ which matches the permitted glob.
- *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
- */
-⋮----
-import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
-import {
-  CreateStoredFileUseCase,
-  GetStoredFileUseCase,
-  ListStoredFilesUseCase,
-  DeleteStoredFileUseCase,
-} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
-⋮----
-// ── Singleton ─────────────────────────────────────────────────────────────────
-⋮----
-function getFileRepo(): FirestoreFileStorageRepository
-⋮----
-// ── Factory ───────────────────────────────────────────────────────────────────
-⋮----
-export function createClientFileStorageUseCases()
-⋮----
-// ── Storage helpers ───────────────────────────────────────────────────────────
-⋮----
-/**
- * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
- *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
- * Returns the GCS storage path (used as StoredFile.url).
- */
-export async function uploadWorkspaceFile(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
- *
- * Accepts both gs://bucket/path and relative paths like workspace-files/...
- */
-export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
 ````
 
 ## File: src/modules/platform/orchestration/index.ts
@@ -24860,77 +24580,6 @@ export function resolveAccountScopedWorkspaceId({
 }: ResolveAccountScopedWorkspaceIdInput): string | null
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
-````typescript
-/**
- * AccountRouteDispatcher — workspace inbound adapter (React).
- *
- * Receives accountId + slug props from the Server Component shim and
- * dispatches to the appropriate route screen.
- *
- * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
- */
-⋮----
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
-import {
-  useAccountRouteContext,
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-  AccountDashboardRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  OrganizationTeamsRouteScreen,
-  OrganizationScheduleRouteScreen,
-  OrganizationDispatcherRouteScreen,
-  OrganizationDailyRouteScreen,
-  OrganizationAuditRouteScreen,
-  SettingsNotificationsRouteScreen,
-} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
-import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
-import {
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "./workspace-ui-stubs";
-import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
-import { useWorkspaceContext } from "./WorkspaceContext";
-import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
-⋮----
-export interface AccountRouteDispatcherProps {
-  accountId: string;
-  slug: string[];
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-export function AccountRouteDispatcher({
-  accountId: accountIdFromParams,
-  slug,
-}: AccountRouteDispatcherProps)
-⋮----
-// Legacy redirect: /organization/... → /<accountId>/...
-⋮----
-// Legacy redirect: /workspace/... → /<accountId>/...
-⋮----
-// Root: /<accountId>
-⋮----
-if (accountType === "organization")
-⋮----
-// Single-segment routes: /<accountId>/<segment>
-⋮----
-// Two-segment routes
-⋮----
-// Fallback
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -25140,94 +24789,6 @@ export function appendWorkspaceContextQuery(
 ): string
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
-````typescript
-/**
- * workspace-route-screens — workspace-scoped route screen components.
- *
- * Provides screens rendered within a workspace context:
- *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
- *   - WorkspaceHubScreen          (workspace listing / hub for an account)
- *
- * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
- * etc.) belong in platform-ui-stubs because they are platform-owned, not
- * workspace-owned.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
-import { WorkspaceDailySection } from "./WorkspaceDailySection";
-import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
-import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
-import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
-import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
-import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
-import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
-import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
-import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
-import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
-import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
-import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
-import {
-  WORKSPACE_TAB_ITEMS,
-  WORKSPACE_DOMAIN_GROUP_LABELS,
-  resolveWorkspaceTabValue,
-  type WorkspaceTabValue,
-  type WorkspaceDomainGroup,
-} from "./workspace-nav-model";
-⋮----
-// Cross-module: notion section components (via adapters/inbound/react boundary)
-import {
-  NotionKnowledgeSection,
-  NotionPagesSection,
-  NotionDatabaseSection,
-  NotionTemplatesSection,
-} from "@/src/modules/notion/adapters/inbound/react";
-⋮----
-// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
-import {
-  NotebooklmNotebookSection,
-  NotebooklmAiChatSection,
-  NotebooklmSourcesSection,
-  NotebooklmResearchSection,
-} from "@/src/modules/notebooklm/adapters/inbound/react";
-⋮----
-// ── Internal helpers ──────────────────────────────────────────────────────────
-⋮----
-function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
-⋮----
-// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
-⋮----
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string;
-  accountsHydrated: boolean;
-  currentUserId?: string;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-⋮----
-const tabHref = (tab: WorkspaceTabValue)
-⋮----
-<Badge variant=
-⋮----
-{/* ── workspace group ── */}
-⋮----
-{/* ── notebooklm group ── */}
-⋮----
-// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
-⋮----
-onClick=
-⋮----
-router.push(href);
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
 ````typescript
 /**
@@ -25420,29 +24981,6 @@ onOpenChange(false);
  */
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
-````typescript
-import { Badge } from "@packages";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { listAccountFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
-import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
-import { useWorkspaceContext } from "./WorkspaceContext";
-⋮----
-interface WorkspaceAccountDailySectionProps {
-  accountId: string;
-}
-⋮----
-function toDateKey(date: Date): string
-⋮----
-function formatDateLabel(date: Date): string
-⋮----
-function addDays(date: Date, delta: number): Date
-⋮----
-setLoading(true);
-setActiveDate((d)
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceApprovalSection.tsx
 ````typescript
 /**
@@ -25564,173 +25102,6 @@ export function WorkspaceContextProvider({
 })
 ⋮----
 export function useWorkspaceContext(): WorkspaceContextValue
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx
-````typescript
-/**
- * WorkspaceDailySection — workspace.daily tab.
- *
- * IG-style daily post feed at the workspace level.
- * Members can post text and attach photos for a given date.
- * Future expansion: today's task completion summary, attendance check-in.
- *
- * Layout:
- *   ① Date navigation bar
- *   ② Post composer (text + photo upload)
- *   ③ Feed — chronological post cards
- */
-⋮----
-import { Badge, Button, Textarea } from "@packages";
-import { useState, useEffect, useRef, useTransition } from "react";
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Send,
-  Upload,
-  X,
-} from "lucide-react";
-import {
-  uploadWorkspaceFile,
-  getWorkspaceFileDownloadUrl,
-} from "@/src/modules/platform";
-⋮----
-import { createFeedPostAction, listFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
-import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
-⋮----
-interface WorkspaceDailySectionProps {
-  workspaceId: string;
-  accountId: string;
-  /** Current actor's accountId used as authorAccountId. Defaults to accountId. */
-  currentUserId?: string;
-}
-⋮----
-/** Current actor's accountId used as authorAccountId. Defaults to accountId. */
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function toDateKey(date: Date): string
-⋮----
-return date.toISOString().slice(0, 10); // YYYY-MM-DD
-⋮----
-function formatDateLabel(date: Date): string
-⋮----
-function addDays(date: Date, delta: number): Date
-⋮----
-function isToday(date: Date): boolean
-⋮----
-function formatTime(isoString: string): string
-⋮----
-// ── Post card ─────────────────────────────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Content */}
-⋮----
-// eslint-disable-next-line @next/next/no-img-element
-⋮----
-// ── Composer ──────────────────────────────────────────────────────────────────
-⋮----
-function handlePickPhotos()
-⋮----
-function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>)
-⋮----
-function removePhoto(idx: number)
-⋮----
-function handleSubmit()
-⋮----
-{/* Photo upload */}
-⋮----
-{/* Photo previews */}
-⋮----
-{/* eslint-disable-next-line @next/next/no-img-element */}
-⋮----
-onClick=
-⋮----
-// ── Main export ────────────────────────────────────────────────────────────────
-⋮----
-async function loadPosts()
-⋮----
-// Sort newest-first
-⋮----
-// eslint-disable-next-line react-hooks/exhaustive-deps
-⋮----
-{/* ① Date navigation */}
-⋮----
-{/* Date label for mobile */}
-⋮----
-{/* ② Composer (today only) */}
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
-````typescript
-/**
- * WorkspaceFilesSection — workspace.files tab — file management.
- *
- * Upload flow:
- *   1. Browser picks a file via hidden <input type="file">.
- *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
- *   3. registerUploadedFileAction() saves metadata to Firestore (server action).
- *   4. listWorkspaceFilesAction() loads the list on mount / after upload.
- *
- * Delete flow:
- *   1. deleteWorkspaceFileAction() soft-deletes the Firestore record (sets deletedAtISO).
- *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
- */
-⋮----
-import { Badge, Button } from "@packages";
-import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
-⋮----
-import { uploadWorkspaceFile } from "@/src/modules/platform";
-import {
-  listWorkspaceFilesAction,
-  registerUploadedFileAction,
-  deleteWorkspaceFileAction,
-} from "@/src/modules/platform/adapters/inbound/server-actions/file-actions";
-import type { StoredFile } from "@/src/modules/platform";
-⋮----
-interface WorkspaceFilesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
-⋮----
-function fileCategoryIcon(mimeType: string)
-⋮----
-function categoryCounts(files: StoredFile[])
-⋮----
-function formatBytes(bytes: number): string
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-const load = () =>
-⋮----
-// Auto-load on mount so files are visible without a manual click.
-useEffect(() => { load(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
-⋮----
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-⋮----
-const handleDelete = async (fileId: string) =>
-⋮----
-{/* Header */}
-⋮----
-{/* Hidden file input */}
-⋮----
-{/* Error banner */}
-⋮----
-{/* Storage summary */}
-⋮----
-{/* Loading indicator before first load */}
-⋮----
-{/* Empty state */}
-⋮----
-{/* File list */}
-⋮----
-{/* File grid */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx
@@ -25996,27 +25367,6 @@ const handleStartReview = (task: TaskSnapshot) =>
 const handlePass = (review: QualityReviewSnapshot) =>
 ⋮----
 const handleFail = (review: QualityReviewSnapshot) =>
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx
-````typescript
-/**
- * WorkspaceScheduleSection — workspace.schedule tab — workspace work-demand schedule view.
- */
-⋮----
-import { Badge } from "@packages";
-import { CalendarRange } from "lucide-react";
-import { useEffect, useState } from "react";
-import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
-import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
-⋮----
-interface WorkspaceScheduleSectionProps {
-  workspaceId: string;
-}
-⋮----
-{/* Header */}
-⋮----
-{/* Phase labels */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScopeProvider.tsx
@@ -26388,182 +25738,6 @@ export async function transitionTaskStatusAction(taskId: string, rawInput: unkno
 export async function deleteTaskAction(taskId: string): Promise<CommandResult>
 ⋮----
 export async function listTasksByWorkspaceAction(workspaceId: string): Promise<TaskSnapshot[]>
-````
-
-## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — workspace module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the workspace module.
- * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
- *
- * ESLint: @integration-firebase is allowed here because this file lives at
- * src/modules/workspace/adapters/outbound/ which matches the permitted glob
- * (src/modules/<context>/adapters/outbound/**).
- *
- * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
- * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import {
-  FirebaseWorkspaceQueryRepository,
-  type Unsubscribe,
-} from "./FirebaseWorkspaceQueryRepository";
-import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
-⋮----
-import {
-  FirestoreWorkspaceRepository,
-  type FirestoreLike,
-} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
-import {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithOwnerUseCase,
-  ActivateWorkspaceUseCase,
-  StopWorkspaceUseCase,
-} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
-import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
-import { FirestorePermissionCheckAdapter } from "../../subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter";
-import {
-  AddMemberUseCase,
-  ChangeMemberRoleUseCase,
-  ListWorkspaceMembersUseCase,
-  RemoveMemberUseCase,
-} from "../../subdomains/membership/application/use-cases/MembershipUseCases";
-import { MembershipController } from "../../subdomains/membership/adapters/inbound/http/MembershipController";
-import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
-import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
-import {
-  ExtractTaskCandidatesUseCase,
-  ConfirmCandidatesUseCase,
-} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
-import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
-import {
-  CreateTaskUseCase,
-  UpdateTaskUseCase,
-  TransitionTaskStatusUseCase,
-  DeleteTaskUseCase,
-} from "../../subdomains/task/application/use-cases/TaskUseCases";
-import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
-import {
-  OpenIssueUseCase,
-  TransitionIssueStatusUseCase,
-  ResolveIssueUseCase,
-  CloseIssueUseCase,
-} from "../../subdomains/issue/application/use-cases/IssueUseCases";
-import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
-import {
-  StartQualityReviewUseCase,
-  PassQualityReviewUseCase,
-  FailQualityReviewUseCase,
-  ListQualityReviewsUseCase,
-} from "../../subdomains/quality/application/use-cases/QualityUseCases";
-import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
-import {
-  CreateApprovalDecisionUseCase,
-  ApproveTaskUseCase,
-  RejectApprovalUseCase,
-  ListApprovalDecisionsUseCase,
-} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
-import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
-import {
-  CreateFeedPostUseCase,
-  ListAccountFeedPostsUseCase,
-  ListFeedPostsUseCase,
-} from "../../subdomains/feed/application/use-cases/FeedUseCases";
-import { FirestoreDemandRepository } from "../../subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository";
-import {
-  AssignWorkDemandUseCase,
-  CreateWorkDemandUseCase,
-  ListWorkspaceDemandsUseCase,
-} from "../../subdomains/schedule/application/use-cases/ScheduleUseCases";
-import { FirestoreAuditRepository } from "../../subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository";
-import {
-  ListWorkspaceAuditEntriesUseCase,
-  RecordAuditEntryUseCase,
-} from "../../subdomains/audit/application/use-cases/AuditUseCases";
-import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
-import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
-import { CreateInvoiceFromAcceptedTasksUseCase } from "../../subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
-⋮----
-type FirestoreWhereOperator =
-  | "<"
-  | "<="
-  | "=="
-  | "!="
-  | ">="
-  | ">"
-  | "array-contains"
-  | "in"
-  | "array-contains-any"
-  | "not-in";
-⋮----
-// ── Singleton repository ───────────────────────────────────────────────────────
-⋮----
-function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
-⋮----
-export function createFirestoreLikeAdapter()
-⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-async query(
-      collectionName: string,
-      filters: Array<{ field: string; op: string; value: unknown }>,
-): Promise<Record<string, unknown>[]>
-async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
-⋮----
-function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
-⋮----
-function getWorkspaceMemberRepo(): FirestoreMemberRepository
-⋮----
-function createAuditRepo(): FirestoreAuditRepository
-⋮----
-function createMembershipPermissionCheck(repo: FirestoreMemberRepository): FirestorePermissionCheckAdapter
-⋮----
-// ── Public subscriptions ───────────────────────────────────────────────────────
-⋮----
-/**
- * Subscribes to real-time workspace updates for the given account.
- * Calls `onUpdate` immediately with the current dataset and again on every
- * subsequent Firestore change.
- *
- * Returns an unsubscribe function — call it when the subscriber unmounts to
- * avoid memory leaks and unnecessary Firestore reads.
- */
-export function subscribeToWorkspacesForAccount(
-  accountId: string,
-  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
-): Unsubscribe
-⋮----
-export function createClientWorkspaceLifecycleUseCases()
-⋮----
-export function createClientMembershipUseCases()
-⋮----
-export function createClientMembershipController(): MembershipController
-⋮----
-export function createClientTaskFormationUseCases()
-⋮----
-export function createClientTaskUseCases()
-⋮----
-export function createClientIssueUseCases()
-⋮----
-export function createClientQualityUseCases()
-⋮----
-export function createClientApprovalUseCases()
-⋮----
-export function createClientFeedUseCases()
-⋮----
-export function createClientScheduleUseCases()
-⋮----
-export function createClientAuditUseCases()
-⋮----
-export function createClientSettlementUseCases()
 ````
 
 ## File: src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts
@@ -27412,39 +26586,6 @@ export function severityLevel(severity: AuditSeverity): number
 ````
 
 ## File: src/modules/workspace/subdomains/audit/domain/index.ts
-````typescript
-
-````
-
-## File: src/modules/workspace/subdomains/feed/adapters/inbound/server-actions/feed-actions.ts
-````typescript
-/**
- * feed-actions — workspace/feed inbound server actions.
- *
- * Thin boundary layer: parse → use-case → return CommandResult / snapshot[].
- * All Firebase setup goes through the workspace firebase-composition root.
- */
-⋮----
-import type { CommandResult } from "../../../../../../shared";
-import type { FeedPostSnapshot } from "../../../domain/entities/FeedPost";
-import {
-  CreateFeedPostSchema,
-  ListAccountFeedPostsSchema,
-  ListFeedPostsSchema,
-} from "../../../application";
-import { createClientFeedUseCases } from "../../../../../adapters/outbound/firebase-composition";
-⋮----
-/** Create a new feed post (text + optional photos). */
-export async function createFeedPostAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-/** List feed posts for a workspace, optionally filtered by date (YYYY-MM-DD). */
-export async function listFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]>
-⋮----
-/** List feed posts across all workspaces within an account. */
-export async function listAccountFeedPostsAction(rawInput: unknown): Promise<FeedPostSnapshot[]>
-````
-
-## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
 ````typescript
 
 ````
@@ -32386,4 +31527,909 @@ import tailwindcssAnimate from 'tailwindcss-animate';
     "functions"
   ]
 }
+````
+
+## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
+````typescript
+/**
+ * platform-ui-stubs — platform inbound adapter (React).
+ *
+ * Remaining stubs for platform UI elements not yet implemented as real
+ * components.  Items that have been promoted to real implementations are
+ * re-exported from their canonical files below.
+ *
+ * Account / organization route screens are owned here because they belong to
+ * the platform bounded context (account lifecycle, org management) rather than
+ * to the workspace bounded context.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  Bell,
+  BellOff,
+  BriefcaseBusiness,
+  CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  ChevronRight,
+  Circle,
+  Clock,
+  Filter,
+  FolderOpen,
+  LayoutDashboard,
+  Lock,
+  Play,
+  Plus,
+  Settings2,
+  Shield,
+  Users,
+  UserPlus,
+  Zap,
+} from "lucide-react";
+⋮----
+// ── Shell theme toggle + language switcher ────────────────────────────────────
+// Imported locally so they can be composed in ShellHeaderControls below,
+// then re-exported so callers that want direct access can import from here.
+⋮----
+import { ShellThemeToggle } from "./shell/ShellThemeToggle";
+import { ShellLanguageSwitcher } from "./shell/ShellLanguageSwitcher";
+import {
+  createOrganizationTeam,
+  recruitOrganizationMember,
+  listOrganizationMembers,
+  listOrganizationTeams,
+  updateOrganizationMemberRole,
+} from "../../../../iam/adapters/outbound/firebase-composition";
+import { useAccountRouteContext } from "./useAccountRouteContext";
+⋮----
+// ── Real implementations (promoted from stubs) ────────────────────────────────
+⋮----
+// ── Account route context ─────────────────────────────────────────────────────
+⋮----
+// ── Shell breadcrumbs ─────────────────────────────────────────────────────────
+⋮----
+export function ShellAppBreadcrumbs(): null
+⋮----
+// ── Shell header controls (theme toggle + language switcher) ──────────────────
+⋮----
+export function ShellHeaderControls(): React.ReactElement
+⋮----
+// ── Global search ─────────────────────────────────────────────────────────────
+⋮----
+export function ShellGlobalSearchDialog(
+  _props: ShellGlobalSearchDialogProps,
+): null
+⋮----
+export function useShellGlobalSearch():
+⋮----
+// ── Route screens ─────────────────────────────────────────────────────────────
+⋮----
+// ── AccountDashboardRouteScreen ───────────────────────────────────────────────
+⋮----
+export function AccountDashboardRouteScreen(): React.ReactElement
+⋮----
+{/* Header */}
+⋮----
+{/* Stats */}
+⋮----
+{/* Recent activity */}
+⋮----
+// ── OrganizationOverviewRouteScreen ──────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Stats */}
+⋮----
+{/* Navigation */}
+⋮----
+// ── OrganizationMembersRouteScreen ────────────────────────────────────────────
+⋮----
+async function loadMembers(organizationId: string): Promise<void>
+⋮----
+async function handleInviteMember(): Promise<void>
+⋮----
+// Temporary mapping: email is used as member identity key until IAM directory lookup is available.
+⋮----
+async function handleMemberRoleChange(memberId: string, role: "Owner" | "Admin" | "Member"): Promise<void>
+⋮----
+{/* Header */}
+⋮----
+{/* Role filter */}
+⋮----
+// ── OrganizationTeamsRouteScreen ──────────────────────────────────────────────
+⋮----
+async function loadTeams(organizationId: string): Promise<void>
+⋮----
+async function handleCreateTeam(): Promise<void>
+⋮----
+{/* Header */}
+⋮----
+// ── OrganizationPermissionsRouteScreen ────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Role descriptions */}
+⋮----
+{/* Permissions matrix */}
+⋮----
+// ── SettingsNotificationsRouteScreen ─────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Channels */}
+⋮----
+{/* Event types */}
+⋮----
+// ── Account / organization route screens ──────────────────────────────────────
+// These screens belong to the platform bounded context (account lifecycle and
+// organization management) and were previously misplaced in workspace-ui-stubs.
+⋮----
+// ── OrganizationWorkspacesRouteScreen ─────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Stats */}
+⋮----
+{/* Workspace list — empty state */}
+⋮----
+// ── OrganizationDailyRouteScreen ──────────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Stats */}
+⋮----
+].map((stat) => (
+          <div
+            key={stat.label}
+            className="flex flex-col gap-1.5 rounded-xl border border-border/40 bg-card/60 px-3 py-3"
+          >
+            <div className="flex items-center gap-1.5">
+              {stat.icon}
+              <span className="text-xs text-muted-foreground">{stat.label}</span>
+            </div>
+            <p className="text-xl font-semibold">{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Today's tasks — empty state */}
+      <div className="rounded-xl border border-border/40 bg-card/30 px-4 py-8 text-center">
+        <CalendarDays className="mx-auto mb-3 size-8 text-muted-foreground/40" />
+        <p className="text-sm font-medium text-muted-foreground">今日尚無排程任務</p>
+        <p className="mt-1 text-xs text-muted-foreground/70">
+          工作區任務指派截止日後，將自動匯聚到帳號每日視圖。
+        </p>
+      </div>
+    </div>
+  ) as React.ReactElement;
+⋮----
+{/* Today's tasks — empty state */}
+⋮----
+// ── OrganizationScheduleRouteScreen ──────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Period filter */}
+⋮----
+{/* Timeline — empty state */}
+⋮----
+// ── OrganizationDispatcherRouteScreen ────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Queue summary */}
+⋮----
+{/* Active queue label */}
+⋮----
+{/* Queue list — empty state */}
+⋮----
+{/* Auto-dispatch rules info */}
+⋮----
+// ── OrganizationAuditRouteScreen ──────────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Event type filter */}
+⋮----
+{/* Log — empty state */}
+````
+
+## File: src/modules/platform/adapters/inbound/server-actions/file-actions.ts
+````typescript
+/**
+ * file-actions — platform file storage server actions.
+ *
+ * NOTE: All file-storage Firestore operations have been moved to client-side
+ * helpers in platform/adapters/outbound/firebase-composition.ts.
+ *
+ * The Firebase Web Client SDK requires a signed-in user session in the browser.
+ * Server Actions executing Firestore reads/writes via the web SDK have no user
+ * auth context → Security Rules block every operation with
+ * "Missing or insufficient permissions".
+ *
+ * Use listWorkspaceFiles(), registerUploadedFile(), deleteWorkspaceFile() from
+ * platform/adapters/outbound/firebase-composition instead.
+ */
+````
+
+## File: src/modules/platform/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — platform module outbound composition root.
+ *
+ * This file is a pure composition root. It:
+ *   - Assembles use-case instances against FirestoreFileStorageRepository
+ *   - Provides Firebase Storage upload/download helpers
+ *
+ * Infrastructure logic lives in the subdomain adapter:
+ *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
+ *
+ * ESLint: @integration-firebase/storage is allowed here — this file lives at
+ * src/modules/platform/adapters/outbound/ which matches the permitted glob.
+ *
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ */
+⋮----
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
+import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
+import {
+  CreateStoredFileUseCase,
+  GetStoredFileUseCase,
+  ListStoredFilesUseCase,
+  DeleteStoredFileUseCase,
+} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
+⋮----
+// ── Singleton ─────────────────────────────────────────────────────────────────
+⋮----
+function getFileRepo(): FirestoreFileStorageRepository
+⋮----
+// ── Factory ───────────────────────────────────────────────────────────────────
+⋮----
+export function createClientFileStorageUseCases()
+⋮----
+// ── Client-side file storage helpers ─────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+// The Firebase Web Client SDK requires a signed-in user in the browser context.
+// A Server Action has no active Firebase user session → Firestore Security Rules
+// block any operation (read or write) with "Missing or insufficient permissions".
+⋮----
+export async function listWorkspaceFiles(params:
+⋮----
+export async function registerUploadedFile(params: {
+  workspaceId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+})
+⋮----
+export async function deleteWorkspaceFile(params:
+⋮----
+// ── Storage helpers ───────────────────────────────────────────────────────────
+⋮----
+/**
+ * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
+ *
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Returns the GCS storage path (used as StoredFile.url).
+ */
+export async function uploadWorkspaceFile(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspace-files/...
+ */
+export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
+````
+
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
+````typescript
+/**
+ * AccountRouteDispatcher — workspace inbound adapter (React).
+ *
+ * Receives accountId + slug props from the Server Component shim and
+ * dispatches to the appropriate route screen.
+ *
+ * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+ */
+⋮----
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  useAccountRouteContext,
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  OrganizationTeamsRouteScreen,
+  OrganizationScheduleRouteScreen,
+  OrganizationDispatcherRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationAuditRouteScreen,
+  SettingsNotificationsRouteScreen,
+} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import {
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "./workspace-ui-stubs";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
+import { useWorkspaceContext } from "./WorkspaceContext";
+import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
+⋮----
+export interface AccountRouteDispatcherProps {
+  accountId: string;
+  slug: string[];
+}
+⋮----
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
+⋮----
+function RedirectingRoute(
+⋮----
+export function AccountRouteDispatcher({
+  accountId: accountIdFromParams,
+  slug,
+}: AccountRouteDispatcherProps)
+⋮----
+// Legacy redirect: /organization/... → /<accountId>/...
+⋮----
+// Legacy redirect: /workspace/... → /<accountId>/...
+⋮----
+// Root: /<accountId>
+⋮----
+if (accountType === "organization")
+⋮----
+// Single-segment routes: /<accountId>/<segment>
+⋮----
+// Two-segment routes
+⋮----
+// Fallback
+````
+
+## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
+````typescript
+/**
+ * workspace-route-screens — workspace-scoped route screen components.
+ *
+ * Provides screens rendered within a workspace context:
+ *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
+ *   - WorkspaceHubScreen          (workspace listing / hub for an account)
+ *
+ * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
+ * etc.) belong in platform-ui-stubs because they are platform-owned, not
+ * workspace-owned.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
+import { WorkspaceDailySection } from "./WorkspaceDailySection";
+import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
+import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
+import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
+import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
+import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
+import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
+import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
+import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
+import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
+import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
+import {
+  WORKSPACE_TAB_ITEMS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabValue,
+  type WorkspaceDomainGroup,
+} from "./workspace-nav-model";
+⋮----
+// Cross-module: notion section components (via adapters/inbound/react boundary)
+import {
+  NotionKnowledgeSection,
+  NotionPagesSection,
+  NotionDatabaseSection,
+  NotionTemplatesSection,
+} from "@/src/modules/notion/adapters/inbound/react";
+⋮----
+// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
+import {
+  NotebooklmNotebookSection,
+  NotebooklmAiChatSection,
+  NotebooklmSourcesSection,
+  NotebooklmResearchSection,
+} from "@/src/modules/notebooklm/adapters/inbound/react";
+⋮----
+// ── Internal helpers ──────────────────────────────────────────────────────────
+⋮----
+function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
+⋮----
+// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string;
+  accountsHydrated: boolean;
+  currentUserId?: string;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+⋮----
+const tabHref = (tab: WorkspaceTabValue)
+⋮----
+<Badge variant=
+⋮----
+{/* ── workspace group ── */}
+⋮----
+{/* ── notebooklm group ── */}
+⋮----
+// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
+⋮----
+onClick=
+⋮----
+router.push(href);
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
+````typescript
+import { Badge } from "@packages";
+import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { listAccountFeedPosts } from "../../../adapters/outbound/firebase-composition";
+import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
+import { useWorkspaceContext } from "./WorkspaceContext";
+⋮----
+interface WorkspaceAccountDailySectionProps {
+  accountId: string;
+}
+⋮----
+function toDateKey(date: Date): string
+⋮----
+function formatDateLabel(date: Date): string
+⋮----
+function addDays(date: Date, delta: number): Date
+⋮----
+setLoading(true);
+setActiveDate((d)
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx
+````typescript
+/**
+ * WorkspaceDailySection — workspace.daily tab.
+ *
+ * IG-style daily post feed at the workspace level.
+ * Members can post text and attach photos for a given date.
+ * Future expansion: today's task completion summary, attendance check-in.
+ *
+ * Layout:
+ *   ① Date navigation bar
+ *   ② Post composer (text + photo upload)
+ *   ③ Feed — chronological post cards
+ */
+⋮----
+import { Badge, Button, Textarea } from "@packages";
+import { useState, useEffect, useRef, useTransition } from "react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Send,
+  Upload,
+  X,
+} from "lucide-react";
+import {
+  uploadWorkspaceFile,
+  getWorkspaceFileDownloadUrl,
+} from "@/src/modules/platform";
+⋮----
+import {
+  listFeedPosts,
+  createFeedPost as createFeedPostClient,
+} from "../../../adapters/outbound/firebase-composition";
+import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
+⋮----
+interface WorkspaceDailySectionProps {
+  workspaceId: string;
+  accountId: string;
+  /** Current actor's accountId used as authorAccountId. Defaults to accountId. */
+  currentUserId?: string;
+}
+⋮----
+/** Current actor's accountId used as authorAccountId. Defaults to accountId. */
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function toDateKey(date: Date): string
+⋮----
+return date.toISOString().slice(0, 10); // YYYY-MM-DD
+⋮----
+function formatDateLabel(date: Date): string
+⋮----
+function addDays(date: Date, delta: number): Date
+⋮----
+function isToday(date: Date): boolean
+⋮----
+function formatTime(isoString: string): string
+⋮----
+// ── Post card ─────────────────────────────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Content */}
+⋮----
+// eslint-disable-next-line @next/next/no-img-element
+⋮----
+// ── Composer ──────────────────────────────────────────────────────────────────
+⋮----
+function handlePickPhotos()
+⋮----
+function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>)
+⋮----
+function removePhoto(idx: number)
+⋮----
+function handleSubmit()
+⋮----
+{/* Photo upload */}
+⋮----
+{/* Photo previews */}
+⋮----
+{/* eslint-disable-next-line @next/next/no-img-element */}
+⋮----
+onClick=
+⋮----
+// ── Main export ────────────────────────────────────────────────────────────────
+⋮----
+async function loadPosts()
+⋮----
+// Sort newest-first
+⋮----
+// eslint-disable-next-line react-hooks/exhaustive-deps
+⋮----
+{/* ① Date navigation */}
+⋮----
+{/* Date label for mobile */}
+⋮----
+{/* ② Composer (today only) */}
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
+````typescript
+/**
+ * WorkspaceFilesSection — workspace.files tab — file management.
+ *
+ * Upload flow:
+ *   1. Browser picks a file via hidden <input type="file">.
+ *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
+ *   3. registerUploadedFile() saves metadata to Firestore (client-side helper).
+ *   4. listWorkspaceFiles() loads the list on mount / after upload.
+ *
+ * Delete flow:
+ *   1. deleteWorkspaceFile() soft-deletes the Firestore record (sets deletedAtISO).
+ *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+⋮----
+import {
+  uploadWorkspaceFile,
+  listWorkspaceFiles,
+  registerUploadedFile,
+  deleteWorkspaceFile,
+} from "@/src/modules/platform/adapters/outbound/firebase-composition";
+import type { StoredFile } from "@/src/modules/platform";
+⋮----
+interface WorkspaceFilesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+function fileCategoryIcon(mimeType: string)
+⋮----
+function categoryCounts(files: StoredFile[])
+⋮----
+function formatBytes(bytes: number): string
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+const load = () =>
+⋮----
+// Auto-load on mount so files are visible without a manual click.
+useEffect(() => { load(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+const handleDelete = async (fileId: string) =>
+⋮----
+{/* Header */}
+⋮----
+{/* Hidden file input */}
+⋮----
+{/* Error banner */}
+⋮----
+{/* Storage summary */}
+⋮----
+{/* Loading indicator before first load */}
+⋮----
+{/* Empty state */}
+⋮----
+{/* File list */}
+⋮----
+{/* File grid */}
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx
+````typescript
+/**
+ * WorkspaceScheduleSection — workspace.schedule tab — workspace work-demand schedule view.
+ */
+⋮----
+import { Badge } from "@packages";
+import { CalendarRange } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
+import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
+⋮----
+interface WorkspaceScheduleSectionProps {
+  workspaceId: string;
+}
+⋮----
+{/* Header */}
+⋮----
+{/* Phase labels */}
+````
+
+## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — workspace module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the workspace module.
+ * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives at
+ * src/modules/workspace/adapters/outbound/ which matches the permitted glob
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
+ * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import {
+  FirebaseWorkspaceQueryRepository,
+  type Unsubscribe,
+} from "./FirebaseWorkspaceQueryRepository";
+import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
+⋮----
+import {
+  FirestoreWorkspaceRepository,
+  type FirestoreLike,
+} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
+import {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithOwnerUseCase,
+  ActivateWorkspaceUseCase,
+  StopWorkspaceUseCase,
+} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
+import { FirestorePermissionCheckAdapter } from "../../subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter";
+import {
+  AddMemberUseCase,
+  ChangeMemberRoleUseCase,
+  ListWorkspaceMembersUseCase,
+  RemoveMemberUseCase,
+} from "../../subdomains/membership/application/use-cases/MembershipUseCases";
+import { MembershipController } from "../../subdomains/membership/adapters/inbound/http/MembershipController";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  TransitionTaskStatusUseCase,
+  DeleteTaskUseCase,
+} from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
+import {
+  OpenIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ResolveIssueUseCase,
+  CloseIssueUseCase,
+} from "../../subdomains/issue/application/use-cases/IssueUseCases";
+import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
+import {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "../../subdomains/quality/application/use-cases/QualityUseCases";
+import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
+import {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
+import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
+import {
+  CreateFeedPostUseCase,
+  ListAccountFeedPostsUseCase,
+  ListFeedPostsUseCase,
+} from "../../subdomains/feed/application/use-cases/FeedUseCases";
+import { FirestoreDemandRepository } from "../../subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository";
+import {
+  AssignWorkDemandUseCase,
+  CreateWorkDemandUseCase,
+  ListWorkspaceDemandsUseCase,
+} from "../../subdomains/schedule/application/use-cases/ScheduleUseCases";
+import { FirestoreAuditRepository } from "../../subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository";
+import {
+  ListWorkspaceAuditEntriesUseCase,
+  RecordAuditEntryUseCase,
+} from "../../subdomains/audit/application/use-cases/AuditUseCases";
+import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
+import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
+import { CreateInvoiceFromAcceptedTasksUseCase } from "../../subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
+⋮----
+type FirestoreWhereOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "in"
+  | "array-contains-any"
+  | "not-in";
+⋮----
+// ── Singleton repository ───────────────────────────────────────────────────────
+⋮----
+function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+⋮----
+export function createFirestoreLikeAdapter()
+⋮----
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+async query(
+      collectionName: string,
+      filters: Array<{ field: string; op: string; value: unknown }>,
+): Promise<Record<string, unknown>[]>
+async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
+⋮----
+function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+⋮----
+function getWorkspaceMemberRepo(): FirestoreMemberRepository
+⋮----
+function createAuditRepo(): FirestoreAuditRepository
+⋮----
+function createMembershipPermissionCheck(repo: FirestoreMemberRepository): FirestorePermissionCheckAdapter
+⋮----
+// ── Public subscriptions ───────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time workspace updates for the given account.
+ * Calls `onUpdate` immediately with the current dataset and again on every
+ * subsequent Firestore change.
+ *
+ * Returns an unsubscribe function — call it when the subscriber unmounts to
+ * avoid memory leaks and unnecessary Firestore reads.
+ */
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
+⋮----
+export function createClientWorkspaceLifecycleUseCases()
+⋮----
+export function createClientMembershipUseCases()
+⋮----
+export function createClientMembershipController(): MembershipController
+⋮----
+export function createClientTaskFormationUseCases()
+⋮----
+export function createClientTaskUseCases()
+⋮----
+export function createClientIssueUseCases()
+⋮----
+export function createClientQualityUseCases()
+⋮----
+export function createClientApprovalUseCases()
+⋮----
+export function createClientFeedUseCases()
+⋮----
+// ── Client-side feed helpers ──────────────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+// The Firebase Web Client SDK requires a signed-in user in the browser context.
+// A Server Action has no active Firebase user session → Firestore Security Rules
+// block any operation (read or write) with "Missing or insufficient permissions".
+⋮----
+export async function listFeedPosts(params: {
+  accountId: string;
+  workspaceId: string;
+  dateKey?: string;
+  limit?: number;
+})
+⋮----
+export async function createFeedPost(params: {
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  content: string;
+  photoUrls?: string[];
+  replyToPostId?: string;
+  repostOfPostId?: string;
+})
+⋮----
+export async function listAccountFeedPosts(params: {
+  accountId: string;
+  dateKey?: string;
+  limit?: number;
+})
+⋮----
+export function createClientScheduleUseCases()
+⋮----
+export function createClientAuditUseCases()
+⋮----
+export function createClientSettlementUseCases()
+````
+
+## File: src/modules/workspace/subdomains/feed/adapters/inbound/server-actions/feed-actions.ts
+````typescript
+/**
+ * feed-actions — workspace/feed inbound server actions.
+ *
+ * NOTE: All feed Firestore operations have been moved to client-side helpers
+ * in workspace/adapters/outbound/firebase-composition.ts.
+ *
+ * The Firebase Web Client SDK requires a signed-in user session in the browser.
+ * Server Actions executing Firestore reads/writes via the web SDK have no user
+ * auth context → Security Rules block every operation with
+ * "Missing or insufficient permissions".
+ *
+ * Use listFeedPosts(), createFeedPost(), listAccountFeedPosts() from
+ * workspace/adapters/outbound/firebase-composition instead.
+ */
+````
+
+## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
+````typescript
+// Feed server actions have been removed — use client-side helpers from
+// workspace/adapters/outbound/firebase-composition.ts instead.
+// See feed-actions.ts for the migration note.
 ````

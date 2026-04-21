@@ -256,7 +256,7 @@ fn/
         parse_document.py (53 lines)
         rag_query_handler.py (23 lines)
         rag_reindex_handler.py (42 lines)
-        source_preview_signed_url.py (22 lines)
+        source_preview_signed_url.py (44 lines)
         storage.py (100 lines)
       schemas/
         __init__.py (0 lines)
@@ -1030,9 +1030,9 @@ src/
             useAccountRouteContext.ts (77 lines)
             useAccountScope.ts (8 lines)
           server-actions/
-            file-actions.ts (34 lines)
+            file-actions.ts (14 lines)
         outbound/
-          firebase-composition.ts (53 lines)
+          firebase-composition.ts (72 lines)
       orchestration/
         index.ts (21 lines)
       shared/
@@ -1420,7 +1420,7 @@ src/
             WorkspaceApprovalSection.tsx (41 lines)
             WorkspaceAuditSection.tsx (23 lines)
             WorkspaceContext.tsx (47 lines)
-            WorkspaceDailySection.tsx (94 lines)
+            WorkspaceDailySection.tsx (97 lines)
             WorkspaceFilesSection.tsx (65 lines)
             WorkspaceIssuesSection.tsx (115 lines)
             WorkspaceMembersSection.tsx (32 lines)
@@ -1442,7 +1442,7 @@ src/
             settlement-actions.ts (17 lines)
             task-actions.ts (14 lines)
         outbound/
-          firebase-composition.ts (172 lines)
+          firebase-composition.ts (202 lines)
           FirebaseWorkspaceQueryRepository.ts (61 lines)
       orchestration/
         index.ts (4 lines)
@@ -1554,8 +1554,8 @@ src/
           adapters/
             inbound/
               server-actions/
-                feed-actions.ts (24 lines)
-              index.ts (0 lines)
+                feed-actions.ts (14 lines)
+              index.ts (3 lines)
             outbound/
               firestore/
                 FirestoreFeedRepository.ts (42 lines)
