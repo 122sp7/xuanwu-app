@@ -14,6 +14,12 @@ import {
 import { processSourceDocumentAction } from "./source-processing-actions";
 import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
 import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallableAdapter";
+import { createFirestoreLikeAdapter } from "@/src/modules/workspace/adapters/outbound/firebase-composition";
+import { GenkitTaskCandidateExtractor } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor";
+import { ExtractTaskCandidatesUseCase, ConfirmCandidatesUseCase } from "@/src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskFormationJobRepository } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { CreateTaskUseCase } from "@/src/modules/workspace/subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreTaskRepository } from "@/src/modules/workspace/subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
 
 // ── Firebase HTTPS Callable server-side helper ────────────────────────────────
 // Calling Cloud Functions from a Server Action avoids CORS completely.
@@ -80,6 +86,22 @@ const ReindexDocumentActionInputSchema = z.object({
   docId: z.string().min(1),
   /** GCS URI of the Layout Parser JSON written by fn after Document AI parse. */
   layoutJsonGcsUri: z.string().min(1, "layout_json_gcs_uri 為必填欄位（文件尚未完成 Layout Parser 解析？）"),
+});
+
+const StartTaskFormationFromDocumentInputSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().uuid(),
+  actorId: z.string().min(1),
+  documentId: z.string().min(1),
+  documentTitle: z.string().min(1).max(500),
+  parsedArtifactSummary: z.string().optional(),
+});
+
+const ConfirmTaskFormationFromDocumentInputSchema = z.object({
+  jobId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  actorId: z.string().min(1),
+  selectedIndices: z.array(z.number().int().min(0)).min(1),
 });
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -194,3 +216,51 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
   );
 }
 
+/**
+ * startTaskFormationFromDocumentAction — run Genkit extraction from source artifacts,
+ * then return a persisted task-formation job with candidate list for human review.
+ */
+export async function startTaskFormationFromDocumentAction(rawInput: unknown) {
+  const input = StartTaskFormationFromDocumentInputSchema.parse(rawInput);
+  const db = createFirestoreLikeAdapter();
+  const jobRepo = new FirestoreTaskFormationJobRepository(db);
+  const extractor = new GenkitTaskCandidateExtractor();
+  const extractTaskCandidatesUseCase = new ExtractTaskCandidatesUseCase(jobRepo, extractor);
+
+  const sourceText = input.parsedArtifactSummary?.trim().length
+    ? input.parsedArtifactSummary
+    : `文件標題：${input.documentTitle}`;
+
+  const result = await extractTaskCandidatesUseCase.execute({
+    workspaceId: input.workspaceId,
+    actorId: input.actorId,
+    sourceType: "ai",
+    sourcePageIds: [input.documentId],
+    sourceText,
+  });
+  if (!result.success) return { ...result, candidates: [] };
+
+  const snapshot = await jobRepo.findById(result.aggregateId);
+  return { ...result, candidates: snapshot?.candidates ?? [] };
+}
+
+/**
+ * confirmTaskFormationFromDocumentAction — create tasks from selected candidate indices.
+ */
+export async function confirmTaskFormationFromDocumentAction(rawInput: unknown) {
+  const input = ConfirmTaskFormationFromDocumentInputSchema.parse(rawInput);
+  const db = createFirestoreLikeAdapter();
+  const jobRepo = new FirestoreTaskFormationJobRepository(db);
+  const taskRepo = new FirestoreTaskRepository(db);
+  const createTaskUseCase = new CreateTaskUseCase(taskRepo);
+  const confirmCandidatesUseCase = new ConfirmCandidatesUseCase(jobRepo, {
+    createTask: (taskInput) => createTaskUseCase.execute(taskInput),
+  });
+
+  return confirmCandidatesUseCase.execute({
+    jobId: input.jobId,
+    workspaceId: input.workspaceId,
+    actorId: input.actorId,
+    selectedIndices: input.selectedIndices,
+  });
+}

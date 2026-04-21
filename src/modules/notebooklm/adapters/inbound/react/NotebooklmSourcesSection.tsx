@@ -27,9 +27,12 @@ import {
   registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
+  startTaskFormationFromDocumentAction,
+  confirmTaskFormationFromDocumentAction,
   parseDocumentAction,
   reindexDocumentAction,
 } from "../server-actions/document-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
 import {
   queryDocuments,
   uploadDocumentToStorage,
@@ -39,6 +42,7 @@ import {
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -71,9 +75,37 @@ interface DocActionState {
   reindex: DocActionStatus;
   page: DocActionStatus;
   database: DocActionStatus;
+  taskFormation: DocActionStatus;
   message?: string;
   pageHref?: string;
   databaseHref?: string;
+  taskHref?: string;
+}
+
+interface TaskFormationReviewState {
+  doc: IngestionSourceSnapshot;
+  jobId: string;
+  candidates: ExtractedTaskCandidate[];
+  selectedIndices: number[];
+  isConfirming: boolean;
+  errorMessage?: string;
+}
+
+function buildTaskFormationArtifactSummary(doc: IngestionSourceSnapshot): string {
+  return [
+    `文件標題：${doc.name}`,
+    `來源文件 ID：${doc.id}`,
+    doc.mimeType ? `MIME Type：${doc.mimeType}` : undefined,
+    doc.parsedPageCount != null ? `Layout 頁數：${doc.parsedPageCount}` : undefined,
+    doc.parsedLayoutChunkCount != null ? `Layout 語意分塊：${doc.parsedLayoutChunkCount}` : undefined,
+    doc.parsedFormEntityCount != null ? `Form 欄位數：${doc.parsedFormEntityCount}` : undefined,
+    doc.ragChunkCount != null ? `RAG 分塊：${doc.ragChunkCount}` : undefined,
+    doc.ragVectorCount != null ? `RAG 向量：${doc.ragVectorCount}` : undefined,
+    doc.parsedLayoutJsonGcsUri ? `Layout JSON URI：${doc.parsedLayoutJsonGcsUri}` : undefined,
+    doc.parsedFormJsonGcsUri ? `Form JSON URI：${doc.parsedFormJsonGcsUri}` : undefined,
+    doc.parsedOcrJsonGcsUri ? `OCR JSON URI：${doc.parsedOcrJsonGcsUri}` : undefined,
+    doc.parsedGenkitJsonGcsUri ? `Genkit JSON URI：${doc.parsedGenkitJsonGcsUri}` : undefined,
+  ].filter((part): part is string => Boolean(part)).join("\n");
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -81,6 +113,7 @@ interface DocActionState {
 export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
+  currentUserId,
 }: NotebooklmSourcesSectionProps): React.ReactElement {
   const [documents, setDocuments] = useState<IngestionSourceSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -101,6 +134,7 @@ export function NotebooklmSourcesSection({
 
   // JSON viewer modal state
   const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
+  const [taskReview, setTaskReview] = useState<TaskFormationReviewState | null>(null);
 
   const load = () => {
     startRefresh(async () => {
@@ -176,7 +210,7 @@ export function NotebooklmSourcesSection({
     setActionState((prev) => {
       const current: DocActionState = prev[docId] ?? {
         parseLayout: "idle", parseForm: "idle", parseOcr: "idle", parseGenkit: "idle",
-        index: "idle", reindex: "idle", page: "idle", database: "idle",
+        index: "idle", reindex: "idle", page: "idle", database: "idle", taskFormation: "idle",
       };
       return { ...prev, [docId]: { ...current, ...patch } };
     });
@@ -335,6 +369,76 @@ export function NotebooklmSourcesSection({
     }
   };
 
+  const handleStartTaskFormation = async (doc: IngestionSourceSnapshot) => {
+    if (!currentUserId) {
+      setDocAction(doc.id, { taskFormation: "error", message: "需要登入帳號才能執行任務形成。" });
+      return;
+    }
+    if (!doc.parsedGenkitJsonGcsUri) {
+      setDocAction(doc.id, { taskFormation: "error", message: "文件尚未完成 Genkit-AI 解析，請先執行「解析文件(Genkit-AI)」。" });
+      return;
+    }
+
+    setDocAction(doc.id, { taskFormation: "running", message: undefined });
+    try {
+      const result = await startTaskFormationFromDocumentAction({
+        accountId,
+        workspaceId,
+        actorId: currentUserId,
+        documentId: doc.id,
+        documentTitle: doc.name,
+        parsedArtifactSummary: buildTaskFormationArtifactSummary(doc),
+      });
+
+      if (!result.success) {
+        setDocAction(doc.id, { taskFormation: "error", message: result.error.message });
+        return;
+      }
+
+      const extractedCandidates = (result as { candidates?: ReadonlyArray<ExtractedTaskCandidate> }).candidates ?? [];
+      if (extractedCandidates.length === 0) {
+        setDocAction(doc.id, { taskFormation: "done", message: "未產生可建立的任務，請補充來源產出物後再試。" });
+        return;
+      }
+
+      setTaskReview({
+        doc,
+        jobId: result.aggregateId,
+        candidates: [...extractedCandidates],
+        selectedIndices: extractedCandidates.map((_, i) => i),
+        isConfirming: false,
+      });
+      setDocAction(doc.id, { taskFormation: "done", message: `已產生 ${extractedCandidates.length} 筆任務候選，請確認後建立。` });
+    } catch (err) {
+      setDocAction(doc.id, { taskFormation: "error", message: err instanceof Error ? err.message : "任務形成失敗" });
+    }
+  };
+
+  const handleConfirmTaskFormation = async () => {
+    if (!taskReview || !currentUserId || taskReview.selectedIndices.length === 0) return;
+    setTaskReview((prev) => (prev ? { ...prev, isConfirming: true, errorMessage: undefined } : prev));
+    try {
+      const result = await confirmTaskFormationFromDocumentAction({
+        jobId: taskReview.jobId,
+        workspaceId,
+        actorId: currentUserId,
+        selectedIndices: taskReview.selectedIndices,
+      });
+      if (!result.success) {
+        setTaskReview((prev) => (prev ? { ...prev, isConfirming: false, errorMessage: result.error.message } : prev));
+        return;
+      }
+      setDocAction(taskReview.doc.id, {
+        taskFormation: "done",
+        message: `已建立 ${taskReview.selectedIndices.length} 個任務`,
+        taskHref: `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=Tasks`,
+      });
+      setTaskReview(null);
+    } catch (err) {
+      setTaskReview((prev) => (prev ? { ...prev, isConfirming: false, errorMessage: err instanceof Error ? err.message : "任務建立失敗" } : prev));
+    }
+  };
+
   // ── Render helpers ───────────────────────────────────────────────────────────
 
   const isPending = isRefreshing || isUploading;
@@ -425,7 +529,7 @@ export function NotebooklmSourcesSection({
               state.parseLayout === "running" || state.parseForm === "running" ||
               state.parseOcr === "running" || state.parseGenkit === "running" ||
               state.index === "running" || state.reindex === "running" ||
-              state.page === "running" || state.database === "running"
+              state.page === "running" || state.database === "running" || state.taskFormation === "running"
             );
 
             return (
@@ -700,13 +804,37 @@ export function NotebooklmSourcesSection({
                             前往資料庫
                           </Link>
                         )}
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+                          disabled={state?.taskFormation === "running" || !!anyRunning}
+                          onClick={() => void handleStartTaskFormation(doc)}
+                          title={doc.parsedGenkitJsonGcsUri ? "使用現有產出物 + Genkit-AI 生成任務候選，確認後建立任務" : "須先完成 Genkit-AI 解析"}
+                        >
+                          {state?.taskFormation === "running" ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : state?.taskFormation === "done" ? (
+                            <CheckCircle2 className="size-3 text-green-600" />
+                          ) : (
+                            <ListPlus className="size-3 text-amber-600" />
+                          )}
+                          任務形成
+                        </Button>
+                        {state?.taskFormation === "done" && state.taskHref && (
+                          <Link
+                            href={state.taskHref}
+                            className="inline-flex items-center gap-1 rounded border border-green-500/30 bg-green-500/5 px-2 py-1 text-xs text-green-700 hover:bg-green-500/10"
+                          >
+                            <ArrowRight className="size-3" />
+                            前往任務
+                          </Link>
+                        )}
                       </div>
                     </div>
 
                     {/* Action status message */}
                     {state?.message && (
                       <p className={`text-xs px-2 py-1 rounded ${
-                        (state.parseLayout === "error" || state.parseForm === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
+                        (state.parseLayout === "error" || state.parseForm === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error" || state.taskFormation === "error")
                           || state.parseOcr === "error" || state.parseGenkit === "error"
                           ? "bg-destructive/10 text-destructive"
                           : "bg-muted text-muted-foreground"
@@ -821,6 +949,126 @@ export function NotebooklmSourcesSection({
           </div>
         );
       })()}
+
+      {/* Task formation review modal — candidate list + confirmation */}
+      {taskReview && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="任務形成候選清單"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !taskReview.isConfirming) setTaskReview(null); }}
+          onKeyDown={(e) => { if (e.key === "Escape" && !taskReview.isConfirming) setTaskReview(null); }}
+        >
+          <div className="relative flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">任務形成候選清單</p>
+                <p className="truncate text-xs text-muted-foreground">{taskReview.doc.name}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 w-7 p-0"
+                disabled={taskReview.isConfirming}
+                onClick={() => setTaskReview(null)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+            <div className="flex items-center justify-between border-b border-border/30 px-4 py-2">
+              <p className="text-xs text-muted-foreground">
+                共 {taskReview.candidates.length} 筆候選，已選 {taskReview.selectedIndices.length} 筆
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  disabled={taskReview.isConfirming}
+                  onClick={() => setTaskReview((prev) => (
+                    prev
+                      ? { ...prev, selectedIndices: prev.candidates.map((_, i) => i) }
+                      : prev
+                  ))}
+                >
+                  全選
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  disabled={taskReview.isConfirming}
+                  onClick={() => setTaskReview((prev) => (prev ? { ...prev, selectedIndices: [] } : prev))}
+                >
+                  全取消
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 space-y-2">
+              {taskReview.candidates.map((candidate, index) => {
+                const checked = taskReview.selectedIndices.includes(index);
+                return (
+                  <button
+                    key={`${taskReview.jobId}-${index}`}
+                    type="button"
+                    disabled={taskReview.isConfirming}
+                    onClick={() => setTaskReview((prev) => {
+                      if (!prev) return prev;
+                      const exists = prev.selectedIndices.includes(index);
+                      return {
+                        ...prev,
+                        selectedIndices: exists
+                          ? prev.selectedIndices.filter((value) => value !== index)
+                          : [...prev.selectedIndices, index],
+                      };
+                    })}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                      checked ? "border-primary/40 bg-primary/5" : "border-border/40 bg-card/30"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border ${checked ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"}`}>
+                        {checked && <CheckCircle2 className="size-3" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{candidate.title}</p>
+                        {candidate.description && <p className="mt-1 text-xs text-muted-foreground">{candidate.description}</p>}
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          信心度 {Math.round(candidate.confidence * 100)}%
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              {taskReview.errorMessage && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {taskReview.errorMessage}
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border/30 px-4 py-3">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={taskReview.isConfirming}
+                onClick={() => setTaskReview(null)}
+              >
+                取消
+              </Button>
+              <Button
+                size="sm"
+                disabled={taskReview.selectedIndices.length === 0 || taskReview.isConfirming}
+                onClick={() => void handleConfirmTaskFormation()}
+              >
+                {taskReview.isConfirming ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+                確認建立 {taskReview.selectedIndices.length} 個任務
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PDF / image preview overlay — Google Doc Viewer */}
       {previewDoc && (

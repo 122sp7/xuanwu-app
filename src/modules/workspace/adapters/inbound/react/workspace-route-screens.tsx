@@ -217,7 +217,7 @@ export function WorkspaceDetailRouteScreen({
           <NotebooklmAiChatSection workspaceId={workspaceId} accountId={accountId} />
         )}
         {activeTab === "Sources" && (
-          <NotebooklmSourcesSection workspaceId={workspaceId} accountId={accountId} />
+          <NotebooklmSourcesSection workspaceId={workspaceId} accountId={accountId} currentUserId={currentUserId ?? undefined} />
         )}
         {activeTab === "Research" && (
           <NotebooklmResearchSection workspaceId={workspaceId} accountId={accountId} />
