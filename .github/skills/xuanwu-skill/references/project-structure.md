@@ -256,16 +256,18 @@ fn/
         parse_document.py (53 lines)
         rag_query_handler.py (23 lines)
         rag_reindex_handler.py (42 lines)
+        source_preview_signed_url.py (22 lines)
         storage.py (100 lines)
       schemas/
         __init__.py (0 lines)
         parse_document.py (61 lines)
         rag_query.py (71 lines)
         rag_reindex.py (42 lines)
+        source_preview.py (30 lines)
       __init__.py (0 lines)
   .env.example (65 lines)
   AGENTS.md (137 lines)
-  main.py (41 lines)
+  main.py (46 lines)
   README.md (214 lines)
   requirements-dev.txt (3 lines)
   requirements.txt (23 lines)
@@ -740,15 +742,15 @@ src/
             NotebooklmAiChatSection.tsx (25 lines)
             NotebooklmNotebookSection.tsx (18 lines)
             NotebooklmResearchSection.tsx (28 lines)
-            NotebooklmSourcesSection.tsx (137 lines)
+            NotebooklmSourcesSection.tsx (150 lines)
           server-actions/
-            document-actions.ts (75 lines)
+            document-actions.ts (81 lines)
             notebook-actions.ts (27 lines)
             source-processing-actions.ts (43 lines)
         outbound/
           callable/
             FirebaseCallableAdapter.ts (75 lines)
-          firebase-composition.ts (71 lines)
+          firebase-composition.ts (87 lines)
           TaskMaterializationWorkflowAdapter.ts (49 lines)
       infrastructure/
         ai/
@@ -785,27 +787,6 @@ src/
             repositories/
               ConversationRepository.ts (15 lines)
             index.ts (0 lines)
-        document/
-          adapters/
-            inbound/
-              index.ts (2 lines)
-            outbound/
-              firestore/
-                FirestoreDocumentRepository.ts (108 lines)
-              memory/
-                InMemoryDocumentRepository.ts (14 lines)
-              index.ts (2 lines)
-            index.ts (1 lines)
-          application/
-            use-cases/
-              DocumentUseCases.ts (17 lines)
-            index.ts (0 lines)
-          domain/
-            entities/
-              Document.ts (106 lines)
-            repositories/
-              DocumentRepository.ts (24 lines)
-            index.ts (0 lines)
         notebook/
           adapters/
             inbound/
@@ -832,6 +813,8 @@ src/
             inbound/
               index.ts (1 lines)
             outbound/
+              firestore/
+                FirestoreIngestionSourceRepository.ts (117 lines)
               memory/
                 InMemoryIngestionSourceRepository.ts (14 lines)
               index.ts (0 lines)
@@ -842,7 +825,7 @@ src/
             index.ts (0 lines)
           domain/
             entities/
-              IngestionSource.ts (71 lines)
+              IngestionSource.ts (117 lines)
             repositories/
               IngestionSourceRepository.ts (24 lines)
             index.ts (0 lines)
@@ -863,7 +846,7 @@ src/
               SynthesisPort.ts (8 lines)
             index.ts (0 lines)
       AGENTS.md (59 lines)
-      index.ts (16 lines)
+      index.ts (14 lines)
       README.md (70 lines)
     notion/
       adapters/
@@ -1425,7 +1408,7 @@ src/
         inbound/
           react/
             account-scoped-workspace.ts (13 lines)
-            AccountRouteDispatcher.tsx (68 lines)
+            AccountRouteDispatcher.tsx (67 lines)
             index.ts (6 lines)
             useWorkspaceScope.ts (8 lines)
             workspace-audit-filter.ts (5 lines)
@@ -1443,7 +1426,7 @@ src/
             WorkspaceMembersSection.tsx (32 lines)
             WorkspaceOverviewSection.tsx (72 lines)
             WorkspaceQualitySection.tsx (30 lines)
-            WorkspaceScheduleSection.tsx (24 lines)
+            WorkspaceScheduleSection.tsx (17 lines)
             WorkspaceScopeProvider.tsx (39 lines)
             WorkspaceSettingsSection.tsx (26 lines)
             WorkspaceSettlementSection.tsx (31 lines)

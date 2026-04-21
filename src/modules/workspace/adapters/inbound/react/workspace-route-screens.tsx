@@ -234,8 +234,6 @@ export function WorkspaceDetailRouteScreen({
         {activeTab === "Schedule" && (
           <WorkspaceScheduleSection
             workspaceId={workspaceId}
-            accountId={accountId}
-            currentUserId={currentUserId}
           />
         )}
         {activeTab === "Audit" && (

@@ -12326,6 +12326,32 @@ layout_chunks: list[dict] | None = parsed_payload.get("chunks") or None
 rag = ingest_document_for_rag(
 ````
 
+## File: fn/src/interface/handlers/source_preview_signed_url.py
+````python
+"""
+HTTPS Callable — handle_document_preview_signed_url.
+
+Generates a short-lived signed URL for private source preview through Google Viewer.
+"""
+⋮----
+def handle_document_preview_signed_url(req: https_fn.CallableRequest) -> dict
+⋮----
+uid = _extract_auth_uid(req)
+⋮----
+schema = SourcePreviewSignedUrlRequest.from_raw(uid=uid, raw=req.data or {})
+⋮----
+code = (
+⋮----
+# Guard against path traversal: reject any path containing ".." segments.
+⋮----
+expected_prefix = f"uploads/{schema.account_id}/{schema.workspace_id}/"
+⋮----
+expires_at = datetime.now(timezone.utc) + timedelta(seconds=schema.expires_in_seconds)
+blob = fb_storage.bucket(bucket_name).blob(object_path)
+⋮----
+signed_url = blob.generate_signed_url(
+````
+
 ## File: fn/src/interface/handlers/storage.py
 ````python
 """
@@ -12621,6 +12647,40 @@ page_count = int(raw.get("page_count", 0) or 0)
 page_count = 0
 ````
 
+## File: fn/src/interface/schemas/source_preview.py
+````python
+"""
+Input schema for document_preview_signed_url HTTPS Callable (Rule 4 — Contract / Schema).
+"""
+⋮----
+_MIN_EXPIRY_SECONDS = 60
+_MAX_EXPIRY_SECONDS = 900
+⋮----
+@dataclass
+class SourcePreviewSignedUrlRequest
+⋮----
+"""Validated input contract for document_preview_signed_url callable."""
+⋮----
+uid: str
+account_id: str
+workspace_id: str
+gcs_uri: str
+expires_in_seconds: int
+⋮----
+@classmethod
+    def from_raw(cls, *, uid: str, raw: dict) -> "SourcePreviewSignedUrlRequest"
+⋮----
+account_id = str(raw.get("account_id", "")).strip()
+⋮----
+workspace_id = str(raw.get("workspace_id", "")).strip()
+⋮----
+gcs_uri = str(raw.get("gcs_uri", "")).strip()
+⋮----
+raw_expiry = raw.get("expires_in_seconds", 300)
+⋮----
+expires_in_seconds = int(raw_expiry)
+````
+
 ## File: fn/src/interface/__init__.py
 ````python
 
@@ -12879,6 +12939,11 @@ def rag_query(req: https_fn.CallableRequest) -> dict
 def rag_reindex_document(req: https_fn.CallableRequest) -> dict
 ⋮----
 """手動重新整理文件（normalization + ingestion）。"""
+⋮----
+@https_fn.on_call()
+def document_preview_signed_url(req: https_fn.CallableRequest) -> dict
+⋮----
+"""產生來源檔案預覽用的短效 signed URL。"""
 ````
 
 ## File: fn/README.md
@@ -14676,6 +14741,38 @@ listAvailable(): Promise<AiTool[]>;
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/ai/index.ts
+````typescript
+/**
+ * AI Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// generation
+⋮----
+// chunk
+⋮----
+// embedding
+⋮----
+// retrieval
+⋮----
+// context
+⋮----
+// safety (content safety policy)
+⋮----
+// pipeline
+⋮----
+// prompt registry
+⋮----
+// citation
+⋮----
+// evaluation
+⋮----
+// memory
+⋮----
+// tool-calling
 ````
 
 ## File: src/modules/ai/README.md
@@ -16766,7 +16863,7 @@ href=
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 ⋮----
-import { Button } from "@packages";
+import { Button, createGoogleViewerEmbedUrl, getFirebaseFunctions, httpsCallable } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -16775,9 +16872,8 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 ⋮----
-import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  queryDocumentsAction,
   registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
@@ -16785,8 +16881,8 @@ import {
   reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
+  queryDocuments,
   uploadDocumentToStorage,
-  getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotebooklmSourcesSectionProps {
@@ -16796,7 +16892,14 @@ interface NotebooklmSourcesSectionProps {
 ⋮----
 /** MIME types renderable via Google Doc Viewer */
 ⋮----
-function googleDocViewerUrl(downloadUrl: string): string
+/**
+ * Convert a Firebase Storage relative path to a gs:// URI required by the
+ * document_preview_signed_url callable.
+ *
+ * storageUrl is stored as a relative path (e.g. "uploads/accountId/…/file.pdf").
+ * The callable expects "gs://bucket/path".
+ */
+function toGsUri(storagePath: string): string
 ⋮----
 // ── Per-document action state ─────────────────────────────────────────────────
 ⋮----
@@ -16831,7 +16934,14 @@ useEffect(() => { load(); }, [workspaceId, accountId]); // eslint-disable-line r
 ⋮----
 const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
 ⋮----
-const handlePreview = async (doc: DocumentSnapshot) =>
+const handlePreview = async (doc: IngestionSourceSnapshot) =>
+⋮----
+// Call the callable directly from the browser so the Firebase Functions
+// SDK automatically attaches the current user's ID token.
+// A server action cannot forward the client's Firebase auth token, which
+// would cause UNAUTHENTICATED errors on the callable side.
+⋮----
+// storageUrl is a relative path; callable requires gs://bucket/path format.
 ⋮----
 const closePreview = () =>
 ⋮----
@@ -16839,21 +16949,21 @@ const closePreview = () =>
 ⋮----
 const setDocAction = (docId: string, patch: Partial<DocActionState>) =>
 ⋮----
-const handleParseLayout = async (doc: DocumentSnapshot) =>
+const handleParseLayout = async (doc: IngestionSourceSnapshot) =>
 ⋮----
-const handleParseForm = async (doc: DocumentSnapshot) =>
+const handleParseForm = async (doc: IngestionSourceSnapshot) =>
 ⋮----
-const handleParseOcr = async (doc: DocumentSnapshot) =>
+const handleParseOcr = async (doc: IngestionSourceSnapshot) =>
 ⋮----
-const handleParseGenkit = async (doc: DocumentSnapshot) =>
+const handleParseGenkit = async (doc: IngestionSourceSnapshot) =>
 ⋮----
-const handleIndex = async (doc: DocumentSnapshot) =>
+const handleIndex = async (doc: IngestionSourceSnapshot) =>
 ⋮----
-const handleReindex = async (doc: DocumentSnapshot) =>
+const handleReindex = async (doc: IngestionSourceSnapshot) =>
 ⋮----
-const handleCreatePage = async (doc: DocumentSnapshot) =>
+const handleCreatePage = async (doc: IngestionSourceSnapshot) =>
 ⋮----
-const handleCreateDatabase = async (doc: DocumentSnapshot) =>
+const handleCreateDatabase = async (doc: IngestionSourceSnapshot) =>
 ⋮----
 // ── Render helpers ───────────────────────────────────────────────────────────
 ⋮----
@@ -16903,7 +17013,7 @@ src=
 ⋮----
 import { z } from "zod";
 import {
-  createClientNotebooklmDocumentUseCases,
+  createClientNotebooklmSourceUseCases,
 } from "../../outbound/firebase-composition";
 import { processSourceDocumentAction } from "./source-processing-actions";
 import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
@@ -16923,11 +17033,11 @@ async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut
 ⋮----
 // ── Actions ───────────────────────────────────────────────────────────────────
 ⋮----
-/**
- * queryDocumentsAction — list documents for a workspace.
- * Reads from Firestore (accounts/{accountId}/documents).
- */
-export async function queryDocumentsAction(rawInput: unknown)
+// NOTE: queryDocumentsAction was removed.
+// Querying accounts/{accountId}/documents via a Server Action fails with
+// "Missing or insufficient permissions" because the Firebase Web Client SDK
+// has no user auth context on the server.
+// Use queryDocuments() from firebase-composition.ts (client-side helper) instead.
 ⋮----
 /**
  * registerUploadedDocumentAction — register a document snapshot after upload.
@@ -16969,6 +17079,12 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
  * side to avoid browser CORS restrictions.
  */
 export async function reindexDocumentAction(rawInput: unknown): Promise<void>
+⋮----
+// NOTE: document_preview_signed_url must be invoked from the browser via
+// httpsCallable() so the Firebase ID token is automatically attached.
+// A server action cannot forward the client's auth token, which causes
+// UNAUTHENTICATED errors on the callable side.
+// See: NotebooklmSourcesSection.tsx → handlePreview() for the correct usage.
 ````
 
 ## File: src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts
@@ -17140,13 +17256,13 @@ export async function callReindexDocument(input: ReindexDocumentInput): Promise<
  */
 ⋮----
 import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
+import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
 import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
 import {
-  AddDocumentUseCase,
-  ArchiveDocumentUseCase,
-  QueryDocumentsUseCase,
-} from "../../subdomains/document/application/use-cases/DocumentUseCases";
+  RegisterIngestionSourceUseCase,
+  ArchiveIngestionSourceUseCase,
+  QueryIngestionSourcesUseCase,
+} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
 import {
   CreateNotebookUseCase,
   AddDocumentToNotebookUseCase,
@@ -17157,7 +17273,7 @@ import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInpu
 ⋮----
 // ── Singleton repositories ────────────────────────────────────────────────────
 ⋮----
-function getDocumentRepo(): FirestoreDocumentRepository
+function getSourceRepo(): FirestoreIngestionSourceRepository
 ⋮----
 function getNotebookRepo(): InMemoryNotebookRepository
 ⋮----
@@ -17175,7 +17291,7 @@ async generateResponse(input: {
 ⋮----
 // ── Factory functions ─────────────────────────────────────────────────────────
 ⋮----
-export function createClientNotebooklmDocumentUseCases()
+export function createClientNotebooklmSourceUseCases()
 ⋮----
 export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
 ⋮----
@@ -17201,6 +17317,22 @@ export async function uploadDocumentToStorage(
 export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
 ⋮----
 // keep firestore & firestoreApi accessible within this composition module
+⋮----
+// ── Client-side Firestore query helper ───────────────────────────────────────
+⋮----
+/**
+ * queryDocuments — query ingestion sources directly from the browser.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.  A Server Action
+ * has no active Firebase user session, which causes "Missing or insufficient
+ * permissions" even when rules only require `isSignedIn()`.
+ */
+export async function queryDocuments(params: {
+  accountId: string;
+  workspaceId?: string;
+})
 ````
 
 ## File: src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts
@@ -17589,322 +17721,6 @@ delete(id: string): Promise<void>;
 
 ````
 
-## File: src/modules/notebooklm/subdomains/document/adapters/inbound/index.ts
-````typescript
-// document — inbound adapters placeholder
-// TODO: export server actions / route handlers
-````
-
-## File: src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository.ts
-````typescript
-/**
- * FirestoreDocumentRepository — read-only Firestore adapter for notebooklm documents.
- *
- * fn owns all writes to accounts/{accountId}/documents/{docId}.
- * TypeScript side is read-only: it subscribes to Firestore status updates
- * written by the fn pipeline (parse + RAG ingestion).
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import type {
-  DocumentSnapshot as DocumentSnap,
-  DocumentStatus,
-} from "../../../domain/entities/Document";
-import type {
-  DocumentRepository,
-  DocumentQuery,
-} from "../../../domain/repositories/DocumentRepository";
-⋮----
-// ── Firestore record shape written by fn ───────────────────────────────────
-⋮----
-interface PyFnDocumentRecord {
-  id?: string;
-  title?: string;
-  status?: string;
-  account_id?: string;
-  spaceId?: string;
-  source?: {
-    gcs_uri?: string;
-    filename?: string;
-    display_name?: string;
-    original_filename?: string;
-    size_bytes?: number;
-    uploaded_at?: { toDate?: () => Date };
-    mime_type?: string;
-  };
-  parsed?: {
-    layout_json_gcs_uri?: string;
-    form_json_gcs_uri?: string;
-    ocr_json_gcs_uri?: string;
-    genkit_json_gcs_uri?: string;
-    page_count?: number;
-    parsed_at?: { toDate?: () => Date };
-    extraction_ms?: number;
-    layout_chunk_count?: number;
-    form_entity_count?: number;
-    /** Legacy field written by storage trigger before the split. */
-    json_gcs_uri?: string;
-    chunk_count?: number;
-    entity_count?: number;
-  };
-  rag?: {
-    status?: string;
-    chunk_count?: number;
-    vector_count?: number;
-    embedding_model?: string;
-    embedding_dimensions?: number;
-    indexed_at?: { toDate?: () => Date };
-  };
-  error?: {
-    message?: string;
-    timestamp?: { toDate?: () => Date };
-  };
-  metadata?: {
-    filename?: string;
-    display_name?: string;
-    space_id?: string;
-  };
-}
-⋮----
-/** Legacy field written by storage trigger before the split. */
-⋮----
-// ── Mapping helpers ───────────────────────────────────────────────────────────
-⋮----
-function mapPyFnStatus(docStatus: string | undefined, ragStatus: string | undefined): DocumentStatus
-⋮----
-// fn sets status="completed" after a successful parse but before RAG indexing.
-// Treat it as "active" — the document artifact is usable.
-⋮----
-function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap
-⋮----
-// ── Repository implementation ─────────────────────────────────────────────────
-⋮----
-export class FirestoreDocumentRepository implements DocumentRepository
-⋮----
-async save(_snapshot: DocumentSnap): Promise<void>
-⋮----
-// Intentionally no-op: fn is the sole writer for this collection.
-// TypeScript side is read-only.
-⋮----
-async findById(id: string): Promise<DocumentSnap | null>
-⋮----
-// findById requires accountId context; use query() for list operations.
-// This minimal implementation returns null — callers should use query().
-⋮----
-async findByNotebookId(notebookId: string): Promise<DocumentSnap[]>
-⋮----
-// Notebook → document relationship is managed by the Notebook aggregate.
-// Fall back to empty until a cross-reference index is available.
-⋮----
-async query(params: DocumentQuery): Promise<DocumentSnap[]>
-⋮----
-async delete(_id: string): Promise<void>
-⋮----
-// fn manages deletions; TypeScript side does not delete.
-````
-
-## File: src/modules/notebooklm/subdomains/document/adapters/outbound/memory/InMemoryDocumentRepository.ts
-````typescript
-import type { DocumentSnapshot, DocumentStatus } from "../../../domain/entities/Document";
-import type { DocumentRepository, DocumentQuery } from "../../../domain/repositories/DocumentRepository";
-⋮----
-export class InMemoryDocumentRepository implements DocumentRepository
-⋮----
-async save(snapshot: DocumentSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<DocumentSnapshot | null>
-⋮----
-async findByNotebookId(notebookId: string): Promise<DocumentSnapshot[]>
-⋮----
-async query(params: DocumentQuery): Promise<DocumentSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
-````
-
-## File: src/modules/notebooklm/subdomains/document/adapters/outbound/index.ts
-````typescript
-// document — outbound adapters placeholder
-// TODO: export Firestore repositories, external clients
-````
-
-## File: src/modules/notebooklm/subdomains/document/adapters/index.ts
-````typescript
-// document — adapters aggregate
-````
-
-## File: src/modules/notebooklm/subdomains/document/application/use-cases/DocumentUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import { Document, type CreateDocumentInput } from "../../domain/entities/Document";
-import type { DocumentRepository, DocumentQuery } from "../../domain/repositories/DocumentRepository";
-⋮----
-export class AddDocumentUseCase
-⋮----
-constructor(private readonly repo: DocumentRepository)
-⋮----
-async execute(input: CreateDocumentInput): Promise<CommandResult>
-⋮----
-export class ArchiveDocumentUseCase
-⋮----
-async execute(documentId: string): Promise<CommandResult>
-⋮----
-export class QueryDocumentsUseCase
-⋮----
-async execute(params: DocumentQuery)
-````
-
-## File: src/modules/notebooklm/subdomains/document/application/index.ts
-````typescript
-
-````
-
-## File: src/modules/notebooklm/subdomains/document/domain/entities/Document.ts
-````typescript
-/**
- * Document — distilled from modules/notebooklm/subdomains/source
- * Represents a workspace-scoped ingested document (formerly SourceFile).
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type DocumentStatus = "active" | "processing" | "archived" | "deleted";
-export type DocumentClassification = "image" | "manifest" | "record" | "other";
-⋮----
-export interface DocumentSnapshot {
-  readonly id: string;
-  readonly notebookId?: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly classification: DocumentClassification;
-  readonly tags: readonly string[];
-  readonly status: DocumentStatus;
-  readonly storageUrl?: string;
-  readonly source?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-  readonly deletedAtISO?: string;
-  /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
-  readonly parsedPageCount?: number;
-  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
-  readonly parsedLayoutChunkCount?: number;
-  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
-  readonly parsedFormEntityCount?: number;
-  /** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
-  readonly parsedLayoutJsonGcsUri?: string;
-  /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
-  readonly parsedFormJsonGcsUri?: string;
-  /** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
-  readonly parsedOcrJsonGcsUri?: string;
-  /** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
-  readonly parsedGenkitJsonGcsUri?: string;
-  /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
-  readonly ragChunkCount?: number;
-  /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
-  readonly ragVectorCount?: number;
-  /** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
-  readonly ragStatus?: string;
-  /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
-  readonly errorMessage?: string;
-}
-⋮----
-/** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
-⋮----
-/** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
-⋮----
-/** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
-⋮----
-/** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
-⋮----
-/** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
-⋮----
-/** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
-⋮----
-/** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
-⋮----
-/** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
-⋮----
-/** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
-⋮----
-/** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
-⋮----
-/** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
-⋮----
-export interface CreateDocumentInput {
-  readonly notebookId?: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly classification?: DocumentClassification;
-  readonly tags?: string[];
-  readonly storageUrl?: string;
-  readonly source?: string;
-}
-⋮----
-export class Document
-⋮----
-private constructor(private _props: DocumentSnapshot)
-⋮----
-static create(input: CreateDocumentInput): Document
-⋮----
-static reconstitute(snapshot: DocumentSnapshot): Document
-⋮----
-archive(): void
-⋮----
-delete(): void
-⋮----
-get id(): string
-get name(): string
-get status(): DocumentStatus
-get workspaceId(): string
-⋮----
-getSnapshot(): Readonly<DocumentSnapshot>
-⋮----
-pullDomainEvents()
-````
-
-## File: src/modules/notebooklm/subdomains/document/domain/repositories/DocumentRepository.ts
-````typescript
-import type { DocumentSnapshot, DocumentStatus } from "../entities/Document";
-⋮----
-export interface DocumentQuery {
-  readonly notebookId?: string;
-  readonly workspaceId?: string;
-  readonly accountId?: string;
-  readonly status?: DocumentStatus;
-  readonly limit?: number;
-  readonly offset?: number;
-}
-⋮----
-export interface DocumentRepository {
-  save(snapshot: DocumentSnapshot): Promise<void>;
-  findById(id: string): Promise<DocumentSnapshot | null>;
-  findByNotebookId(notebookId: string): Promise<DocumentSnapshot[]>;
-  query(params: DocumentQuery): Promise<DocumentSnapshot[]>;
-  delete(id: string): Promise<void>;
-}
-⋮----
-save(snapshot: DocumentSnapshot): Promise<void>;
-findById(id: string): Promise<DocumentSnapshot | null>;
-findByNotebookId(notebookId: string): Promise<DocumentSnapshot[]>;
-query(params: DocumentQuery): Promise<DocumentSnapshot[]>;
-delete(id: string): Promise<void>;
-````
-
-## File: src/modules/notebooklm/subdomains/document/domain/index.ts
-````typescript
-
-````
-
 ## File: src/modules/notebooklm/subdomains/notebook/adapters/inbound/index.ts
 ````typescript
 // notebook — inbound adapters placeholder
@@ -18077,6 +17893,127 @@ delete(id: string): Promise<void>;
 // inbound adapters for source subdomain (server actions live at module root adapters/inbound)
 ````
 
+## File: src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts
+````typescript
+/**
+ * FirestoreIngestionSourceRepository — Firestore adapter for the source subdomain.
+ *
+ * Reads from accounts/{accountId}/documents/{docId}, which is the same collection
+ * written by the fn pipeline.  TypeScript side is read-only: fn is the sole writer.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import type {
+  IngestionSourceSnapshot,
+  SourceStatus,
+} from "../../../domain/entities/IngestionSource";
+import type {
+  IngestionSourceRepository,
+  IngestionSourceQuery,
+} from "../../../domain/repositories/IngestionSourceRepository";
+⋮----
+// ── Firestore record shape written by fn ──────────────────────────────────────
+⋮----
+interface PyFnSourceRecord {
+  id?: string;
+  title?: string;
+  status?: string;
+  account_id?: string;
+  spaceId?: string;
+  source?: {
+    gcs_uri?: string;
+    filename?: string;
+    display_name?: string;
+    original_filename?: string;
+    size_bytes?: number;
+    uploaded_at?: { toDate?: () => Date };
+    mime_type?: string;
+  };
+  parsed?: {
+    layout_json_gcs_uri?: string;
+    form_json_gcs_uri?: string;
+    ocr_json_gcs_uri?: string;
+    genkit_json_gcs_uri?: string;
+    page_count?: number;
+    parsed_at?: { toDate?: () => Date };
+    extraction_ms?: number;
+    layout_chunk_count?: number;
+    form_entity_count?: number;
+    /** Legacy field written by storage trigger before the split. */
+    json_gcs_uri?: string;
+    chunk_count?: number;
+    entity_count?: number;
+  };
+  rag?: {
+    status?: string;
+    chunk_count?: number;
+    vector_count?: number;
+    embedding_model?: string;
+    embedding_dimensions?: number;
+    indexed_at?: { toDate?: () => Date };
+  };
+  error?: {
+    message?: string;
+    timestamp?: { toDate?: () => Date };
+  };
+  metadata?: {
+    filename?: string;
+    display_name?: string;
+    space_id?: string;
+  };
+}
+⋮----
+/** Legacy field written by storage trigger before the split. */
+⋮----
+// ── Mapping helpers ───────────────────────────────────────────────────────────
+⋮----
+function mapPyFnStatus(
+  docStatus: string | undefined,
+  ragStatus: string | undefined,
+): SourceStatus
+⋮----
+// fn sets status="completed" after a successful parse but before RAG indexing.
+⋮----
+function fromFirestore(
+  raw: PyFnSourceRecord,
+  docId: string,
+): IngestionSourceSnapshot
+⋮----
+// fn pipeline fields
+⋮----
+// ── Repository implementation ─────────────────────────────────────────────────
+⋮----
+export class FirestoreIngestionSourceRepository
+implements IngestionSourceRepository
+⋮----
+async save(_snapshot: IngestionSourceSnapshot): Promise<void>
+⋮----
+// Intentionally no-op: fn is the sole writer for this collection.
+// TypeScript side is read-only.
+⋮----
+async findById(_id: string): Promise<IngestionSourceSnapshot | null>
+⋮----
+// findById requires accountId context; use query() for list operations.
+⋮----
+async findByNotebookId(
+    _notebookId: string,
+): Promise<IngestionSourceSnapshot[]>
+⋮----
+// Notebook → source relationship is managed by the Notebook aggregate.
+⋮----
+async query(
+    params: IngestionSourceQuery,
+): Promise<IngestionSourceSnapshot[]>
+⋮----
+async delete(_id: string): Promise<void>
+⋮----
+// fn manages deletions; TypeScript side does not delete.
+````
+
 ## File: src/modules/notebooklm/subdomains/source/adapters/outbound/memory/InMemoryIngestionSourceRepository.ts
 ````typescript
 import type { IngestionSourceSnapshot, SourceStatus } from "../../../domain/entities/IngestionSource";
@@ -18138,9 +18075,8 @@ async execute(params: IngestionSourceQuery)
  * ingested document in the notebooklm bounded context.
  *
  * "Source" is the strategic name per docs/structure/domain/ubiquitous-language.md.
- * The legacy "document" subdomain sub-folder is kept for backward compatibility
- * with existing Firestore adapters and server actions; new code should reference
- * IngestionSource instead.
+ * The legacy "document" subdomain has been removed; all consumers now reference
+ * IngestionSource and IngestionSourceSnapshot directly.
  */
 import { v4 as uuid } from "uuid";
 ⋮----
@@ -18165,9 +18101,56 @@ export interface IngestionSourceSnapshot {
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
   readonly deletedAtISO?: string;
+
+  // ── fn pipeline status fields ──────────────────────────────────────────────
+  /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
+  readonly parsedPageCount?: number;
+  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
+  readonly parsedLayoutChunkCount?: number;
+  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
+  readonly parsedFormEntityCount?: number;
+  /** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+  readonly parsedLayoutJsonGcsUri?: string;
+  /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
+  readonly parsedFormJsonGcsUri?: string;
+  /** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
+  readonly parsedOcrJsonGcsUri?: string;
+  /** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
+  readonly parsedGenkitJsonGcsUri?: string;
+  /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
+  readonly ragChunkCount?: number;
+  /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
+  readonly ragVectorCount?: number;
+  /** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
+  readonly ragStatus?: string;
+  /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
+  readonly errorMessage?: string;
 }
 ⋮----
 /** External origin URI (e.g. GCS path, URL) */
+⋮----
+// ── fn pipeline status fields ──────────────────────────────────────────────
+/** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
+⋮----
+/** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
+⋮----
+/** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
+⋮----
+/** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+⋮----
+/** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
+⋮----
+/** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
+⋮----
+/** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
+⋮----
+/** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
+⋮----
+/** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
+⋮----
+/** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
+⋮----
+/** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
 ⋮----
 export interface RegisterIngestionSourceInput {
   readonly notebookId?: string;
@@ -18388,6 +18371,24 @@ synthesize(input: SynthesisInput): Promise<SynthesisResultSnapshot>;
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notebooklm/index.ts
+````typescript
+/**
+ * Notebooklm Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// notebook
+⋮----
+// conversation
+⋮----
+// source (canonical ubiquitous-language term for ingested document)
+⋮----
+// synthesis (RAG answer generation)
+⋮----
+// orchestration — source processing workflow
 ````
 
 ## File: src/modules/notebooklm/README.md
@@ -19744,6 +19745,28 @@ delete(id: string): Promise<void>;
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+````
+
+## File: src/modules/notion/index.ts
+````typescript
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// knowledge (canonical KnowledgeArtifact aggregate)
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
 ````
 
 ## File: src/modules/notion/README.md
@@ -22535,6 +22558,18 @@ listItems(): readonly SearchItem[];
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
+## File: src/modules/platform/index.ts
+````typescript
+/**
+ * Platform Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// audit-log (platform governance)
+⋮----
+// feature-flag (incremental rollout governance)
+````
+
 ## File: src/modules/platform/README.md
 ````markdown
 # Platform Module
@@ -24860,7 +24895,6 @@ import {
   WorkspaceHubScreen,
 } from "./workspace-ui-stubs";
 import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
 import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
 import { useWorkspaceContext } from "./WorkspaceContext";
 import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
@@ -25967,25 +26001,18 @@ const handleFail = (review: QualityReviewSnapshot) =>
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx
 ````typescript
 /**
- * WorkspaceScheduleSection — workspace.schedule tab — project timeline / milestones.
+ * WorkspaceScheduleSection — workspace.schedule tab — workspace work-demand schedule view.
  */
 ⋮----
-import { Badge, Button } from "@packages";
-import { CalendarRange, Plus } from "lucide-react";
+import { Badge } from "@packages";
+import { CalendarRange } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
 import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
-import { createWorkDemandAction } from "../server-actions/schedule-actions";
 ⋮----
 interface WorkspaceScheduleSectionProps {
   workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
 }
-⋮----
-async function loadDemands(): Promise<void>
-⋮----
-async function handleCreateBaseline(): Promise<void>
 ⋮----
 {/* Header */}
 ⋮----
@@ -32359,90 +32386,4 @@ import tailwindcssAnimate from 'tailwindcss-animate';
     "functions"
   ]
 }
-````
-
-## File: src/modules/ai/index.ts
-````typescript
-/**
- * AI Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// generation
-⋮----
-// chunk
-⋮----
-// embedding
-⋮----
-// retrieval
-⋮----
-// context
-⋮----
-// safety (content safety policy)
-⋮----
-// pipeline
-⋮----
-// prompt registry
-⋮----
-// citation
-⋮----
-// evaluation
-⋮----
-// memory
-⋮----
-// tool-calling
-````
-
-## File: src/modules/notebooklm/index.ts
-````typescript
-/**
- * Notebooklm Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// document
-⋮----
-// notebook
-⋮----
-// conversation
-⋮----
-// source (canonical ubiquitous-language term for ingested document)
-⋮----
-// synthesis (RAG answer generation)
-⋮----
-// orchestration — source processing workflow
-````
-
-## File: src/modules/notion/index.ts
-````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// knowledge (canonical KnowledgeArtifact aggregate)
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-````
-
-## File: src/modules/platform/index.ts
-````typescript
-/**
- * Platform Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// audit-log (platform governance)
-⋮----
-// feature-flag (incremental rollout governance)
 ````
