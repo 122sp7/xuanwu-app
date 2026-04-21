@@ -68,16 +68,21 @@ export function NotionDatabaseSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <LayoutGrid className="size-4 text-primary" />
-          <h2 className="text-sm font-semibold">資料庫</h2>
+      <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="size-4 text-primary" />
+            <h2 className="text-sm font-semibold">資料庫</h2>
+          </div>
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          目前提供基礎能力：建立標題、描述、導向任務形成。
+        </p>
       </div>
 
       {loaded && (
         <>
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-xl border border-border/50 bg-background p-3">
             <Input
               placeholder="新資料庫名稱…"
               value={newName}
@@ -104,7 +109,7 @@ export function NotionDatabaseSection({
           {databases.length === 0 ? (
             <p className="text-sm text-muted-foreground">尚無資料庫，請建立第一個資料庫。</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 rounded-xl border border-border/50 bg-background p-3">
               {databases.map((db) => (
                 <li
                   key={db.id}

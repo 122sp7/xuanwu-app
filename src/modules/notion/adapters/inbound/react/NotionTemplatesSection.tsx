@@ -71,14 +71,19 @@ export function NotionTemplatesSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Layout className="size-4 text-primary" />
-        <h2 className="text-sm font-semibold">模板</h2>
+      <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div className="flex items-center gap-2">
+          <Layout className="size-4 text-primary" />
+          <h2 className="text-sm font-semibold">模板</h2>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          目前提供基礎能力：模板名稱、描述、分類下拉選單。
+        </p>
       </div>
 
       {loaded && (
         <>
-          <div className="space-y-2">
+          <div className="space-y-2 rounded-xl border border-border/50 bg-background p-3">
             <Input
               placeholder="新模板名稱…"
               value={newTitle}
@@ -116,7 +121,7 @@ export function NotionTemplatesSection({
           {templates.length === 0 ? (
             <p className="text-sm text-muted-foreground">尚無模板，請建立第一個模板。</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 rounded-xl border border-border/50 bg-background p-3">
               {templates.map((tpl) => (
                 <li
                   key={tpl.id}

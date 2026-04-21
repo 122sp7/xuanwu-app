@@ -9,7 +9,7 @@
  */
 
 import { Button } from "@packages";
-import { BookOpen, FlaskConical, ListPlus } from "lucide-react";
+import { BookOpen, FlaskConical, ListPlus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
@@ -50,11 +50,23 @@ export function NotebooklmResearchSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BookOpen className="size-4 text-primary" />
-          <h2 className="text-sm font-semibold">研究摘要</h2>
+      <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="size-4 text-primary" />
+            <h2 className="text-sm font-semibold">研究摘要</h2>
+          </div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+            <Sparkles className="size-3" />
+            Research 合成模式
+          </div>
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          針對此工作區所有已索引來源文件，AI 將提取主要主題、關鍵發現與重要結論。
+        </p>
+      </div>
+
+      <div className="flex justify-end">
         <Button
           size="sm"
           variant="outline"
@@ -66,10 +78,6 @@ export function NotebooklmResearchSection({
         </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        針對此工作區所有已索引來源文件，AI 將提取主要主題、關鍵發現與重要結論。
-      </p>
-
       {error && (
         <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {error}
@@ -77,7 +85,7 @@ export function NotebooklmResearchSection({
       )}
 
       {result && (
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-xl border border-border/50 bg-background p-3">
           <div className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3">
             <p className="text-sm font-medium text-foreground">研究合成結果</p>
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">

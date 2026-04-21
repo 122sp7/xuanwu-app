@@ -102,16 +102,21 @@ export function NotionPagesSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-primary" />
-          <h2 className="text-sm font-semibold">頁面</h2>
+      <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="size-4 text-primary" />
+            <h2 className="text-sm font-semibold">頁面</h2>
+          </div>
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          目前提供基礎能力：建立標題、編輯標題、封存、導向任務形成。
+        </p>
       </div>
 
       {loaded && (
         <>
-          <div className="flex gap-2">
+          <div className="flex gap-2 rounded-xl border border-border/50 bg-background p-3">
             <Input
               placeholder="新頁面標題…"
               value={newTitle}
@@ -127,7 +132,7 @@ export function NotionPagesSection({
           {pages.length === 0 ? (
             <p className="text-sm text-muted-foreground">尚無頁面，請建立第一個頁面。</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 rounded-xl border border-border/50 bg-background p-3">
               {pages.map((page) => (
                 <li
                   key={page.id}

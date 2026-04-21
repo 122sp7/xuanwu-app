@@ -6,7 +6,7 @@
  */
 
 import { Button, Input } from "@packages";
-import { Brain, Search } from "lucide-react";
+import { Brain, Search, Sparkles } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
@@ -46,12 +46,21 @@ export function NotebooklmNotebookSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Brain className="size-4 text-primary" />
-        <h2 className="text-sm font-semibold">RAG 查詢</h2>
+      <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div className="flex items-center gap-2">
+          <Brain className="size-4 text-primary" />
+          <h2 className="text-sm font-semibold">RAG 查詢</h2>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          先完成「來源文件」上傳與索引，再輸入問題進行知識查詢。
+        </p>
+        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+          <Sparkles className="size-3" />
+          Notebook 基礎查詢模式
+        </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 rounded-xl border border-border/50 bg-background p-3">
         <Input
           placeholder="輸入問題，AI 從已索引文件中搜尋答案…"
           value={query}
@@ -77,7 +86,7 @@ export function NotebooklmNotebookSection({
       )}
 
       {result && (
-        <div className="space-y-3">
+        <div className="space-y-3 rounded-xl border border-border/50 bg-background p-3">
           <div className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3">
             <p className="text-sm font-medium text-foreground">AI 答案</p>
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">

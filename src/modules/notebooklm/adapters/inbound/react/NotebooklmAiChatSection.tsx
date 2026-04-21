@@ -6,7 +6,7 @@
  */
 
 import { Button, Input } from "@packages";
-import { MessageSquare, Send } from "lucide-react";
+import { MessageSquare, Send, Sparkles } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
@@ -72,12 +72,21 @@ export function NotebooklmAiChatSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <MessageSquare className="size-4 text-primary" />
-        <h2 className="text-sm font-semibold">AI Chat（RAG）</h2>
+      <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="size-4 text-primary" />
+          <h2 className="text-sm font-semibold">AI Chat（RAG）</h2>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          以對話方式查詢已索引資料；若查詢失敗，通常是來源尚未完成向量索引。
+        </p>
+        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+          <Sparkles className="size-3" />
+          AiChat 基礎對話模式
+        </div>
       </div>
 
-      <div className="flex min-h-48 flex-col gap-3 rounded-xl border border-border/40 p-4">
+      <div className="flex min-h-48 flex-col gap-3 rounded-xl border border-border/50 bg-background p-4">
         {messages.length === 0 && (
           <p className="text-sm text-muted-foreground">輸入問題，AI 將從已索引的文件中搜尋答案。</p>
         )}
@@ -107,7 +116,7 @@ export function NotebooklmAiChatSection({
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 rounded-xl border border-border/50 bg-background p-3">
         <Input
           placeholder="輸入問題…"
           value={query}
