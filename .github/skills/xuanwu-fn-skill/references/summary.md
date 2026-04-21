@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-100 files | 3,042 lines
+100 files | 3,080 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | Python | 95 | 2,600 |
+| Markdown | 2 | 389 |
 | Text | 2 | 26 |
-| Markdown | 2 | 351 |
 | EXAMPLE | 1 | 65 |
 
 **Largest files:**
-- `fn/README.md` (214 lines)
+- `fn/README.md` (231 lines)
 - `fn/src/domain/repositories/rag.py` (172 lines)
 - `fn/src/domain/services/po_extraction.py` (169 lines)
+- `fn/AGENTS.md` (158 lines)
 - `fn/src/infrastructure/external/documentai/client.py` (138 lines)
-- `fn/AGENTS.md` (137 lines)
 - `fn/src/infrastructure/persistence/firestore/document_repository.py` (129 lines)
 - `fn/tests/test_po_extraction.py` (125 lines)
 - `fn/src/infrastructure/persistence/storage/client.py` (104 lines)

@@ -177,6 +177,8 @@ result = ingest_document_for_rag(**req.data)
 
 ## 7. RAG Pipeline 流程
 
+### 7.1 自動 Storage pipeline（`uploads/**`）
+
 ```text
 1. Cloud Storage trigger → on_document_uploaded
 2. interface/handlers/storage.py → handle_object_finalized
@@ -193,6 +195,21 @@ result = ingest_document_for_rag(**req.data)
 9. gateway.redis_set_json → Upstash Redis doc summary (best-effort)
 10. infrastructure/persistence/firestore/document_repository.py → mark status=ready
 ```
+
+### 7.2 Notebooklm Sources 手動 pipeline（`workspaces/{workspaceId}/sources/{accountId}/**`）
+
+```text
+1. Next.js uploadDocumentToStorage() → 上傳到 workspace-scoped sources path
+2. Next.js registerUploadedDocument() → 先寫入 accounts/{accountId}/documents/{docId}
+3. 使用者於 Sources UI 手動呼叫 parse_document
+4. fn 依 parser 執行 layout / form / ocr / genkit parse
+5. 使用者於 Sources UI 手動呼叫 rag_reindex_document
+6. fn 依 parsedLayoutJsonGcsUri 重建 chunk / embed / vector/search index
+```
+
+`interface/handlers/storage.py` 目前只監聽 `WATCH_PREFIX=uploads/`，
+因此 Sources 的 workspace-scoped upload **不會**自動觸發 parse + RAG。
+這是刻意保留的雙路徑設計：`uploads/**` 走自動 worker，`workspaces/**/sources/**` 走手動 callable。
 
 ---
 

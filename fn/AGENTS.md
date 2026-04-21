@@ -16,10 +16,30 @@
 | `fn/` (Python) | parse、clean、taxonomy、chunk、embed、persistence pipeline |
 | Next.js (`src/`) | upload UX、browser-facing API、response orchestration |
 
-兩者互動**只透過**：
+兩者互動透過：
+- Firebase HTTPS Callable（例如 `parse_document`、`rag_query`、`rag_reindex_document`）
+- Cloud Storage `object.finalized` trigger（目前預設只監聽 `uploads/` 前綴）
 - QStash 訊息
-- Firestore trigger
-- 事件契約
+- Firestore 文件 / 事件契約
+
+### Current upload / processing contract
+
+```text
+Path A — auto pipeline
+uploads/{accountId}/... or uploads/{accountId}/{workspaceId}/...
+  → on_document_uploaded (Storage trigger)
+  → handle_object_finalized()
+  → execute_parse_document(parser="layout", run_rag=True)
+
+Path B — Notebooklm Sources manual pipeline
+workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+  → register source snapshot in Next.js
+  → parse_document callable (manual parse)
+  → rag_reindex_document callable (manual RAG indexing)
+```
+
+`fn/src/interface/handlers/storage.py` 的 `WATCH_PREFIX` 預設為 `uploads/`，因此
+Notebooklm Sources 的 workspace-scoped uploads **不會**自動觸發 Storage pipeline。
 
 ---
 
@@ -88,6 +108,7 @@ GCS Document
 |---|---|---|
 | `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser（主，不可空） |
 | `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser（設空字串可停用） |
+| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填） |
 | `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | 不可改為 eu 或 global |
 
 ---
@@ -108,10 +129,10 @@ GCS Document
 
 | 函式名稱 | 觸發類型 | 說明 |
 |---|---|---|
-| `on_document_uploaded` | Storage trigger（`UPLOAD_BUCKET`） | GCS 新物件 → Document AI → Firestore |
-| `parse_document` | HTTPS Callable | 手動觸發解析，回傳解析摘要 |
+| `on_document_uploaded` | Storage trigger（`UPLOAD_BUCKET` + `WATCH_PREFIX=uploads/`） | `uploads/**` 新物件 → Layout parse + RAG ingestion |
+| `parse_document` | HTTPS Callable | 手動觸發解析（layout / form / ocr / genkit），回傳處理狀態 |
 | `rag_query` | HTTPS Callable | RAG 檢索 + 生成查詢 |
-| `rag_reindex_document` | HTTPS Callable | 手動重新 chunk + embed 文件 |
+| `rag_reindex_document` | HTTPS Callable | 依 Layout Parser JSON 手動重新 chunk + embed 文件 |
 
 ---
 

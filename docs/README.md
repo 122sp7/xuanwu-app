@@ -95,7 +95,7 @@ Repo 根目錄的三個運行時層：
 | `fn/` | Python Cloud Functions：ingestion、parse、chunk、embed、background worker |
 
 - `packages/` 以 `@infra/*`、`@integration-*`、`@ui-*` alias 被 TypeScript 引用。
-- `fn/` 與 Next.js 的互動只透過 QStash 訊息、Firestore trigger 或事件契約；不共用程式碼。
+- `fn/` 與 Next.js 的互動透過 Firebase HTTPS Callable、Cloud Storage trigger、QStash 訊息與 Firestore 文件 / 事件契約；不共用程式碼。
 
 ### 路由規則
 

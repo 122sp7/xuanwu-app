@@ -1,113 +1,5 @@
 # Files
 
-## File: fn/.env.example
-````
-# fn/.env.example
-# 複製為 fn/.env 後填入實際值，再執行 fn/ 的 Cloud Functions。
-# 唯一真實來源：fn/src/core/config.py
-# 未列出的變數（UPLOAD_BUCKET、GCP_REGION、DOCAI_LOCATION）僅定義於
-# config.py 但從未被其他模組引用，不需在此設定。
-
-# ── OpenAI ───────────────────────────────────────────────────────────────────
-# 必填
-OPENAI_API_KEY=
-
-# 選填（預設值已可正常運作）
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_EMBEDDING_DIMENSIONS=1024
-OPENAI_LLM_MODEL=gpt-4o-mini
-OPENAI_TIMEOUT_SECONDS=30
-OPENAI_MAX_RETRIES=2
-
-# ── Document AI（US region） ──────────────────────────────────────────────────
-# 選填（預設值指向現行 US processors，勿改為 eu 或 global）
-DOCAI_API_ENDPOINT=us-documentai.googleapis.com
-DOCAI_LAYOUT_PROCESSOR_NAME=projects/65970295651/locations/us/processors/929c4719f45b1eee
-DOCAI_FORM_PROCESSOR_NAME=projects/65970295651/locations/us/processors/7318076ba71e0758
-
-# ── Upstash Redis ─────────────────────────────────────────────────────────────
-# 必填
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-
-# ── Upstash Vector ────────────────────────────────────────────────────────────
-# 必填
-UPSTASH_VECTOR_REST_URL=
-UPSTASH_VECTOR_REST_TOKEN=
-
-# ── Upstash Search ────────────────────────────────────────────────────────────
-# 必填
-UPSTASH_SEARCH_REST_URL=
-UPSTASH_SEARCH_REST_TOKEN=
-UPSTASH_SEARCH_INDEX=
-
-# 選填
-UPSTASH_SEARCH_TIMEOUT_SECONDS=8
-
-# ── QStash ────────────────────────────────────────────────────────────────────
-# 必填
-QSTASH_TOKEN=
-QSTASH_CURRENT_SIGNING_KEY=
-QSTASH_NEXT_SIGNING_KEY=
-QSTASH_RAG_AUDIT_URL=
-
-# 選填
-QSTASH_URL=https://qstash-us-east-1.upstash.io
-
-# ── RAG Pipeline ─────────────────────────────────────────────────────────────
-# 選填（調整會影響 chunk 品質與查詢行為）
-RAG_VECTOR_NAMESPACE=rag-docs
-RAG_CHUNK_SIZE_CHARS=1200
-RAG_CHUNK_OVERLAP_CHARS=150
-RAG_QUERY_TOP_K=5
-RAG_QUERY_CACHE_TTL_SECONDS=300
-RAG_QUERY_RATE_LIMIT_MAX=30
-RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS=60
-RAG_QUERY_DEFAULT_MAX_AGE_DAYS=365
-RAG_QUERY_REQUIRE_READY_STATUS=true
-RAG_DOC_CACHE_TTL_SECONDS=2592000
-RAG_REDIS_PREFIX=rag
-````
-
-## File: fn/requirements-dev.txt
-````
-# Dev/test dependencies (not deployed to Cloud Functions)
-pytest>=8.0.0,<9.0.0
-pytest-mock>=3.14.0,<4.0.0
-````
-
-## File: fn/requirements.txt
-````
-# Firebase Functions runtime
-firebase-functions>=0.4.2,<1.0.0
-
-# Firebase Admin SDK - Firestore / Auth / Storage admin APIs
-firebase-admin>=6.5.0,<7.0.0
-
-# Google Cloud Document AI - synchronous & async document processing
-google-cloud-documentai<3.0.0
-
-# Google Cloud Firestore - explicit dependency for type hints & features
-google-cloud-firestore<3.0.0
-
-# GCS helper used by the storage service layer
-google-cloud-storage<3.0.0
-
-# OpenAI SDK for embeddings and LLM calls
-openai>=1.40.0,<2.0.0
-
-# Upstash Python SDKs (Vector/Redis used in RAG; QStash used for async audit event)
-upstash-vector>=0.8.0,<1.0.0
-upstash-redis>=1.0.0,<2.0.0
-upstash-search>=0.1.1,<1.0.0
-qstash>=3.0.0,<4.0.0
-````
-
-## File: fn/src/app/__init__.py
-````python
-
-````
-
 ## File: fn/src/app/bootstrap/__init__.py
 ````python
 """
@@ -124,9 +16,27 @@ Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 
 ````
 
-## File: fn/src/application/__init__.py
+## File: fn/src/app/container/runtime_dependencies.py
+````python
+"""Dependency registration — thin composer wiring gateways into the registry.
+
+Each gateway implementation lives in its own module under
+infrastructure/gateways/ following SRP. This file only wires them.
+"""
+⋮----
+def register_runtime_dependencies() -> None
+````
+
+## File: fn/src/app/__init__.py
 ````python
 
+````
+
+## File: fn/src/application/dto/__init__.py
+````python
+"""Application DTOs."""
+⋮----
+__all__ = [
 ````
 
 ## File: fn/src/application/dto/chunk_job.py
@@ -192,9 +102,35 @@ requested_at: datetime = Field(..., description="ISO 8601 timestamp when the job
 model_config = {"str_strip_whitespace": True}
 ````
 
-## File: fn/src/application/ports/__init__.py
+## File: fn/src/application/dto/rag.py
 ````python
-
+@dataclass
+class RagIngestionResult
+⋮----
+chunk_count: int
+vector_count: int
+embedding_model: str
+embedding_dimensions: int
+raw_chars: int
+normalized_chars: int
+normalization_version: str
+language_hint: str
+⋮----
+@dataclass(frozen=True)
+class RagQueryEffectPlan
+⋮----
+cache_key: str
+query: str
+top_k: int
+citation_count: int
+vector_hits: int
+search_hits: int
+⋮----
+@dataclass(frozen=True)
+class RagQueryExecution
+⋮----
+response: dict[str, Any]
+effect_plan: RagQueryEffectPlan | None = None
 ````
 
 ## File: fn/src/application/ports/input/__init__.py
@@ -203,6 +139,18 @@ model_config = {"str_strip_whitespace": True}
 ````
 
 ## File: fn/src/application/ports/output/__init__.py
+````python
+
+````
+
+## File: fn/src/application/ports/output/gateways.py
+````python
+"""Backward-compatible application-layer re-export of domain repository contracts."""
+⋮----
+__all__ = [
+````
+
+## File: fn/src/application/ports/__init__.py
 ````python
 
 ````
@@ -217,11 +165,319 @@ model_config = {"str_strip_whitespace": True}
 def get_authorization() -> AuthorizationGateway
 ````
 
+## File: fn/src/application/services/document_pipeline.py
+````python
+def get_document_parser() -> DocumentParserGateway
+⋮----
+def get_document_artifact_gateway() -> DocumentArtifactGateway
+⋮----
+def get_document_status_gateway() -> DocumentStatusGateway
+````
+
 ## File: fn/src/application/services/rag_query_effects.py
 ````python
 logger = logging.getLogger(__name__)
 ⋮----
 effects_gateway = effects_gateway or get_rag_query_effects_gateway()
+````
+
+## File: fn/src/application/use_cases/__init__.py
+````python
+"""Application use cases."""
+⋮----
+__all__ = [
+````
+
+## File: fn/src/application/use_cases/parse_document_command.py
+````python
+"""Authorized command wrapper for parse-document callable entry."""
+⋮----
+auth_gateway = auth_gateway or get_authorization()
+status_gateway = status_gateway or get_document_status_gateway()
+````
+
+## File: fn/src/application/use_cases/parse_document_pipeline.py
+````python
+"""
+Parse-document application use case.
+
+Orchestrates the full parse pipeline for a single document:
+    init Firestore → Document AI parse → write JSON artifact to GCS
+    → update Firestore state → (optionally) ingest into RAG index.
+
+Both the HTTPS Callable handler and the Storage trigger handler
+delegate to this use case, keeping interface-layer files thin.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+class ParsedDocumentLike(Protocol)
+⋮----
+text: str
+page_count: int
+chunks: list[dict[str, Any]]
+entities: list[dict[str, Any]]
+⋮----
+@dataclass
+class ParseDocumentCommand
+⋮----
+"""Input contract for the parse-document use case."""
+⋮----
+doc_id: str
+gcs_uri: str
+bucket_name: str
+object_path: str
+filename: str
+size_bytes: int
+mime_type: str
+account_id: str
+workspace_id: str
+parser: str = "layout"   # "layout" | "ocr" | "form" | "genkit"
+run_rag: bool = True
+⋮----
+@dataclass
+class ParseDocumentResult
+⋮----
+"""Output contract for the parse-document use case."""
+⋮----
+parser: str
+⋮----
+extraction_ms: int
+json_gcs_uri: str
+rag_chunk_count: int | None = None
+rag_vector_count: int | None = None
+⋮----
+"""Orchestrate the full parse pipeline for a single document.
+
+    Raises:
+        Exception: propagated from DocumentAI / GCS / Firestore calls;
+                   callers are responsible for error recording.
+    """
+parser_gateway = parser_gateway or get_document_parser()
+artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+status_gateway = status_gateway or get_document_status_gateway()
+⋮----
+start_time = time.time()
+parsed = parser_gateway.process_document_gcs(
+extraction_ms = int((time.time() - start_time) * 1000)
+⋮----
+json_gcs_uri = _write_artifact_and_update_state(
+⋮----
+layout_chunks = parsed.chunks if cmd.parser == "layout" else None
+⋮----
+rag = ingest_for_rag(
+⋮----
+rag_chunk_count = rag.chunk_count
+rag_vector_count = rag.vector_count
+⋮----
+"""Write the JSON artifact to GCS and update the Firestore state field.
+
+    Returns the GCS URI of the written artifact.
+    """
+base = {
+⋮----
+json_path = artifact_gateway.layout_json_path(cmd.object_path)
+data = {**base, "text": parsed.text, "chunk_count": len(parsed.chunks), "chunks": parsed.chunks}
+json_gcs_uri = artifact_gateway.upload_json(
+⋮----
+json_path = artifact_gateway.ocr_json_path(cmd.object_path)
+data = {
+⋮----
+json_path = artifact_gateway.form_json_path(cmd.object_path)
+⋮----
+# "genkit"
+json_path = artifact_gateway.genkit_json_path(cmd.object_path)
+````
+
+## File: fn/src/application/use_cases/rag_ingestion.py
+````python
+"""
+RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+"""Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。
+
+    當 layout_chunks 非空時優先使用 Layout Parser 語意分塊，保留表格結構與
+    段落語意邊界（chunking_strategy="layout-v1"）。
+    否則退回字元切分（chunking_strategy="char-split-v2"），維持向下相容。
+    """
+gateway = gateway or get_rag_ingestion_gateway()
+⋮----
+raw_chars = len(text or "")
+normalized = clean_text(text or "")
+normalized_chars = len(normalized)
+language_hint = detect_language_hint(normalized)
+⋮----
+# ── 選擇分塊策略 ─────────────────────────────────────────────────────────
+⋮----
+base_chunks = layout_chunks_to_rag_chunks(layout_chunks)
+chunking_strategy = "layout-v1"
+normalization_version = "layout-v1"
+⋮----
+base_chunks = chunk_text(
+chunking_strategy = "char-split-v2"
+normalization_version = "v2"
+⋮----
+# ── 刪除舊向量（冪等保護：先清除再 upsert，防止 orphan chunks）──────────
+# 失敗時僅警告，不中斷 ingestion：向量索引的舊資料頂多造成 stale 結果，
+# 而中斷 ingestion 會讓文件永遠無法被查詢，危害更大。
+⋮----
+deleted = gateway.delete_vectors_by_doc(doc_id=doc_id, namespace=RAG_VECTOR_NAMESPACE)
+⋮----
+except Exception as del_exc:  # noqa: BLE001  — best-effort; ingestion must proceed
+⋮----
+texts = [item["text"] for item in base_chunks]
+vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
+⋮----
+now_iso = datetime.now(UTC).isoformat()
+payload: list[dict[str, Any]] = []
+⋮----
+chunk_id = f"{doc_id}:{i:04d}"
+⋮----
+# Layout Parser specific fields (empty strings for char-split path)
+⋮----
+# Best effort: keep Upstash Search in sync with vector chunks.
+⋮----
+search_docs = [
+⋮----
+# 文件索引摘要寫入 Redis，方便後續檢視與治理。
+````
+
+## File: fn/src/application/use_cases/rag_query.py
+````python
+"""
+RAG query — application use case orchestration.
+
+Delegates all domain filtering to domain.services.rag_result_filter.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+"""Filter and map raw retrieval hits into context snippets and citations.
+
+    Returns (contexts, citations, dropped_workspace, dropped_status,
+             dropped_freshness, dropped_taxonomy).
+    """
+contexts: list[str] = []
+citations: list[RagCitation] = []
+dropped_workspace = dropped_status = dropped_freshness = dropped_taxonomy = 0
+⋮----
+metadata = normalize_metadata(hit.get("metadata"))
+⋮----
+snippet = extract_snippet(hit, metadata)
+⋮----
+"""Application use case for RAG query orchestration."""
+gateway = gateway or get_rag_query_gateway()
+⋮----
+request = RagQueryInput.from_raw(
+⋮----
+cache_key = gateway.build_query_cache_key(
+⋮----
+cached = gateway.get_query_cache(cache_key)
+⋮----
+retrieval_top_k = request.retrieval_top_k()
+vector = gateway.to_query_vector(request.query)
+vector_hits_raw = gateway.query_vector(vector, top_k=retrieval_top_k)
+search_hits_raw = gateway.query_search(request.query, top_k=retrieval_top_k)
+⋮----
+seen_snippets: set[str] = set()
+⋮----
+contexts = vec_contexts + srch_contexts
+citations = vec_citations + srch_citations
+vector_hit_count = len(vec_citations)
+search_hit_count = len(srch_citations)
+⋮----
+context_block = "\n\n---\n\n".join(contexts[: request.top_k])
+⋮----
+answer = gateway.generate_answer(query=request.query, context_block=context_block)
+response = RagQueryResult(
+````
+
+## File: fn/src/application/use_cases/rag_reindex_command.py
+````python
+"""Authorized command wrapper for rag-reindex callable entry."""
+⋮----
+auth_gateway = auth_gateway or get_authorization()
+status_gateway = status_gateway or get_document_status_gateway()
+````
+
+## File: fn/src/application/use_cases/rag_reindex.py
+````python
+"""
+RAG reindex application use case.
+
+Downloads the layout JSON artifact from GCS, enriches missing fields,
+then re-runs the RAG ingestion pipeline and marks the document ready.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+@dataclass
+class RagReindexCommand
+⋮----
+"""Input contract for the rag-reindex use case."""
+⋮----
+doc_id: str
+json_gcs_uri: str
+account_id: str
+# Optional fields — enriched from the stored JSON artifact when absent.
+source_gcs_uri: str = ""
+workspace_id: str = ""
+filename: str = ""
+page_count: int = 0
+⋮----
+@dataclass
+class RagReindexResult
+⋮----
+"""Output contract for the rag-reindex use case."""
+⋮----
+chunk_count: int
+vector_count: int
+raw_chars: int
+normalized_chars: int
+normalization_version: str
+language_hint: str
+⋮----
+"""Download the layout JSON, enrich fields, re-ingest into RAG index.
+
+    Raises:
+        ValueError: when required fields are absent from both cmd and the stored JSON.
+        Exception:  propagated from GCS / embedding / vector calls.
+    """
+artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+status_gateway = status_gateway or get_document_status_gateway()
+⋮----
+json_bytes = artifact_gateway.download_bytes(
+payload: dict = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
+⋮----
+text = str(payload.get("text", "")).strip()
+⋮----
+source_gcs_uri = cmd.source_gcs_uri or str(payload.get("source_gcs_uri", "")).strip()
+⋮----
+workspace_id = cmd.workspace_id
+⋮----
+workspace_id = str(payload.get("workspace_id", "")).strip()
+⋮----
+workspace_id = str((payload.get("metadata") or {}).get("space_id", "")).strip()
+⋮----
+filename = cmd.filename
+⋮----
+filename = (
+⋮----
+page_count = cmd.page_count
+⋮----
+page_count = int(payload.get("page_count", 0) or 0)
+⋮----
+layout_chunks: list[dict] | None = payload.get("chunks") or None
+⋮----
+rag = ingest_for_rag(
+````
+
+## File: fn/src/application/__init__.py
+````python
+
 ````
 
 ## File: fn/src/core/__init__.py
@@ -240,16 +496,88 @@ class AuthorizationError(PermissionError)
 """Raised when an actor lacks access to the requested scope."""
 ````
 
+## File: fn/src/core/config.py
+````python
+"""
+專案層級常數 — 從環境變數讀取，讓同一份程式碼在 dev / staging / prod 皆可用。
+"""
+⋮----
+# ── GCP 基礎設定 ────────────────────────────────────────────────────────────
+GCP_PROJECT: str = "65970295651"
+GCP_REGION: str = os.environ.get("FUNCTION_REGION", "asia-southeast1")
+⋮----
+# -- Cloud Storage ----------------------------------------
+# Firebase Storage bucket (from firebase.json storage.bucket)
+UPLOAD_BUCKET: str = os.environ.get(
+⋮----
+# ── Document AI ──────────────────────────────────────────────────────────────
+# 格式： projects/{project}/locations/{location}/processors/{processor_id}
+#
+# ⚠️  兩個 processor 均位於 US region，endpoint 必須使用 us-documentai.googleapis.com
+# Layout Parser  → https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/929c4719f45b1eee:process
+# Form Parser    → https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/7318076ba71e0758:process
+⋮----
+DOCAI_LOCATION: str = "us"
+DOCAI_API_ENDPOINT: str = "us-documentai.googleapis.com"
+⋮----
+# Layout Parser — 保留表格結構與段落語意邊界的主要 Processor（混合文件首選）
+# AP8 採購訂購單：多層嵌套表格 + 大量段落文字，Layout Parser 輸出 context-aware chunks
+DOCAI_LAYOUT_PROCESSOR_NAME: str = os.environ.get(
+⋮----
+# Form Parser — 結構化欄位擷取副通道（PO號、金額、日期、供應商等 KV entity）
+# 若未設定則使用預設 US Form Parser；設為空字串可停用副通道
+DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
+⋮----
+# OCR Processor — 高品質全頁文字擷取通道（AP8採購訂單等密集表格 PDF 推薦）。
+# AP8 PO 4510250181：54 個明細（項次 10–540，步進 10），需 OCR 完整擷取中文描述。
+# https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/f88dfd0407416be7:process
+DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
+⋮----
+# ── OpenAI (Embeddings / LLM) ───────────────────────────────────────────────
+OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "").strip()
+OPENAI_EMBEDDING_MODEL: str = os.environ.get(
+OPENAI_EMBEDDING_DIMENSIONS: int = int(os.environ.get("OPENAI_EMBEDDING_DIMENSIONS", "1024"))
+OPENAI_LLM_MODEL: str = os.environ.get("OPENAI_LLM_MODEL", "gpt-4o-mini")
+OPENAI_TIMEOUT_SECONDS: float = float(os.environ.get("OPENAI_TIMEOUT_SECONDS", "30"))
+OPENAI_MAX_RETRIES: int = int(os.environ.get("OPENAI_MAX_RETRIES", "2"))
+⋮----
+# ── Upstash (Vector / Redis / Search / QStash) ─────────────────────────────
+UPSTASH_REDIS_REST_URL: str = os.environ.get("UPSTASH_REDIS_REST_URL", "").strip()
+UPSTASH_REDIS_REST_TOKEN: str = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "").strip()
+⋮----
+UPSTASH_VECTOR_REST_URL: str = os.environ.get("UPSTASH_VECTOR_REST_URL", "").strip()
+UPSTASH_VECTOR_REST_TOKEN: str = os.environ.get("UPSTASH_VECTOR_REST_TOKEN", "").strip()
+⋮----
+UPSTASH_SEARCH_REST_URL: str = os.environ.get("UPSTASH_SEARCH_REST_URL", "").strip()
+UPSTASH_SEARCH_REST_TOKEN: str = os.environ.get("UPSTASH_SEARCH_REST_TOKEN", "").strip()
+UPSTASH_SEARCH_INDEX: str = os.environ.get("UPSTASH_SEARCH_INDEX", "").strip()
+UPSTASH_SEARCH_TIMEOUT_SECONDS: float = float(os.environ.get("UPSTASH_SEARCH_TIMEOUT_SECONDS", "8"))
+⋮----
+QSTASH_URL: str = os.environ.get("QSTASH_URL", "https://qstash-us-east-1.upstash.io").strip()
+QSTASH_TOKEN: str = os.environ.get("QSTASH_TOKEN", "").strip()
+QSTASH_CURRENT_SIGNING_KEY: str = os.environ.get("QSTASH_CURRENT_SIGNING_KEY", "").strip()
+QSTASH_NEXT_SIGNING_KEY: str = os.environ.get("QSTASH_NEXT_SIGNING_KEY", "").strip()
+QSTASH_RAG_AUDIT_URL: str = os.environ.get("QSTASH_RAG_AUDIT_URL", "").strip()
+⋮----
+# ── RAG Pipeline ─────────────────────────────────────────────────────────────
+RAG_VECTOR_NAMESPACE: str = os.environ.get("RAG_VECTOR_NAMESPACE", "rag-docs").strip()
+RAG_CHUNK_SIZE_CHARS: int = int(os.environ.get("RAG_CHUNK_SIZE_CHARS", "1200"))
+RAG_CHUNK_OVERLAP_CHARS: int = int(os.environ.get("RAG_CHUNK_OVERLAP_CHARS", "150"))
+RAG_QUERY_TOP_K: int = int(os.environ.get("RAG_QUERY_TOP_K", "5"))
+RAG_QUERY_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_QUERY_CACHE_TTL_SECONDS", "300"))
+RAG_QUERY_RATE_LIMIT_MAX: int = int(os.environ.get("RAG_QUERY_RATE_LIMIT_MAX", "30"))
+RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS: int = int(os.environ.get("RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS", "60"))
+RAG_QUERY_DEFAULT_MAX_AGE_DAYS: int = int(os.environ.get("RAG_QUERY_DEFAULT_MAX_AGE_DAYS", "365"))
+RAG_QUERY_REQUIRE_READY_STATUS: bool = os.environ.get("RAG_QUERY_REQUIRE_READY_STATUS", "true").strip().lower() in (
+RAG_DOC_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_DOC_CACHE_TTL_SECONDS", "2592000"))
+RAG_REDIS_PREFIX: str = os.environ.get("RAG_REDIS_PREFIX", "rag").strip()
+````
+
 ## File: fn/src/core/storage_uri.py
 ````python
 def parse_gs_uri(gs_uri: str) -> tuple[str, str]
 ⋮----
 path_part = gs_uri.split("gs://", 1)[1]
-````
-
-## File: fn/src/domain/__init__.py
-````python
-
 ````
 
 ## File: fn/src/domain/events/__init__.py
@@ -262,11 +590,367 @@ path_part = gs_uri.split("gs://", 1)[1]
 
 ````
 
+## File: fn/src/domain/repositories/__init__.py
+````python
+"""Domain repository contracts."""
+⋮----
+__all__ = [
+````
+
+## File: fn/src/domain/repositories/rag.py
+````python
+class RagQueryGateway(Protocol)
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str: ...
+⋮----
+def get_query_cache(self, cache_key: str) -> dict[str, Any] | None: ...
+⋮----
+def to_query_vector(self, query: str) -> list[float]: ...
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]: ...
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]: ...
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str: ...
+⋮----
+class RagQueryEffectsGateway(Protocol)
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None: ...
+⋮----
+class RagIngestionGateway(Protocol)
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]: ...
+⋮----
+def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any: ...
+⋮----
+def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int: ...
+⋮----
+def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None: ...
+⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int: ...
+⋮----
+class DocumentParserGateway(Protocol)
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
+⋮----
+class DocumentRateLimitGateway(Protocol)
+⋮----
+class DocumentStatusGateway(Protocol)
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None: ...
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
+⋮----
+class DocumentArtifactGateway(Protocol)
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def form_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str: ...
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str: ...
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
+⋮----
+class AuthorizationGateway(Protocol)
+⋮----
+def assert_actor_can_access_account(self, *, actor_id: str, account_id: str) -> None: ...
+⋮----
+def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str) -> None: ...
+⋮----
+class DocumentPipelineGateway(
+⋮----
+"""Backward-compatible composite port built from the split document ports."""
+⋮----
+_rag_query_gateway: RagQueryGateway | None = None
+_rag_query_effects_gateway: RagQueryEffectsGateway | None = None
+_rag_ingestion_gateway: RagIngestionGateway | None = None
+_document_parser_gateway: DocumentParserGateway | None = None
+_document_rate_limit_gateway: DocumentRateLimitGateway | None = None
+_document_status_gateway: DocumentStatusGateway | None = None
+_document_artifact_gateway: DocumentArtifactGateway | None = None
+_document_pipeline_gateway: DocumentPipelineGateway | None = None
+_authorization_gateway: AuthorizationGateway | None = None
+_composed_document_pipeline_gateway: DocumentPipelineGateway | None = None
+⋮----
+def register_rag_query_gateway(gateway: RagQueryGateway) -> None
+⋮----
+_rag_query_gateway = gateway
+⋮----
+def get_rag_query_gateway() -> RagQueryGateway
+⋮----
+def register_rag_query_effects_gateway(gateway: RagQueryEffectsGateway) -> None
+⋮----
+_rag_query_effects_gateway = gateway
+⋮----
+def get_rag_query_effects_gateway() -> RagQueryEffectsGateway
+⋮----
+def register_rag_ingestion_gateway(gateway: RagIngestionGateway) -> None
+⋮----
+_rag_ingestion_gateway = gateway
+⋮----
+def get_rag_ingestion_gateway() -> RagIngestionGateway
+⋮----
+def register_document_parser_gateway(gateway: DocumentParserGateway) -> None
+⋮----
+_document_parser_gateway = gateway
+⋮----
+def get_document_parser_gateway() -> DocumentParserGateway
+⋮----
+def register_document_rate_limit_gateway(gateway: DocumentRateLimitGateway) -> None
+⋮----
+_document_rate_limit_gateway = gateway
+⋮----
+def get_document_rate_limit_gateway() -> DocumentRateLimitGateway
+⋮----
+def register_document_status_gateway(gateway: DocumentStatusGateway) -> None
+⋮----
+_document_status_gateway = gateway
+⋮----
+def get_document_status_gateway() -> DocumentStatusGateway
+⋮----
+def register_document_artifact_gateway(gateway: DocumentArtifactGateway) -> None
+⋮----
+_document_artifact_gateway = gateway
+⋮----
+def get_document_artifact_gateway() -> DocumentArtifactGateway
+⋮----
+def register_authorization_gateway(gateway: AuthorizationGateway) -> None
+⋮----
+_authorization_gateway = gateway
+⋮----
+def get_authorization_gateway() -> AuthorizationGateway
+⋮----
+def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None
+⋮----
+_document_pipeline_gateway = gateway
+⋮----
+class _ComposedDocumentPipelineGateway
+⋮----
+"""Legacy compatibility facade over the split document ports."""
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
+⋮----
+def init_document(self, **kwargs: Any) -> None
+⋮----
+def update_parsed(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_layout(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_form(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_ocr(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_genkit(self, **kwargs: Any) -> None
+⋮----
+def mark_rag_ready(self, **kwargs: Any) -> None
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+⋮----
+def get_document_pipeline_gateway() -> DocumentPipelineGateway
+⋮----
+_composed_document_pipeline_gateway = _ComposedDocumentPipelineGateway()
+````
+
 ## File: fn/src/domain/services/__init__.py
 ````python
 """Domain services."""
 ⋮----
 __all__ = [
+````
+
+## File: fn/src/domain/services/po_extraction.py
+````python
+"""
+Domain Service — Purchase Order (PO) line item extraction and classification.
+
+Pure business logic — no infrastructure dependency.
+
+Supports the ABB 訂購單 AP8 format (document 4510250181-AP8_v0-8150.PDF):
+  - 54 line items numbered 10–540 in steps of 10
+  - Two task categories: 施工作業 (construction) / 費用管銷 (expense management)
+  - Dense text format produced by Document AI OCR / Layout Parser
+
+Dependency: stdlib only.
+"""
+⋮----
+# ── Chinese numeral character class used in section headers ─────────────────
+_CHINESE_NUMERALS = "一二三四五六七八九十壹貳參肆伍陸柒捌玖拾"
+⋮----
+# Pattern: item number (10–540, step 10) at word boundary
+_ITEM_NO_PATTERN = re.compile(r"(?<!\d)(\d{2,3})(?=\s)")
+⋮----
+# Pattern: 小計 + amount signals end of price data; description follows.
+# The space between 小計 and the amount is optional — items crossing page
+# breaks in the AP8 PDF produce "小計 721,619" (with space).
+_SUBTOTAL_PATTERN = re.compile(r"小計\s*[\d,，.]+\s*")
+⋮----
+# Pattern: section header 「（中文数字）」
+_SECTION_HEADER_PATTERN = re.compile(
+⋮----
+# Pattern to truncate description at noise boundaries within a single OCR line:
+# next-item anchor (e.g. "330 3RDTW"), summary totals, or ABB page footer.
+# Note: "ABB Ltd." is intentionally vendor-specific — this service is scoped to
+# the ABB AP8 訂購單 format (document 4510250181); see module docstring.
+_DESCRIPTION_STOP_PATTERN = re.compile(r"\d{2,3}\s+3RDTW|未稅總計|ABB Ltd\.")
+⋮----
+# ── Classification rules ─────────────────────────────────────────────────────
+⋮----
+# Section numerals whose entire section is 費用管銷.
+# Specific to the ABB AP8 訂購單 4510250181 section structure:
+#   伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
+#   玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
+# Sections 一–肆 and 柒–捌 contain a mix; classification falls through to
+# _COST_DESCRIPTION_PATTERNS for per-item discrimination.
+_COST_SECTION_CHARS: frozenset[str] = frozenset(["伍", "玖"])
+⋮----
+# Description-level patterns that force 費用管銷, regardless of section
+_COST_DESCRIPTION_PATTERNS: list[re.Pattern[str]] = [
+⋮----
+re.compile(r"費$"),           # ends with 費 (e.g., 高空作業費, 工程衛生費)
+re.compile(r"費用"),          # 費用 anywhere
+re.compile(r"管理\d*人"),     # management headcount (e.g., 管理1人*4個月)
+re.compile(r"監工"),          # supervision
+re.compile(r"工安費"),        # safety fee
+re.compile(r"保險"),          # insurance
+re.compile(r"分攤"),          # cost allocation
+re.compile(r"廢棄物"),        # waste disposal
+re.compile(r"5D"),            # 5D cost
+re.compile(r"利潤"),          # profit
+re.compile(r"圖控與軟體"),    # SCADA software deliverable (cost item)
+re.compile(r"圖面製作"),      # drawing / document fee
+re.compile(r"工務所"),        # site office
+⋮----
+def classify_po_task(description: str, section_char: str = "") -> Literal["施工作業", "費用管銷"]
+⋮----
+"""Classify a PO line item as 施工作業 or 費用管銷.
+
+    Args:
+        description: Chinese task description text.
+        section_char: Chinese numeral from the section header (e.g., "伍").
+
+    Returns:
+        "施工作業" or "費用管銷"
+    """
+# Section-level override takes precedence
+⋮----
+# Description-level pattern matching
+⋮----
+def extract_po_line_items(text: str) -> list[dict[str, Any]]
+⋮----
+"""Extract structured line items from AP8 PO raw text.
+
+    Document AI (OCR / Layout Parser) produces dense text where each line item
+    is formatted as::
+
+        "{item_no} {product_code} SET {price}... 小計{total}（{section}）{description}"
+
+    This function locates each item's Chinese section header and description
+    after the price block and returns a structured list.
+
+    Args:
+        text: Raw text from Document AI output for the PO document.
+
+    Returns:
+        Sorted list (by item_no) of dicts with keys:
+            item_no (int): 10, 20, … 540
+            section (str): e.g., "（一）SCADA站內工程"
+            section_char (str): e.g., "一"
+            description (str): task description text
+            category (str): "施工作業" or "費用管銷"
+            raw_snippet (str): first 200 chars of the matched segment
+    """
+# Normalize horizontal whitespace for reliable pattern matching
+normalized = re.sub(r"[ \t]+", " ", text)
+⋮----
+items: list[dict[str, Any]] = []
+⋮----
+# Split on item boundaries: digit(s) followed by the ABB product code prefix
+# or a Chinese description marker so we get one segment per line item.
+segment_pattern = re.compile(
+segments = list(segment_pattern.finditer(normalized))
+⋮----
+item_no_str = match.group(1)
+⋮----
+item_no = int(item_no_str)
+⋮----
+# Validate item number is in the expected AP8 range (10–540, step 10)
+⋮----
+# Extract the text segment for this item
+start = match.start()
+end = segments[idx + 1].start() if idx + 1 < len(segments) else len(normalized)
+segment = normalized[start:end]
+⋮----
+# Find 小計 to locate where the price block ends
+subtotal_match = _SUBTOTAL_PATTERN.search(segment)
+description_zone = segment[subtotal_match.end():] if subtotal_match else segment
+⋮----
+# Extract section header + leading description from the description zone
+header_match = _SECTION_HEADER_PATTERN.search(description_zone)
+⋮----
+section_char = header_match.group(1).strip()
+description_raw = (header_match.group(2) or "").strip()
+# Truncate at noise boundaries (next-item anchor or summary totals)
+description_raw = _DESCRIPTION_STOP_PATTERN.split(description_raw, maxsplit=1)[0].strip()
+⋮----
+# Collect any remaining text after the section header (may continue on next line)
+after_header = description_zone[header_match.end():].strip()
+# Limit to first sentence/clause; stop at new section, page-break, next item, or totals
+extra = re.split(r"[（\n]|ABB Ltd\.|(?=\d{2,3}\s+3RDTW)|未稅總計", after_header, maxsplit=1)[0].strip()
+# Only append extra if it starts with Chinese text (genuine description continuation).
+# ASCII-leading text (e.g., "Ref: 6591401)折扣…") is leaked price data — discard.
+# Known limitation: descriptions that legitimately start with English terms
+# (e.g., "RTU盤內…") will not be extended by extra; they are however already
+# fully captured by _SECTION_HEADER_PATTERN group 2 in practice.
+⋮----
+description_raw = (description_raw + " " + extra).strip()
+⋮----
+description = re.sub(r"\s+", " ", description_raw).strip()
+⋮----
+section_label = f"（{section_char}）"
+category = classify_po_task(description, section_char)
+⋮----
+# De-duplicate: the PDF's multi-page layout causes identical items to appear
+# more than once in the OCR text.  Keep the first occurrence per item_no
+# because it tends to come from the main table (cleaner formatting).
+seen: set[int] = set()
+deduped: list[dict[str, Any]] = []
+⋮----
+"""Convert extracted PO line items to RAG chunk format.
+
+    Each line item becomes one chunk, preserving category metadata so the
+    RAG pipeline can filter by 施工作業 / 費用管銷.
+
+    Args:
+        line_items: Output of extract_po_line_items().
+
+    Returns:
+        list of dicts compatible with the RAG ingestion pipeline.
+    """
+result: list[dict[str, Any]] = []
+⋮----
+text = (
 ````
 
 ## File: fn/src/domain/services/rag_ingestion_text.py
@@ -468,7 +1152,7 @@ debug: dict[str, Any] | None = None
 payload: dict[str, Any] = {
 ````
 
-## File: fn/src/infrastructure/__init__.py
+## File: fn/src/domain/__init__.py
 ````python
 
 ````
@@ -500,11 +1184,6 @@ digest = hashlib.sha256(key_base.encode("utf-8")).hexdigest()
 def get_query_cache(cache_key: str) -> dict[str, Any] | None
 ⋮----
 def save_query_cache(cache_key: str, payload: dict[str, Any]) -> None
-````
-
-## File: fn/src/infrastructure/external/__init__.py
-````python
-
 ````
 
 ## File: fn/src/infrastructure/external/documentai/__init__.py
@@ -775,6 +1454,23 @@ def _require(value: str, name: str) -> str
 def _import_module(module_name: str, install_hint: str)
 ````
 
+## File: fn/src/infrastructure/external/upstash/clients.py
+````python
+"""
+Upstash clients — 向後相容的重新匯出桶。
+各功能已拆分至對應的聚焦模組：
+  - vector_client.py  (upsert_vectors, query_vectors)
+  - redis_client.py   (redis_get_json, redis_set_json, redis_fixed_window_allow)
+  - search_client.py  (upsert_search_documents, query_search_documents)
+  - qstash_client.py  (publish_qstash_json)
+  - _base.py          (UpstashConfigError, UpstashSdkError)
+
+此檔案保留所有原始公開符號以維持向後相容。
+"""
+⋮----
+__all__ = [
+````
+
 ## File: fn/src/infrastructure/external/upstash/qstash_client.py
 ````python
 """
@@ -864,9 +1560,214 @@ allowed = current <= max_requests
 remaining = max(0, max_requests - current)
 ````
 
+## File: fn/src/infrastructure/external/upstash/search_client.py
+````python
+"""
+Upstash Search 客戶端 — 全文搜尋 upsert / query 操作。
+"""
+⋮----
+_SEARCH_INDEX: Any | None = None
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def get_search_index() -> Any
+⋮----
+"""取得 Upstash Search 官方 SDK index（單例）。"""
+⋮----
+mod = _import_module("upstash_search", "pip install upstash-search")
+search_cls = getattr(mod, "Search", None)
+⋮----
+index_name = UPSTASH_SEARCH_INDEX or "default"
+client = search_cls(
+_SEARCH_INDEX = client.index(index_name)
+⋮----
+def upsert_search_documents(documents: list[dict[str, Any]]) -> int
+⋮----
+"""批次寫入 Upstash Search index（best effort，不拋出上層）。"""
+⋮----
+normalized: list[dict[str, Any]] = []
+⋮----
+doc_id = str(item.get("id") or "").strip()
+⋮----
+content = item.get("content") if isinstance(item.get("content"), dict) else {}
+metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+⋮----
+index = get_search_index()
+⋮----
+def delete_search_documents_by_doc(doc_id: str) -> int
+⋮----
+"""刪除屬於指定 doc_id 的所有搜尋索引文件（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Search SDK 的 prefix delete，與 vector 刪除搭配使用，
+    確保 Upstash Search 與 Upstash Vector 的資料一致性。
+
+    Args:
+        doc_id: 文件識別碼，對應 search doc ID 格式 ``{doc_id}:{i:04d}``。
+
+    Returns:
+        int: 實際刪除的文件數量（0 表示無資料、未設定或操作失敗）。
+    """
+⋮----
+prefix = f"{doc_id}:"
+⋮----
+result = index.delete(prefix=prefix)
+⋮----
+deleted = result
+⋮----
+deleted = int(result.deleted or 0)
+⋮----
+deleted = int(result.get("deleted", 0))
+⋮----
+deleted = 0
+⋮----
+def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]
+⋮----
+"""
+    以 Upstash Search REST 進行補充檢索（best effort）。
+
+    回傳格式統一為 list[dict]，單筆含 text / score / source 等欄位。
+    """
+⋮----
+# Prefer official SDK first; fallback to REST probing for compatibility.
+⋮----
+result = index.search(query=query, limit=top_k)
+⋮----
+items = result
+⋮----
+items = (
+⋮----
+items = getattr(result, "results", None) or getattr(result, "data", None) or []
+⋮----
+item = dict(item)
+⋮----
+text = str(
+⋮----
+endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
+body_candidates = [
+path_candidates = ["/query", "/search"]
+⋮----
+url = f"{endpoint_base}{path}"
+⋮----
+raw = None
+⋮----
+req = urlrequest.Request(
+⋮----
+raw = resp.read().decode("utf-8", errors="ignore")
+⋮----
+payload = json.loads(raw)
+⋮----
+candidates = []
+⋮----
+candidates = (
+⋮----
+candidates = payload
+````
+
+## File: fn/src/infrastructure/external/upstash/vector_client.py
+````python
+"""
+Upstash Vector 客戶端 — 向量 upsert / query / delete 操作。
+
+Chunk ID 命名慣例：``{doc_id}:{i:04d}``，其中 ``:`` 為分隔符。
+``delete_vectors_by_doc`` 使用 prefix ``{doc_id}:`` 刪除同份文件的所有 chunk 向量。
+"""
+⋮----
+_VECTOR_INDEX: Any | None = None
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def get_vector_index() -> Any
+⋮----
+"""取得 Upstash Vector 官方 SDK Index 實例（單例）。"""
+⋮----
+mod = _import_module("upstash_vector", "pip install upstash-vector")
+index_cls = getattr(mod, "Index", None)
+⋮----
+_VECTOR_INDEX = index_cls(
+⋮----
+def _normalize_vector_item(item: Any) -> dict[str, Any]
+⋮----
+def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any
+⋮----
+"""
+    批次 upsert 向量資料到 Upstash Vector。
+
+    items 每筆至少包含：
+      - id: str
+      - vector: list[float]
+      - metadata: dict[str, Any]
+    """
+index = get_vector_index()
+sdk_payload = [
+tuples_payload = [
+⋮----
+def delete_vectors_by_doc(doc_id: str, namespace: str = "") -> int
+⋮----
+"""刪除屬於指定 doc_id 的所有向量（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Vector SDK 的 prefix delete，一次清除整份文件的所有 chunk
+    向量，避免重新索引後留下孤立 (orphan) chunk 資料。
+
+    Args:
+        doc_id:    文件識別碼，對應 chunk ID 格式 ``{doc_id}:{i:04d}``。
+        namespace: Upstash Vector 命名空間（與 upsert 時一致）。
+
+    Returns:
+        int: 實際刪除的向量數量（0 表示無向量或操作失敗）。
+    """
+⋮----
+prefix = f"{doc_id}:"
+⋮----
+result = index.delete(prefix=prefix, namespace=namespace)
+⋮----
+deleted = result
+⋮----
+deleted = int(result.deleted or 0)
+⋮----
+deleted = int(result.get("deleted", 0))
+⋮----
+deleted = 0
+⋮----
+"""查詢 Upstash Vector，統一輸出為 list[dict]。"""
+⋮----
+result = index.query(
+⋮----
+result = index.query(vector=vector, top_k=top_k, namespace=namespace)
+⋮----
+candidates = result.get("result") or result.get("matches") or result.get("data") or []
+````
+
+## File: fn/src/infrastructure/external/__init__.py
+````python
+
+````
+
 ## File: fn/src/infrastructure/gateways/__init__.py
 ````python
 
+````
+
+## File: fn/src/infrastructure/gateways/authorization_gateway.py
+````python
+"""Infrastructure implementation of AuthorizationGateway."""
+⋮----
+class FirestoreAuthorizationGateway
+⋮----
+def assert_actor_can_access_account(self, *, actor_id: str, account_id: str) -> None
+⋮----
+db = fb_firestore.client()
+snap = db.collection("accounts").document(account_id).get()
+⋮----
+data = snap.to_dict() or {}
+owner_id = str(data.get("ownerId", "")).strip()
+member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
+member_set = {str(item or "").strip() for item in member_ids}
+⋮----
+def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str) -> None
+⋮----
+snap = db.collection("workspaces").document(workspace_id).get()
+⋮----
+bound_account_id = str(data.get("accountId", "")).strip()
 ````
 
 ## File: fn/src/infrastructure/gateways/document_artifact_gateway.py
@@ -968,9 +1869,23 @@ class InfraRagQueryEffectsGateway
 def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
 ````
 
-## File: fn/src/infrastructure/persistence/__init__.py
+## File: fn/src/infrastructure/gateways/rag_query_gateway.py
 ````python
-
+"""Infrastructure implementation of RagQueryGateway."""
+⋮----
+class InfraRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
 ````
 
 ## File: fn/src/infrastructure/persistence/firestore/__init__.py
@@ -978,19 +1893,554 @@ def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
 
 ````
 
+## File: fn/src/infrastructure/persistence/firestore/document_repository.py
+````python
+"""
+Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
+
+Firestore 只存輕量索引（供 account-scoped 列表），
+解析全文以 JSON 格式存回 GCS 的對應路徑（files/ 前綴）。
+
+Document Schema:
+    {
+        "id": "doc-abc123",
+        "status": "processing" | "completed" | "error",
+        "source": {
+            "gcs_uri": "gs://bucket/uploads/file.pdf",
+            "filename": "file.pdf",
+            "size_bytes": 102400,
+            "uploaded_at": "2026-03-22T...",
+            "mime_type": "application/pdf"
+        },
+        "parsed": {
+            "json_gcs_uri": "gs://bucket/files/file.json",   // 全文 JSON 位置
+            "page_count": 5,
+            "parsed_at": "2026-03-22T...",
+            "extraction_ms": 1234
+        },
+        "error": {  // 只在 status=error 時出現
+            "message": "...",
+            "timestamp": "2026-03-22T..."
+        }
+    }
+
+用法：
+    init_document(doc_id, gcs_uri, filename, size_bytes, mime_type)
+    update_parsed(doc_id, json_gcs_uri, page_count, extraction_ms)
+    record_error(doc_id, message)
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def _document_ref(doc_id: str, account_id: str)
+⋮----
+"""Resolve strict account-scoped document reference."""
+⋮----
+db = fb_firestore.client()
+⋮----
+"""
+    初始化 Firestore document，標記為 processing 狀態。
+
+    在檔案上傳到 GCS 時呼叫，建立初始的 source metadata。
+
+    Args:
+        doc_id:      文件識別碼。
+        gcs_uri:     GCS 位置，例如 gs://bucket/path/file.pdf
+        filename:    原始檔名。
+        size_bytes:  文件大小（位元組）。
+        mime_type:   MIME 類型。
+    """
+ref = _document_ref(doc_id, account_id)
+⋮----
+payload = {
+⋮----
+# merge=True keeps previously written parser artifacts (layout/form/ocr/genkit)
+# so multiple parser JSON outputs can coexist on the same document.
+⋮----
+"""
+    更新 document 的解析結果索引，標記為 completed 狀態。
+
+    全文內容已寫入 GCS JSON 檔（json_gcs_uri），
+    Firestore 只保留輕量索引供前端列表使用。
+
+    Args:
+        doc_id:         文件識別碼。
+        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
+        page_count:     頁數。
+        extraction_ms:  解析耗時（毫秒），非必填。
+        chunk_count:    Layout Parser 語意分塊數量。
+        entity_count:   Form Parser 結構化欄位數量。
+    """
+⋮----
+"""
+    更新 Layout Parser 解析結果，標記文件為 completed 狀態。
+
+    Layout JSON（含 text、chunks）已寫入 GCS，
+    Firestore 只保留輕量索引（layout_json_gcs_uri、page_count、layout_chunk_count）。
+
+    Args:
+        doc_id:               文件識別碼。
+        layout_json_gcs_uri:  Layout Parser GCS JSON 路徑（.layout.json）。
+        page_count:           頁數。
+        extraction_ms:        解析耗時（毫秒）。
+        chunk_count:          語意分塊數量。
+    """
+⋮----
+"""
+    更新 Form Parser 解析結果（不覆蓋 Layout Parser 的欄位）。
+
+    Form JSON（含 entities）已寫入 GCS，
+    Firestore 用 dot-notation update 新增 form 專屬欄位。
+
+    Args:
+        doc_id:              文件識別碼。
+        form_json_gcs_uri:   Form Parser GCS JSON 路徑（.form.json）。
+        extraction_ms:       解析耗時（毫秒）。
+        entity_count:        結構化欄位數量。
+    """
+⋮----
+"""
+    更新 OCR Parser 解析結果（不覆蓋 Layout/Form 欄位）。
+    """
+⋮----
+"""
+    更新 Genkit-AI 解析結果（不覆蓋其他 parser 欄位）。
+    """
+⋮----
+def record_error(doc_id: str, message: str, account_id: str) -> None
+⋮----
+"""
+    記錄解析錯誤，標記為 error 狀態。
+
+    在 Document AI 呼叫失敗時呼叫。
+
+    Args:
+        doc_id:  文件識別碼。
+        message: 錯誤訊息。
+    """
+⋮----
+"""標記 RAG ingestion 完成（ready）。"""
+⋮----
+def record_rag_error(doc_id: str, message: str, account_id: str) -> None
+⋮----
+"""記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
+````
+
 ## File: fn/src/infrastructure/persistence/storage/__init__.py
 ````python
 
 ````
 
-## File: fn/src/interface/__init__.py
+## File: fn/src/infrastructure/persistence/storage/client.py
+````python
+"""
+Cloud Storage 服務層 — 使用 firebase-admin 的 storage 模組下載／上傳物件。
+
+用法：
+    from infrastructure.persistence.storage.client import download_bytes, upload_json
+    data = download_bytes(bucket_name="my-bucket", object_path="uploads/doc.pdf")
+    uri  = upload_json(bucket_name="my-bucket", object_path="files/doc.json", data={...})
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+# 上傳檔案路徑前綴 → 解析結果前綴
+_UPLOAD_PREFIX = "uploads/"
+_FILES_PREFIX = "files/"
+⋮----
+def parsed_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    將 GCS 上傳路徑轉換為對應的解析結果 JSON 路徑。
+
+    規則：
+      - 去掉 uploads/ 前綴，換成 files/ 前綴
+      - 副檔名替換為 .json
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.json
+        uploads/doc.png          ->  files/doc.json
+    """
+relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
+⋮----
+def layout_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    Layout Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.layout.json
+    """
+⋮----
+def form_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    Form Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.form.json
+    """
+⋮----
+def ocr_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    OCR Parser 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.ocr.json
+    """
+⋮----
+def genkit_json_path(upload_object_path: str) -> str
+⋮----
+"""
+    Genkit-AI 解析結果的 GCS 路徑。
+
+    範例：
+        uploads/org/ws/file.pdf  ->  files/org/ws/file.genkit.json
+    """
+⋮----
+def upload_json(bucket_name: str, object_path: str, data: dict) -> str
+⋮----
+"""
+    將 dict 序列化為 JSON 後上傳至 Cloud Storage。
+
+    Args:
+        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
+        object_path: bucket 內的目標路徑，例如 files/org/ws/file.json
+        data:        要序列化的資料，必須可 JSON 序列化。
+
+    Returns:
+        str: gs:// 完整 URI，例如 gs://bucket/files/org/ws/file.json
+    """
+bucket = fb_storage.bucket(bucket_name)
+blob = bucket.blob(object_path)
+⋮----
+# 緊湊序列化可降低 CPU 與儲存傳輸成本。
+json_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+⋮----
+uri = f"gs://{bucket_name}/{object_path}"
+⋮----
+def download_bytes(bucket_name: str, object_path: str) -> bytes
+⋮----
+"""
+    從 Cloud Storage 下載物件並回傳 bytes。
+
+    Args:
+        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
+        object_path: bucket 內的物件路徑。
+
+    Returns:
+        bytes: 物件的完整二進位內容。
+
+    Raises:
+        google.cloud.exceptions.NotFound: 物件不存在時。
+    """
+⋮----
+data = blob.download_as_bytes()
+````
+
+## File: fn/src/infrastructure/persistence/__init__.py
 ````python
 
+````
+
+## File: fn/src/infrastructure/__init__.py
+````python
+
+````
+
+## File: fn/src/interface/handlers/__init__.py
+````python
+__all__ = [
+````
+
+## File: fn/src/interface/handlers/_https_helpers.py
+````python
+"""
+HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
+供 parse_document / rag_query / rag_reindex 共享使用。
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def _extract_auth_uid(req: https_fn.CallableRequest) -> str
+⋮----
+auth = getattr(req, "auth", None)
+⋮----
+uid = str(getattr(auth, "uid", "")).strip()
+⋮----
+token = getattr(auth, "token", None)
+⋮----
+def _assert_account_access(uid: str, account_id: str) -> None
+⋮----
+db = fb_firestore.client()
+snap = db.collection("accounts").document(account_id).get()
+⋮----
+data = snap.to_dict() or {}
+owner_id = str(data.get("ownerId", "")).strip()
+member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
+member_set = {str(item or "").strip() for item in member_ids}
+⋮----
+def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None
+⋮----
+snap = db.collection("workspaces").document(workspace_id).get()
+⋮----
+bound_account_id = str(data.get("accountId", "")).strip()
+⋮----
+def _parse_taxonomy_filters(raw_value: Any) -> list[str]
+⋮----
+def _to_bool(raw_value: Any, default_value: bool) -> bool
+⋮----
+raw = str(raw_value or "").strip().lower()
+⋮----
+def _parse_gs_uri(gs_uri: str) -> tuple[str, str]
+````
+
+## File: fn/src/interface/handlers/https.py
+````python
+"""
+HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
+各 handler 已拆分至對應的聚焦模組：
+  - parse_document.py      (handle_parse_document)
+  - rag_query_handler.py   (handle_rag_query)
+  - rag_reindex_handler.py (handle_rag_reindex_document)
+  - _https_helpers.py      (共用驗證/解析工具)
+
+此檔案保留所有原始公開符號以維持向後相容。
+"""
+⋮----
+__all__ = [
+````
+
+## File: fn/src/interface/handlers/parse_document.py
+````python
+"""
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
+
+Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
+before any application-layer call.  All pipeline orchestration is delegated
+to the parse_document_pipeline use case.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def handle_parse_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    All external input is validated through ParseDocumentRequest before
+    reaching the application layer (Rule 4).
+    """
+actor_id = _extract_auth_uid(req)
+⋮----
+schema = ParseDocumentRequest.from_raw(req.data or {})
+````
+
+## File: fn/src/interface/handlers/rag_query_handler.py
+````python
+"""
+HTTPS Callable — handle_rag_query：RAG 查詢（Step 7）。
+
+Schema validation (Rule 4) is performed via RagQueryRequest.from_raw()
+before any application-layer call.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def handle_rag_query(req: https_fn.CallableRequest) -> dict
+⋮----
+"""HTTPS Callable：RAG 查詢（Step 7）."""
+uid = _extract_auth_uid(req)
+⋮----
+schema = RagQueryRequest.from_raw(
+⋮----
+auth_gateway = get_authorization()
+⋮----
+require_ready = (
+max_age_days = schema.max_age_days if schema.max_age_days is not None else RAG_QUERY_DEFAULT_MAX_AGE_DAYS
+⋮----
+execution = execute_rag_query(
+result = execution.response
+⋮----
+response = {
+````
+
+## File: fn/src/interface/handlers/rag_reindex_handler.py
+````python
+"""
+HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
+
+Schema validation (Rule 4) is performed via RagReindexRequest.from_raw()
+before any application-layer call.  All orchestration is delegated to the
+rag_reindex use case.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion."""
+actor_id = _extract_auth_uid(req)
+⋮----
+schema = RagReindexRequest.from_raw(req.data or {})
+⋮----
+result = execute_rag_reindex_command(
+````
+
+## File: fn/src/interface/handlers/storage.py
+````python
+"""
+Storage 觸發器 — 監聽 GCS 物件建立事件，自動送 Document AI 解析。
+
+流程：
+    GCS object.finalized（uploads/ 前綴）
+        → 建立初始 Firestore document（status=processing）
+        → Document AI 直接從 GCS URI 讀取
+        → 將解析全文以 JSON 格式寫回 GCS（files/ 前綴，同目錄結構）
+        → 更新 Firestore 輕量索引（status=completed，含 json_gcs_uri）
+        → 如失敗，記錄 error
+
+Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
+完整解析結果透過 json_gcs_uri 讀取 GCS JSON 檔。
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+# 只處理這個資料夾下的上傳檔案（空字串 = 處理整個 bucket）
+WATCH_PREFIX: str = os.environ.get("WATCH_PREFIX", "uploads/")
+⋮----
+# 支援的 MIME 類型對照表（副檔名 → MIME）
+_MIME_MAP: dict[str, str] = {
+⋮----
+def _mime_from_path(object_path: str) -> str | None
+⋮----
+"""Best-effort account scope binding for storage-triggered uploads.
+
+    Priority:
+    1) custom metadata field `account_id`
+    2) path convention: uploads/{accountId}/...
+    3) fallback: None (reject write)
+    """
+⋮----
+from_meta = str(event_metadata.get("account_id", "")).strip()
+⋮----
+prefix = f"{WATCH_PREFIX}"
+⋮----
+remainder = object_path[len(prefix):]
+# uploads/{accountId}/file.pdf
+⋮----
+candidate = remainder.split("/", 1)[0].strip()
+⋮----
+def _extract_workspace_id(event_metadata: dict | None) -> str | None
+⋮----
+workspace_id = str(event_metadata.get("workspace_id", "")).strip()
+⋮----
+def _extract_display_filename(object_path: str, event_metadata: dict | None) -> str
+⋮----
+candidates: tuple[Any, ...] = ()
+⋮----
+candidates = (
+⋮----
+filename = str(candidate or "").strip()
+⋮----
+"""
+    Cloud Storage on_object_finalized 觸發器。
+
+    - 只處理 WATCH_PREFIX 下、且為支援 MIME 類型的檔案。
+    - 初始化 → Document AI 解析 → 更新 Firestore
+    - 異常時記錄至 Firestore。
+    """
+data = event.data
+⋮----
+bucket_name: str = data.bucket
+object_path: str = data.name or ""
+size_bytes: int = int(data.size or 0)
+⋮----
+# ── 路徑過濾 ────────────────────────────────────────────────────────────
+⋮----
+mime_type = _mime_from_path(object_path)
+⋮----
+account_id = _extract_account_id(object_path, data.metadata)
+⋮----
+workspace_id = _extract_workspace_id(data.metadata)
+⋮----
+storage_filename = os.path.basename(object_path)
+display_filename = _extract_display_filename(object_path, data.metadata)
+⋮----
+gcs_uri = f"gs://{bucket_name}/{object_path}"
+⋮----
+status_gateway = get_document_status_gateway()
 ````
 
 ## File: fn/src/interface/schemas/__init__.py
 ````python
 
+````
+
+## File: fn/src/interface/schemas/parse_document.py
+````python
+"""
+Input schema for parse_document HTTPS Callable (Rule 4 — Contract / Schema).
+
+All data entering the system through this function must pass through this
+schema before being forwarded to the application layer.  Validation raises
+ValueError so that the handler can convert it to a typed HttpsError.
+"""
+⋮----
+_MIME_MAP: dict[str, str] = {
+⋮----
+_ALLOWED_MIMES: frozenset[str] = frozenset(_MIME_MAP.values())
+⋮----
+@dataclass
+class ParseDocumentRequest
+⋮----
+"""Validated input contract for the parse_document callable."""
+⋮----
+account_id: str
+workspace_id: str
+gcs_uri: str
+doc_id: str
+filename: str
+mime_type: str
+size_bytes: int
+run_rag: bool
+parser: str  # "layout" | "form" | "ocr" | "genkit"
+⋮----
+@classmethod
+    def from_raw(cls, raw: dict) -> "ParseDocumentRequest"
+⋮----
+"""Parse and validate raw request data.
+
+        Raises:
+            ValueError: if any required field is missing or invalid.
+        """
+account_id = str(raw.get("account_id", "")).strip()
+⋮----
+workspace_id = str(raw.get("workspace_id", "")).strip()
+⋮----
+gcs_uri = str(raw.get("gcs_uri", "")).strip()
+⋮----
+# Derive doc_id and filename from URI when not provided explicitly.
+path_part = gcs_uri.split("gs://", 1)[1]
+storage_filename = os.path.basename(path_part)
+⋮----
+doc_id = str(raw.get("doc_id", "")).strip() or default_doc_id
+filename = (
+⋮----
+mime_type = str(raw.get("mime_type", "")).strip()
+⋮----
+resolved = _MIME_MAP.get(ext.lower())
+⋮----
+mime_type = resolved
+⋮----
+size_bytes = int(raw.get("size_bytes", 0) or 0)
+⋮----
+size_bytes = 0
+⋮----
+run_rag = bool(raw.get("run_rag", True))
+⋮----
+parser = str(raw.get("parser", "layout")).strip().lower()
 ````
 
 ## File: fn/src/interface/schemas/rag_query.py
@@ -1114,6 +2564,11 @@ page_count = int(raw.get("page_count", 0) or 0)
 page_count = 0
 ````
 
+## File: fn/src/interface/__init__.py
+````python
+
+````
+
 ## File: fn/tests/__init__.py
 ````python
 
@@ -1122,389 +2577,6 @@ page_count = 0
 ## File: fn/tests/conftest.py
 ````python
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
-````
-
-## File: fn/tests/test_rag_ingestion_text.py
-````python
-"""Unit tests for domain/services/rag_ingestion_text.py — Layout Parser path."""
-⋮----
-def test_layoutChunksToRagChunks_WithValidChunks_ReturnsExpectedShape() -> None
-⋮----
-layout_chunks = [
-⋮----
-result = layout_chunks_to_rag_chunks(layout_chunks)
-⋮----
-first = result[0]
-assert first["text"] == "採購訂單標頭"  # whitespace stripped
-⋮----
-# char_start / char_end are schema-compat fields
-⋮----
-second = result[1]
-⋮----
-def test_layoutChunksToRagChunks_WithEmptyTextChunk_SkipsChunk() -> None
-⋮----
-def test_layoutChunksToRagChunks_WithEmptyInput_ReturnsEmptyList() -> None
-⋮----
-def test_layoutChunksToRagChunks_WithMissingOptionalFields_UsesDefaults() -> None
-⋮----
-layout_chunks = [{"text": "只有文字欄位"}]
-⋮----
-chunk = result[0]
-````
-
-## File: fn/tests/test_rag_query_use_case.py
-````python
-class _FakeRagQueryGateway
-⋮----
-def __init__(self, *, cached: dict | None = None) -> None
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict | None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-⋮----
-def test_execute_rag_query_with_cache_hit_returns_no_effect_plan() -> None
-⋮----
-execution = execute_rag_query(
-⋮----
-def test_execute_rag_query_with_generated_answer_returns_effect_plan() -> None
-````
-
-## File: fn/src/application/dto/__init__.py
-````python
-"""Application DTOs."""
-⋮----
-__all__ = [
-````
-
-## File: fn/src/application/dto/rag.py
-````python
-@dataclass
-class RagIngestionResult
-⋮----
-chunk_count: int
-vector_count: int
-embedding_model: str
-embedding_dimensions: int
-raw_chars: int
-normalized_chars: int
-normalization_version: str
-language_hint: str
-⋮----
-@dataclass(frozen=True)
-class RagQueryEffectPlan
-⋮----
-cache_key: str
-query: str
-top_k: int
-citation_count: int
-vector_hits: int
-search_hits: int
-⋮----
-@dataclass(frozen=True)
-class RagQueryExecution
-⋮----
-response: dict[str, Any]
-effect_plan: RagQueryEffectPlan | None = None
-````
-
-## File: fn/src/application/services/document_pipeline.py
-````python
-def get_document_parser() -> DocumentParserGateway
-⋮----
-def get_document_artifact_gateway() -> DocumentArtifactGateway
-⋮----
-def get_document_status_gateway() -> DocumentStatusGateway
-````
-
-## File: fn/src/application/use_cases/__init__.py
-````python
-"""Application use cases."""
-⋮----
-__all__ = [
-````
-
-## File: fn/src/application/use_cases/parse_document_command.py
-````python
-"""Authorized command wrapper for parse-document callable entry."""
-⋮----
-auth_gateway = auth_gateway or get_authorization()
-status_gateway = status_gateway or get_document_status_gateway()
-````
-
-## File: fn/src/application/use_cases/rag_query.py
-````python
-"""
-RAG query — application use case orchestration.
-
-Delegates all domain filtering to domain.services.rag_result_filter.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-"""Filter and map raw retrieval hits into context snippets and citations.
-
-    Returns (contexts, citations, dropped_workspace, dropped_status,
-             dropped_freshness, dropped_taxonomy).
-    """
-contexts: list[str] = []
-citations: list[RagCitation] = []
-dropped_workspace = dropped_status = dropped_freshness = dropped_taxonomy = 0
-⋮----
-metadata = normalize_metadata(hit.get("metadata"))
-⋮----
-snippet = extract_snippet(hit, metadata)
-⋮----
-"""Application use case for RAG query orchestration."""
-gateway = gateway or get_rag_query_gateway()
-⋮----
-request = RagQueryInput.from_raw(
-⋮----
-cache_key = gateway.build_query_cache_key(
-⋮----
-cached = gateway.get_query_cache(cache_key)
-⋮----
-retrieval_top_k = request.retrieval_top_k()
-vector = gateway.to_query_vector(request.query)
-vector_hits_raw = gateway.query_vector(vector, top_k=retrieval_top_k)
-search_hits_raw = gateway.query_search(request.query, top_k=retrieval_top_k)
-⋮----
-seen_snippets: set[str] = set()
-⋮----
-contexts = vec_contexts + srch_contexts
-citations = vec_citations + srch_citations
-vector_hit_count = len(vec_citations)
-search_hit_count = len(srch_citations)
-⋮----
-context_block = "\n\n---\n\n".join(contexts[: request.top_k])
-⋮----
-answer = gateway.generate_answer(query=request.query, context_block=context_block)
-response = RagQueryResult(
-````
-
-## File: fn/src/application/use_cases/rag_reindex_command.py
-````python
-"""Authorized command wrapper for rag-reindex callable entry."""
-⋮----
-auth_gateway = auth_gateway or get_authorization()
-status_gateway = status_gateway or get_document_status_gateway()
-````
-
-## File: fn/src/infrastructure/external/upstash/clients.py
-````python
-"""
-Upstash clients — 向後相容的重新匯出桶。
-各功能已拆分至對應的聚焦模組：
-  - vector_client.py  (upsert_vectors, query_vectors)
-  - redis_client.py   (redis_get_json, redis_set_json, redis_fixed_window_allow)
-  - search_client.py  (upsert_search_documents, query_search_documents)
-  - qstash_client.py  (publish_qstash_json)
-  - _base.py          (UpstashConfigError, UpstashSdkError)
-
-此檔案保留所有原始公開符號以維持向後相容。
-"""
-⋮----
-__all__ = [
-````
-
-## File: fn/src/infrastructure/external/upstash/search_client.py
-````python
-"""
-Upstash Search 客戶端 — 全文搜尋 upsert / query 操作。
-"""
-⋮----
-_SEARCH_INDEX: Any | None = None
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def get_search_index() -> Any
-⋮----
-"""取得 Upstash Search 官方 SDK index（單例）。"""
-⋮----
-mod = _import_module("upstash_search", "pip install upstash-search")
-search_cls = getattr(mod, "Search", None)
-⋮----
-index_name = UPSTASH_SEARCH_INDEX or "default"
-client = search_cls(
-_SEARCH_INDEX = client.index(index_name)
-⋮----
-def upsert_search_documents(documents: list[dict[str, Any]]) -> int
-⋮----
-"""批次寫入 Upstash Search index（best effort，不拋出上層）。"""
-⋮----
-normalized: list[dict[str, Any]] = []
-⋮----
-doc_id = str(item.get("id") or "").strip()
-⋮----
-content = item.get("content") if isinstance(item.get("content"), dict) else {}
-metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-⋮----
-index = get_search_index()
-⋮----
-def delete_search_documents_by_doc(doc_id: str) -> int
-⋮----
-"""刪除屬於指定 doc_id 的所有搜尋索引文件（依 ID 前綴 `{doc_id}:`）。
-
-    使用 Upstash Search SDK 的 prefix delete，與 vector 刪除搭配使用，
-    確保 Upstash Search 與 Upstash Vector 的資料一致性。
-
-    Args:
-        doc_id: 文件識別碼，對應 search doc ID 格式 ``{doc_id}:{i:04d}``。
-
-    Returns:
-        int: 實際刪除的文件數量（0 表示無資料、未設定或操作失敗）。
-    """
-⋮----
-prefix = f"{doc_id}:"
-⋮----
-result = index.delete(prefix=prefix)
-⋮----
-deleted = result
-⋮----
-deleted = int(result.deleted or 0)
-⋮----
-deleted = int(result.get("deleted", 0))
-⋮----
-deleted = 0
-⋮----
-def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]
-⋮----
-"""
-    以 Upstash Search REST 進行補充檢索（best effort）。
-
-    回傳格式統一為 list[dict]，單筆含 text / score / source 等欄位。
-    """
-⋮----
-# Prefer official SDK first; fallback to REST probing for compatibility.
-⋮----
-result = index.search(query=query, limit=top_k)
-⋮----
-items = result
-⋮----
-items = (
-⋮----
-items = getattr(result, "results", None) or getattr(result, "data", None) or []
-⋮----
-item = dict(item)
-⋮----
-text = str(
-⋮----
-endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
-body_candidates = [
-path_candidates = ["/query", "/search"]
-⋮----
-url = f"{endpoint_base}{path}"
-⋮----
-raw = None
-⋮----
-req = urlrequest.Request(
-⋮----
-raw = resp.read().decode("utf-8", errors="ignore")
-⋮----
-payload = json.loads(raw)
-⋮----
-candidates = []
-⋮----
-candidates = (
-⋮----
-candidates = payload
-````
-
-## File: fn/src/infrastructure/gateways/rag_query_gateway.py
-````python
-"""Infrastructure implementation of RagQueryGateway."""
-⋮----
-class InfraRagQueryGateway
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-````
-
-## File: fn/src/interface/handlers/_https_helpers.py
-````python
-"""
-HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
-供 parse_document / rag_query / rag_reindex 共享使用。
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def _extract_auth_uid(req: https_fn.CallableRequest) -> str
-⋮----
-auth = getattr(req, "auth", None)
-⋮----
-uid = str(getattr(auth, "uid", "")).strip()
-⋮----
-token = getattr(auth, "token", None)
-⋮----
-def _assert_account_access(uid: str, account_id: str) -> None
-⋮----
-db = fb_firestore.client()
-snap = db.collection("accounts").document(account_id).get()
-⋮----
-data = snap.to_dict() or {}
-owner_id = str(data.get("ownerId", "")).strip()
-member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
-member_set = {str(item or "").strip() for item in member_ids}
-⋮----
-def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None
-⋮----
-snap = db.collection("workspaces").document(workspace_id).get()
-⋮----
-bound_account_id = str(data.get("accountId", "")).strip()
-⋮----
-def _parse_taxonomy_filters(raw_value: Any) -> list[str]
-⋮----
-def _to_bool(raw_value: Any, default_value: bool) -> bool
-⋮----
-raw = str(raw_value or "").strip().lower()
-⋮----
-def _parse_gs_uri(gs_uri: str) -> tuple[str, str]
-````
-
-## File: fn/src/interface/handlers/rag_query_handler.py
-````python
-"""
-HTTPS Callable — handle_rag_query：RAG 查詢（Step 7）。
-
-Schema validation (Rule 4) is performed via RagQueryRequest.from_raw()
-before any application-layer call.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_rag_query(req: https_fn.CallableRequest) -> dict
-⋮----
-"""HTTPS Callable：RAG 查詢（Step 7）."""
-uid = _extract_auth_uid(req)
-⋮----
-schema = RagQueryRequest.from_raw(
-⋮----
-auth_gateway = get_authorization()
-⋮----
-require_ready = (
-max_age_days = schema.max_age_days if schema.max_age_days is not None else RAG_QUERY_DEFAULT_MAX_AGE_DAYS
-⋮----
-execution = execute_rag_query(
-result = execution.response
-⋮----
-response = {
 ````
 
 ## File: fn/tests/test_command_use_cases.py
@@ -1548,6 +2620,137 @@ result = execute_rag_reindex_command(
 def test_execute_rag_reindex_command_records_error_on_failure(monkeypatch) -> None
 ⋮----
 def _fake_execute_rag_reindex(_: RagReindexCommand) -> RagReindexResult
+````
+
+## File: fn/tests/test_domain_repository_gateways.py
+````python
+class _FakeRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict | None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
+⋮----
+class _FakeRagQueryEffectsGateway
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict) -> None
+⋮----
+class _FakeRagIngestionGateway
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+⋮----
+def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
+⋮----
+def upsert_search_documents(self, documents: list[dict]) -> int
+⋮----
+def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
+⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
+⋮----
+class _FakeDocumentPipelineGateway
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+⋮----
+def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
+⋮----
+rag_query_gateway = _FakeRagQueryGateway()
+rag_query_effects_gateway = _FakeRagQueryEffectsGateway()
+rag_ingestion_gateway = _FakeRagIngestionGateway()
+document_pipeline_gateway = _FakeDocumentPipelineGateway()
+⋮----
+def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
+````
+
+## File: fn/tests/test_input_schemas.py
+````python
+"""
+Unit tests for interface/schemas/ — Rule 4 (Contract / Schema) compliance.
+
+Verifies that all HTTPS Callable input schemas reject invalid inputs and
+accept valid inputs before reaching the application layer.
+"""
+⋮----
+# ── ParseDocumentRequest ──────────────────────────────────────────────────────
+⋮----
+class TestParseDocumentRequest
+⋮----
+def test_fromRaw_WithValidPdf_ReturnsSchema(self) -> None
+⋮----
+raw = {
+schema = ParseDocumentRequest.from_raw(raw)
+⋮----
+def test_fromRaw_WithExplicitDocId_UsesProvidedDocId(self) -> None
+⋮----
+def test_fromRaw_WithRunRagFalse_SetsRunRagFalse(self) -> None
+⋮----
+def test_fromRaw_WithParserOcr_AcceptsOcrParser(self) -> None
+⋮----
+def test_fromRaw_WithParserGenkit_AcceptsGenkitParser(self) -> None
+⋮----
+def test_fromRaw_InfersMimeFromExtension_WhenMimeOmitted(self) -> None
+⋮----
+def test_fromRaw_MissingAccountId_RaisesValueError(self) -> None
+⋮----
+def test_fromRaw_MissingWorkspaceId_RaisesValueError(self) -> None
+⋮----
+def test_fromRaw_InvalidGcsUri_RaisesValueError(self) -> None
+⋮----
+def test_fromRaw_UnknownExtensionWithoutMime_RaisesValueError(self) -> None
+⋮----
+# ── RagQueryRequest ───────────────────────────────────────────────────────────
+⋮----
+class TestRagQueryRequest
+⋮----
+def test_fromRaw_WithValidInput_ReturnsSchema(self) -> None
+⋮----
+schema = RagQueryRequest.from_raw(
+⋮----
+def test_fromRaw_WithTopK_ParsesInt(self) -> None
+⋮----
+def test_fromRaw_WithTaxonomyFilters_NormalizesStrings(self) -> None
+⋮----
+def test_fromRaw_EmptyUid_RaisesValueError(self) -> None
+⋮----
+def test_fromRaw_MissingQuery_RaisesValueError(self) -> None
+⋮----
+# ── RagReindexRequest ─────────────────────────────────────────────────────────
+⋮----
+class TestRagReindexRequest
+⋮----
+def test_fromRaw_WithMinimalValidInput_ReturnsSchema(self) -> None
+⋮----
+schema = RagReindexRequest.from_raw(raw)
+⋮----
+def test_fromRaw_MissingDocId_RaisesValueError(self) -> None
+⋮----
+def test_fromRaw_MissingJsonGcsUri_RaisesValueError(self) -> None
+⋮----
+def test_fromRaw_WithPageCount_ParsesInt(self) -> None
 ````
 
 ## File: fn/tests/test_po_extraction.py
@@ -1679,6 +2882,128 @@ def test_charStartIsZeroAndCharEndIsTextLength(self) -> None
 chunk = po_line_items_to_rag_chunks(line_items)[0]
 ````
 
+## File: fn/tests/test_rag_ingestion_text.py
+````python
+"""Unit tests for domain/services/rag_ingestion_text.py — Layout Parser path."""
+⋮----
+def test_layoutChunksToRagChunks_WithValidChunks_ReturnsExpectedShape() -> None
+⋮----
+layout_chunks = [
+⋮----
+result = layout_chunks_to_rag_chunks(layout_chunks)
+⋮----
+first = result[0]
+assert first["text"] == "採購訂單標頭"  # whitespace stripped
+⋮----
+# char_start / char_end are schema-compat fields
+⋮----
+second = result[1]
+⋮----
+def test_layoutChunksToRagChunks_WithEmptyTextChunk_SkipsChunk() -> None
+⋮----
+def test_layoutChunksToRagChunks_WithEmptyInput_ReturnsEmptyList() -> None
+⋮----
+def test_layoutChunksToRagChunks_WithMissingOptionalFields_UsesDefaults() -> None
+⋮----
+layout_chunks = [{"text": "只有文字欄位"}]
+⋮----
+chunk = result[0]
+````
+
+## File: fn/tests/test_rag_query_use_case.py
+````python
+class _FakeRagQueryGateway
+⋮----
+def __init__(self, *, cached: dict | None = None) -> None
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict | None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
+⋮----
+def test_execute_rag_query_with_cache_hit_returns_no_effect_plan() -> None
+⋮----
+execution = execute_rag_query(
+⋮----
+def test_execute_rag_query_with_generated_answer_returns_effect_plan() -> None
+````
+
+## File: fn/.env.example
+````
+# fn/.env.example
+# 複製為 fn/.env 後填入實際值，再執行 fn/ 的 Cloud Functions。
+# 唯一真實來源：fn/src/core/config.py
+# 未列出的變數（UPLOAD_BUCKET、GCP_REGION、DOCAI_LOCATION）僅定義於
+# config.py 但從未被其他模組引用，不需在此設定。
+
+# ── OpenAI ───────────────────────────────────────────────────────────────────
+# 必填
+OPENAI_API_KEY=
+
+# 選填（預設值已可正常運作）
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1024
+OPENAI_LLM_MODEL=gpt-4o-mini
+OPENAI_TIMEOUT_SECONDS=30
+OPENAI_MAX_RETRIES=2
+
+# ── Document AI（US region） ──────────────────────────────────────────────────
+# 選填（預設值指向現行 US processors，勿改為 eu 或 global）
+DOCAI_API_ENDPOINT=us-documentai.googleapis.com
+DOCAI_LAYOUT_PROCESSOR_NAME=projects/65970295651/locations/us/processors/929c4719f45b1eee
+DOCAI_FORM_PROCESSOR_NAME=projects/65970295651/locations/us/processors/7318076ba71e0758
+
+# ── Upstash Redis ─────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# ── Upstash Vector ────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_VECTOR_REST_URL=
+UPSTASH_VECTOR_REST_TOKEN=
+
+# ── Upstash Search ────────────────────────────────────────────────────────────
+# 必填
+UPSTASH_SEARCH_REST_URL=
+UPSTASH_SEARCH_REST_TOKEN=
+UPSTASH_SEARCH_INDEX=
+
+# 選填
+UPSTASH_SEARCH_TIMEOUT_SECONDS=8
+
+# ── QStash ────────────────────────────────────────────────────────────────────
+# 必填
+QSTASH_TOKEN=
+QSTASH_CURRENT_SIGNING_KEY=
+QSTASH_NEXT_SIGNING_KEY=
+QSTASH_RAG_AUDIT_URL=
+
+# 選填
+QSTASH_URL=https://qstash-us-east-1.upstash.io
+
+# ── RAG Pipeline ─────────────────────────────────────────────────────────────
+# 選填（調整會影響 chunk 品質與查詢行為）
+RAG_VECTOR_NAMESPACE=rag-docs
+RAG_CHUNK_SIZE_CHARS=1200
+RAG_CHUNK_OVERLAP_CHARS=150
+RAG_QUERY_TOP_K=5
+RAG_QUERY_CACHE_TTL_SECONDS=300
+RAG_QUERY_RATE_LIMIT_MAX=30
+RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS=60
+RAG_QUERY_DEFAULT_MAX_AGE_DAYS=365
+RAG_QUERY_REQUIRE_READY_STATUS=true
+RAG_DOC_CACHE_TTL_SECONDS=2592000
+RAG_REDIS_PREFIX=rag
+````
+
 ## File: fn/AGENTS.md
 ````markdown
 # fn — Agent Guide
@@ -1699,10 +3024,30 @@ chunk = po_line_items_to_rag_chunks(line_items)[0]
 | `fn/` (Python) | parse、clean、taxonomy、chunk、embed、persistence pipeline |
 | Next.js (`src/`) | upload UX、browser-facing API、response orchestration |
 
-兩者互動**只透過**：
+兩者互動透過：
+- Firebase HTTPS Callable（例如 `parse_document`、`rag_query`、`rag_reindex_document`）
+- Cloud Storage `object.finalized` trigger（目前預設只監聽 `uploads/` 前綴）
 - QStash 訊息
-- Firestore trigger
-- 事件契約
+- Firestore 文件 / 事件契約
+
+### Current upload / processing contract
+
+```text
+Path A — auto pipeline
+uploads/{accountId}/... or uploads/{accountId}/{workspaceId}/...
+  → on_document_uploaded (Storage trigger)
+  → handle_object_finalized()
+  → execute_parse_document(parser="layout", run_rag=True)
+
+Path B — Notebooklm Sources manual pipeline
+workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+  → register source snapshot in Next.js
+  → parse_document callable (manual parse)
+  → rag_reindex_document callable (manual RAG indexing)
+```
+
+`fn/src/interface/handlers/storage.py` 的 `WATCH_PREFIX` 預設為 `uploads/`，因此
+Notebooklm Sources 的 workspace-scoped uploads **不會**自動觸發 Storage pipeline。
 
 ---
 
@@ -1771,6 +3116,7 @@ GCS Document
 |---|---|---|
 | `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser（主，不可空） |
 | `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser（設空字串可停用） |
+| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填） |
 | `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | 不可改為 eu 或 global |
 
 ---
@@ -1791,10 +3137,10 @@ GCS Document
 
 | 函式名稱 | 觸發類型 | 說明 |
 |---|---|---|
-| `on_document_uploaded` | Storage trigger（`UPLOAD_BUCKET`） | GCS 新物件 → Document AI → Firestore |
-| `parse_document` | HTTPS Callable | 手動觸發解析，回傳解析摘要 |
+| `on_document_uploaded` | Storage trigger（`UPLOAD_BUCKET` + `WATCH_PREFIX=uploads/`） | `uploads/**` 新物件 → Layout parse + RAG ingestion |
+| `parse_document` | HTTPS Callable | 手動觸發解析（layout / form / ocr / genkit），回傳處理狀態 |
 | `rag_query` | HTTPS Callable | RAG 檢索 + 生成查詢 |
-| `rag_reindex_document` | HTTPS Callable | 手動重新 chunk + embed 文件 |
+| `rag_reindex_document` | HTTPS Callable | 依 Layout Parser JSON 手動重新 chunk + embed 文件 |
 
 ---
 
@@ -1863,554 +3209,6 @@ def rag_query(req: https_fn.CallableRequest) -> dict
 def rag_reindex_document(req: https_fn.CallableRequest) -> dict
 ⋮----
 """手動重新整理文件（normalization + ingestion）。"""
-````
-
-## File: fn/src/application/use_cases/parse_document_pipeline.py
-````python
-"""
-Parse-document application use case.
-
-Orchestrates the full parse pipeline for a single document:
-    init Firestore → Document AI parse → write JSON artifact to GCS
-    → update Firestore state → (optionally) ingest into RAG index.
-
-Both the HTTPS Callable handler and the Storage trigger handler
-delegate to this use case, keeping interface-layer files thin.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-class ParsedDocumentLike(Protocol)
-⋮----
-text: str
-page_count: int
-chunks: list[dict[str, Any]]
-entities: list[dict[str, Any]]
-⋮----
-@dataclass
-class ParseDocumentCommand
-⋮----
-"""Input contract for the parse-document use case."""
-⋮----
-doc_id: str
-gcs_uri: str
-bucket_name: str
-object_path: str
-filename: str
-size_bytes: int
-mime_type: str
-account_id: str
-workspace_id: str
-parser: str = "layout"   # "layout" | "ocr" | "form" | "genkit"
-run_rag: bool = True
-⋮----
-@dataclass
-class ParseDocumentResult
-⋮----
-"""Output contract for the parse-document use case."""
-⋮----
-parser: str
-⋮----
-extraction_ms: int
-json_gcs_uri: str
-rag_chunk_count: int | None = None
-rag_vector_count: int | None = None
-⋮----
-"""Orchestrate the full parse pipeline for a single document.
-
-    Raises:
-        Exception: propagated from DocumentAI / GCS / Firestore calls;
-                   callers are responsible for error recording.
-    """
-parser_gateway = parser_gateway or get_document_parser()
-artifact_gateway = artifact_gateway or get_document_artifact_gateway()
-status_gateway = status_gateway or get_document_status_gateway()
-⋮----
-start_time = time.time()
-parsed = parser_gateway.process_document_gcs(
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-json_gcs_uri = _write_artifact_and_update_state(
-⋮----
-layout_chunks = parsed.chunks if cmd.parser == "layout" else None
-⋮----
-rag = ingest_for_rag(
-⋮----
-rag_chunk_count = rag.chunk_count
-rag_vector_count = rag.vector_count
-⋮----
-"""Write the JSON artifact to GCS and update the Firestore state field.
-
-    Returns the GCS URI of the written artifact.
-    """
-base = {
-⋮----
-json_path = artifact_gateway.layout_json_path(cmd.object_path)
-data = {**base, "text": parsed.text, "chunk_count": len(parsed.chunks), "chunks": parsed.chunks}
-json_gcs_uri = artifact_gateway.upload_json(
-⋮----
-json_path = artifact_gateway.ocr_json_path(cmd.object_path)
-data = {
-⋮----
-json_path = artifact_gateway.form_json_path(cmd.object_path)
-⋮----
-# "genkit"
-json_path = artifact_gateway.genkit_json_path(cmd.object_path)
-````
-
-## File: fn/src/application/use_cases/rag_ingestion.py
-````python
-"""
-RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-"""Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。
-
-    當 layout_chunks 非空時優先使用 Layout Parser 語意分塊，保留表格結構與
-    段落語意邊界（chunking_strategy="layout-v1"）。
-    否則退回字元切分（chunking_strategy="char-split-v2"），維持向下相容。
-    """
-gateway = gateway or get_rag_ingestion_gateway()
-⋮----
-raw_chars = len(text or "")
-normalized = clean_text(text or "")
-normalized_chars = len(normalized)
-language_hint = detect_language_hint(normalized)
-⋮----
-# ── 選擇分塊策略 ─────────────────────────────────────────────────────────
-⋮----
-base_chunks = layout_chunks_to_rag_chunks(layout_chunks)
-chunking_strategy = "layout-v1"
-normalization_version = "layout-v1"
-⋮----
-base_chunks = chunk_text(
-chunking_strategy = "char-split-v2"
-normalization_version = "v2"
-⋮----
-# ── 刪除舊向量（冪等保護：先清除再 upsert，防止 orphan chunks）──────────
-# 失敗時僅警告，不中斷 ingestion：向量索引的舊資料頂多造成 stale 結果，
-# 而中斷 ingestion 會讓文件永遠無法被查詢，危害更大。
-⋮----
-deleted = gateway.delete_vectors_by_doc(doc_id=doc_id, namespace=RAG_VECTOR_NAMESPACE)
-⋮----
-except Exception as del_exc:  # noqa: BLE001  — best-effort; ingestion must proceed
-⋮----
-texts = [item["text"] for item in base_chunks]
-vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
-⋮----
-now_iso = datetime.now(UTC).isoformat()
-payload: list[dict[str, Any]] = []
-⋮----
-chunk_id = f"{doc_id}:{i:04d}"
-⋮----
-# Layout Parser specific fields (empty strings for char-split path)
-⋮----
-# Best effort: keep Upstash Search in sync with vector chunks.
-⋮----
-search_docs = [
-⋮----
-# 文件索引摘要寫入 Redis，方便後續檢視與治理。
-````
-
-## File: fn/src/domain/services/po_extraction.py
-````python
-"""
-Domain Service — Purchase Order (PO) line item extraction and classification.
-
-Pure business logic — no infrastructure dependency.
-
-Supports the ABB 訂購單 AP8 format (document 4510250181-AP8_v0-8150.PDF):
-  - 54 line items numbered 10–540 in steps of 10
-  - Two task categories: 施工作業 (construction) / 費用管銷 (expense management)
-  - Dense text format produced by Document AI OCR / Layout Parser
-
-Dependency: stdlib only.
-"""
-⋮----
-# ── Chinese numeral character class used in section headers ─────────────────
-_CHINESE_NUMERALS = "一二三四五六七八九十壹貳參肆伍陸柒捌玖拾"
-⋮----
-# Pattern: item number (10–540, step 10) at word boundary
-_ITEM_NO_PATTERN = re.compile(r"(?<!\d)(\d{2,3})(?=\s)")
-⋮----
-# Pattern: 小計 + amount signals end of price data; description follows.
-# The space between 小計 and the amount is optional — items crossing page
-# breaks in the AP8 PDF produce "小計 721,619" (with space).
-_SUBTOTAL_PATTERN = re.compile(r"小計\s*[\d,，.]+\s*")
-⋮----
-# Pattern: section header 「（中文数字）」
-_SECTION_HEADER_PATTERN = re.compile(
-⋮----
-# Pattern to truncate description at noise boundaries within a single OCR line:
-# next-item anchor (e.g. "330 3RDTW"), summary totals, or ABB page footer.
-# Note: "ABB Ltd." is intentionally vendor-specific — this service is scoped to
-# the ABB AP8 訂購單 format (document 4510250181); see module docstring.
-_DESCRIPTION_STOP_PATTERN = re.compile(r"\d{2,3}\s+3RDTW|未稅總計|ABB Ltd\.")
-⋮----
-# ── Classification rules ─────────────────────────────────────────────────────
-⋮----
-# Section numerals whose entire section is 費用管銷.
-# Specific to the ABB AP8 訂購單 4510250181 section structure:
-#   伍 = Section 5 （伍）雜項費用 (Miscellaneous Expenses — management headcount, safety, site floor protection)
-#   玖 = Section 9 （玖）利潤及雜費 (Profit and Miscellaneous Fees)
-# Sections 一–肆 and 柒–捌 contain a mix; classification falls through to
-# _COST_DESCRIPTION_PATTERNS for per-item discrimination.
-_COST_SECTION_CHARS: frozenset[str] = frozenset(["伍", "玖"])
-⋮----
-# Description-level patterns that force 費用管銷, regardless of section
-_COST_DESCRIPTION_PATTERNS: list[re.Pattern[str]] = [
-⋮----
-re.compile(r"費$"),           # ends with 費 (e.g., 高空作業費, 工程衛生費)
-re.compile(r"費用"),          # 費用 anywhere
-re.compile(r"管理\d*人"),     # management headcount (e.g., 管理1人*4個月)
-re.compile(r"監工"),          # supervision
-re.compile(r"工安費"),        # safety fee
-re.compile(r"保險"),          # insurance
-re.compile(r"分攤"),          # cost allocation
-re.compile(r"廢棄物"),        # waste disposal
-re.compile(r"5D"),            # 5D cost
-re.compile(r"利潤"),          # profit
-re.compile(r"圖控與軟體"),    # SCADA software deliverable (cost item)
-re.compile(r"圖面製作"),      # drawing / document fee
-re.compile(r"工務所"),        # site office
-⋮----
-def classify_po_task(description: str, section_char: str = "") -> Literal["施工作業", "費用管銷"]
-⋮----
-"""Classify a PO line item as 施工作業 or 費用管銷.
-
-    Args:
-        description: Chinese task description text.
-        section_char: Chinese numeral from the section header (e.g., "伍").
-
-    Returns:
-        "施工作業" or "費用管銷"
-    """
-# Section-level override takes precedence
-⋮----
-# Description-level pattern matching
-⋮----
-def extract_po_line_items(text: str) -> list[dict[str, Any]]
-⋮----
-"""Extract structured line items from AP8 PO raw text.
-
-    Document AI (OCR / Layout Parser) produces dense text where each line item
-    is formatted as::
-
-        "{item_no} {product_code} SET {price}... 小計{total}（{section}）{description}"
-
-    This function locates each item's Chinese section header and description
-    after the price block and returns a structured list.
-
-    Args:
-        text: Raw text from Document AI output for the PO document.
-
-    Returns:
-        Sorted list (by item_no) of dicts with keys:
-            item_no (int): 10, 20, … 540
-            section (str): e.g., "（一）SCADA站內工程"
-            section_char (str): e.g., "一"
-            description (str): task description text
-            category (str): "施工作業" or "費用管銷"
-            raw_snippet (str): first 200 chars of the matched segment
-    """
-# Normalize horizontal whitespace for reliable pattern matching
-normalized = re.sub(r"[ \t]+", " ", text)
-⋮----
-items: list[dict[str, Any]] = []
-⋮----
-# Split on item boundaries: digit(s) followed by the ABB product code prefix
-# or a Chinese description marker so we get one segment per line item.
-segment_pattern = re.compile(
-segments = list(segment_pattern.finditer(normalized))
-⋮----
-item_no_str = match.group(1)
-⋮----
-item_no = int(item_no_str)
-⋮----
-# Validate item number is in the expected AP8 range (10–540, step 10)
-⋮----
-# Extract the text segment for this item
-start = match.start()
-end = segments[idx + 1].start() if idx + 1 < len(segments) else len(normalized)
-segment = normalized[start:end]
-⋮----
-# Find 小計 to locate where the price block ends
-subtotal_match = _SUBTOTAL_PATTERN.search(segment)
-description_zone = segment[subtotal_match.end():] if subtotal_match else segment
-⋮----
-# Extract section header + leading description from the description zone
-header_match = _SECTION_HEADER_PATTERN.search(description_zone)
-⋮----
-section_char = header_match.group(1).strip()
-description_raw = (header_match.group(2) or "").strip()
-# Truncate at noise boundaries (next-item anchor or summary totals)
-description_raw = _DESCRIPTION_STOP_PATTERN.split(description_raw, maxsplit=1)[0].strip()
-⋮----
-# Collect any remaining text after the section header (may continue on next line)
-after_header = description_zone[header_match.end():].strip()
-# Limit to first sentence/clause; stop at new section, page-break, next item, or totals
-extra = re.split(r"[（\n]|ABB Ltd\.|(?=\d{2,3}\s+3RDTW)|未稅總計", after_header, maxsplit=1)[0].strip()
-# Only append extra if it starts with Chinese text (genuine description continuation).
-# ASCII-leading text (e.g., "Ref: 6591401)折扣…") is leaked price data — discard.
-# Known limitation: descriptions that legitimately start with English terms
-# (e.g., "RTU盤內…") will not be extended by extra; they are however already
-# fully captured by _SECTION_HEADER_PATTERN group 2 in practice.
-⋮----
-description_raw = (description_raw + " " + extra).strip()
-⋮----
-description = re.sub(r"\s+", " ", description_raw).strip()
-⋮----
-section_label = f"（{section_char}）"
-category = classify_po_task(description, section_char)
-⋮----
-# De-duplicate: the PDF's multi-page layout causes identical items to appear
-# more than once in the OCR text.  Keep the first occurrence per item_no
-# because it tends to come from the main table (cleaner formatting).
-seen: set[int] = set()
-deduped: list[dict[str, Any]] = []
-⋮----
-"""Convert extracted PO line items to RAG chunk format.
-
-    Each line item becomes one chunk, preserving category metadata so the
-    RAG pipeline can filter by 施工作業 / 費用管銷.
-
-    Args:
-        line_items: Output of extract_po_line_items().
-
-    Returns:
-        list of dicts compatible with the RAG ingestion pipeline.
-    """
-result: list[dict[str, Any]] = []
-⋮----
-text = (
-````
-
-## File: fn/src/infrastructure/external/upstash/vector_client.py
-````python
-"""
-Upstash Vector 客戶端 — 向量 upsert / query / delete 操作。
-
-Chunk ID 命名慣例：``{doc_id}:{i:04d}``，其中 ``:`` 為分隔符。
-``delete_vectors_by_doc`` 使用 prefix ``{doc_id}:`` 刪除同份文件的所有 chunk 向量。
-"""
-⋮----
-_VECTOR_INDEX: Any | None = None
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def get_vector_index() -> Any
-⋮----
-"""取得 Upstash Vector 官方 SDK Index 實例（單例）。"""
-⋮----
-mod = _import_module("upstash_vector", "pip install upstash-vector")
-index_cls = getattr(mod, "Index", None)
-⋮----
-_VECTOR_INDEX = index_cls(
-⋮----
-def _normalize_vector_item(item: Any) -> dict[str, Any]
-⋮----
-def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any
-⋮----
-"""
-    批次 upsert 向量資料到 Upstash Vector。
-
-    items 每筆至少包含：
-      - id: str
-      - vector: list[float]
-      - metadata: dict[str, Any]
-    """
-index = get_vector_index()
-sdk_payload = [
-tuples_payload = [
-⋮----
-def delete_vectors_by_doc(doc_id: str, namespace: str = "") -> int
-⋮----
-"""刪除屬於指定 doc_id 的所有向量（依 ID 前綴 `{doc_id}:`）。
-
-    使用 Upstash Vector SDK 的 prefix delete，一次清除整份文件的所有 chunk
-    向量，避免重新索引後留下孤立 (orphan) chunk 資料。
-
-    Args:
-        doc_id:    文件識別碼，對應 chunk ID 格式 ``{doc_id}:{i:04d}``。
-        namespace: Upstash Vector 命名空間（與 upsert 時一致）。
-
-    Returns:
-        int: 實際刪除的向量數量（0 表示無向量或操作失敗）。
-    """
-⋮----
-prefix = f"{doc_id}:"
-⋮----
-result = index.delete(prefix=prefix, namespace=namespace)
-⋮----
-deleted = result
-⋮----
-deleted = int(result.deleted or 0)
-⋮----
-deleted = int(result.get("deleted", 0))
-⋮----
-deleted = 0
-⋮----
-"""查詢 Upstash Vector，統一輸出為 list[dict]。"""
-⋮----
-result = index.query(
-⋮----
-result = index.query(vector=vector, top_k=top_k, namespace=namespace)
-⋮----
-candidates = result.get("result") or result.get("matches") or result.get("data") or []
-````
-
-## File: fn/src/infrastructure/gateways/authorization_gateway.py
-````python
-"""Infrastructure implementation of AuthorizationGateway."""
-⋮----
-class FirestoreAuthorizationGateway
-⋮----
-def assert_actor_can_access_account(self, *, actor_id: str, account_id: str) -> None
-⋮----
-db = fb_firestore.client()
-snap = db.collection("accounts").document(account_id).get()
-⋮----
-data = snap.to_dict() or {}
-owner_id = str(data.get("ownerId", "")).strip()
-member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
-member_set = {str(item or "").strip() for item in member_ids}
-⋮----
-def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str) -> None
-⋮----
-snap = db.collection("workspaces").document(workspace_id).get()
-⋮----
-bound_account_id = str(data.get("accountId", "")).strip()
-````
-
-## File: fn/src/infrastructure/persistence/storage/client.py
-````python
-"""
-Cloud Storage 服務層 — 使用 firebase-admin 的 storage 模組下載／上傳物件。
-
-用法：
-    from infrastructure.persistence.storage.client import download_bytes, upload_json
-    data = download_bytes(bucket_name="my-bucket", object_path="uploads/doc.pdf")
-    uri  = upload_json(bucket_name="my-bucket", object_path="files/doc.json", data={...})
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-# 上傳檔案路徑前綴 → 解析結果前綴
-_UPLOAD_PREFIX = "uploads/"
-_FILES_PREFIX = "files/"
-⋮----
-def parsed_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    將 GCS 上傳路徑轉換為對應的解析結果 JSON 路徑。
-
-    規則：
-      - 去掉 uploads/ 前綴，換成 files/ 前綴
-      - 副檔名替換為 .json
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.json
-        uploads/doc.png          ->  files/doc.json
-    """
-relative = upload_object_path.removeprefix(_UPLOAD_PREFIX)
-⋮----
-def layout_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    Layout Parser 解析結果的 GCS 路徑。
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.layout.json
-    """
-⋮----
-def form_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    Form Parser 解析結果的 GCS 路徑。
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.form.json
-    """
-⋮----
-def ocr_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    OCR Parser 解析結果的 GCS 路徑。
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.ocr.json
-    """
-⋮----
-def genkit_json_path(upload_object_path: str) -> str
-⋮----
-"""
-    Genkit-AI 解析結果的 GCS 路徑。
-
-    範例：
-        uploads/org/ws/file.pdf  ->  files/org/ws/file.genkit.json
-    """
-⋮----
-def upload_json(bucket_name: str, object_path: str, data: dict) -> str
-⋮----
-"""
-    將 dict 序列化為 JSON 後上傳至 Cloud Storage。
-
-    Args:
-        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
-        object_path: bucket 內的目標路徑，例如 files/org/ws/file.json
-        data:        要序列化的資料，必須可 JSON 序列化。
-
-    Returns:
-        str: gs:// 完整 URI，例如 gs://bucket/files/org/ws/file.json
-    """
-bucket = fb_storage.bucket(bucket_name)
-blob = bucket.blob(object_path)
-⋮----
-# 緊湊序列化可降低 CPU 與儲存傳輸成本。
-json_bytes = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-⋮----
-uri = f"gs://{bucket_name}/{object_path}"
-⋮----
-def download_bytes(bucket_name: str, object_path: str) -> bytes
-⋮----
-"""
-    從 Cloud Storage 下載物件並回傳 bytes。
-
-    Args:
-        bucket_name: GCS bucket 名稱（不含 gs:// 前綴）。
-        object_path: bucket 內的物件路徑。
-
-    Returns:
-        bytes: 物件的完整二進位內容。
-
-    Raises:
-        google.cloud.exceptions.NotFound: 物件不存在時。
-    """
-⋮----
-data = blob.download_as_bytes()
-````
-
-## File: fn/src/interface/handlers/__init__.py
-````python
-__all__ = [
-````
-
-## File: fn/src/interface/handlers/https.py
-````python
-"""
-HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
-各 handler 已拆分至對應的聚焦模組：
-  - parse_document.py      (handle_parse_document)
-  - rag_query_handler.py   (handle_rag_query)
-  - rag_reindex_handler.py (handle_rag_reindex_document)
-  - _https_helpers.py      (共用驗證/解析工具)
-
-此檔案保留所有原始公開符號以維持向後相容。
-"""
-⋮----
-__all__ = [
 ````
 
 ## File: fn/README.md
@@ -2594,6 +3392,8 @@ result = ingest_document_for_rag(**req.data)
 
 ## 7. RAG Pipeline 流程
 
+### 7.1 自動 Storage pipeline（`uploads/**`）
+
 ```text
 1. Cloud Storage trigger → on_document_uploaded
 2. interface/handlers/storage.py → handle_object_finalized
@@ -2610,6 +3410,21 @@ result = ingest_document_for_rag(**req.data)
 9. gateway.redis_set_json → Upstash Redis doc summary (best-effort)
 10. infrastructure/persistence/firestore/document_repository.py → mark status=ready
 ```
+
+### 7.2 Notebooklm Sources 手動 pipeline（`workspaces/{workspaceId}/sources/{accountId}/**`）
+
+```text
+1. Next.js uploadDocumentToStorage() → 上傳到 workspace-scoped sources path
+2. Next.js registerUploadedDocument() → 先寫入 accounts/{accountId}/documents/{docId}
+3. 使用者於 Sources UI 手動呼叫 parse_document
+4. fn 依 parser 執行 layout / form / ocr / genkit parse
+5. 使用者於 Sources UI 手動呼叫 rag_reindex_document
+6. fn 依 parsedLayoutJsonGcsUri 重建 chunk / embed / vector/search index
+```
+
+`interface/handlers/storage.py` 目前只監聽 `WATCH_PREFIX=uploads/`，
+因此 Sources 的 workspace-scoped upload **不會**自動觸發 parse + RAG。
+這是刻意保留的雙路徑設計：`uploads/**` 走自動 worker，`workspaces/**/sources/**` 走手動 callable。
 
 ---
 
@@ -2631,813 +3446,36 @@ python -m pytest tests/ -v
 - `docs/structure/system/architecture-overview.md` — 主域關係圖
 ````
 
-## File: fn/src/application/ports/output/gateways.py
-````python
-"""Backward-compatible application-layer re-export of domain repository contracts."""
-⋮----
-__all__ = [
+## File: fn/requirements-dev.txt
+````
+# Dev/test dependencies (not deployed to Cloud Functions)
+pytest>=8.0.0,<9.0.0
+pytest-mock>=3.14.0,<4.0.0
 ````
 
-## File: fn/src/application/use_cases/rag_reindex.py
-````python
-"""
-RAG reindex application use case.
-
-Downloads the layout JSON artifact from GCS, enriches missing fields,
-then re-runs the RAG ingestion pipeline and marks the document ready.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-@dataclass
-class RagReindexCommand
-⋮----
-"""Input contract for the rag-reindex use case."""
-⋮----
-doc_id: str
-json_gcs_uri: str
-account_id: str
-# Optional fields — enriched from the stored JSON artifact when absent.
-source_gcs_uri: str = ""
-workspace_id: str = ""
-filename: str = ""
-page_count: int = 0
-⋮----
-@dataclass
-class RagReindexResult
-⋮----
-"""Output contract for the rag-reindex use case."""
-⋮----
-chunk_count: int
-vector_count: int
-raw_chars: int
-normalized_chars: int
-normalization_version: str
-language_hint: str
-⋮----
-"""Download the layout JSON, enrich fields, re-ingest into RAG index.
-
-    Raises:
-        ValueError: when required fields are absent from both cmd and the stored JSON.
-        Exception:  propagated from GCS / embedding / vector calls.
-    """
-artifact_gateway = artifact_gateway or get_document_artifact_gateway()
-status_gateway = status_gateway or get_document_status_gateway()
-⋮----
-json_bytes = artifact_gateway.download_bytes(
-payload: dict = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
-⋮----
-text = str(payload.get("text", "")).strip()
-⋮----
-source_gcs_uri = cmd.source_gcs_uri or str(payload.get("source_gcs_uri", "")).strip()
-⋮----
-workspace_id = cmd.workspace_id
-⋮----
-workspace_id = str(payload.get("workspace_id", "")).strip()
-⋮----
-workspace_id = str((payload.get("metadata") or {}).get("space_id", "")).strip()
-⋮----
-filename = cmd.filename
-⋮----
-filename = (
-⋮----
-page_count = cmd.page_count
-⋮----
-page_count = int(payload.get("page_count", 0) or 0)
-⋮----
-layout_chunks: list[dict] | None = payload.get("chunks") or None
-⋮----
-rag = ingest_for_rag(
+## File: fn/requirements.txt
 ````
+# Firebase Functions runtime
+firebase-functions>=0.4.2,<1.0.0
 
-## File: fn/src/core/config.py
-````python
-"""
-專案層級常數 — 從環境變數讀取，讓同一份程式碼在 dev / staging / prod 皆可用。
-"""
-⋮----
-# ── GCP 基礎設定 ────────────────────────────────────────────────────────────
-GCP_PROJECT: str = "65970295651"
-GCP_REGION: str = os.environ.get("FUNCTION_REGION", "asia-southeast1")
-⋮----
-# -- Cloud Storage ----------------------------------------
-# Firebase Storage bucket (from firebase.json storage.bucket)
-UPLOAD_BUCKET: str = os.environ.get(
-⋮----
-# ── Document AI ──────────────────────────────────────────────────────────────
-# 格式： projects/{project}/locations/{location}/processors/{processor_id}
-#
-# ⚠️  兩個 processor 均位於 US region，endpoint 必須使用 us-documentai.googleapis.com
-# Layout Parser  → https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/929c4719f45b1eee:process
-# Form Parser    → https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/7318076ba71e0758:process
-⋮----
-DOCAI_LOCATION: str = "us"
-DOCAI_API_ENDPOINT: str = "us-documentai.googleapis.com"
-⋮----
-# Layout Parser — 保留表格結構與段落語意邊界的主要 Processor（混合文件首選）
-# AP8 採購訂購單：多層嵌套表格 + 大量段落文字，Layout Parser 輸出 context-aware chunks
-DOCAI_LAYOUT_PROCESSOR_NAME: str = os.environ.get(
-⋮----
-# Form Parser — 結構化欄位擷取副通道（PO號、金額、日期、供應商等 KV entity）
-# 若未設定則使用預設 US Form Parser；設為空字串可停用副通道
-DOCAI_FORM_PROCESSOR_NAME: str = os.environ.get(
-⋮----
-# OCR Processor — 高品質全頁文字擷取通道（AP8採購訂單等密集表格 PDF 推薦）。
-# AP8 PO 4510250181：54 個明細（項次 10–540，步進 10），需 OCR 完整擷取中文描述。
-# https://us-documentai.googleapis.com/v1/projects/65970295651/locations/us/processors/f88dfd0407416be7:process
-DOCAI_OCR_PROCESSOR_NAME: str = os.environ.get(
-⋮----
-# ── OpenAI (Embeddings / LLM) ───────────────────────────────────────────────
-OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "").strip()
-OPENAI_EMBEDDING_MODEL: str = os.environ.get(
-OPENAI_EMBEDDING_DIMENSIONS: int = int(os.environ.get("OPENAI_EMBEDDING_DIMENSIONS", "1024"))
-OPENAI_LLM_MODEL: str = os.environ.get("OPENAI_LLM_MODEL", "gpt-4o-mini")
-OPENAI_TIMEOUT_SECONDS: float = float(os.environ.get("OPENAI_TIMEOUT_SECONDS", "30"))
-OPENAI_MAX_RETRIES: int = int(os.environ.get("OPENAI_MAX_RETRIES", "2"))
-⋮----
-# ── Upstash (Vector / Redis / Search / QStash) ─────────────────────────────
-UPSTASH_REDIS_REST_URL: str = os.environ.get("UPSTASH_REDIS_REST_URL", "").strip()
-UPSTASH_REDIS_REST_TOKEN: str = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "").strip()
-⋮----
-UPSTASH_VECTOR_REST_URL: str = os.environ.get("UPSTASH_VECTOR_REST_URL", "").strip()
-UPSTASH_VECTOR_REST_TOKEN: str = os.environ.get("UPSTASH_VECTOR_REST_TOKEN", "").strip()
-⋮----
-UPSTASH_SEARCH_REST_URL: str = os.environ.get("UPSTASH_SEARCH_REST_URL", "").strip()
-UPSTASH_SEARCH_REST_TOKEN: str = os.environ.get("UPSTASH_SEARCH_REST_TOKEN", "").strip()
-UPSTASH_SEARCH_INDEX: str = os.environ.get("UPSTASH_SEARCH_INDEX", "").strip()
-UPSTASH_SEARCH_TIMEOUT_SECONDS: float = float(os.environ.get("UPSTASH_SEARCH_TIMEOUT_SECONDS", "8"))
-⋮----
-QSTASH_URL: str = os.environ.get("QSTASH_URL", "https://qstash-us-east-1.upstash.io").strip()
-QSTASH_TOKEN: str = os.environ.get("QSTASH_TOKEN", "").strip()
-QSTASH_CURRENT_SIGNING_KEY: str = os.environ.get("QSTASH_CURRENT_SIGNING_KEY", "").strip()
-QSTASH_NEXT_SIGNING_KEY: str = os.environ.get("QSTASH_NEXT_SIGNING_KEY", "").strip()
-QSTASH_RAG_AUDIT_URL: str = os.environ.get("QSTASH_RAG_AUDIT_URL", "").strip()
-⋮----
-# ── RAG Pipeline ─────────────────────────────────────────────────────────────
-RAG_VECTOR_NAMESPACE: str = os.environ.get("RAG_VECTOR_NAMESPACE", "rag-docs").strip()
-RAG_CHUNK_SIZE_CHARS: int = int(os.environ.get("RAG_CHUNK_SIZE_CHARS", "1200"))
-RAG_CHUNK_OVERLAP_CHARS: int = int(os.environ.get("RAG_CHUNK_OVERLAP_CHARS", "150"))
-RAG_QUERY_TOP_K: int = int(os.environ.get("RAG_QUERY_TOP_K", "5"))
-RAG_QUERY_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_QUERY_CACHE_TTL_SECONDS", "300"))
-RAG_QUERY_RATE_LIMIT_MAX: int = int(os.environ.get("RAG_QUERY_RATE_LIMIT_MAX", "30"))
-RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS: int = int(os.environ.get("RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS", "60"))
-RAG_QUERY_DEFAULT_MAX_AGE_DAYS: int = int(os.environ.get("RAG_QUERY_DEFAULT_MAX_AGE_DAYS", "365"))
-RAG_QUERY_REQUIRE_READY_STATUS: bool = os.environ.get("RAG_QUERY_REQUIRE_READY_STATUS", "true").strip().lower() in (
-RAG_DOC_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_DOC_CACHE_TTL_SECONDS", "2592000"))
-RAG_REDIS_PREFIX: str = os.environ.get("RAG_REDIS_PREFIX", "rag").strip()
-````
+# Firebase Admin SDK - Firestore / Auth / Storage admin APIs
+firebase-admin>=6.5.0,<7.0.0
 
-## File: fn/src/domain/repositories/__init__.py
-````python
-"""Domain repository contracts."""
-⋮----
-__all__ = [
-````
+# Google Cloud Document AI - synchronous & async document processing
+google-cloud-documentai<3.0.0
 
-## File: fn/src/infrastructure/persistence/firestore/document_repository.py
-````python
-"""
-Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
+# Google Cloud Firestore - explicit dependency for type hints & features
+google-cloud-firestore<3.0.0
 
-Firestore 只存輕量索引（供 account-scoped 列表），
-解析全文以 JSON 格式存回 GCS 的對應路徑（files/ 前綴）。
+# GCS helper used by the storage service layer
+google-cloud-storage<3.0.0
 
-Document Schema:
-    {
-        "id": "doc-abc123",
-        "status": "processing" | "completed" | "error",
-        "source": {
-            "gcs_uri": "gs://bucket/uploads/file.pdf",
-            "filename": "file.pdf",
-            "size_bytes": 102400,
-            "uploaded_at": "2026-03-22T...",
-            "mime_type": "application/pdf"
-        },
-        "parsed": {
-            "json_gcs_uri": "gs://bucket/files/file.json",   // 全文 JSON 位置
-            "page_count": 5,
-            "parsed_at": "2026-03-22T...",
-            "extraction_ms": 1234
-        },
-        "error": {  // 只在 status=error 時出現
-            "message": "...",
-            "timestamp": "2026-03-22T..."
-        }
-    }
+# OpenAI SDK for embeddings and LLM calls
+openai>=1.40.0,<2.0.0
 
-用法：
-    init_document(doc_id, gcs_uri, filename, size_bytes, mime_type)
-    update_parsed(doc_id, json_gcs_uri, page_count, extraction_ms)
-    record_error(doc_id, message)
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def _document_ref(doc_id: str, account_id: str)
-⋮----
-"""Resolve strict account-scoped document reference."""
-⋮----
-db = fb_firestore.client()
-⋮----
-"""
-    初始化 Firestore document，標記為 processing 狀態。
-
-    在檔案上傳到 GCS 時呼叫，建立初始的 source metadata。
-
-    Args:
-        doc_id:      文件識別碼。
-        gcs_uri:     GCS 位置，例如 gs://bucket/path/file.pdf
-        filename:    原始檔名。
-        size_bytes:  文件大小（位元組）。
-        mime_type:   MIME 類型。
-    """
-ref = _document_ref(doc_id, account_id)
-⋮----
-payload = {
-⋮----
-# merge=True keeps previously written parser artifacts (layout/form/ocr/genkit)
-# so multiple parser JSON outputs can coexist on the same document.
-⋮----
-"""
-    更新 document 的解析結果索引，標記為 completed 狀態。
-
-    全文內容已寫入 GCS JSON 檔（json_gcs_uri），
-    Firestore 只保留輕量索引供前端列表使用。
-
-    Args:
-        doc_id:         文件識別碼。
-        json_gcs_uri:   GCS JSON 檔案位置，例如 gs://bucket/files/file.json
-        page_count:     頁數。
-        extraction_ms:  解析耗時（毫秒），非必填。
-        chunk_count:    Layout Parser 語意分塊數量。
-        entity_count:   Form Parser 結構化欄位數量。
-    """
-⋮----
-"""
-    更新 Layout Parser 解析結果，標記文件為 completed 狀態。
-
-    Layout JSON（含 text、chunks）已寫入 GCS，
-    Firestore 只保留輕量索引（layout_json_gcs_uri、page_count、layout_chunk_count）。
-
-    Args:
-        doc_id:               文件識別碼。
-        layout_json_gcs_uri:  Layout Parser GCS JSON 路徑（.layout.json）。
-        page_count:           頁數。
-        extraction_ms:        解析耗時（毫秒）。
-        chunk_count:          語意分塊數量。
-    """
-⋮----
-"""
-    更新 Form Parser 解析結果（不覆蓋 Layout Parser 的欄位）。
-
-    Form JSON（含 entities）已寫入 GCS，
-    Firestore 用 dot-notation update 新增 form 專屬欄位。
-
-    Args:
-        doc_id:              文件識別碼。
-        form_json_gcs_uri:   Form Parser GCS JSON 路徑（.form.json）。
-        extraction_ms:       解析耗時（毫秒）。
-        entity_count:        結構化欄位數量。
-    """
-⋮----
-"""
-    更新 OCR Parser 解析結果（不覆蓋 Layout/Form 欄位）。
-    """
-⋮----
-"""
-    更新 Genkit-AI 解析結果（不覆蓋其他 parser 欄位）。
-    """
-⋮----
-def record_error(doc_id: str, message: str, account_id: str) -> None
-⋮----
-"""
-    記錄解析錯誤，標記為 error 狀態。
-
-    在 Document AI 呼叫失敗時呼叫。
-
-    Args:
-        doc_id:  文件識別碼。
-        message: 錯誤訊息。
-    """
-⋮----
-"""標記 RAG ingestion 完成（ready）。"""
-⋮----
-def record_rag_error(doc_id: str, message: str, account_id: str) -> None
-⋮----
-"""記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
-````
-
-## File: fn/src/interface/schemas/parse_document.py
-````python
-"""
-Input schema for parse_document HTTPS Callable (Rule 4 — Contract / Schema).
-
-All data entering the system through this function must pass through this
-schema before being forwarded to the application layer.  Validation raises
-ValueError so that the handler can convert it to a typed HttpsError.
-"""
-⋮----
-_MIME_MAP: dict[str, str] = {
-⋮----
-_ALLOWED_MIMES: frozenset[str] = frozenset(_MIME_MAP.values())
-⋮----
-@dataclass
-class ParseDocumentRequest
-⋮----
-"""Validated input contract for the parse_document callable."""
-⋮----
-account_id: str
-workspace_id: str
-gcs_uri: str
-doc_id: str
-filename: str
-mime_type: str
-size_bytes: int
-run_rag: bool
-parser: str  # "layout" | "form" | "ocr" | "genkit"
-⋮----
-@classmethod
-    def from_raw(cls, raw: dict) -> "ParseDocumentRequest"
-⋮----
-"""Parse and validate raw request data.
-
-        Raises:
-            ValueError: if any required field is missing or invalid.
-        """
-account_id = str(raw.get("account_id", "")).strip()
-⋮----
-workspace_id = str(raw.get("workspace_id", "")).strip()
-⋮----
-gcs_uri = str(raw.get("gcs_uri", "")).strip()
-⋮----
-# Derive doc_id and filename from URI when not provided explicitly.
-path_part = gcs_uri.split("gs://", 1)[1]
-storage_filename = os.path.basename(path_part)
-⋮----
-doc_id = str(raw.get("doc_id", "")).strip() or default_doc_id
-filename = (
-⋮----
-mime_type = str(raw.get("mime_type", "")).strip()
-⋮----
-resolved = _MIME_MAP.get(ext.lower())
-⋮----
-mime_type = resolved
-⋮----
-size_bytes = int(raw.get("size_bytes", 0) or 0)
-⋮----
-size_bytes = 0
-⋮----
-run_rag = bool(raw.get("run_rag", True))
-⋮----
-parser = str(raw.get("parser", "layout")).strip().lower()
-````
-
-## File: fn/src/interface/handlers/storage.py
-````python
-"""
-Storage 觸發器 — 監聽 GCS 物件建立事件，自動送 Document AI 解析。
-
-流程：
-    GCS object.finalized（uploads/ 前綴）
-        → 建立初始 Firestore document（status=processing）
-        → Document AI 直接從 GCS URI 讀取
-        → 將解析全文以 JSON 格式寫回 GCS（files/ 前綴，同目錄結構）
-        → 更新 Firestore 輕量索引（status=completed，含 json_gcs_uri）
-        → 如失敗，記錄 error
-
-Firestore 只存索引（供 /dev-tools 顯示已上傳檔案），
-完整解析結果透過 json_gcs_uri 讀取 GCS JSON 檔。
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-# 只處理這個資料夾下的上傳檔案（空字串 = 處理整個 bucket）
-WATCH_PREFIX: str = os.environ.get("WATCH_PREFIX", "uploads/")
-⋮----
-# 支援的 MIME 類型對照表（副檔名 → MIME）
-_MIME_MAP: dict[str, str] = {
-⋮----
-def _mime_from_path(object_path: str) -> str | None
-⋮----
-"""Best-effort account scope binding for storage-triggered uploads.
-
-    Priority:
-    1) custom metadata field `account_id`
-    2) path convention: uploads/{accountId}/...
-    3) fallback: None (reject write)
-    """
-⋮----
-from_meta = str(event_metadata.get("account_id", "")).strip()
-⋮----
-prefix = f"{WATCH_PREFIX}"
-⋮----
-remainder = object_path[len(prefix):]
-# uploads/{accountId}/file.pdf
-⋮----
-candidate = remainder.split("/", 1)[0].strip()
-⋮----
-def _extract_workspace_id(event_metadata: dict | None) -> str | None
-⋮----
-workspace_id = str(event_metadata.get("workspace_id", "")).strip()
-⋮----
-def _extract_display_filename(object_path: str, event_metadata: dict | None) -> str
-⋮----
-candidates: tuple[Any, ...] = ()
-⋮----
-candidates = (
-⋮----
-filename = str(candidate or "").strip()
-⋮----
-"""
-    Cloud Storage on_object_finalized 觸發器。
-
-    - 只處理 WATCH_PREFIX 下、且為支援 MIME 類型的檔案。
-    - 初始化 → Document AI 解析 → 更新 Firestore
-    - 異常時記錄至 Firestore。
-    """
-data = event.data
-⋮----
-bucket_name: str = data.bucket
-object_path: str = data.name or ""
-size_bytes: int = int(data.size or 0)
-⋮----
-# ── 路徑過濾 ────────────────────────────────────────────────────────────
-⋮----
-mime_type = _mime_from_path(object_path)
-⋮----
-account_id = _extract_account_id(object_path, data.metadata)
-⋮----
-workspace_id = _extract_workspace_id(data.metadata)
-⋮----
-storage_filename = os.path.basename(object_path)
-display_filename = _extract_display_filename(object_path, data.metadata)
-⋮----
-gcs_uri = f"gs://{bucket_name}/{object_path}"
-⋮----
-status_gateway = get_document_status_gateway()
-````
-
-## File: fn/tests/test_domain_repository_gateways.py
-````python
-class _FakeRagQueryGateway
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict | None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-⋮----
-class _FakeRagQueryEffectsGateway
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict) -> None
-⋮----
-class _FakeRagIngestionGateway
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
-⋮----
-def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
-⋮----
-def upsert_search_documents(self, documents: list[dict]) -> int
-⋮----
-def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
-⋮----
-def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
-⋮----
-class _FakeDocumentPipelineGateway
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def layout_json_path(self, upload_object_path: str) -> str
-⋮----
-def form_json_path(self, upload_object_path: str) -> str
-⋮----
-def ocr_json_path(self, upload_object_path: str) -> str
-⋮----
-def genkit_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
-⋮----
-def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
-⋮----
-rag_query_gateway = _FakeRagQueryGateway()
-rag_query_effects_gateway = _FakeRagQueryEffectsGateway()
-rag_ingestion_gateway = _FakeRagIngestionGateway()
-document_pipeline_gateway = _FakeDocumentPipelineGateway()
-⋮----
-def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
-````
-
-## File: fn/tests/test_input_schemas.py
-````python
-"""
-Unit tests for interface/schemas/ — Rule 4 (Contract / Schema) compliance.
-
-Verifies that all HTTPS Callable input schemas reject invalid inputs and
-accept valid inputs before reaching the application layer.
-"""
-⋮----
-# ── ParseDocumentRequest ──────────────────────────────────────────────────────
-⋮----
-class TestParseDocumentRequest
-⋮----
-def test_fromRaw_WithValidPdf_ReturnsSchema(self) -> None
-⋮----
-raw = {
-schema = ParseDocumentRequest.from_raw(raw)
-⋮----
-def test_fromRaw_WithExplicitDocId_UsesProvidedDocId(self) -> None
-⋮----
-def test_fromRaw_WithRunRagFalse_SetsRunRagFalse(self) -> None
-⋮----
-def test_fromRaw_WithParserOcr_AcceptsOcrParser(self) -> None
-⋮----
-def test_fromRaw_WithParserGenkit_AcceptsGenkitParser(self) -> None
-⋮----
-def test_fromRaw_InfersMimeFromExtension_WhenMimeOmitted(self) -> None
-⋮----
-def test_fromRaw_MissingAccountId_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_MissingWorkspaceId_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_InvalidGcsUri_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_UnknownExtensionWithoutMime_RaisesValueError(self) -> None
-⋮----
-# ── RagQueryRequest ───────────────────────────────────────────────────────────
-⋮----
-class TestRagQueryRequest
-⋮----
-def test_fromRaw_WithValidInput_ReturnsSchema(self) -> None
-⋮----
-schema = RagQueryRequest.from_raw(
-⋮----
-def test_fromRaw_WithTopK_ParsesInt(self) -> None
-⋮----
-def test_fromRaw_WithTaxonomyFilters_NormalizesStrings(self) -> None
-⋮----
-def test_fromRaw_EmptyUid_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_MissingQuery_RaisesValueError(self) -> None
-⋮----
-# ── RagReindexRequest ─────────────────────────────────────────────────────────
-⋮----
-class TestRagReindexRequest
-⋮----
-def test_fromRaw_WithMinimalValidInput_ReturnsSchema(self) -> None
-⋮----
-schema = RagReindexRequest.from_raw(raw)
-⋮----
-def test_fromRaw_MissingDocId_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_MissingJsonGcsUri_RaisesValueError(self) -> None
-⋮----
-def test_fromRaw_WithPageCount_ParsesInt(self) -> None
-````
-
-## File: fn/src/interface/handlers/rag_reindex_handler.py
-````python
-"""
-HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
-
-Schema validation (Rule 4) is performed via RagReindexRequest.from_raw()
-before any application-layer call.  All orchestration is delegated to the
-rag_reindex use case.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion."""
-actor_id = _extract_auth_uid(req)
-⋮----
-schema = RagReindexRequest.from_raw(req.data or {})
-⋮----
-result = execute_rag_reindex_command(
-````
-
-## File: fn/src/domain/repositories/rag.py
-````python
-class RagQueryGateway(Protocol)
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str: ...
-⋮----
-def get_query_cache(self, cache_key: str) -> dict[str, Any] | None: ...
-⋮----
-def to_query_vector(self, query: str) -> list[float]: ...
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]: ...
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]: ...
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str: ...
-⋮----
-class RagQueryEffectsGateway(Protocol)
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None: ...
-⋮----
-class RagIngestionGateway(Protocol)
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]: ...
-⋮----
-def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any: ...
-⋮----
-def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int: ...
-⋮----
-def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None: ...
-⋮----
-def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int: ...
-⋮----
-class DocumentParserGateway(Protocol)
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
-⋮----
-class DocumentRateLimitGateway(Protocol)
-⋮----
-class DocumentStatusGateway(Protocol)
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None: ...
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
-⋮----
-class DocumentArtifactGateway(Protocol)
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def layout_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def form_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def ocr_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def genkit_json_path(self, upload_object_path: str) -> str: ...
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str: ...
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
-⋮----
-class AuthorizationGateway(Protocol)
-⋮----
-def assert_actor_can_access_account(self, *, actor_id: str, account_id: str) -> None: ...
-⋮----
-def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str) -> None: ...
-⋮----
-class DocumentPipelineGateway(
-⋮----
-"""Backward-compatible composite port built from the split document ports."""
-⋮----
-_rag_query_gateway: RagQueryGateway | None = None
-_rag_query_effects_gateway: RagQueryEffectsGateway | None = None
-_rag_ingestion_gateway: RagIngestionGateway | None = None
-_document_parser_gateway: DocumentParserGateway | None = None
-_document_rate_limit_gateway: DocumentRateLimitGateway | None = None
-_document_status_gateway: DocumentStatusGateway | None = None
-_document_artifact_gateway: DocumentArtifactGateway | None = None
-_document_pipeline_gateway: DocumentPipelineGateway | None = None
-_authorization_gateway: AuthorizationGateway | None = None
-_composed_document_pipeline_gateway: DocumentPipelineGateway | None = None
-⋮----
-def register_rag_query_gateway(gateway: RagQueryGateway) -> None
-⋮----
-_rag_query_gateway = gateway
-⋮----
-def get_rag_query_gateway() -> RagQueryGateway
-⋮----
-def register_rag_query_effects_gateway(gateway: RagQueryEffectsGateway) -> None
-⋮----
-_rag_query_effects_gateway = gateway
-⋮----
-def get_rag_query_effects_gateway() -> RagQueryEffectsGateway
-⋮----
-def register_rag_ingestion_gateway(gateway: RagIngestionGateway) -> None
-⋮----
-_rag_ingestion_gateway = gateway
-⋮----
-def get_rag_ingestion_gateway() -> RagIngestionGateway
-⋮----
-def register_document_parser_gateway(gateway: DocumentParserGateway) -> None
-⋮----
-_document_parser_gateway = gateway
-⋮----
-def get_document_parser_gateway() -> DocumentParserGateway
-⋮----
-def register_document_rate_limit_gateway(gateway: DocumentRateLimitGateway) -> None
-⋮----
-_document_rate_limit_gateway = gateway
-⋮----
-def get_document_rate_limit_gateway() -> DocumentRateLimitGateway
-⋮----
-def register_document_status_gateway(gateway: DocumentStatusGateway) -> None
-⋮----
-_document_status_gateway = gateway
-⋮----
-def get_document_status_gateway() -> DocumentStatusGateway
-⋮----
-def register_document_artifact_gateway(gateway: DocumentArtifactGateway) -> None
-⋮----
-_document_artifact_gateway = gateway
-⋮----
-def get_document_artifact_gateway() -> DocumentArtifactGateway
-⋮----
-def register_authorization_gateway(gateway: AuthorizationGateway) -> None
-⋮----
-_authorization_gateway = gateway
-⋮----
-def get_authorization_gateway() -> AuthorizationGateway
-⋮----
-def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None
-⋮----
-_document_pipeline_gateway = gateway
-⋮----
-class _ComposedDocumentPipelineGateway
-⋮----
-"""Legacy compatibility facade over the split document ports."""
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
-⋮----
-def init_document(self, **kwargs: Any) -> None
-⋮----
-def update_parsed(self, **kwargs: Any) -> None
-⋮----
-def update_parsed_layout(self, **kwargs: Any) -> None
-⋮----
-def update_parsed_form(self, **kwargs: Any) -> None
-⋮----
-def update_parsed_ocr(self, **kwargs: Any) -> None
-⋮----
-def update_parsed_genkit(self, **kwargs: Any) -> None
-⋮----
-def mark_rag_ready(self, **kwargs: Any) -> None
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def layout_json_path(self, upload_object_path: str) -> str
-⋮----
-def form_json_path(self, upload_object_path: str) -> str
-⋮----
-def ocr_json_path(self, upload_object_path: str) -> str
-⋮----
-def genkit_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
-⋮----
-def get_document_pipeline_gateway() -> DocumentPipelineGateway
-⋮----
-_composed_document_pipeline_gateway = _ComposedDocumentPipelineGateway()
-````
-
-## File: fn/src/app/container/runtime_dependencies.py
-````python
-"""Dependency registration — thin composer wiring gateways into the registry.
-
-Each gateway implementation lives in its own module under
-infrastructure/gateways/ following SRP. This file only wires them.
-"""
-⋮----
-def register_runtime_dependencies() -> None
-````
-
-## File: fn/src/interface/handlers/parse_document.py
-````python
-"""
-HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
-
-Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
-before any application-layer call.  All pipeline orchestration is delegated
-to the parse_document_pipeline use case.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_parse_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    All external input is validated through ParseDocumentRequest before
-    reaching the application layer (Rule 4).
-    """
-actor_id = _extract_auth_uid(req)
-⋮----
-schema = ParseDocumentRequest.from_raw(req.data or {})
+# Upstash Python SDKs (Vector/Redis used in RAG; QStash used for async audit event)
+upstash-vector>=0.8.0,<1.0.0
+upstash-redis>=1.0.0,<2.0.0
+upstash-search>=0.1.1,<1.0.0
+qstash>=3.0.0,<4.0.0
 ````

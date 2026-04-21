@@ -4,7 +4,8 @@
  * document-actions — notebooklm document server actions.
  *
  * Handles document upload (via Firebase Storage) and listing.
- * fn Storage Trigger runs parse + RAG automatically after upload.
+ * Sources uploads are workspace-scoped and stay manual:
+ * upload/register first, then parse/reindex through fn callables.
  */
 
 import { z } from "zod";
@@ -94,8 +95,8 @@ const ReindexDocumentActionInputSchema = z.object({
  * registerUploadedDocumentAction — register a document snapshot after upload.
  *
  * Call this after uploadDocumentToStorage() completes on the client.
- * fn's Storage Trigger will also fire automatically to run parse + RAG.
- * This action records the document in the local domain for immediate UI feedback.
+ * For Notebooklm Sources, this only records the source snapshot for UI feedback.
+ * parse_document / rag_reindex_document remain explicit user-triggered steps.
  */
 export async function registerUploadedDocumentAction(rawInput: unknown) {
   const input = UploadDocumentMetaSchema.parse(rawInput);
@@ -193,4 +194,3 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
     { account_id: input.accountId, doc_id: input.docId, json_gcs_uri: input.layoutJsonGcsUri },
   );
 }
-

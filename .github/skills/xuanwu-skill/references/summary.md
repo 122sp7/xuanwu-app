@@ -42,30 +42,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1183 files | 29,365 lines
+1183 files | 29,422 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 903 | 13,426 |
-| Markdown | 107 | 10,103 |
+| TypeScript | 903 | 13,427 |
+| Markdown | 107 | 10,149 |
 | Python | 87 | 2,266 |
-| TypeScript (TSX) | 53 | 2,512 |
+| TypeScript (TSX) | 53 | 2,522 |
 | No Extension | 18 | 18 |
 | JSON | 6 | 727 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
-| YAML | 1 | 64 |
+| EXAMPLE | 1 | 65 |
 | CSS | 1 | 47 |
-| Other | 2 | 84 |
+| Other | 2 | 83 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
-- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
+- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (385 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `src/modules/template/README.md` (266 lines)
+- `fn/README.md` (231 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
 - `docs/structure/domain/ddd-strategic-design.md` (221 lines)
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
-- `fn/README.md` (214 lines)
