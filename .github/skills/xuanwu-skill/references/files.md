@@ -17360,6 +17360,129 @@ import type {Config} from 'tailwindcss';
 import tailwindcssAnimate from 'tailwindcss-animate';
 ````
 
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+#use skill serena-mcp
+#use skill repomix
+#use skill context7
+#use skill xuanwu-skill
+#use skill hexagonal-ddd
+#use skill xuanwu-markdown-skill
+#use skill occams-razor
+#use skill alistair-cockburn
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+### Mandatory Skills (Load Every Session, No Exceptions)
+
+These three skills **must be loaded at the start of every conversation** before any other action:
+
+| Order | Skill | Purpose |
+|---|---|---|
+| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
+| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
+| 3 | `context7` | Library/framework API verification gate |
+
+- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
+- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
+- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
+
+## Mandatory Compliance Rules
+
+These rules are **non-negotiable** and apply to every task, file, and decision. Any violation requires an immediate stop and explicit report before proceeding.
+
+1. **AI Operational Scope**: Without explicit authorization, do not create files, add modules, modify interface definitions, or make any changes beyond the scope of the current task description.
+2. **Bounded Context**: Every concept belongs to exactly one Context. When referencing a same-named concept across Contexts, an explicit mapping layer must be established. Sharing types or objects directly is not permitted.
+3. **Ubiquitous Language Governance**: All naming must derive from the defined Domain glossary. When encountering a name not in the glossary, halt implementation and report it. Self-naming is not permitted.
+4. **Contract / Schema**: All data entering the system must pass through a defined Schema validation. Accessing raw input outside the validation layer is not permitted. Assuming input is valid is not permitted.
+5. **Breaking Change Policy**: When modifying any externally exposed Schema, interface, or event structure, a new version must be added and the old version retained. Direct overwriting is not permitted.
+6. **Aggregate Design**: All modifications to an Aggregate's internal state must be executed through that Aggregate's own methods. Directly modifying an Aggregate's properties or child objects from outside is not permitted.
+7. **State Model / FSM**: Every state transition must exist in the defined list of legal transitions. Transition paths that are not defined must throw an error. Silent ignoring or self-inferred transitions are not permitted.
+8. **Consistency / Transaction Strategy**: Operations spanning Aggregates or Contexts must not be wrapped in a single transaction. A defined saga or outbox pattern must be used. Designing ad-hoc synchronous coupling solutions is not permitted.
+9. **Event Ordering / Causality Model**: All event handlers must implement idempotency. Assuming events arrive in send order is not permitted. Sequence must be determined using a causality token or version number.
+10. **Failure Strategy**: Every external call must define a failure handling path (retry / compensate / dead-letter). Silently swallowing exceptions is not permitted. Assuming external services always succeed is not permitted.
+11. **Authorization / Security**: Every operation must verify that the caller holds the required permission before execution. Relying on call order or upstream validation as implicit authorization is not permitted.
+12. **Hexagonal Architecture**: The Domain layer must not import any types from Infrastructure, Frameworks, or external services. All external dependencies must be accessed through defined Port interfaces.
+13. **Dependency Rule Enforcement**: Dependencies may only flow inward (Infrastructure → Application → Domain). Reverse dependencies are forbidden. Direct imports between Contexts at the same layer are forbidden.
+14. **Testability / Specification**: Every Domain behavior must have corresponding automated test coverage. Implementing logic structures that cannot be verified by the existing test framework is not permitted.
+15. **Observability**: All cross-layer calls, state changes, and errors must produce structured, traceable records. Replacing structured events with print statements or log strings is not permitted.
+16. **ADR / Design Rationale**: When multiple implementation options are technically viable, do not choose independently. Halt, list the options and their differences, and wait for a human decision before proceeding.
+17. **Minimum Necessary Design / YAGNI**: Do not create abstractions, interfaces, or extension points for future possibilities. Every new structure must correspond to a requirement that explicitly exists in the current task.
+18. **Single Responsibility / No Redundancy**: Every concept must be defined exactly once in exactly one layer. When the same semantic is found expressed in multiple places, report the conflict. Allowing both to coexist is not permitted.
+19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
+20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
+
+> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
+
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
+## Module Layer Routing（src-only）
+
+本 repo 已全面改為 `src/modules/` 單一模組層：
+
+| 路徑 | 職責 | 撰寫時機 |
+|---|---|---|
+| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
+
+- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
+- 新實作一律以 `src/modules/template` 骨架為基線。
+- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
+
+## Operating Rules
+
+> Dependency direction, domain purity, cross-module boundary, and planning discipline are governed by **Mandatory Compliance Rules 12–13, 16–17**. Items below are repo-specific structural decisions.
+
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+> Governed by **Mandatory Compliance Rule 3**. Authority: [docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
+
+## DDD Strategic Rules (Phase 1)
+
+- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
+- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
+- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
+- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+````
+
 ## File: docs/decisions/adr/.gitkeep
 ````
 
@@ -20072,6 +20195,425 @@ occurredAt: Timestamp.now()            // Firestore Timestamp（domain 不能有
 - [state-machine-model.md](../../tooling/nextjs/state-machine-model.md)
 - [`../.github/instructions/event-driven-state.instructions.md`](../../../.github/instructions/event-driven-state.instructions.md)
 - [`docs/structure/system/hard-rules-consolidated.md`](../system/hard-rules-consolidated.md)
+````
+
+## File: docs/structure/system/hard-rules-consolidated.md
+````markdown
+# 51 Hard Rules — Consolidated Architecture Guardrails
+
+**Status**: Consolidated from user request (2026-04-12)  
+**Authority**: AGENTS.md (strategic) + module AGENTS.md (tactical)  
+**Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
+
+---
+
+## 🗂️ Document Placement Strategy
+
+| Rule Category | Rules | Primary Location | Secondary Location |
+|---|---|---|---|
+| **Strategic Ownership** | 1, 5-10, 28 | `AGENTS.md` § Module Ownership | — |
+| **Dependency Direction** | 2, 6-7, 49 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
+| **Layer Responsibility** | 11-13, 16, 21-23 | `.github/instructions/architecture-core.instructions.md` | Module AGENTS.md |
+| **Data Flow & Events** | 4, 9, 34-36 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
+| **File / Storage / IO** | 3, 29-33, 39 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
+| **Permission / Security** | 37-38, 40 | `.github/instructions/security-rules.instructions.md` | Platform docs |
+| **Cross-Module Contracts** | 24-27 | `docs/structure/system/context-map.md` | Module AGENTS.md |
+| **Feature Toggles / Independence** | 17 | Platform feature-flag docs | — |
+| **Anti-Patterns** | 46-51 | `AGENTS.md` § Anti-Patterns | Module AGENTS.md |
+| **Module-Tactical** | 14-15, 18-20, 41-45 | Each `src/modules/<context>/AGENTS.md` | — |
+
+> Rules 14-15, 18-20, 41-45 are enforced at the module level. Each module AGENTS.md carries its own tactical subset. This document consolidates the cross-cutting rules only.
+
+---
+
+## Mapping to 20 Mandatory Compliance Rules
+
+Cross-reference between `.github/copilot-instructions.md` Mandatory Rules (1-20) and the Hard Rules in this document.
+
+| Mandatory Rule | Hard Rules | ESLint | Other Enforcement |
+|---|---|---|---|
+| 1. AI Operational Scope | — | — | Code Review |
+| 2. Bounded Context | 1, 6, 7, 24-27 | `no-restricted-imports` | Code Review |
+| 3. Ubiquitous Language | — | — | Docs Authority (`docs/structure/domain/ubiquitous-language.md`) |
+| 4. Contract / Schema | 11, 22 | — | Zod at boundary; Code Review |
+| 5. Breaking Change Policy | — | — | ADR + Code Review |
+| 6. Aggregate Design | 11-13, 23 | `functional/no-let` (domain) | Domain Tests |
+| 7. State Model / FSM | — | — | Code Review |
+| 8. Consistency / Transaction | 4, 9, 35 | — | Code Review |
+| 9. Event Ordering / Causality | 4, 36 | — | Event schema registry |
+| 10. Failure Strategy | 34-35 | — | Code Review |
+| 11. Authorization / Security | 37-40 | — | Firestore Security Rules |
+| 12. Hexagonal Architecture | 10-13 | `no-restricted-imports` (integration) | Code Review |
+| 13. Dependency Rule | 2, 6-7, 49 | `no-restricted-imports` (cross-module) | `eslint.config.mjs` |
+| 14. Testability / Specification | 22 | — | Code Review |
+| 15. Observability | 31-32 | — | Code Review |
+| 16. ADR / Design Rationale | — | — | `docs/decisions/` records |
+| 17. Minimum Necessary Design | — | `sonarjs/cognitive-complexity` | Code Review |
+| 18. Single Responsibility | 8, 12-13 | `max-lines` (ESLint smell) | Code Review |
+| 19. Design Activation Rules | — | — | Code Review |
+| 20. Lint / Policy as Code | ESLint guardrails | `npm run lint` | See §ESLint Design Smell Guardrails |
+
+---
+
+## Strategic Ownership Rules (Rules 1, 5–10, 28)
+
+### Rule 1: Each Module Owns Its Domain Adapters
+- ✅ Each module (iam, billing, ai, platform, workspace, notion, notebooklm) maintains its own Firestore/infrastructure adapters for domain-local data
+- ✅ Cross-domain operations go through published language or platform Service APIs
+- ❌ notion, notebooklm NEVER bypass platform Service APIs for cross-domain operations (file ownership, permission, auth)
+- ❌ workspace NEVER touches Firebase/Storage/Genkit directly — always via platform Service APIs
+
+### Rule 5: Workspace is Orchestration Only
+- ✅ workspace composes module APIs and next.js routing
+- ❌ workspace NEVER contains domain business logic
+- ❌ workspace NEVER makes direct DB/permission decisions
+
+### Rule 6: Cross-Module Access Prohibition
+- ✅ module A imports module B only via `@/modules/b/index.ts`
+- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
+- ✅ ALL data sharing via events or published language tokens
+
+### Rule 7: Mandatory Single Entry Point (Public Boundary)
+- ✅ Every module must export via `index.ts` at the module root
+- ✅ `index.ts` exposes only public surface; hides internals
+- ❌ NO imports from internal module paths outside module
+
+### Rule 8: Platform Provides Shared Operational Services
+- ✅ **iam** owns the canonical `account` and `organization` aggregates; `platform` does NOT own auth governance
+- ✅ File Storage lifecycle, Genkit AI routing, Permission API: platform coordinates as operational services
+- ✅ Cross-domain coordination, routing, audit-log, notification, search: platform owns
+- ❌ notion and notebooklm NEVER bypass FileAPI for operations involving file ownership, entitlement, or multi-tenant isolation
+- ❌ notion and notebooklm DO own domain-local persistence adapters (Firestore reads/writes for their own domain data)
+
+### Rule 9: Cross-Module Data Flow MUST Use Events or API
+- ✅ When module A needs data from module B: A calls `@/modules/b` (index.ts public boundary) or subscribes to B.event
+- ❌ NO shared in-memory state
+- ❌ NO direct repository access across module boundaries
+- ✅ All state mutations via transaction-protected API calls
+
+### Rule 10: Domain Layer is Externally Independent
+- ✅ domain/ contains entities, value objects, rules; NO framework deps
+- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
+- ❌ domain/ NEVER depends on other modules (even platform)
+- ✅ All external deps injected via ports/adapters
+
+### Rule 28: Upstream Contexts Cannot Depend on Their Downstreams
+- ✅ iam / billing / ai / platform keep one-way dependency direction toward their downstream consumers
+- ❌ upstream contexts NEVER import downstream domain internals directly
+- ✅ If an upstream context needs semantic data from downstreams, use events or public APIs only
+## Hard Anti-Patterns (Rules 46–51)
+
+- ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
+  - Fix: Use `@/modules/platform` (FileAPI, PermissionAPI, etc. via module `index.ts`)
+
+- ❌ **Rule 47**: notebooklm implements its own permission logic
+  - Fix: Call `@/modules/platform` → `PermissionAPI.can()`
+
+- ❌ **Rule 48**: notion directly invokes AI/Genkit
+  - Fix: Notion emits event; platform routes to notebooklm via AI API
+
+- ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
+  - Fix: Use `@/modules/<target>` (`index.ts` public boundary) only
+
+- ❌ **Rule 50**: Business logic written in React component (workspace UI)
+  - Fix: Move to application/ use-case; UI only composes and calls
+
+- ❌ **Rule 51**: Cross-module route components read foreign context providers
+  - Fix: workspace is the composition owner; pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
+
+---
+
+## Layer Responsibility Rules (Rules 11–13, 16, 21–23)
+
+### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
+- ✅ application/ coordinates domain behavior + transaction boundaries
+- ✅ application/ handles command/query DTO translation
+- ✅ application/ publishes domain events
+- ❌ application/ NEVER contains business rules (write in domain/)
+- ❌ application/ NEVER directly calls UI frameworks
+- ✅ Use cases orchestrate only; rules stay in domain
+
+### Rule 12: Repositories Hidden Behind Module Boundary
+- ✅ Repository interface defined in domain/repositories/
+- ✅ Repository implementation hidden in infrastructure/
+- ❌ NO other module calls a module's repository directly
+- ✅ If another module needs aggregate data: call module.api or use events
+
+### Rule 13: DTO ≠ Domain Model
+- ✅ DTO lives in application/dtos/ (structural change contract)
+- ✅ Domain model lives in domain/entities/, domain/aggregates/ (business rules)
+- ❌ NEVER return domain model directly in API response
+- ✅ Map domain → DTO before crossing module boundary
+
+### Rule 16: Firestore Schema Driven by Domain, Not UI
+- ✅ domain/entities define what data exists (invariants, validation)
+- ✅ infrastructure/persistence maps domain → Firestore
+- ❌ UI changes NEVER drive schema changes directly
+- ✅ If UI needs new data: propose to domain; domain approves; schema follows
+
+### Rule 21: UI Layer (workspace + interfaces/) = Zero Business Logic
+- ✅ interfaces/ composes routes, actions, UI components
+- ✅ interfaces/ calls application/ use-cases or services
+- ❌ NO if (business rule) in UI
+- ❌ NO NO permission judgment in UI
+- ❌ NO NO transaction logic in UI
+- ✅ All decisions made server-side; UI only displays result
+
+### Rule 22: Application Layer = Use-Case Driven, Testable
+- ✅ Every use-case has: actor, goal, main scenario, extensions
+- ✅ Use-case can be tested without UI/framework
+- ✅ Use-case has no database import (uses injected repository)
+- ❌ NO generic utility classes masquerading as use-cases
+
+### Rule 23: Domain Layer = Pure, Side-Effect Free
+- ✅ domain/ contains rules, validation, state transitions
+- ✅ domain/ can be tested in isolation with no async
+- ❌ domain/ NEVER makes I/O calls
+- ❌ domain/ NEVER calls external services
+- ✅ domain events emitted; orchestration in application/
+
+---
+
+## Event Bus & Async Data Flow (Rules 4, 9, 34–36)
+
+### Rule 4: Event Bus is Mandatory (Not Optional)
+- ✅ Platform.event-bus/ subdomain must exist and be fully implemented
+- ✅ All cross-module async flows go through event bus
+- ✅ All domain events emitted with: id, timestamp, source, payload schema
+- ❌ NEVER use Queue/RabbitMQ without event schema registry
+
+### Rule 34: Ingestion & Embedding Must Be Async
+- ✅ File upload triggers event; worker processes async
+- ✅ Embedding generation async; client polls or subscribes
+- ❌ NEVER block request until embedding complete
+- ✅ Store job ID; allow client to check status later
+
+### Rule 35: Long Tasks Must Use Queue/Event
+- ✅ AI orchestration, embedding, chunking: async with queue
+- ✅ Non-blocking request → store task ID → return immediately
+- ❌ NEVER setTimeout/promise without proper queue
+- ✅ Task must be retryable and idempotent
+
+### Rule 36: Event Schema is Non-Negotiable
+- ✅ Every event has: id (UUID), timestamp (ISO), source (module), payload
+- ✅ Event schema registered before emission
+- ✅ Event can be replayed from audit log
+- ❌ NO unstructured event payload (use discriminant + payload schema)
+
+### Rule 9: Cross-Module Data Flow = Events or API
+- ✅ When B needs to know about A's change: A emits event; B subscribes
+- ✅ When B needs data from A: B calls A.api (synchronous)
+- ❌ NO B reading A's Firestore collection directly
+- ✅ Events enable loose coupling; API enables strongcontract
+
+---
+
+## File, Data & Permission Rules (Rules 3, 29–33, 37–40)
+
+### Rule 3: File Metadata is Non-Negotiable
+- ✅ EVERY file in Storage has metadata in Firestore
+- ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
+- ✅ `ownerId` = resource owner identifier；`workspaceId` = collaboration scope identifier；兩者都不等於 shell route 的 `accountId`
+- ❌ NEVER store-only URL without DB entry
+- ✅ Firestore entry is source of truth for permissions & lifecycle
+
+### Rule 29: File Lifecycle is Explicit
+- ✅ File states: upload → used → archived → deleted
+- ✅ Transitions logged; each state has timestamp
+- ✅ Archived files not deleted immediately (async cleanup after retention)
+- ❌ NO orphaned files (every file must be referenced)
+
+### Rule 30: File Metadata in Database, Not Storage Headers Only
+- ✅ Firestore/Storage both contain metadata; DB is canonical
+- ✅ If Storage Object's custom metadata lost, DB entry remains
+- ❌ NEVER rely on Storage object metadata alone
+- ✅ Schema: collections/files/{fileId} → {ownerId, workspaceId, path, size, ...}
+
+### Rule 31: AI Input Traceability
+- ✅ Every AI request logged: [timestamp, source, input, model, params]
+- ✅ Logging in application/ service before sending to the ai context
+- ❌ NEVER lose context (prompt + source + groundings)
+- ✅ Can replay prompts; deterministic when possible
+
+### Rule 32: AI Output Reconstructibility
+- ✅ AI output + input + timestamp + model version all stored
+- ✅ Deterministic flow: same input + params → same output (for embedding)
+- ✅ Snapshot stored so rerank/re-retrieval uses same data
+- ❌ NEVER lose ability to rewind/re-generate
+
+### Rule 33: Embedding & Index Reconstructibility
+- ✅ Embeddings stored with source chunk ID + hash
+- ✅ Vector index can be rebuilt from source + embedding service
+- ❌ Vector index is NOT source of truth
+- ✅ Source of truth: Firestore (chunks) + embedding service (vectors)
+
+### Rule 37: Every Resource Has an Owner
+- ✅ Every knowledge artifact, conversation, notebook: {ownerId, workspaceId}
+- ✅ Permission check before access: does request.user == resource.owner | member
+- ❌ NEVER expose resource without owner scope
+- ✅ Cross-workspace access: explicit ACL check
+
+### Rule 38: Permission NEVER Hard-Coded in UI
+- ✅ All permission checks happen server-side
+- ✅ UI conditionally rendered based on server permission response
+- ❌ NEVER hide UI element expecting client-side security
+- ✅ always fallback: permission denied → error message
+
+### Rule 39: Storage Path Contains Scope (Leak Prevention)
+- ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
+- ✅ `tenantId` = tenant isolation key；不是 `workspaceId`、`accountId` 或 `ownerId` 的別名
+- ✅ Firestore rules prevent cross-tenant access
+- ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
+- ✅ Scope visible in path; admins can audit
+
+### Rule 40: All Queries Must Include Scope
+- ✅ Firestore query: `collection.where('workspaceId', '==', workspace).get()`
+- ✅ Database query: `select * from resources where workspace_id = ?`
+- ❌ NEVER query without workspace/tenant filter
+- ✅ Scope enforced in both application and Firestore rules
+
+---
+
+## Cross-Module Data Flow Rules (Rules 24–27)
+
+### Rule 24: Notebooklm Cannot Direct-Read Firestore
+- ✅ notebooklm reads knowledge artifacts via `@/modules/notion` (`index.ts` public boundary)
+- ❌ NEVER: `firestore.collection('notion_pages').get()`
+- ✅ Decouples notebooklm from notion's persistence model
+
+### Rule 25: Notebooklm Data Requests = Via Notion API
+- ✅ If notebooklm.retrieval needs knowledge: calls exported capability from `@/modules/notion`
+- ✅ Notion controls schema; notebooklm consumes contract only
+- ❌ NEVER notebooklm queries notion's Firestore directly
+
+### Rule 26: Notion is Completely Unaware of AI
+- ✅ notion/ has zero imports from notebooklm/
+- ✅ notion/ does not know AI exists
+- ✅ If AI needs notion data: calls notion.api
+- ❌ NO coupling from notion to AI/notebooklm
+
+### Rule 27: Workspace Cannot Direct-Call AI
+- ✅ workspace orchestrates; notebooklm synthesizes
+- ✅ workspace calls notebooklm.api; notebooklm handles AI routing
+- ❌ NEVER workspace imports the ai context or genkit directly
+- ✅ Decouples UI from AI complexity
+
+---
+
+## Module-Level Enforcement
+
+Each module enforces its own subset of these rules. Key mapping:
+
+### src/modules/platform
+
+1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
+2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
+3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
+4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
+
+### src/modules/workspace
+
+1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
+2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
+3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
+4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
+
+### src/modules/notion
+
+1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or the ai context
+2. **Rules 24–25**: Notion owns knowledge artifact authoring; others access via notion.api only
+3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
+
+### src/modules/notebooklm
+
+1. **Rules 24–25**: All knowledge data requests via notion.api; never direct Firestore
+2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to the ai context internally
+3. **Rules 31–32**: All AI prompts/outputs logged with full traceability metadata
+4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
+
+---
+
+## ESLint Design Smell Guardrails
+
+以下 guardrails 用來把 design smell 變成持續可見的 warning signal，而不是等到大型 convergence 才發現。
+
+### 1300 Cyclic Dependency
+
+- 禁止把 `require()` 當成正常的 composition 模式。
+- 若真的因既有循環鏈暫時保留 lazy require，必須把它侷限在單點並標明循環來源。
+- lint signal: `no-restricted-syntax` on `CallExpression[callee.name='require']`。
+
+### 1400 Dependency Leakage
+
+- `index.ts` 不得用 `export * from "./application"` 或 `export * from "./interfaces"` 洩漏內層。
+- 公開邊界應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
+- lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
+
+### 3100 Low Cohesion
+
+- `index.ts` 若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
+- 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
+- lint signal: `max-lines` on module `index.ts` files as early warning.
+
+### 5200 Cognitive Load
+
+- fat screen 不是單純行數問題，而是單一畫面同時承接 cross-module orchestration、panel wiring 與流程判斷。
+- 超過閾值時先檢查是否可以抽出 focused composition、helper 或 facade。
+- lint signal: `max-lines` on `interfaces/**/components/screens/**`.
+
+### Enforcement Posture
+
+- lint 使用 warning 等級，目的是持續暴露 smell 壓力，不是把既有技術債一次性升級成 build blocker。
+- smell 是否成立，以對應 ADR 的 context、decision、conflict resolution 為準；lint 只是入口訊號。
+
+---
+
+## 🎯 Summary: Where Each Rule Lives
+
+| Rules | Location | File |
+|---|---|---|
+| 1, 5-10, 28 | AGENTS.md | Strategic ownership |
+| 2, 6-7, 49 | AGENTS.md + eslint | Dependency direction |
+| 11-13, 21-23 | architecture-core.instructions.md | Layer responsibility |
+| 4, 9, 34-36 | event-driven-state.instructions.md | Event bus & async |
+| 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
+| 24-27 | context-map.md | Cross-module contracts |
+| 17 | Platform feature-flag docs | Feature independence |
+| 46-51 | AGENTS.md | Anti-patterns |
+| All | Module AGENTS.md | Tactical enforcement |
+
+---
+
+## ✅ Enforcement Checklist
+
+### Before Each Merge:
+- [ ] No cross-module imports outside `index.ts` (module root)
+- [ ] No Firebase/Genkit outside platform
+- [ ] All async flows use event bus with schema
+- [ ] File metadata in Firestore
+- [ ] Permission checks server-side only
+- [ ] Domain layer has zero external deps
+- [ ] Application layer orchestrates, not rules
+
+### Before Each Release:
+- [ ] All rules reviewed in relevant AGENTS.md
+- [ ] ESLint boundary checks passing
+- [ ] Zero anti-pattern violations (46-51)
+- [ ] Event schemas registered & consistent
+
+---
+
+## 📚 Document Network
+
+- [AGENTS.md](../../AGENTS.md) — Strategic ownership & anti-patterns
+- [.github/instructions/architecture-core.instructions.md](../../../.github/instructions/architecture-core.instructions.md) — Layer responsibility
+- [.github/instructions/event-driven-state.instructions.md](../../../.github/instructions/event-driven-state.instructions.md) — Event bus & async
+- [.github/instructions/security-rules.instructions.md](../../../.github/instructions/security-rules.instructions.md) — File/data/permission
+- [docs/structure/system/context-map.md](./context-map.md) — Cross-module contracts
+- [src/modules/platform/AGENTS.md](../../../src/modules/platform/AGENTS.md) — Platform constraints
+- [src/modules/workspace/AGENTS.md](../../../src/modules/workspace/AGENTS.md) — Workspace constraints
+- [src/modules/notion/AGENTS.md](../../../src/modules/notion/AGENTS.md) — Notion constraints
+- [src/modules/notebooklm/AGENTS.md](../../../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints
 ````
 
 ## File: docs/structure/system/source-to-task-flow.md
@@ -25064,129 +25606,6 @@ service firebase.storage {
 }
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-#use skill serena-mcp
-#use skill repomix
-#use skill context7
-#use skill xuanwu-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-markdown-skill
-#use skill occams-razor
-#use skill alistair-cockburn
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
-
-## Session Contract
-
-### Mandatory Skills (Load Every Session, No Exceptions)
-
-These three skills **must be loaded at the start of every conversation** before any other action:
-
-| Order | Skill | Purpose |
-|---|---|---|
-| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
-| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
-| 3 | `context7` | Library/framework API verification gate |
-
-- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
-- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
-- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
-- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
-
-## Mandatory Compliance Rules
-
-These rules are **non-negotiable** and apply to every task, file, and decision. Any violation requires an immediate stop and explicit report before proceeding.
-
-1. **AI Operational Scope**: Without explicit authorization, do not create files, add modules, modify interface definitions, or make any changes beyond the scope of the current task description.
-2. **Bounded Context**: Every concept belongs to exactly one Context. When referencing a same-named concept across Contexts, an explicit mapping layer must be established. Sharing types or objects directly is not permitted.
-3. **Ubiquitous Language Governance**: All naming must derive from the defined Domain glossary. When encountering a name not in the glossary, halt implementation and report it. Self-naming is not permitted.
-4. **Contract / Schema**: All data entering the system must pass through a defined Schema validation. Accessing raw input outside the validation layer is not permitted. Assuming input is valid is not permitted.
-5. **Breaking Change Policy**: When modifying any externally exposed Schema, interface, or event structure, a new version must be added and the old version retained. Direct overwriting is not permitted.
-6. **Aggregate Design**: All modifications to an Aggregate's internal state must be executed through that Aggregate's own methods. Directly modifying an Aggregate's properties or child objects from outside is not permitted.
-7. **State Model / FSM**: Every state transition must exist in the defined list of legal transitions. Transition paths that are not defined must throw an error. Silent ignoring or self-inferred transitions are not permitted.
-8. **Consistency / Transaction Strategy**: Operations spanning Aggregates or Contexts must not be wrapped in a single transaction. A defined saga or outbox pattern must be used. Designing ad-hoc synchronous coupling solutions is not permitted.
-9. **Event Ordering / Causality Model**: All event handlers must implement idempotency. Assuming events arrive in send order is not permitted. Sequence must be determined using a causality token or version number.
-10. **Failure Strategy**: Every external call must define a failure handling path (retry / compensate / dead-letter). Silently swallowing exceptions is not permitted. Assuming external services always succeed is not permitted.
-11. **Authorization / Security**: Every operation must verify that the caller holds the required permission before execution. Relying on call order or upstream validation as implicit authorization is not permitted.
-12. **Hexagonal Architecture**: The Domain layer must not import any types from Infrastructure, Frameworks, or external services. All external dependencies must be accessed through defined Port interfaces.
-13. **Dependency Rule Enforcement**: Dependencies may only flow inward (Infrastructure → Application → Domain). Reverse dependencies are forbidden. Direct imports between Contexts at the same layer are forbidden.
-14. **Testability / Specification**: Every Domain behavior must have corresponding automated test coverage. Implementing logic structures that cannot be verified by the existing test framework is not permitted.
-15. **Observability**: All cross-layer calls, state changes, and errors must produce structured, traceable records. Replacing structured events with print statements or log strings is not permitted.
-16. **ADR / Design Rationale**: When multiple implementation options are technically viable, do not choose independently. Halt, list the options and their differences, and wait for a human decision before proceeding.
-17. **Minimum Necessary Design / YAGNI**: Do not create abstractions, interfaces, or extension points for future possibilities. Every new structure must correspond to a requirement that explicitly exists in the current task.
-18. **Single Responsibility / No Redundancy**: Every concept must be defined exactly once in exactly one layer. When the same semantic is found expressed in multiple places, report the conflict. Allowing both to coexist is not permitted.
-19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
-20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
-
-> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
-
-## Read Order
-
-1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
-
-## Instruction Series (Phase 1)
-
-- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
-- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
-- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
-- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
-- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
-
-## Module Layer Routing（src-only）
-
-本 repo 已全面改為 `src/modules/` 單一模組層：
-
-| 路徑 | 職責 | 撰寫時機 |
-|---|---|---|
-| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
-
-- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
-- 新實作一律以 `src/modules/template` 骨架為基線。
-- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
-
-## Operating Rules
-
-> Dependency direction, domain purity, cross-module boundary, and planning discipline are governed by **Mandatory Compliance Rules 12–13, 16–17**. Items below are repo-specific structural decisions.
-
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
-
-## Governance Rules
-
-- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
-- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
-- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
-
-## Terminology
-
-> Governed by **Mandatory Compliance Rule 3**. Authority: [docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
-
-## DDD Strategic Rules (Phase 1)
-
-- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
-- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
-- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
-- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
-````
-
 ## File: docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md
 ````markdown
 # Workspace Nav — Notion & NotebookLM Tab Implementation Guide
@@ -26407,425 +26826,6 @@ flowchart LR
 - 本文件是 architecture-first 版本。
 - 本文件依 Context7 的 bounded context 與 context map 原則編寫。
 - 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/structure/system/hard-rules-consolidated.md
-````markdown
-# 51 Hard Rules — Consolidated Architecture Guardrails
-
-**Status**: Consolidated from user request (2026-04-12)  
-**Authority**: AGENTS.md (strategic) + module AGENTS.md (tactical)  
-**Purpose**: Prevent late-stage architectural breakage; enforce non-negotiable boundaries
-
----
-
-## 🗂️ Document Placement Strategy
-
-| Rule Category | Rules | Primary Location | Secondary Location |
-|---|---|---|---|
-| **Strategic Ownership** | 1, 5-10, 28 | `AGENTS.md` § Module Ownership | — |
-| **Dependency Direction** | 2, 6-7, 49 | `AGENTS.md` § Anti-Patterns | `eslint.config.mjs` |
-| **Layer Responsibility** | 11-13, 16, 21-23 | `.github/instructions/architecture-core.instructions.md` | Module AGENTS.md |
-| **Data Flow & Events** | 4, 9, 34-36 | `.github/instructions/event-driven-state.instructions.md` | RAG docs |
-| **File / Storage / IO** | 3, 29-33, 39 | `.github/instructions/security-rules.instructions.md` | Firestore schema docs |
-| **Permission / Security** | 37-38, 40 | `.github/instructions/security-rules.instructions.md` | Platform docs |
-| **Cross-Module Contracts** | 24-27 | `docs/structure/system/context-map.md` | Module AGENTS.md |
-| **Feature Toggles / Independence** | 17 | Platform feature-flag docs | — |
-| **Anti-Patterns** | 46-51 | `AGENTS.md` § Anti-Patterns | Module AGENTS.md |
-| **Module-Tactical** | 14-15, 18-20, 41-45 | Each `src/modules/<context>/AGENTS.md` | — |
-
-> Rules 14-15, 18-20, 41-45 are enforced at the module level. Each module AGENTS.md carries its own tactical subset. This document consolidates the cross-cutting rules only.
-
----
-
-## Mapping to 20 Mandatory Compliance Rules
-
-Cross-reference between `.github/copilot-instructions.md` Mandatory Rules (1-20) and the Hard Rules in this document.
-
-| Mandatory Rule | Hard Rules | ESLint | Other Enforcement |
-|---|---|---|---|
-| 1. AI Operational Scope | — | — | Code Review |
-| 2. Bounded Context | 1, 6, 7, 24-27 | `no-restricted-imports` | Code Review |
-| 3. Ubiquitous Language | — | — | Docs Authority (`docs/structure/domain/ubiquitous-language.md`) |
-| 4. Contract / Schema | 11, 22 | — | Zod at boundary; Code Review |
-| 5. Breaking Change Policy | — | — | ADR + Code Review |
-| 6. Aggregate Design | 11-13, 23 | `functional/no-let` (domain) | Domain Tests |
-| 7. State Model / FSM | — | — | Code Review |
-| 8. Consistency / Transaction | 4, 9, 35 | — | Code Review |
-| 9. Event Ordering / Causality | 4, 36 | — | Event schema registry |
-| 10. Failure Strategy | 34-35 | — | Code Review |
-| 11. Authorization / Security | 37-40 | — | Firestore Security Rules |
-| 12. Hexagonal Architecture | 10-13 | `no-restricted-imports` (integration) | Code Review |
-| 13. Dependency Rule | 2, 6-7, 49 | `no-restricted-imports` (cross-module) | `eslint.config.mjs` |
-| 14. Testability / Specification | 22 | — | Code Review |
-| 15. Observability | 31-32 | — | Code Review |
-| 16. ADR / Design Rationale | — | — | `docs/decisions/` records |
-| 17. Minimum Necessary Design | — | `sonarjs/cognitive-complexity` | Code Review |
-| 18. Single Responsibility | 8, 12-13 | `max-lines` (ESLint smell) | Code Review |
-| 19. Design Activation Rules | — | — | Code Review |
-| 20. Lint / Policy as Code | ESLint guardrails | `npm run lint` | See §ESLint Design Smell Guardrails |
-
----
-
-## Strategic Ownership Rules (Rules 1, 5–10, 28)
-
-### Rule 1: Each Module Owns Its Domain Adapters
-- ✅ Each module (iam, billing, ai, platform, workspace, notion, notebooklm) maintains its own Firestore/infrastructure adapters for domain-local data
-- ✅ Cross-domain operations go through published language or platform Service APIs
-- ❌ notion, notebooklm NEVER bypass platform Service APIs for cross-domain operations (file ownership, permission, auth)
-- ❌ workspace NEVER touches Firebase/Storage/Genkit directly — always via platform Service APIs
-
-### Rule 5: Workspace is Orchestration Only
-- ✅ workspace composes module APIs and next.js routing
-- ❌ workspace NEVER contains domain business logic
-- ❌ workspace NEVER makes direct DB/permission decisions
-
-### Rule 6: Cross-Module Access Prohibition
-- ✅ module A imports module B only via `@/modules/b/index.ts`
-- ❌ NO direct imports of domain/, application/, infrastructure/, interfaces/
-- ✅ ALL data sharing via events or published language tokens
-
-### Rule 7: Mandatory Single Entry Point (Public Boundary)
-- ✅ Every module must export via `index.ts` at the module root
-- ✅ `index.ts` exposes only public surface; hides internals
-- ❌ NO imports from internal module paths outside module
-
-### Rule 8: Platform Provides Shared Operational Services
-- ✅ **iam** owns the canonical `account` and `organization` aggregates; `platform` does NOT own auth governance
-- ✅ File Storage lifecycle, Genkit AI routing, Permission API: platform coordinates as operational services
-- ✅ Cross-domain coordination, routing, audit-log, notification, search: platform owns
-- ❌ notion and notebooklm NEVER bypass FileAPI for operations involving file ownership, entitlement, or multi-tenant isolation
-- ❌ notion and notebooklm DO own domain-local persistence adapters (Firestore reads/writes for their own domain data)
-
-### Rule 9: Cross-Module Data Flow MUST Use Events or API
-- ✅ When module A needs data from module B: A calls `@/modules/b` (index.ts public boundary) or subscribes to B.event
-- ❌ NO shared in-memory state
-- ❌ NO direct repository access across module boundaries
-- ✅ All state mutations via transaction-protected API calls
-
-### Rule 10: Domain Layer is Externally Independent
-- ✅ domain/ contains entities, value objects, rules; NO framework deps
-- ❌ domain/ NEVER imports: React, Firebase SDK, HTTP client, ORM
-- ❌ domain/ NEVER depends on other modules (even platform)
-- ✅ All external deps injected via ports/adapters
-
-### Rule 28: Upstream Contexts Cannot Depend on Their Downstreams
-- ✅ iam / billing / ai / platform keep one-way dependency direction toward their downstream consumers
-- ❌ upstream contexts NEVER import downstream domain internals directly
-- ✅ If an upstream context needs semantic data from downstreams, use events or public APIs only
-## Hard Anti-Patterns (Rules 46–51)
-
-- ❌ **Rule 46**: workspace directly calls Firestore (`firestore.collection().get()`)
-  - Fix: Use `@/modules/platform` (FileAPI, PermissionAPI, etc. via module `index.ts`)
-
-- ❌ **Rule 47**: notebooklm implements its own permission logic
-  - Fix: Call `@/modules/platform` → `PermissionAPI.can()`
-
-- ❌ **Rule 48**: notion directly invokes AI/Genkit
-  - Fix: Notion emits event; platform routes to notebooklm via AI API
-
-- ❌ **Rule 49**: Module imports another module's internal (domain/application/infrastructure)
-  - Fix: Use `@/modules/<target>` (`index.ts` public boundary) only
-
-- ❌ **Rule 50**: Business logic written in React component (workspace UI)
-  - Fix: Move to application/ use-case; UI only composes and calls
-
-- ❌ **Rule 51**: Cross-module route components read foreign context providers
-  - Fix: workspace is the composition owner; pass explicit scope props (`accountId`, `workspaceId`, optional `currentUserId`) through module `index.ts` boundaries
-
----
-
-## Layer Responsibility Rules (Rules 11–13, 16, 21–23)
-
-### Rule 11: Application Layer = Transaction Boundary + Use Case Orchestration
-- ✅ application/ coordinates domain behavior + transaction boundaries
-- ✅ application/ handles command/query DTO translation
-- ✅ application/ publishes domain events
-- ❌ application/ NEVER contains business rules (write in domain/)
-- ❌ application/ NEVER directly calls UI frameworks
-- ✅ Use cases orchestrate only; rules stay in domain
-
-### Rule 12: Repositories Hidden Behind Module Boundary
-- ✅ Repository interface defined in domain/repositories/
-- ✅ Repository implementation hidden in infrastructure/
-- ❌ NO other module calls a module's repository directly
-- ✅ If another module needs aggregate data: call module.api or use events
-
-### Rule 13: DTO ≠ Domain Model
-- ✅ DTO lives in application/dtos/ (structural change contract)
-- ✅ Domain model lives in domain/entities/, domain/aggregates/ (business rules)
-- ❌ NEVER return domain model directly in API response
-- ✅ Map domain → DTO before crossing module boundary
-
-### Rule 16: Firestore Schema Driven by Domain, Not UI
-- ✅ domain/entities define what data exists (invariants, validation)
-- ✅ infrastructure/persistence maps domain → Firestore
-- ❌ UI changes NEVER drive schema changes directly
-- ✅ If UI needs new data: propose to domain; domain approves; schema follows
-
-### Rule 21: UI Layer (workspace + interfaces/) = Zero Business Logic
-- ✅ interfaces/ composes routes, actions, UI components
-- ✅ interfaces/ calls application/ use-cases or services
-- ❌ NO if (business rule) in UI
-- ❌ NO NO permission judgment in UI
-- ❌ NO NO transaction logic in UI
-- ✅ All decisions made server-side; UI only displays result
-
-### Rule 22: Application Layer = Use-Case Driven, Testable
-- ✅ Every use-case has: actor, goal, main scenario, extensions
-- ✅ Use-case can be tested without UI/framework
-- ✅ Use-case has no database import (uses injected repository)
-- ❌ NO generic utility classes masquerading as use-cases
-
-### Rule 23: Domain Layer = Pure, Side-Effect Free
-- ✅ domain/ contains rules, validation, state transitions
-- ✅ domain/ can be tested in isolation with no async
-- ❌ domain/ NEVER makes I/O calls
-- ❌ domain/ NEVER calls external services
-- ✅ domain events emitted; orchestration in application/
-
----
-
-## Event Bus & Async Data Flow (Rules 4, 9, 34–36)
-
-### Rule 4: Event Bus is Mandatory (Not Optional)
-- ✅ Platform.event-bus/ subdomain must exist and be fully implemented
-- ✅ All cross-module async flows go through event bus
-- ✅ All domain events emitted with: id, timestamp, source, payload schema
-- ❌ NEVER use Queue/RabbitMQ without event schema registry
-
-### Rule 34: Ingestion & Embedding Must Be Async
-- ✅ File upload triggers event; worker processes async
-- ✅ Embedding generation async; client polls or subscribes
-- ❌ NEVER block request until embedding complete
-- ✅ Store job ID; allow client to check status later
-
-### Rule 35: Long Tasks Must Use Queue/Event
-- ✅ AI orchestration, embedding, chunking: async with queue
-- ✅ Non-blocking request → store task ID → return immediately
-- ❌ NEVER setTimeout/promise without proper queue
-- ✅ Task must be retryable and idempotent
-
-### Rule 36: Event Schema is Non-Negotiable
-- ✅ Every event has: id (UUID), timestamp (ISO), source (module), payload
-- ✅ Event schema registered before emission
-- ✅ Event can be replayed from audit log
-- ❌ NO unstructured event payload (use discriminant + payload schema)
-
-### Rule 9: Cross-Module Data Flow = Events or API
-- ✅ When B needs to know about A's change: A emits event; B subscribes
-- ✅ When B needs data from A: B calls A.api (synchronous)
-- ❌ NO B reading A's Firestore collection directly
-- ✅ Events enable loose coupling; API enables strongcontract
-
----
-
-## File, Data & Permission Rules (Rules 3, 29–33, 37–40)
-
-### Rule 3: File Metadata is Non-Negotiable
-- ✅ EVERY file in Storage has metadata in Firestore
-- ✅ Metadata includes: ownerId, workspaceId, createdAt, lifecycle (active/archived/deleted)
-- ✅ `ownerId` = resource owner identifier；`workspaceId` = collaboration scope identifier；兩者都不等於 shell route 的 `accountId`
-- ❌ NEVER store-only URL without DB entry
-- ✅ Firestore entry is source of truth for permissions & lifecycle
-
-### Rule 29: File Lifecycle is Explicit
-- ✅ File states: upload → used → archived → deleted
-- ✅ Transitions logged; each state has timestamp
-- ✅ Archived files not deleted immediately (async cleanup after retention)
-- ❌ NO orphaned files (every file must be referenced)
-
-### Rule 30: File Metadata in Database, Not Storage Headers Only
-- ✅ Firestore/Storage both contain metadata; DB is canonical
-- ✅ If Storage Object's custom metadata lost, DB entry remains
-- ❌ NEVER rely on Storage object metadata alone
-- ✅ Schema: collections/files/{fileId} → {ownerId, workspaceId, path, size, ...}
-
-### Rule 31: AI Input Traceability
-- ✅ Every AI request logged: [timestamp, source, input, model, params]
-- ✅ Logging in application/ service before sending to the ai context
-- ❌ NEVER lose context (prompt + source + groundings)
-- ✅ Can replay prompts; deterministic when possible
-
-### Rule 32: AI Output Reconstructibility
-- ✅ AI output + input + timestamp + model version all stored
-- ✅ Deterministic flow: same input + params → same output (for embedding)
-- ✅ Snapshot stored so rerank/re-retrieval uses same data
-- ❌ NEVER lose ability to rewind/re-generate
-
-### Rule 33: Embedding & Index Reconstructibility
-- ✅ Embeddings stored with source chunk ID + hash
-- ✅ Vector index can be rebuilt from source + embedding service
-- ❌ Vector index is NOT source of truth
-- ✅ Source of truth: Firestore (chunks) + embedding service (vectors)
-
-### Rule 37: Every Resource Has an Owner
-- ✅ Every knowledge artifact, conversation, notebook: {ownerId, workspaceId}
-- ✅ Permission check before access: does request.user == resource.owner | member
-- ❌ NEVER expose resource without owner scope
-- ✅ Cross-workspace access: explicit ACL check
-
-### Rule 38: Permission NEVER Hard-Coded in UI
-- ✅ All permission checks happen server-side
-- ✅ UI conditionally rendered based on server permission response
-- ❌ NEVER hide UI element expecting client-side security
-- ✅ always fallback: permission denied → error message
-
-### Rule 39: Storage Path Contains Scope (Leak Prevention)
-- ✅ Storage paths: `{tenantId}/{workspaceId}/{ownerId}/{fileId}`
-- ✅ `tenantId` = tenant isolation key；不是 `workspaceId`、`accountId` 或 `ownerId` 的別名
-- ✅ Firestore rules prevent cross-tenant access
-- ❌ NEVER path like `storage/uploads/{random}.pdf` (breaks isolation)
-- ✅ Scope visible in path; admins can audit
-
-### Rule 40: All Queries Must Include Scope
-- ✅ Firestore query: `collection.where('workspaceId', '==', workspace).get()`
-- ✅ Database query: `select * from resources where workspace_id = ?`
-- ❌ NEVER query without workspace/tenant filter
-- ✅ Scope enforced in both application and Firestore rules
-
----
-
-## Cross-Module Data Flow Rules (Rules 24–27)
-
-### Rule 24: Notebooklm Cannot Direct-Read Firestore
-- ✅ notebooklm reads knowledge artifacts via `@/modules/notion` (`index.ts` public boundary)
-- ❌ NEVER: `firestore.collection('notion_pages').get()`
-- ✅ Decouples notebooklm from notion's persistence model
-
-### Rule 25: Notebooklm Data Requests = Via Notion API
-- ✅ If notebooklm.retrieval needs knowledge: calls exported capability from `@/modules/notion`
-- ✅ Notion controls schema; notebooklm consumes contract only
-- ❌ NEVER notebooklm queries notion's Firestore directly
-
-### Rule 26: Notion is Completely Unaware of AI
-- ✅ notion/ has zero imports from notebooklm/
-- ✅ notion/ does not know AI exists
-- ✅ If AI needs notion data: calls notion.api
-- ❌ NO coupling from notion to AI/notebooklm
-
-### Rule 27: Workspace Cannot Direct-Call AI
-- ✅ workspace orchestrates; notebooklm synthesizes
-- ✅ workspace calls notebooklm.api; notebooklm handles AI routing
-- ❌ NEVER workspace imports the ai context or genkit directly
-- ✅ Decouples UI from AI complexity
-
----
-
-## Module-Level Enforcement
-
-Each module enforces its own subset of these rules. Key mapping:
-
-### src/modules/platform
-
-1. **Rule 1**: Platform infra (Firebase, Genkit, Auth) never directly exposed; wrapped in semantic APIs
-2. **Rule 2**: All consumers access platform via Service API layer only (FileAPI, AIAPI, PermissionAPI, AuthAPI)
-3. **Rule 8**: Platform is only module allowed to import Firebase SDK, Genkit SDK, external AI APIs
-4. **Rule 28**: Platform.api can emit events to downstream; platform.domain never imports downstream modules
-
-### src/modules/workspace
-
-1. **Rule 5**: Workspace is pure orchestration (routes, actions); zero domain business logic
-2. **Rule 21**: UI components in workspace.interfaces/ NEVER contain business decision logic
-3. **Rule 27**: Workspace never directly calls AI; always goes through notebooklm or platform
-4. **Rule 17**: Workspace feature toggles ensure modules can be disabled; no hard dependencies
-
-### src/modules/notion
-
-1. **Rule 26**: Notion is agnostic of AI systems; zero imports from notebooklm or the ai context
-2. **Rules 24–25**: Notion owns knowledge artifact authoring; others access via notion.api only
-3. **Rule 24**: Notion controls persistence schema; downstream modules don't query Firestore
-
-### src/modules/notebooklm
-
-1. **Rules 24–25**: All knowledge data requests via notion.api; never direct Firestore
-2. **Rule 27**: Workspace calls notebooklm.api; notebooklm routes to the ai context internally
-3. **Rules 31–32**: All AI prompts/outputs logged with full traceability metadata
-4. **Rule 34**: Retrieval + synthesis always async; non-blocking to request
-
----
-
-## ESLint Design Smell Guardrails
-
-以下 guardrails 用來把 design smell 變成持續可見的 warning signal，而不是等到大型 convergence 才發現。
-
-### 1300 Cyclic Dependency
-
-- 禁止把 `require()` 當成正常的 composition 模式。
-- 若真的因既有循環鏈暫時保留 lazy require，必須把它侷限在單點並標明循環來源。
-- lint signal: `no-restricted-syntax` on `CallExpression[callee.name='require']`。
-
-### 1400 Dependency Leakage
-
-- `index.ts` 不得用 `export * from "./application"` 或 `export * from "./interfaces"` 洩漏內層。
-- 公開邊界應只精確 export 穩定 capability、service facade 與必要 DTO / type contract。
-- lint signal: `no-restricted-syntax` on `ExportAllDeclaration` selectors。
-
-### 3100 Low Cohesion
-
-- `index.ts` 若同時混入 infrastructure、service、subdomain business API、UI hooks/components，視為低內聚風險。
-- 優先拆分為 capability boundary，而不是繼續把 root barrel 做大。
-- lint signal: `max-lines` on module `index.ts` files as early warning.
-
-### 5200 Cognitive Load
-
-- fat screen 不是單純行數問題，而是單一畫面同時承接 cross-module orchestration、panel wiring 與流程判斷。
-- 超過閾值時先檢查是否可以抽出 focused composition、helper 或 facade。
-- lint signal: `max-lines` on `interfaces/**/components/screens/**`.
-
-### Enforcement Posture
-
-- lint 使用 warning 等級，目的是持續暴露 smell 壓力，不是把既有技術債一次性升級成 build blocker。
-- smell 是否成立，以對應 ADR 的 context、decision、conflict resolution 為準；lint 只是入口訊號。
-
----
-
-## 🎯 Summary: Where Each Rule Lives
-
-| Rules | Location | File |
-|---|---|---|
-| 1, 5-10, 28 | AGENTS.md | Strategic ownership |
-| 2, 6-7, 49 | AGENTS.md + eslint | Dependency direction |
-| 11-13, 21-23 | architecture-core.instructions.md | Layer responsibility |
-| 4, 9, 34-36 | event-driven-state.instructions.md | Event bus & async |
-| 3, 29-32, 37-40 | security-rules.instructions.md | File/data/permission |
-| 24-27 | context-map.md | Cross-module contracts |
-| 17 | Platform feature-flag docs | Feature independence |
-| 46-51 | AGENTS.md | Anti-patterns |
-| All | Module AGENTS.md | Tactical enforcement |
-
----
-
-## ✅ Enforcement Checklist
-
-### Before Each Merge:
-- [ ] No cross-module imports outside `index.ts` (module root)
-- [ ] No Firebase/Genkit outside platform
-- [ ] All async flows use event bus with schema
-- [ ] File metadata in Firestore
-- [ ] Permission checks server-side only
-- [ ] Domain layer has zero external deps
-- [ ] Application layer orchestrates, not rules
-
-### Before Each Release:
-- [ ] All rules reviewed in relevant AGENTS.md
-- [ ] ESLint boundary checks passing
-- [ ] Zero anti-pattern violations (46-51)
-- [ ] Event schemas registered & consistent
-
----
-
-## 📚 Document Network
-
-- [AGENTS.md](../../AGENTS.md) — Strategic ownership & anti-patterns
-- [.github/instructions/architecture-core.instructions.md](../../../.github/instructions/architecture-core.instructions.md) — Layer responsibility
-- [.github/instructions/event-driven-state.instructions.md](../../../.github/instructions/event-driven-state.instructions.md) — Event bus & async
-- [.github/instructions/security-rules.instructions.md](../../../.github/instructions/security-rules.instructions.md) — File/data/permission
-- [docs/structure/system/context-map.md](./context-map.md) — Cross-module contracts
-- [src/modules/platform/AGENTS.md](../../../src/modules/platform/AGENTS.md) — Platform constraints
-- [src/modules/workspace/AGENTS.md](../../../src/modules/workspace/AGENTS.md) — Workspace constraints
-- [src/modules/notion/AGENTS.md](../../../src/modules/notion/AGENTS.md) — Notion constraints
-- [src/modules/notebooklm/AGENTS.md](../../../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints
 ````
 
 ## File: docs/tooling/commands-reference.md
@@ -31102,97 +31102,6 @@ run_rag = bool(raw.get("run_rag", True))
 parser = str(raw.get("parser", "layout")).strip().lower()
 ````
 
-## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — notebooklm module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the notebooklm module.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
-import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
-import {
-  RegisterIngestionSourceUseCase,
-  ArchiveIngestionSourceUseCase,
-  QueryIngestionSourcesUseCase,
-} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
-import {
-  CreateNotebookUseCase,
-  AddDocumentToNotebookUseCase,
-  GenerateNotebookResponseUseCase,
-} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
-import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
-⋮----
-// ── Singleton repositories ────────────────────────────────────────────────────
-⋮----
-function getSourceRepo(): FirestoreIngestionSourceRepository
-⋮----
-function getNotebookRepo(): InMemoryNotebookRepository
-⋮----
-// ── RagQuery generation port bridge ──────────────────────────────────────────
-⋮----
-class RagQueryGenerationPort implements NotebookGenerationPort {
-⋮----
-constructor(
-⋮----
-async generateResponse(input: {
-    prompt: string;
-    notebookId: string;
-    model?: string;
-}): Promise<
-⋮----
-// ── Factory functions ─────────────────────────────────────────────────────────
-⋮----
-export function createClientNotebooklmSourceUseCases()
-⋮----
-export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
-⋮----
-// ── Storage upload helper ─────────────────────────────────────────────────────
-⋮----
-/**
- * Upload a document to the GCS path expected by the fn Storage Trigger.
- * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
- * The Storage Trigger automatically runs parse + RAG on this prefix.
- */
-export async function uploadDocumentToStorage(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
- * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
- *
- * Accepts both gs://bucket/path and relative paths like uploads/...
- */
-export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
-⋮----
-// keep firestore & firestoreApi accessible within this composition module
-⋮----
-// ── Client-side Firestore query helper ───────────────────────────────────────
-⋮----
-/**
- * queryDocuments — query ingestion sources directly from the browser.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.  A Server Action
- * has no active Firebase user session, which causes "Missing or insufficient
- * permissions" even when rules only require `isSignedIn()`.
- */
-export async function queryDocuments(params: {
-  accountId: string;
-  workspaceId?: string;
-})
-````
-
 ## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
 ````typescript
 /**
@@ -32315,6 +32224,125 @@ async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate
 // Dynamic import — keeps Node.js-only genkit deps out of browser bundles.
 ````
 
+## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — notebooklm module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the notebooklm module.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
+import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
+import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
+import {
+  RegisterIngestionSourceUseCase,
+  ArchiveIngestionSourceUseCase,
+  QueryIngestionSourcesUseCase,
+} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
+import {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
+import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
+import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
+⋮----
+// ── Singleton repositories ────────────────────────────────────────────────────
+⋮----
+function getSourceRepo(): FirestoreIngestionSourceRepository
+⋮----
+function getNotebookRepo(): InMemoryNotebookRepository
+⋮----
+// ── RagQuery generation port bridge ──────────────────────────────────────────
+⋮----
+class RagQueryGenerationPort implements NotebookGenerationPort {
+⋮----
+constructor(
+⋮----
+async generateResponse(input: {
+    prompt: string;
+    notebookId: string;
+    model?: string;
+}): Promise<
+⋮----
+// ── Factory functions ─────────────────────────────────────────────────────────
+⋮----
+export function createClientNotebooklmSourceUseCases()
+⋮----
+export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
+⋮----
+// ── Storage upload helper ─────────────────────────────────────────────────────
+⋮----
+/**
+ * Upload a document to a workspace-scoped source path.
+ * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+ * Parsing / indexing are triggered manually from the Sources UI.
+ */
+export async function uploadDocumentToStorage(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
+ * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspaces/...
+ */
+export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
+⋮----
+// keep firestore & firestoreApi accessible within this composition module
+⋮----
+// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
+⋮----
+/**
+ * Convert a relative Storage path to a gs:// URI.
+ * Already-absolute gs:// URIs are returned unchanged.
+ */
+export function toGcsUri(pathOrUri: string): string
+⋮----
+// ── Client-side Firestore source initialisation ───────────────────────────────
+⋮----
+/**
+ * Write an initial source-document record to Firestore so the document appears
+ * in the Sources list immediately after upload — even before fn parses it.
+ *
+ * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
+ * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
+ * so calling parse later will add parsed.* fields without overwriting these.
+ */
+export async function initSourceDocumentInFirestore(params: {
+  docId: string;
+  gcsUri: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string;
+  accountId: string;
+  workspaceId: string;
+}): Promise<void>
+⋮----
+// ── Client-side Firestore query helper ───────────────────────────────────────
+⋮----
+/**
+ * queryDocuments — query ingestion sources directly from the browser.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.  A Server Action
+ * has no active Firebase user session, which causes "Missing or insufficient
+ * permissions" even when rules only require `isSignedIn()`.
+ */
+export async function queryDocuments(params: {
+  accountId: string;
+  workspaceId?: string;
+})
+````
+
 ## File: src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx
 ````typescript
 /**
@@ -33089,7 +33117,7 @@ schema = ParseDocumentRequest.from_raw(req.data or {})
  * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
  *
  * Manual Document AI pipeline controls:
- *   ① 上傳文件  — upload to Firebase Storage (fn Storage Trigger auto-runs parse+RAG)
+ *   ① 上傳文件  — upload to Firebase Storage only
  *   ② 解析文件  — manually trigger Layout/Form/OCR/Genkit-AI via callable
  *   ③ RAG 索引  — manually trigger RAG reindex via callable
  *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
@@ -33109,7 +33137,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 ⋮----
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
   parseDocumentAction,
@@ -33119,12 +33146,23 @@ import {
   queryDocuments,
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
+  initSourceDocumentInFirestore,
+  toGcsUri,
 } from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
   accountId: string;
 }
+⋮----
+function deriveDocIdFromStoragePath(storagePath: string): string
+⋮----
+function createPendingSourceSnapshot(input: {
+  file: File;
+  storagePath: string;
+  workspaceId: string;
+  accountId: string;
+}): IngestionSourceSnapshot
 ⋮----
 /** MIME types renderable via Google Doc Viewer */
 ⋮----
@@ -33160,6 +33198,9 @@ const load = () =>
 useEffect(() => { load(); }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
 ⋮----
 const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+// Write initial Firestore record so the document survives page reload
+// (fn no longer auto-triggers on workspaces/ path; we own the initial write).
 ⋮----
 const handlePreview = async (doc: IngestionSourceSnapshot) =>
 ⋮----
@@ -33234,7 +33275,7 @@ src=
  * document-actions — notebooklm document server actions.
  *
  * Handles document upload (via Firebase Storage) and listing.
- * fn Storage Trigger runs parse + RAG automatically after upload.
+ * Parse / index actions are explicit user-triggered steps.
  */
 ⋮----
 import { z } from "zod";
@@ -33248,6 +33289,8 @@ import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallab
 // ── Firebase HTTPS Callable server-side helper ────────────────────────────────
 // Calling Cloud Functions from a Server Action avoids CORS completely.
 // Functions are deployed in asia-southeast1; project ID comes from env.
+⋮----
+function _toGcsUri(storageUrl: string): string
 ⋮----
 async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut>
 ⋮----
@@ -33269,8 +33312,8 @@ async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut
  * registerUploadedDocumentAction — register a document snapshot after upload.
  *
  * Call this after uploadDocumentToStorage() completes on the client.
- * fn's Storage Trigger will also fire automatically to run parse + RAG.
- * This action records the document in the local domain for immediate UI feedback.
+ * This action only records the uploaded source for immediate UI feedback.
+ * Parsing / indexing remain separate manual actions.
  */
 export async function registerUploadedDocumentAction(rawInput: unknown)
 ⋮----
