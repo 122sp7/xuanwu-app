@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/ai/**, docs/structure/contexts/ai/**
+- Only files matching these patterns are included: src/modules/notebooklm/**, docs/structure/contexts/notebooklm/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-111 files | 1,612 lines
+64 files | 1,965 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 100 | 934 |
-| Markdown | 10 | 659 |
-| PROMPT | 1 | 19 |
+| TypeScript | 52 | 1,156 |
+| Markdown | 8 | 581 |
+| TypeScript (TSX) | 4 | 228 |
 
 **Largest files:**
-- `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
-- `docs/structure/contexts/ai/subdomains.md` (96 lines)
-- `docs/structure/contexts/ai/AGENTS.md` (93 lines)
-- `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
-- `docs/structure/contexts/ai/README.md` (76 lines)
-- `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
-- `docs/structure/contexts/ai/ddd-strategic-design.md` (53 lines)
-- `docs/structure/contexts/ai/context-map.md` (50 lines)
-- `docs/structure/contexts/ai/ubiquitous-language.md` (49 lines)
-- `src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts` (49 lines)
+- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (157 lines)
+- `src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts` (119 lines)
+- `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (119 lines)
+- `src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts` (117 lines)
+- `docs/structure/contexts/notebooklm/README.md` (110 lines)
+- `src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts` (100 lines)
+- `docs/structure/contexts/notebooklm/ubiquitous-language.md` (93 lines)
+- `docs/structure/contexts/notebooklm/AGENTS.md` (89 lines)
+- `docs/structure/contexts/notebooklm/context-map.md` (77 lines)
+- `src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts` (77 lines)

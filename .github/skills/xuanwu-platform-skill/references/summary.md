@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/ai/**, docs/structure/contexts/ai/**
+- Only files matching these patterns are included: src/modules/platform/**, docs/structure/contexts/platform/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-111 files | 1,612 lines
+118 files | 2,946 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 100 | 934 |
-| Markdown | 10 | 659 |
-| PROMPT | 1 | 19 |
+| TypeScript | 92 | 1,289 |
+| TypeScript (TSX) | 18 | 946 |
+| Markdown | 8 | 711 |
 
 **Largest files:**
-- `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
-- `docs/structure/contexts/ai/subdomains.md` (96 lines)
-- `docs/structure/contexts/ai/AGENTS.md` (93 lines)
-- `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
-- `docs/structure/contexts/ai/README.md` (76 lines)
-- `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
-- `docs/structure/contexts/ai/ddd-strategic-design.md` (53 lines)
-- `docs/structure/contexts/ai/context-map.md` (50 lines)
-- `docs/structure/contexts/ai/ubiquitous-language.md` (49 lines)
-- `src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts` (49 lines)
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)
+- `docs/structure/contexts/platform/ubiquitous-language.md` (140 lines)
+- `docs/structure/contexts/platform/README.md` (131 lines)
+- `src/modules/platform/adapters/inbound/react/AppContext.tsx` (106 lines)
+- `docs/structure/contexts/platform/AGENTS.md` (105 lines)
+- `src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (94 lines)
+- `docs/structure/contexts/platform/bounded-contexts.md` (93 lines)
+- `docs/structure/contexts/platform/subdomains.md` (89 lines)
+- `src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx` (87 lines)
+- `docs/structure/contexts/platform/context-map.md` (78 lines)

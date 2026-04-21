@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/ai/**, docs/structure/contexts/ai/**
+- Only files matching these patterns are included: src/modules/billing/**, docs/structure/contexts/billing/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,22 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-111 files | 1,612 lines
+56 files | 846 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 100 | 934 |
-| Markdown | 10 | 659 |
-| PROMPT | 1 | 19 |
+| TypeScript | 48 | 631 |
+| Markdown | 8 | 215 |
 
 **Largest files:**
-- `docs/structure/contexts/ai/cross-runtime-contracts.md` (99 lines)
-- `docs/structure/contexts/ai/subdomains.md` (96 lines)
-- `docs/structure/contexts/ai/AGENTS.md` (93 lines)
-- `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
-- `docs/structure/contexts/ai/README.md` (76 lines)
-- `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
-- `docs/structure/contexts/ai/ddd-strategic-design.md` (53 lines)
-- `docs/structure/contexts/ai/context-map.md` (50 lines)
-- `docs/structure/contexts/ai/ubiquitous-language.md` (49 lines)
-- `src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts` (49 lines)
+- `docs/structure/contexts/billing/AGENTS.md` (65 lines)
+- `src/modules/billing/subdomains/subscription/domain/entities/Subscription.ts` (56 lines)
+- `src/modules/billing/subdomains/entitlement/domain/entities/EntitlementGrant.ts` (50 lines)
+- `src/modules/billing/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts` (49 lines)
+- `src/modules/billing/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts` (46 lines)
+- `src/modules/billing/subdomains/usage-metering/domain/entities/UsageRecord.ts` (41 lines)
+- `src/modules/billing/AGENTS.md` (39 lines)
+- `src/modules/billing/subdomains/subscription/application/use-cases/SubscriptionUseCases.ts` (30 lines)
+- `src/modules/billing/subdomains/entitlement/adapters/outbound/firestore/FirestoreEntitlementGrantRepository.ts` (29 lines)
+- `src/modules/billing/subdomains/entitlement/application/use-cases/EntitlementUseCases.ts` (29 lines)

@@ -107,86 +107,6 @@ flowchart LR
 - 奧卡姆剃刀：若一個正確名詞已能表達邊界，不要再堆疊近義抽象。
 ````
 
-## File: src/modules/ai/AGENTS.md
-````markdown
-# AI Module — Agent Guide
-
-## Purpose
-
-`src/modules/ai` 是 **AI 機制能力模組**，為 Xuanwu 系統提供文字分塊（Chunk）、向量嵌入（Embedding）、語意檢索（Retrieval）、上下文管理（Context）、內容生成（Generation）、來源引用（Citation）、品質評估（Evaluation）、提示管線（Pipeline）等 AI 底層機制的實作落點。
-
-> **⚠ 邊界警示：** `ai` 擁有 AI **機制**（模型呼叫、向量計算、提示建構），不擁有使用者對話 UX（屬 `notebooklm`）、知識文件管理（屬 `notion`）或任務生成流程（屬 `workspace`）。
-
-## 子域清單（名詞域）
-
-| 子域 | 說明 | 狀態 |
-|---|---|---|
-| `chunk` | 文字分塊實體（分塊策略、Token 計量）| 🔨 骨架建立，實作進行中 |
-| `citation` | 引用實體（生成內容的來源溯源）| 🔨 骨架建立，實作進行中 |
-| `context` | AI 上下文實體（記憶體、對話歷程、人格）| 🔨 骨架建立，實作進行中 |
-| `embedding` | 向量嵌入實體（Embedding 生成與儲存）| 🔨 骨架建立，實作進行中 |
-| `evaluation` | 評估實體（輸出品質、安全防護、模型可觀測性）| 🔨 骨架建立，實作進行中 |
-| `generation` | AI 生成實體（模型選擇、Tool calling、內容生成）| 🔨 骨架建立，實作進行中 |
-| `memory` | AI 記憶實體（長期記憶、跨會話持久化）| 🔨 骨架建立，實作進行中 |
-| `pipeline` | 提示管線實體（提示模板、多步驟管線）| 🔨 骨架建立，實作進行中 |
-| `retrieval` | 語意檢索實體（向量相似度搜尋）| 🔨 骨架建立，實作進行中 |
-| `tool-calling` | 工具呼叫實體（Tool 定義、執行、結果處理）| 🔨 骨架建立，實作進行中 |
-
-> **子域不重複原則：**  
-> - `conversation`（使用者對話 UX）→ `notebooklm` 所有  
-> - `document`（來源文件管理）→ `notebooklm` 所有  
-> - `task-formation`（AI 輔助任務生成流程）→ `workspace` 所有；ai 提供 `generation` 能力支援  
-
-## Boundary Rules
-
-- `domain/` 禁止匯入 React、Firebase SDK、Genkit SDK、HTTP client 或任何框架。
-- `application/` 只依賴 `domain/` 抽象，不依賴 adapter 實作。
-- 跨子域協調透過 `orchestration/` 或 `shared/events/`，禁止直接跨 subdomain import。
-- 外部消費者（notebooklm、workspace）只能透過 `src/modules/ai/index.ts` 存取。
-- ai 模組不得依賴 notion、notebooklm、workspace（ai 是上游 AI 機制提供者）。
-
-## task-formation 歸屬決策
-
-`task-formation` 子域屬於 **`workspace`**，理由：
-- 輸出物（Task entities）是 workspace 的領域物件
-- 觸發者（使用者指定生成任務）是 workspace 層業務流程
-- AI 模型呼叫透過 `ai/generation` Port 注入，由 workspace 消費
-
-## Route Here When
-
-- 撰寫 AI 機制的新 use case、entity、adapter 實作（embedding、retrieval、generation 等）。
-- 實作 prompt template、tool calling port、embedding vector adapter 等骨架。
-- 需要 `src/modules/ai/` 層的骨架結構作為起點。
-
-## Route Elsewhere When
-
-- 讀取 AI 模組邊界規則、published language → `src/modules/ai/AGENTS.md`
-- 使用者對話 / Notebook UX → `src/modules/notebooklm/`
-- 知識文件 / Page 管理 → `src/modules/notion/`
-- 任務生成業務流程 → `src/modules/workspace/`（`task-formation`）
-- 跨模組 API boundary → `src/modules/ai/index.ts`
-
-## 路由規則
-
-| 情境 | 正確路徑 |
-|---|---|
-| 讀取邊界規則 / published language | `src/modules/ai/AGENTS.md` |
-| 撰寫新 use case / adapter / entity | `src/modules/ai/`（本層） |
-| 跨模組 API boundary | `src/modules/ai/index.ts` |
-
-**嚴禁事項：**
-- ❌ 在 `domain/` 匯入 Genkit、Firebase SDK、React
-- ❌ 在 barrel 使用 `export *`
-- ❌ 在 ai 模組定義使用者對話 UX（屬 notebooklm）
-- ❌ 在 ai 模組定義 task-formation 業務流程（屬 workspace）
-
-## 文件網絡
-
-- [README.md](README.md) — 模組目錄結構
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
 ## File: src/modules/ai/orchestration/AiFacade.ts
 ````typescript
 import { GenkitPromptRegistry } from "../prompts/registry/GenkitPromptRegistry";
@@ -306,121 +226,6 @@ resolve(key: string): PromptKey | null;
 ## File: src/modules/ai/prompts/versions.ts
 ````typescript
 import type { PromptKey } from "./registry/prompt-types";
-````
-
-## File: src/modules/ai/README.md
-````markdown
-# AI Module
-
-## 子域清單（名詞域）
-
-> **子域設計原則：** 每個子域以**名詞**命名，代表其核心管理實體，不以動詞流程命名。  
-> **子域不重複原則：** `conversation`（使用者對話 UX）屬 `notebooklm`；`document` 屬 `notebooklm`；`task-formation` 屬 `workspace`。
-
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `chunk` | 🔨 骨架建立，實作進行中 | 文字分塊實體（分塊策略、Token 計量、Chunk ID）|
-| `citation` | 🔨 骨架建立，實作進行中 | 引用實體（生成內容對應的來源 Chunk 溯源）|
-| `context` | 🔨 骨架建立，實作進行中 | AI 上下文實體（記憶體、對話歷程、人格設定）|
-| `embedding` | 🔨 骨架建立，實作進行中 | 向量嵌入實體（Embedding 生成與向量儲存）|
-| `evaluation` | 🔨 骨架建立，實作進行中 | 評估實體（品質評分、安全過濾、模型可觀測性）|
-| `generation` | 🔨 骨架建立，實作進行中 | AI 生成實體（模型選擇、Tool calling、生成結果）|
-| `memory` | 🔨 骨架建立，實作進行中 | AI 記憶實體（長期記憶、跨會話持久化）|
-| `pipeline` | 🔨 骨架建立，實作進行中 | 提示管線實體（Prompt 模板、多步驟 Pipeline 定義）|
-| `retrieval` | 🔨 骨架建立，實作進行中 | 語意檢索實體（向量相似度搜尋、TopK 結果）|
-| `tool-calling` | 🔨 骨架建立，實作進行中 | 工具呼叫實體（Tool 定義、執行、結果處理）|
-
----
-
-## task-formation 歸屬決策
-
-| 子域 | 歸屬 | 理由 |
-|---|---|---|
-| `task-formation` | **`workspace`** | Task 是 workspace 領域物件；AI 生成能力由 `ai/generation` Port 注入 |
-
----
-
-## 預期目錄結構
-
-```
-src/modules/ai/
-  index.ts                      ← 模組對外唯一入口（具名匯出）
-  README.md
-  AGENTS.md
-  orchestration/
-    AiFacade.ts                 ← 對外統一 Facade
-    AiCoordinator.ts            ← 跨子域協調（chunk→embedding→retrieval→generation）
-  shared/
-    domain/index.ts
-    application/index.ts
-    events/index.ts             ← Published Language Events（供 notebooklm / workspace 消費）
-    errors/index.ts
-    types/index.ts
-  subdomains/
-    embedding/
-      domain/
-      application/
-      adapters/outbound/
-    pipeline/
-      domain/
-      application/
-      adapters/outbound/
-    evaluation/
-    generation/
-    chunk/
-    retrieval/
-    context/
-    citation/
-    memory/
-    tool-calling/
-```
-
----
-
-## 依賴方向
-
-```
-subdomains/*/adapters/inbound → subdomains/*/application → subdomains/*/domain
-                                                                    ↑
-                               subdomains/*/adapters/outbound  ───┘
-                                                    ↑
-                                             shared/domain
-```
-
-跨子域協調只能透過 `orchestration/` 或 `shared/events/`，不得直接跨 subdomain import。
-
----
-
-## 子域邊界示意（ai vs notebooklm）
-
-```
-notebooklm/conversation  ←使用→  ai/generation（生成回答機制）
-notebooklm/document      ←使用→  ai/embedding（向量化文件）
-notebooklm/conversation  ←使用→  ai/retrieval（檢索相關 chunk）
-notebooklm/conversation  ←使用→  ai/citation（標注引用來源）
-notebooklm/document      ─切塊→  ai/chunk（分塊計算）
-```
-
-ai 提供**機制**；notebooklm 組合機制成**使用者體驗**。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Genkit、Firebase SDK | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking 與邊界可追蹤性 |
-| 在 ai 定義使用者對話 UX | 屬 notebooklm |
-| 在 ai 定義 task-formation 業務流程 | 屬 workspace |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
 ````
 
 ## File: src/modules/ai/shared/errors/index.ts
@@ -1731,6 +1536,58 @@ These are separate from QStash and are defined by Firestore document structure:
 Firestore document schema for these is owned by `src/modules/platform/subdomains/file-storage/` (TypeScript) and mirrored in `fn/src/infrastructure/persistence/firestore/`.
 ````
 
+## File: src/modules/ai/AGENTS.md
+````markdown
+# AI Module — Agent Guide
+
+## Purpose
+
+`src/modules/ai/` 是 AI 機制能力模組；提供 AI mechanism，使用者體驗仍由其他模組組合。
+
+## Immediate Index
+
+- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
+- Parent README: [../README.md](../README.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Subdomain Index（actual directories）
+
+- `subdomains/chunk/`
+- `subdomains/citation/`
+- `subdomains/context/`
+- `subdomains/embedding/`
+- `subdomains/evaluation/`
+- `subdomains/generation/`
+- `subdomains/memory/`
+- `subdomains/pipeline/`
+- `subdomains/retrieval/`
+- `subdomains/safety/`
+- `subdomains/tool-calling/`
+
+## Route Here When
+
+- 需要在 `src/modules/ai/` 內新增或調整 domain / application / adapters / orchestration 實作。
+- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+
+## Route Elsewhere When
+
+- 使用者對話與 RAG UX → `src/modules/notebooklm/`
+- 知識內容寫入 → `src/modules/notion/`
+- 任務生成業務流程 → `src/modules/workspace/`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `src/modules/ai/` 的 routing、nested index、放置判斷。
+- `README.md` 擁有同一節點的人類可讀概覽。
+- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+
+## Related Docs
+
+- [../../../docs/README.md](../../../docs/README.md)
+- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
 ## File: src/modules/ai/index.ts
 ````typescript
 /**
@@ -1761,6 +1618,44 @@ Firestore document schema for these is owned by `src/modules/platform/subdomains
 // memory
 ⋮----
 // tool-calling
+````
+
+## File: src/modules/ai/README.md
+````markdown
+# AI Module
+
+`src/modules/ai/` 是 AI 機制能力模組；提供 AI mechanism，使用者體驗仍由其他模組組合。
+
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Directory Index（actual directories）
+
+- `subdomains/chunk/`
+- `subdomains/citation/`
+- `subdomains/context/`
+- `subdomains/embedding/`
+- `subdomains/evaluation/`
+- `subdomains/generation/`
+- `subdomains/memory/`
+- `subdomains/pipeline/`
+- `subdomains/retrieval/`
+- `subdomains/safety/`
+- `subdomains/tool-calling/`
+
+## Pair Contract
+
+- `README.md` 維護 `src/modules/ai/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+
+## Read Next
+
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts

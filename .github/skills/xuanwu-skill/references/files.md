@@ -8180,6 +8180,59 @@ const handleSynthesize = () =>
 href=
 ````
 
+## File: src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts
+````typescript
+/**
+ * TaskMaterializationWorkflowAdapter — synchronous Server Action bridge for task handoff.
+ *
+ * ADR: Task bridge → synchronous Server Action callback (option A, not QStash).
+ *
+ * This adapter receives an injected `WorkspaceTaskFormationCallback` from the
+ * composition root (source-processing-actions.ts). When `sourceText` is provided
+ * in the input it delegates to workspace's full extract-and-confirm pipeline via
+ * the callback. Pre-extracted `candidates` (legacy path) are counted as-is.
+ *
+ * ESLint: No @integration-firebase import — delegates only via injected callback.
+ */
+⋮----
+import type {
+  TaskMaterializationWorkflowPort,
+  MaterializeTasksInput,
+  MaterializeTasksResult,
+} from "../../orchestration/TaskMaterializationWorkflowPort";
+⋮----
+/**
+ * Injected workspace task-formation capability.
+ * The composition root provides this callback using workspace's internal use cases;
+ * the adapter stays decoupled from workspace internals.
+ */
+export interface WorkspaceTaskFormationCallback {
+  run(input: {
+    sourceText: string;
+    workspaceId: string;
+    actorId: string;
+    knowledgePageId: string;
+  }): Promise<{ taskCount: number; error?: string }>;
+}
+⋮----
+run(input: {
+    sourceText: string;
+    workspaceId: string;
+    actorId: string;
+    knowledgePageId: string;
+}): Promise<
+⋮----
+export class TaskMaterializationWorkflowAdapter implements TaskMaterializationWorkflowPort {
+⋮----
+constructor(private readonly workspaceTaskFormation: WorkspaceTaskFormationCallback)
+⋮----
+async materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>
+⋮----
+// Primary path: AI extraction via workspace Genkit flow
+⋮----
+// Legacy path: pre-extracted candidates provided directly
+````
+
 ## File: src/modules/notebooklm/infrastructure/ai/synthesis.flow.ts
 ````typescript
 import { ai } from "@/packages/integration-ai/genkit";
@@ -8195,6 +8248,54 @@ const buildSynthesisPrompt = (input: NotebooklmSynthesisInput): string
 ````typescript
 // notebooklm — orchestration layer
 // Cross-subdomain composition and facade lives here.
+````
+
+## File: src/modules/notebooklm/orchestration/TaskMaterializationWorkflowPort.ts
+````typescript
+/**
+ * TaskMaterializationWorkflowPort — outbound port for task materialization.
+ *
+ * notebooklm/source calls this port to hand off task candidates to the
+ * workspace task flow. notebooklm does NOT directly write workspace repositories.
+ *
+ * Implementors: TaskMaterializationWorkflowAdapter (adapters/outbound/)
+ */
+⋮----
+export interface TaskCandidate {
+  readonly title: string;
+  readonly description?: string;
+  readonly sourceRef?: string;
+}
+⋮----
+export interface MaterializeTasksInput {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly sourceDocumentId: string;
+  readonly knowledgePageId: string;
+  readonly candidates: readonly TaskCandidate[];
+  /** Source text forwarded to workspace AI extraction when candidates is empty. */
+  readonly sourceText?: string;
+  /** Actor performing the materialization (defaults to requestedByUserId). */
+  readonly actorId?: string;
+  readonly requestedByUserId?: string;
+}
+⋮----
+/** Source text forwarded to workspace AI extraction when candidates is empty. */
+⋮----
+/** Actor performing the materialization (defaults to requestedByUserId). */
+⋮----
+export interface MaterializeTasksResult {
+  readonly ok: boolean;
+  readonly taskCount: number;
+  readonly workflowHref?: string;
+  readonly error?: string;
+}
+⋮----
+export interface TaskMaterializationWorkflowPort {
+  materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
+}
+⋮----
+materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
 ````
 
 ## File: src/modules/notebooklm/shared/errors/index.ts
@@ -23252,57 +23353,51 @@ export async function ragQueryAction(rawInput: unknown)
 export async function synthesizeWorkspaceAction(rawInput: unknown)
 ````
 
-## File: src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts
+## File: src/modules/notebooklm/adapters/inbound/server-actions/source-processing-actions.ts
 ````typescript
 /**
- * TaskMaterializationWorkflowAdapter — synchronous Server Action bridge for task handoff.
+ * source-processing-actions — notebooklm source document processing workflow.
  *
- * ADR: Task bridge → synchronous Server Action callback (option A, not QStash).
+ * Composes ProcessSourceDocumentWorkflowUseCase with:
+ *   - TaskMaterializationWorkflowAdapter  (ADR: synchronous Server Action bridge)
+ *   - Notion CreateKnowledgePagePort       (bridges notion's createPage use case)
  *
- * This adapter receives an injected `WorkspaceTaskFormationCallback` from the
- * composition root (source-processing-actions.ts). When `sourceText` is provided
- * in the input it delegates to workspace's full extract-and-confirm pipeline via
- * the callback. Pre-extracted `candidates` (legacy path) are counted as-is.
+ * ADR decisions implemented here:
+ *   1. AI extraction → workspace.extract-task-candidates Genkit flow
+ *      GenkitTaskCandidateExtractor is instantiated directly here because
+ *      this is a "use server" file — it is never included in browser bundles.
+ *      firebase-composition.ts retains FirebaseCallableTaskCandidateExtractor
+ *      for the shared factory used by client-accessible code paths.
+ *   2. Task bridge → synchronous Server Action callback (not QStash event).
  *
- * ESLint: No @integration-firebase import — delegates only via injected callback.
+ * Architecture note: this server action is the composition root for a
+ * cross-module workflow (notebooklm → workspace → notion). It reaches into
+ * the workspace and notion composition factories to assemble the use case.
+ * The domain layers remain fully isolated; only the adapter layer is composed here.
  */
 ⋮----
-import type {
-  TaskMaterializationWorkflowPort,
-  MaterializeTasksInput,
-  MaterializeTasksResult,
-} from "../../orchestration/TaskMaterializationWorkflowPort";
+import { z } from "zod";
+import { ProcessSourceDocumentWorkflowUseCase } from "../../../orchestration/ProcessSourceDocumentWorkflowUseCase";
+import { TaskMaterializationWorkflowAdapter } from "../../outbound/TaskMaterializationWorkflowAdapter";
+import { GenkitTaskCandidateExtractor } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor";
+import { ExtractTaskCandidatesUseCase, ConfirmCandidatesUseCase } from "@/src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskFormationJobRepository } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { CreateTaskUseCase } from "@/src/modules/workspace/subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreTaskRepository } from "@/src/modules/workspace/subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import { createFirestoreLikeAdapter } from "@/src/modules/workspace/adapters/outbound/firebase-composition";
+import { createClientNotionPageUseCases } from "@/src/modules/notion/adapters/outbound/firebase-composition";
 ⋮----
-/**
- * Injected workspace task-formation capability.
- * The composition root provides this callback using workspace's internal use cases;
- * the adapter stays decoupled from workspace internals.
- */
-export interface WorkspaceTaskFormationCallback {
-  run(input: {
-    sourceText: string;
-    workspaceId: string;
-    actorId: string;
-    knowledgePageId: string;
-  }): Promise<{ taskCount: number; error?: string }>;
-}
+// ── Input schema ───────────────────────────────────────────────────────────────
 ⋮----
-run(input: {
-    sourceText: string;
-    workspaceId: string;
-    actorId: string;
-    knowledgePageId: string;
-}): Promise<
+// ── Action ─────────────────────────────────────────────────────────────────────
 ⋮----
-export class TaskMaterializationWorkflowAdapter implements TaskMaterializationWorkflowPort {
+export async function processSourceDocumentAction(rawInput: unknown)
 ⋮----
-constructor(private readonly workspaceTaskFormation: WorkspaceTaskFormationCallback)
+// ── Wire workspace task formation with Genkit extractor (server-only) ────────
 ⋮----
-async materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>
+// ── Wire notion page creation ────────────────────────────────────────────────
 ⋮----
-// Primary path: AI extraction via workspace Genkit flow
-⋮----
-// Legacy path: pre-extracted candidates provided directly
+// ── Execute workflow ─────────────────────────────────────────────────────────
 ````
 
 ## File: src/modules/notebooklm/AGENTS.md
@@ -23350,52 +23445,108 @@ async materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksRe
 - [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
 ````
 
-## File: src/modules/notebooklm/orchestration/TaskMaterializationWorkflowPort.ts
+## File: src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts
 ````typescript
 /**
- * TaskMaterializationWorkflowPort — outbound port for task materialization.
+ * ProcessSourceDocumentWorkflowUseCase — orchestrates the full source processing flow.
  *
- * notebooklm/source calls this port to hand off task candidates to the
- * workspace task flow. notebooklm does NOT directly write workspace repositories.
+ * After a document is uploaded and parsed (by fn), this use case orchestrates
+ * the optional downstream steps the user selects in the processing dialog:
+ *   1. Parse (already done by fn — this step validates parse status)
+ *   2. RAG index (already done by fn — this step validates RAG status)
+ *   3. Create Knowledge Page via notion boundary
+ *   4. Extract task candidates + hand off via TaskMaterializationWorkflowPort
  *
- * Implementors: TaskMaterializationWorkflowAdapter (adapters/outbound/)
+ * Guardrails:
+ *   - notebooklm does NOT write workspace repositories directly.
+ *   - Knowledge Page is the required canonical carrier before task creation.
+ *   - Task handoff only via TaskMaterializationWorkflowPort.
+ *   - parse failure stops all downstream steps.
  */
 ⋮----
-export interface TaskCandidate {
-  readonly title: string;
-  readonly description?: string;
-  readonly sourceRef?: string;
-}
+import type { TaskMaterializationWorkflowPort } from "./TaskMaterializationWorkflowPort";
 ⋮----
-export interface MaterializeTasksInput {
-  readonly workspaceId: string;
+// ── Input / output contracts ──────────────────────────────────────────────────
+⋮----
+export type StepStatus = "skipped" | "success" | "failed";
+⋮----
+export interface ProcessSourceDocumentWorkflowInput {
   readonly accountId: string;
-  readonly sourceDocumentId: string;
-  readonly knowledgePageId: string;
-  readonly candidates: readonly TaskCandidate[];
-  /** Source text forwarded to workspace AI extraction when candidates is empty. */
-  readonly sourceText?: string;
-  /** Actor performing the materialization (defaults to requestedByUserId). */
-  readonly actorId?: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+  readonly documentTitle: string;
+  readonly parsedTextSummary?: string;
+  readonly shouldCreateRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly shouldCreateTasks: boolean;
   readonly requestedByUserId?: string;
 }
 ⋮----
-/** Source text forwarded to workspace AI extraction when candidates is empty. */
-⋮----
-/** Actor performing the materialization (defaults to requestedByUserId). */
-⋮----
-export interface MaterializeTasksResult {
-  readonly ok: boolean;
-  readonly taskCount: number;
+export interface ProcessSourceDocumentWorkflowResult {
+  readonly parseStatus: StepStatus;
+  readonly ragStatus: StepStatus;
+  readonly pageStatus: StepStatus;
+  readonly taskStatus: StepStatus;
+  readonly pageHref?: string;
   readonly workflowHref?: string;
-  readonly error?: string;
+  readonly taskCount: number;
+  readonly pageCount: number;
+  readonly errors: readonly string[];
 }
 ⋮----
-export interface TaskMaterializationWorkflowPort {
-  materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
+// ── Create Knowledge Page port (notion boundary) ──────────────────────────────
+⋮----
+export interface CreateKnowledgePagePort {
+  createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    sourceDocumentId: string;
+    requestedByUserId?: string;
+  }): Promise<{ ok: boolean; pageId?: string; pageHref?: string; error?: string }>;
 }
 ⋮----
-materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
+createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    sourceDocumentId: string;
+    requestedByUserId?: string;
+}): Promise<
+⋮----
+// ── Use case ──────────────────────────────────────────────────────────────────
+⋮----
+export class ProcessSourceDocumentWorkflowUseCase {
+⋮----
+constructor(
+⋮----
+async execute(
+    input: ProcessSourceDocumentWorkflowInput,
+): Promise<ProcessSourceDocumentWorkflowResult>
+⋮----
+private async _runPageStep(input: ProcessSourceDocumentWorkflowInput)
+⋮----
+private async _runTaskStep(
+    input: ProcessSourceDocumentWorkflowInput,
+    parsedText: string,
+    pageId: string,
+)
+⋮----
+// ── Helpers ───────────────────────────────────────────────────────────────────
+⋮----
+interface ResultArgs {
+  parseStatus: StepStatus;
+  ragStatus: StepStatus;
+  errors: string[];
+  pageStatus?: StepStatus;
+  pageHref?: string;
+  pageCount?: number;
+  taskStatus?: StepStatus;
+  taskCount?: number;
+  workflowHref?: string;
+}
+⋮----
+function buildResult(args: ResultArgs): ProcessSourceDocumentWorkflowResult
 ````
 
 ## File: src/modules/notebooklm/README.md
@@ -23437,127 +23588,6 @@ materializeTasks(input: MaterializeTasksInput): Promise<MaterializeTasksResult>;
 ## File: src/modules/notebooklm/subdomains/source/adapters/index.ts
 ````typescript
 
-````
-
-## File: src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts
-````typescript
-/**
- * FirestoreIngestionSourceRepository — Firestore adapter for the source subdomain.
- *
- * Reads from accounts/{accountId}/documents/{docId}, which is the same collection
- * written by the fn pipeline.  TypeScript side is read-only: fn is the sole writer.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import type {
-  IngestionSourceSnapshot,
-  SourceStatus,
-} from "../../../domain/entities/IngestionSource";
-import type {
-  IngestionSourceRepository,
-  IngestionSourceQuery,
-} from "../../../domain/repositories/IngestionSourceRepository";
-⋮----
-// ── Firestore record shape written by fn ──────────────────────────────────────
-⋮----
-interface PyFnSourceRecord {
-  id?: string;
-  title?: string;
-  status?: string;
-  account_id?: string;
-  spaceId?: string;
-  source?: {
-    gcs_uri?: string;
-    filename?: string;
-    display_name?: string;
-    original_filename?: string;
-    size_bytes?: number;
-    uploaded_at?: { toDate?: () => Date };
-    mime_type?: string;
-  };
-  parsed?: {
-    layout_json_gcs_uri?: string;
-    form_json_gcs_uri?: string;
-    ocr_json_gcs_uri?: string;
-    genkit_json_gcs_uri?: string;
-    page_count?: number;
-    parsed_at?: { toDate?: () => Date };
-    extraction_ms?: number;
-    layout_chunk_count?: number;
-    form_entity_count?: number;
-    /** Legacy field written by storage trigger before the split. */
-    json_gcs_uri?: string;
-    chunk_count?: number;
-    entity_count?: number;
-  };
-  rag?: {
-    status?: string;
-    chunk_count?: number;
-    vector_count?: number;
-    embedding_model?: string;
-    embedding_dimensions?: number;
-    indexed_at?: { toDate?: () => Date };
-  };
-  error?: {
-    message?: string;
-    timestamp?: { toDate?: () => Date };
-  };
-  metadata?: {
-    filename?: string;
-    display_name?: string;
-    space_id?: string;
-  };
-}
-⋮----
-/** Legacy field written by storage trigger before the split. */
-⋮----
-// ── Mapping helpers ───────────────────────────────────────────────────────────
-⋮----
-function mapPyFnStatus(
-  docStatus: string | undefined,
-  ragStatus: string | undefined,
-): SourceStatus
-⋮----
-// fn sets status="completed" after a successful parse but before RAG indexing.
-⋮----
-function fromFirestore(
-  raw: PyFnSourceRecord,
-  docId: string,
-): IngestionSourceSnapshot
-⋮----
-// fn pipeline fields
-⋮----
-// ── Repository implementation ─────────────────────────────────────────────────
-⋮----
-export class FirestoreIngestionSourceRepository
-implements IngestionSourceRepository
-⋮----
-async save(_snapshot: IngestionSourceSnapshot): Promise<void>
-⋮----
-// Intentionally no-op: fn is the sole writer for this collection.
-// TypeScript side is read-only.
-⋮----
-async findById(_id: string): Promise<IngestionSourceSnapshot | null>
-⋮----
-// findById requires accountId context; use query() for list operations.
-⋮----
-async findByNotebookId(
-    _notebookId: string,
-): Promise<IngestionSourceSnapshot[]>
-⋮----
-// Notebook → source relationship is managed by the Notebook aggregate.
-⋮----
-async query(
-    params: IngestionSourceQuery,
-): Promise<IngestionSourceSnapshot[]>
-⋮----
-async delete(_id: string): Promise<void>
-⋮----
-// fn manages deletions; TypeScript side does not delete.
 ````
 
 ## File: src/modules/notebooklm/subdomains/source/adapters/outbound/index.ts
@@ -27292,53 +27322,6 @@ interface ChatMessage {
 const handleSubmit = () =>
 ````
 
-## File: src/modules/notebooklm/adapters/inbound/server-actions/source-processing-actions.ts
-````typescript
-/**
- * source-processing-actions — notebooklm source document processing workflow.
- *
- * Composes ProcessSourceDocumentWorkflowUseCase with:
- *   - TaskMaterializationWorkflowAdapter  (ADR: synchronous Server Action bridge)
- *   - Notion CreateKnowledgePagePort       (bridges notion's createPage use case)
- *
- * ADR decisions implemented here:
- *   1. AI extraction → workspace.extract-task-candidates Genkit flow
- *      GenkitTaskCandidateExtractor is instantiated directly here because
- *      this is a "use server" file — it is never included in browser bundles.
- *      firebase-composition.ts retains FirebaseCallableTaskCandidateExtractor
- *      for the shared factory used by client-accessible code paths.
- *   2. Task bridge → synchronous Server Action callback (not QStash event).
- *
- * Architecture note: this server action is the composition root for a
- * cross-module workflow (notebooklm → workspace → notion). It reaches into
- * the workspace and notion composition factories to assemble the use case.
- * The domain layers remain fully isolated; only the adapter layer is composed here.
- */
-⋮----
-import { z } from "zod";
-import { ProcessSourceDocumentWorkflowUseCase } from "../../../orchestration/ProcessSourceDocumentWorkflowUseCase";
-import { TaskMaterializationWorkflowAdapter } from "../../outbound/TaskMaterializationWorkflowAdapter";
-import { GenkitTaskCandidateExtractor } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor";
-import { ExtractTaskCandidatesUseCase, ConfirmCandidatesUseCase } from "@/src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases";
-import { FirestoreTaskFormationJobRepository } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
-import { CreateTaskUseCase } from "@/src/modules/workspace/subdomains/task/application/use-cases/TaskUseCases";
-import { FirestoreTaskRepository } from "@/src/modules/workspace/subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
-import { createFirestoreLikeAdapter } from "@/src/modules/workspace/adapters/outbound/firebase-composition";
-import { createClientNotionPageUseCases } from "@/src/modules/notion/adapters/outbound/firebase-composition";
-⋮----
-// ── Input schema ───────────────────────────────────────────────────────────────
-⋮----
-// ── Action ─────────────────────────────────────────────────────────────────────
-⋮----
-export async function processSourceDocumentAction(rawInput: unknown)
-⋮----
-// ── Wire workspace task formation with Genkit extractor (server-only) ────────
-⋮----
-// ── Wire notion page creation ────────────────────────────────────────────────
-⋮----
-// ── Execute workflow ─────────────────────────────────────────────────────────
-````
-
 ## File: src/modules/notebooklm/index.ts
 ````typescript
 /**
@@ -27357,108 +27340,127 @@ export async function processSourceDocumentAction(rawInput: unknown)
 // orchestration — source processing workflow
 ````
 
-## File: src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts
+## File: src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts
 ````typescript
 /**
- * ProcessSourceDocumentWorkflowUseCase — orchestrates the full source processing flow.
+ * FirestoreIngestionSourceRepository — Firestore adapter for the source subdomain.
  *
- * After a document is uploaded and parsed (by fn), this use case orchestrates
- * the optional downstream steps the user selects in the processing dialog:
- *   1. Parse (already done by fn — this step validates parse status)
- *   2. RAG index (already done by fn — this step validates RAG status)
- *   3. Create Knowledge Page via notion boundary
- *   4. Extract task candidates + hand off via TaskMaterializationWorkflowPort
+ * Reads from accounts/{accountId}/documents/{docId}, which is the same collection
+ * written by the fn pipeline.  TypeScript side is read-only: fn is the sole writer.
  *
- * Guardrails:
- *   - notebooklm does NOT write workspace repositories directly.
- *   - Knowledge Page is the required canonical carrier before task creation.
- *   - Task handoff only via TaskMaterializationWorkflowPort.
- *   - parse failure stops all downstream steps.
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
  */
 ⋮----
-import type { TaskMaterializationWorkflowPort } from "./TaskMaterializationWorkflowPort";
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import type {
+  IngestionSourceSnapshot,
+  SourceStatus,
+} from "../../../domain/entities/IngestionSource";
+import type {
+  IngestionSourceRepository,
+  IngestionSourceQuery,
+} from "../../../domain/repositories/IngestionSourceRepository";
 ⋮----
-// ── Input / output contracts ──────────────────────────────────────────────────
+// ── Firestore record shape written by fn ──────────────────────────────────────
 ⋮----
-export type StepStatus = "skipped" | "success" | "failed";
-⋮----
-export interface ProcessSourceDocumentWorkflowInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly documentId: string;
-  readonly documentTitle: string;
-  readonly parsedTextSummary?: string;
-  readonly shouldCreateRag: boolean;
-  readonly shouldCreatePage: boolean;
-  readonly shouldCreateTasks: boolean;
-  readonly requestedByUserId?: string;
+interface PyFnSourceRecord {
+  id?: string;
+  title?: string;
+  status?: string;
+  account_id?: string;
+  spaceId?: string;
+  source?: {
+    gcs_uri?: string;
+    filename?: string;
+    display_name?: string;
+    original_filename?: string;
+    size_bytes?: number;
+    uploaded_at?: { toDate?: () => Date };
+    mime_type?: string;
+  };
+  parsed?: {
+    layout_json_gcs_uri?: string;
+    form_json_gcs_uri?: string;
+    ocr_json_gcs_uri?: string;
+    genkit_json_gcs_uri?: string;
+    page_count?: number;
+    parsed_at?: { toDate?: () => Date };
+    extraction_ms?: number;
+    layout_chunk_count?: number;
+    form_entity_count?: number;
+    /** Legacy field written by storage trigger before the split. */
+    json_gcs_uri?: string;
+    chunk_count?: number;
+    entity_count?: number;
+  };
+  rag?: {
+    status?: string;
+    chunk_count?: number;
+    vector_count?: number;
+    embedding_model?: string;
+    embedding_dimensions?: number;
+    indexed_at?: { toDate?: () => Date };
+  };
+  error?: {
+    message?: string;
+    timestamp?: { toDate?: () => Date };
+  };
+  metadata?: {
+    filename?: string;
+    display_name?: string;
+    space_id?: string;
+  };
 }
 ⋮----
-export interface ProcessSourceDocumentWorkflowResult {
-  readonly parseStatus: StepStatus;
-  readonly ragStatus: StepStatus;
-  readonly pageStatus: StepStatus;
-  readonly taskStatus: StepStatus;
-  readonly pageHref?: string;
-  readonly workflowHref?: string;
-  readonly taskCount: number;
-  readonly pageCount: number;
-  readonly errors: readonly string[];
-}
+/** Legacy field written by storage trigger before the split. */
 ⋮----
-// ── Create Knowledge Page port (notion boundary) ──────────────────────────────
+// ── Mapping helpers ───────────────────────────────────────────────────────────
 ⋮----
-export interface CreateKnowledgePagePort {
-  createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    sourceDocumentId: string;
-    requestedByUserId?: string;
-  }): Promise<{ ok: boolean; pageId?: string; pageHref?: string; error?: string }>;
-}
+function mapPyFnStatus(
+  docStatus: string | undefined,
+  ragStatus: string | undefined,
+): SourceStatus
 ⋮----
-createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    sourceDocumentId: string;
-    requestedByUserId?: string;
-}): Promise<
+// fn sets status="completed" after a successful parse but before RAG indexing.
 ⋮----
-// ── Use case ──────────────────────────────────────────────────────────────────
+// TS-side initial write uses status="active" (upload done, not yet parsed).
 ⋮----
-export class ProcessSourceDocumentWorkflowUseCase {
+function fromFirestore(
+  raw: PyFnSourceRecord,
+  docId: string,
+): IngestionSourceSnapshot
 ⋮----
-constructor(
+// fn pipeline fields
 ⋮----
-async execute(
-    input: ProcessSourceDocumentWorkflowInput,
-): Promise<ProcessSourceDocumentWorkflowResult>
+// ── Repository implementation ─────────────────────────────────────────────────
 ⋮----
-private async _runPageStep(input: ProcessSourceDocumentWorkflowInput)
+export class FirestoreIngestionSourceRepository
+implements IngestionSourceRepository
 ⋮----
-private async _runTaskStep(
-    input: ProcessSourceDocumentWorkflowInput,
-    parsedText: string,
-    pageId: string,
-)
+async save(_snapshot: IngestionSourceSnapshot): Promise<void>
 ⋮----
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Intentionally no-op: fn is the sole writer for this collection.
+// TypeScript side is read-only.
 ⋮----
-interface ResultArgs {
-  parseStatus: StepStatus;
-  ragStatus: StepStatus;
-  errors: string[];
-  pageStatus?: StepStatus;
-  pageHref?: string;
-  pageCount?: number;
-  taskStatus?: StepStatus;
-  taskCount?: number;
-  workflowHref?: string;
-}
+async findById(_id: string): Promise<IngestionSourceSnapshot | null>
 ⋮----
-function buildResult(args: ResultArgs): ProcessSourceDocumentWorkflowResult
+// findById requires accountId context; use query() for list operations.
+⋮----
+async findByNotebookId(
+    _notebookId: string,
+): Promise<IngestionSourceSnapshot[]>
+⋮----
+// Notebook → source relationship is managed by the Notebook aggregate.
+⋮----
+async query(
+    params: IngestionSourceQuery,
+): Promise<IngestionSourceSnapshot[]>
+⋮----
+async delete(_id: string): Promise<void>
+⋮----
+// fn manages deletions; TypeScript side does not delete.
 ````
 
 ## File: src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts
@@ -31301,6 +31303,55 @@ function handleConfirm()
 function handleReset()
 ````
 
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts
+````typescript
+import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+⋮----
+// ── Flow I/O types (replicated to avoid static z import at module scope) ──────
+⋮----
+interface TaskCandidateItem {
+  title: string;
+  description?: string;
+  dueDate?: string;
+  confidence: number;
+  sourceSnippet?: string;
+}
+⋮----
+interface ExtractFlowOutput {
+  candidates: TaskCandidateItem[];
+}
+⋮----
+// ── Prompt builder ─────────────────────────────────────────────────────────────
+⋮----
+function buildExtractionPrompt(sourceText: string, pageRefs: string): string
+⋮----
+// ── Adapter ────────────────────────────────────────────────────────────────────
+⋮----
+/**
+ * GenkitTaskCandidateExtractor — synchronous Genkit flow implementation of
+ * TaskCandidateExtractorPort.
+ *
+ * Flow name: workspace.extract-task-candidates
+ * Model: DEFAULT_AI_MODEL (gemini-2.5-flash) via shared Genkit singleton.
+ * I/O validated with Zod per @integration-ai/README guardrails.
+ *
+ * ADR: AI extraction → synchronous Genkit flow (option A).
+ *
+ * Dynamic import: genkit is loaded lazily inside `extract()` to keep static
+ * genkit imports out of browser bundles. firebase-composition.ts is transitively
+ * imported by client components; a top-level `import { ai } from genkit` would
+ * pull Node.js-only genkit deps into the browser bundle.
+ *
+ * ESLint: Genkit dynamic import is permitted here — outbound adapter layer.
+ */
+export class GenkitTaskCandidateExtractor implements TaskCandidateExtractorPort {
+⋮----
+async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
+⋮----
+// Dynamic import — keeps Node.js-only genkit deps out of browser bundles.
+````
+
 ## File: docs/structure/system/module-graph.system-wide.md
 ````markdown
 # System-Wide Module Graph
@@ -32175,174 +32226,6 @@ async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate
 // ── Path 2: Simple line-item format ────────────────────────────────────
 ````
 
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts
-````typescript
-import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
-import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
-⋮----
-// ── Flow I/O types (replicated to avoid static z import at module scope) ──────
-⋮----
-interface TaskCandidateItem {
-  title: string;
-  description?: string;
-  dueDate?: string;
-  confidence: number;
-  sourceSnippet?: string;
-}
-⋮----
-interface ExtractFlowOutput {
-  candidates: TaskCandidateItem[];
-}
-⋮----
-// ── Prompt builder ─────────────────────────────────────────────────────────────
-⋮----
-function buildExtractionPrompt(sourceText: string, pageRefs: string): string
-⋮----
-// ── Adapter ────────────────────────────────────────────────────────────────────
-⋮----
-/**
- * GenkitTaskCandidateExtractor — synchronous Genkit flow implementation of
- * TaskCandidateExtractorPort.
- *
- * Flow name: workspace.extract-task-candidates
- * Model: DEFAULT_AI_MODEL (gemini-2.5-flash) via shared Genkit singleton.
- * I/O validated with Zod per @integration-ai/README guardrails.
- *
- * ADR: AI extraction → synchronous Genkit flow (option A).
- *
- * Dynamic import: genkit is loaded lazily inside `extract()` to keep static
- * genkit imports out of browser bundles. firebase-composition.ts is transitively
- * imported by client components; a top-level `import { ai } from genkit` would
- * pull Node.js-only genkit deps into the browser bundle.
- *
- * ESLint: Genkit dynamic import is permitted here — outbound adapter layer.
- */
-export class GenkitTaskCandidateExtractor implements TaskCandidateExtractorPort {
-⋮----
-async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
-⋮----
-// Dynamic import — keeps Node.js-only genkit deps out of browser bundles.
-````
-
-## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — notebooklm module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the notebooklm module.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
-import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
-import {
-  RegisterIngestionSourceUseCase,
-  ArchiveIngestionSourceUseCase,
-  QueryIngestionSourcesUseCase,
-} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
-import {
-  CreateNotebookUseCase,
-  AddDocumentToNotebookUseCase,
-  GenerateNotebookResponseUseCase,
-} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
-import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
-⋮----
-// ── Singleton repositories ────────────────────────────────────────────────────
-⋮----
-function getSourceRepo(): FirestoreIngestionSourceRepository
-⋮----
-function getNotebookRepo(): InMemoryNotebookRepository
-⋮----
-// ── RagQuery generation port bridge ──────────────────────────────────────────
-⋮----
-class RagQueryGenerationPort implements NotebookGenerationPort {
-⋮----
-constructor(
-⋮----
-async generateResponse(input: {
-    prompt: string;
-    notebookId: string;
-    model?: string;
-}): Promise<
-⋮----
-// ── Factory functions ─────────────────────────────────────────────────────────
-⋮----
-export function createClientNotebooklmSourceUseCases()
-⋮----
-export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
-⋮----
-// ── Storage upload helper ─────────────────────────────────────────────────────
-⋮----
-/**
- * Upload a document to a workspace-scoped source path.
- * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
- * Parsing / indexing are triggered manually from the Sources UI.
- */
-export async function uploadDocumentToStorage(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
- * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
- *
- * Accepts both gs://bucket/path and relative paths like workspaces/...
- */
-export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
-⋮----
-// keep firestore & firestoreApi accessible within this composition module
-⋮----
-// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
-⋮----
-/**
- * Convert a relative Storage path to a gs:// URI.
- * Already-absolute gs:// URIs are returned unchanged.
- */
-export function toGcsUri(pathOrUri: string): string
-⋮----
-// ── Client-side Firestore source initialisation ───────────────────────────────
-⋮----
-/**
- * Write an initial source-document record to Firestore so the document appears
- * in the Sources list immediately after upload — even before fn parses it.
- *
- * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
- * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
- * so calling parse later will add parsed.* fields without overwriting these.
- */
-export async function initSourceDocumentInFirestore(params: {
-  docId: string;
-  gcsUri: string;
-  filename: string;
-  sizeBytes: number;
-  mimeType: string;
-  accountId: string;
-  workspaceId: string;
-}): Promise<void>
-⋮----
-// ── Client-side Firestore query helper ───────────────────────────────────────
-⋮----
-/**
- * queryDocuments — query ingestion sources directly from the browser.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.  A Server Action
- * has no active Firebase user session, which causes "Missing or insufficient
- * permissions" even when rules only require `isSignedIn()`.
- */
-export async function queryDocuments(params: {
-  accountId: string;
-  workspaceId?: string;
-})
-````
-
 ## File: src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx
 ````typescript
 /**
@@ -32465,6 +32348,129 @@ actor_id = _extract_auth_uid(req)
 schema = RagReindexRequest.from_raw(req.data or {})
 ⋮----
 result = execute_rag_reindex_command(
+````
+
+## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — notebooklm module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the notebooklm module.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
+import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
+import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
+import {
+  RegisterIngestionSourceUseCase,
+  ArchiveIngestionSourceUseCase,
+  QueryIngestionSourcesUseCase,
+} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
+import {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
+import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
+import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
+⋮----
+// ── Singleton repositories ────────────────────────────────────────────────────
+⋮----
+function getSourceRepo(): FirestoreIngestionSourceRepository
+⋮----
+function getNotebookRepo(): InMemoryNotebookRepository
+⋮----
+// ── RagQuery generation port bridge ──────────────────────────────────────────
+⋮----
+class RagQueryGenerationPort implements NotebookGenerationPort {
+⋮----
+constructor(
+⋮----
+async generateResponse(input: {
+    prompt: string;
+    notebookId: string;
+    model?: string;
+}): Promise<
+⋮----
+// ── Factory functions ─────────────────────────────────────────────────────────
+⋮----
+export function createClientNotebooklmSourceUseCases()
+⋮----
+export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
+⋮----
+// ── Storage upload helper ─────────────────────────────────────────────────────
+⋮----
+/**
+ * Upload a document to a workspace-scoped source path.
+ * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+ * Parsing / indexing are triggered manually from the Sources UI.
+ */
+export async function uploadDocumentToStorage(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
+ * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspaces/...
+ */
+export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
+⋮----
+// keep firestore & firestoreApi accessible within this composition module
+⋮----
+// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
+⋮----
+/**
+ * Convert a relative Storage path to a gs:// URI.
+ * Already-absolute gs:// URIs are returned unchanged.
+ */
+export function toGcsUri(pathOrUri: string): string
+⋮----
+// ── Client-side Firestore source initialisation ───────────────────────────────
+⋮----
+/**
+ * Write an initial source-document record to Firestore so the document appears
+ * in the Sources list immediately after upload — even before fn parses it.
+ *
+ * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
+ * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
+ * so calling parse later will add parsed.* fields without overwriting these.
+ */
+export async function initSourceDocumentInFirestore(params: {
+  docId: string;
+  gcsUri: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string;
+  accountId: string;
+  workspaceId: string;
+}): Promise<void>
+⋮----
+// "active" = upload done, ready to parse.
+// fn's parse_document callable will overwrite with "processing" when it starts,
+// then "completed" when done.
+⋮----
+// ── Client-side Firestore query helper ───────────────────────────────────────
+⋮----
+/**
+ * queryDocuments — query ingestion sources directly from the browser.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.  A Server Action
+ * has no active Firebase user session, which causes "Missing or insufficient
+ * permissions" even when rules only require `isSignedIn()`.
+ */
+export async function queryDocuments(params: {
+  accountId: string;
+  workspaceId?: string;
+})
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
@@ -33111,6 +33117,87 @@ actor_id = _extract_auth_uid(req)
 schema = ParseDocumentRequest.from_raw(req.data or {})
 ````
 
+## File: src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts
+````typescript
+/**
+ * document-actions — notebooklm document server actions.
+ *
+ * Handles document upload (via Firebase Storage) and listing.
+ * Parse / index actions are explicit user-triggered steps.
+ */
+⋮----
+import { z } from "zod";
+import {
+  createClientNotebooklmSourceUseCases,
+} from "../../outbound/firebase-composition";
+import { processSourceDocumentAction } from "./source-processing-actions";
+import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
+import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallableAdapter";
+⋮----
+// ── Firebase HTTPS Callable server-side helper ────────────────────────────────
+// Calling Cloud Functions from a Server Action avoids CORS completely.
+// Functions are deployed in asia-southeast1; project ID comes from env.
+⋮----
+function _toGcsUri(storageUrl: string): string
+⋮----
+async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut>
+⋮----
+// ── Input schemas ─────────────────────────────────────────────────────────────
+⋮----
+/** Which parser to invoke: "layout" | "form" | "ocr" | "genkit". */
+⋮----
+/** GCS URI of the Layout Parser JSON written by fn after Document AI parse. */
+⋮----
+// ── Actions ───────────────────────────────────────────────────────────────────
+⋮----
+// NOTE: queryDocumentsAction was removed.
+// Querying accounts/{accountId}/documents via a Server Action fails with
+// "Missing or insufficient permissions" because the Firebase Web Client SDK
+// has no user auth context on the server.
+// Use queryDocuments() from firebase-composition.ts (client-side helper) instead.
+⋮----
+/**
+ * registerUploadedDocumentAction — register a document snapshot after upload.
+ *
+ * Call this after uploadDocumentToStorage() completes on the client.
+ * This action only records the uploaded source for immediate UI feedback.
+ * Parsing / indexing remain separate manual actions.
+ */
+export async function registerUploadedDocumentAction(rawInput: unknown)
+⋮----
+/**
+ * createPageFromDocumentAction — create a Knowledge Page from a parsed document.
+ *
+ * Delegates to processSourceDocumentAction with shouldCreatePage=true only.
+ * The Knowledge Page title is set to the document name.
+ */
+export async function createPageFromDocumentAction(rawInput: unknown)
+⋮----
+/**
+ * createDatabaseFromDocumentAction — create a Notion Database named after the document.
+ *
+ * Useful as a container for Form Parser-extracted structured fields.
+ */
+export async function createDatabaseFromDocumentAction(rawInput: unknown)
+⋮----
+/**
+ * parseDocumentAction — trigger Document AI parse for a specific document.
+ *
+ * Pass `parser: "layout"` (default) for Layout Parser (text + semantic chunks).
+ * Pass `parser: "form"` for Form Parser (structured entities / KV fields).
+ * Always a pure parse step; RAG indexing is a separate step.
+ */
+export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocumentOutput>
+⋮----
+/**
+ * reindexDocumentAction — trigger RAG reindex from Layout Parser JSON.
+ *
+ * Calls the fn `rag_reindex_document` HTTPS callable function from the server
+ * side to avoid browser CORS restrictions.
+ */
+export async function reindexDocumentAction(rawInput: unknown): Promise<void>
+````
+
 ## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
 ````typescript
 /**
@@ -33163,6 +33250,9 @@ function createPendingSourceSnapshot(input: {
   workspaceId: string;
   accountId: string;
 }): IngestionSourceSnapshot
+⋮----
+// Upload is done; show "已就緒" until a parse callable is explicitly triggered.
+// fn's parse_document callable will set status back to "processing" when it starts.
 ⋮----
 /** MIME types renderable via Google Doc Viewer */
 ⋮----
@@ -33267,85 +33357,4 @@ onClick=
 <Button size="sm" variant="ghost" onClick=
 ⋮----
 src=
-````
-
-## File: src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts
-````typescript
-/**
- * document-actions — notebooklm document server actions.
- *
- * Handles document upload (via Firebase Storage) and listing.
- * Parse / index actions are explicit user-triggered steps.
- */
-⋮----
-import { z } from "zod";
-import {
-  createClientNotebooklmSourceUseCases,
-} from "../../outbound/firebase-composition";
-import { processSourceDocumentAction } from "./source-processing-actions";
-import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
-import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallableAdapter";
-⋮----
-// ── Firebase HTTPS Callable server-side helper ────────────────────────────────
-// Calling Cloud Functions from a Server Action avoids CORS completely.
-// Functions are deployed in asia-southeast1; project ID comes from env.
-⋮----
-function _toGcsUri(storageUrl: string): string
-⋮----
-async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut>
-⋮----
-// ── Input schemas ─────────────────────────────────────────────────────────────
-⋮----
-/** Which parser to invoke: "layout" | "form" | "ocr" | "genkit". */
-⋮----
-/** GCS URI of the Layout Parser JSON written by fn after Document AI parse. */
-⋮----
-// ── Actions ───────────────────────────────────────────────────────────────────
-⋮----
-// NOTE: queryDocumentsAction was removed.
-// Querying accounts/{accountId}/documents via a Server Action fails with
-// "Missing or insufficient permissions" because the Firebase Web Client SDK
-// has no user auth context on the server.
-// Use queryDocuments() from firebase-composition.ts (client-side helper) instead.
-⋮----
-/**
- * registerUploadedDocumentAction — register a document snapshot after upload.
- *
- * Call this after uploadDocumentToStorage() completes on the client.
- * This action only records the uploaded source for immediate UI feedback.
- * Parsing / indexing remain separate manual actions.
- */
-export async function registerUploadedDocumentAction(rawInput: unknown)
-⋮----
-/**
- * createPageFromDocumentAction — create a Knowledge Page from a parsed document.
- *
- * Delegates to processSourceDocumentAction with shouldCreatePage=true only.
- * The Knowledge Page title is set to the document name.
- */
-export async function createPageFromDocumentAction(rawInput: unknown)
-⋮----
-/**
- * createDatabaseFromDocumentAction — create a Notion Database named after the document.
- *
- * Useful as a container for Form Parser-extracted structured fields.
- */
-export async function createDatabaseFromDocumentAction(rawInput: unknown)
-⋮----
-/**
- * parseDocumentAction — trigger Document AI parse for a specific document.
- *
- * Pass `parser: "layout"` (default) for Layout Parser (text + semantic chunks).
- * Pass `parser: "form"` for Form Parser (structured entities / KV fields).
- * Always a pure parse step; RAG indexing is a separate step.
- */
-export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocumentOutput>
-⋮----
-/**
- * reindexDocumentAction — trigger RAG reindex from Layout Parser JSON.
- *
- * Calls the fn `rag_reindex_document` HTTPS callable function from the server
- * side to avoid browser CORS restrictions.
- */
-export async function reindexDocumentAction(rawInput: unknown): Promise<void>
 ````
