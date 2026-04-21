@@ -18,82 +18,11 @@ Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 
 ## File: fn/src/app/container/runtime_dependencies.py
 ````python
-logger = logging.getLogger(__name__)
-⋮----
-class InfraRagQueryGateway
-⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
-⋮----
-def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
-⋮----
-def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
-⋮----
-def to_query_vector(self, query: str) -> list[float]
-⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
-⋮----
-def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
-⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
-⋮----
-class InfraRagIngestionGateway
-⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
-⋮----
-def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any
-⋮----
-def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int
-⋮----
-def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None
-⋮----
-def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
-⋮----
-deleted_vec = _delete_vectors_by_doc(doc_id=doc_id, namespace=namespace)
-deleted_search = _delete_search_documents_by_doc(doc_id=doc_id)
-⋮----
-class InfraDocumentPipelineGateway
-⋮----
-@staticmethod
-    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
-⋮----
-@staticmethod
-    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
-⋮----
-lines = [line.strip() for line in text.splitlines() if line.strip()]
-⋮----
-chunks: list[dict[str, Any]] = []
-⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
-⋮----
-# Genkit-AI parse uses OCR text as the canonical source for scanned PDFs.
-⋮----
-# parser == "layout" (default)
-layout_parsed = process_document_gcs(
-⋮----
-fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
-⋮----
-fallback_parsed = process_document_gcs(
-fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
-# Layout path may return [] when processor yields no semantic chunks.
-fallback_chunks = (
-⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
-⋮----
-def layout_json_path(self, upload_object_path: str) -> str
-⋮----
-def form_json_path(self, upload_object_path: str) -> str
-⋮----
-def ocr_json_path(self, upload_object_path: str) -> str
-⋮----
-def genkit_json_path(self, upload_object_path: str) -> str
-⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
-⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+"""Dependency registration — thin composer wiring gateways into the registry.
+
+Each gateway implementation lives in its own module under
+infrastructure/gateways/ following SRP. This file only wires them.
+"""
 ⋮----
 def register_runtime_dependencies() -> None
 ````
@@ -217,7 +146,11 @@ __all__ = [
 
 ## File: fn/src/application/services/document_pipeline.py
 ````python
-def get_document_pipeline() -> DocumentPipelineGateway
+def get_document_parser() -> DocumentParserGateway
+⋮----
+def get_document_artifact_gateway() -> DocumentArtifactGateway
+⋮----
+def get_document_status_gateway() -> DocumentStatusGateway
 ````
 
 ## File: fn/src/application/use_cases/__init__.py
@@ -225,6 +158,99 @@ def get_document_pipeline() -> DocumentPipelineGateway
 """Application use cases."""
 ⋮----
 __all__ = [
+````
+
+## File: fn/src/application/use_cases/parse_document_pipeline.py
+````python
+"""
+Parse-document application use case.
+
+Orchestrates the full parse pipeline for a single document:
+    init Firestore → Document AI parse → write JSON artifact to GCS
+    → update Firestore state → (optionally) ingest into RAG index.
+
+Both the HTTPS Callable handler and the Storage trigger handler
+delegate to this use case, keeping interface-layer files thin.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+class ParsedDocumentLike(Protocol)
+⋮----
+text: str
+page_count: int
+chunks: list[dict[str, Any]]
+entities: list[dict[str, Any]]
+⋮----
+@dataclass
+class ParseDocumentCommand
+⋮----
+"""Input contract for the parse-document use case."""
+⋮----
+doc_id: str
+gcs_uri: str
+bucket_name: str
+object_path: str
+filename: str
+size_bytes: int
+mime_type: str
+account_id: str
+workspace_id: str
+parser: str = "layout"   # "layout" | "ocr" | "form" | "genkit"
+run_rag: bool = True
+⋮----
+@dataclass
+class ParseDocumentResult
+⋮----
+"""Output contract for the parse-document use case."""
+⋮----
+parser: str
+⋮----
+extraction_ms: int
+json_gcs_uri: str
+rag_chunk_count: int | None = None
+rag_vector_count: int | None = None
+⋮----
+"""Orchestrate the full parse pipeline for a single document.
+
+    Raises:
+        Exception: propagated from DocumentAI / GCS / Firestore calls;
+                   callers are responsible for error recording.
+    """
+parser_gateway = parser_gateway or get_document_parser()
+artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+status_gateway = status_gateway or get_document_status_gateway()
+⋮----
+start_time = time.time()
+parsed = parser_gateway.process_document_gcs(
+extraction_ms = int((time.time() - start_time) * 1000)
+⋮----
+json_gcs_uri = _write_artifact_and_update_state(
+⋮----
+layout_chunks = parsed.chunks if cmd.parser == "layout" else None
+⋮----
+rag = ingest_for_rag(
+⋮----
+rag_chunk_count = rag.chunk_count
+rag_vector_count = rag.vector_count
+⋮----
+"""Write the JSON artifact to GCS and update the Firestore state field.
+
+    Returns the GCS URI of the written artifact.
+    """
+base = {
+⋮----
+json_path = artifact_gateway.layout_json_path(cmd.object_path)
+data = {**base, "text": parsed.text, "chunk_count": len(parsed.chunks), "chunks": parsed.chunks}
+json_gcs_uri = artifact_gateway.upload_json(
+⋮----
+json_path = artifact_gateway.ocr_json_path(cmd.object_path)
+data = {
+⋮----
+json_path = artifact_gateway.form_json_path(cmd.object_path)
+⋮----
+# "genkit"
+json_path = artifact_gateway.genkit_json_path(cmd.object_path)
 ````
 
 ## File: fn/src/application/use_cases/rag_ingestion.py
@@ -420,6 +446,13 @@ RAG_DOC_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_DOC_CACHE_TTL_SECONDS",
 RAG_REDIS_PREFIX: str = os.environ.get("RAG_REDIS_PREFIX", "rag").strip()
 ````
 
+## File: fn/src/core/storage_uri.py
+````python
+def parse_gs_uri(gs_uri: str) -> tuple[str, str]
+⋮----
+path_part = gs_uri.split("gs://", 1)[1]
+````
+
 ## File: fn/src/domain/events/__init__.py
 ````python
 
@@ -467,13 +500,19 @@ def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) 
 ⋮----
 def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int: ...
 ⋮----
-class DocumentPipelineGateway(Protocol)
+class DocumentParserGateway(Protocol)
 ⋮----
 def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any: ...
+⋮----
+class DocumentRateLimitGateway(Protocol)
+⋮----
+class DocumentStatusGateway(Protocol)
 ⋮----
 def record_error(self, doc_id: str, message: str, account_id: str) -> None: ...
 ⋮----
 def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None: ...
+⋮----
+class DocumentArtifactGateway(Protocol)
 ⋮----
 def parsed_json_path(self, upload_object_path: str) -> str: ...
 ⋮----
@@ -489,8 +528,16 @@ def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any
 ⋮----
 def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes: ...
 ⋮----
+class DocumentPipelineGateway(
+⋮----
+"""Backward-compatible composite port built from the split document ports."""
+⋮----
 _rag_query_gateway: RagQueryGateway | None = None
 _rag_ingestion_gateway: RagIngestionGateway | None = None
+_document_parser_gateway: DocumentParserGateway | None = None
+_document_rate_limit_gateway: DocumentRateLimitGateway | None = None
+_document_status_gateway: DocumentStatusGateway | None = None
+_document_artifact_gateway: DocumentArtifactGateway | None = None
 _document_pipeline_gateway: DocumentPipelineGateway | None = None
 ⋮----
 def register_rag_query_gateway(gateway: RagQueryGateway) -> None
@@ -505,9 +552,71 @@ _rag_ingestion_gateway = gateway
 ⋮----
 def get_rag_ingestion_gateway() -> RagIngestionGateway
 ⋮----
+def register_document_parser_gateway(gateway: DocumentParserGateway) -> None
+⋮----
+_document_parser_gateway = gateway
+⋮----
+def get_document_parser_gateway() -> DocumentParserGateway
+⋮----
+def register_document_rate_limit_gateway(gateway: DocumentRateLimitGateway) -> None
+⋮----
+_document_rate_limit_gateway = gateway
+⋮----
+def get_document_rate_limit_gateway() -> DocumentRateLimitGateway
+⋮----
+def register_document_status_gateway(gateway: DocumentStatusGateway) -> None
+⋮----
+_document_status_gateway = gateway
+⋮----
+def get_document_status_gateway() -> DocumentStatusGateway
+⋮----
+def register_document_artifact_gateway(gateway: DocumentArtifactGateway) -> None
+⋮----
+_document_artifact_gateway = gateway
+⋮----
+def get_document_artifact_gateway() -> DocumentArtifactGateway
+⋮----
 def register_document_pipeline_gateway(gateway: DocumentPipelineGateway) -> None
 ⋮----
 _document_pipeline_gateway = gateway
+⋮----
+class _ComposedDocumentPipelineGateway
+⋮----
+"""Legacy compatibility facade over the split document ports."""
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf", parser: str = "layout") -> Any
+⋮----
+def init_document(self, **kwargs: Any) -> None
+⋮----
+def update_parsed(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_layout(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_form(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_ocr(self, **kwargs: Any) -> None
+⋮----
+def update_parsed_genkit(self, **kwargs: Any) -> None
+⋮----
+def mark_rag_ready(self, **kwargs: Any) -> None
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
 ⋮----
 def get_document_pipeline_gateway() -> DocumentPipelineGateway
 ````
@@ -1481,6 +1590,126 @@ candidates = result.get("result") or result.get("matches") or result.get("data")
 
 ````
 
+## File: fn/src/infrastructure/gateways/__init__.py
+````python
+
+````
+
+## File: fn/src/infrastructure/gateways/document_artifact_gateway.py
+````python
+"""Infrastructure implementation of DocumentArtifactGateway."""
+⋮----
+class InfraDocumentArtifactGateway
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+````
+
+## File: fn/src/infrastructure/gateways/document_parser_gateway.py
+````python
+"""Infrastructure implementation of DocumentParserGateway."""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+class InfraDocumentParserGateway
+⋮----
+@staticmethod
+    def _looks_like_empty_layout(parsed: ParsedDocument) -> bool
+⋮----
+@staticmethod
+    def _synthesize_chunks_from_text(text: str) -> list[dict[str, Any]]
+⋮----
+lines = [line.strip() for line in text.splitlines() if line.strip()]
+⋮----
+layout_parsed = process_document_gcs(
+⋮----
+fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
+⋮----
+fallback_parsed = process_document_gcs(
+fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
+fallback_chunks = (
+````
+
+## File: fn/src/infrastructure/gateways/document_rate_limit_gateway.py
+````python
+"""Infrastructure implementation of DocumentRateLimitGateway."""
+⋮----
+class InfraDocumentRateLimitGateway
+````
+
+## File: fn/src/infrastructure/gateways/document_status_gateway.py
+````python
+"""Infrastructure implementation of DocumentStatusGateway."""
+⋮----
+class InfraDocumentStatusGateway
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+````
+
+## File: fn/src/infrastructure/gateways/rag_ingestion_gateway.py
+````python
+"""Infrastructure implementation of RagIngestionGateway.
+
+Handles embedding generation, vector/search upsert, Redis metadata
+writes, and stale-vector cleanup — all delegated to focused clients.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+class InfraRagIngestionGateway
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+⋮----
+def upsert_vectors(self, items: list[dict[str, Any]], namespace: str = "") -> Any
+⋮----
+def upsert_search_documents(self, documents: list[dict[str, Any]]) -> int
+⋮----
+def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None
+⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
+⋮----
+deleted_vec = _delete_vectors_by_doc(doc_id=doc_id, namespace=namespace)
+deleted_search = _delete_search_documents_by_doc(doc_id=doc_id)
+````
+
+## File: fn/src/infrastructure/gateways/rag_query_gateway.py
+````python
+"""Infrastructure implementation of RagQueryGateway.
+
+Aggregates cache, vector/search retrieval, LLM answer generation,
+and audit publication — all delegated to focused infrastructure clients.
+"""
+⋮----
+class InfraRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict[str, Any] | None
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
+````
+
 ## File: fn/src/infrastructure/persistence/firestore/__init__.py
 ````python
 
@@ -1747,50 +1976,6 @@ data = blob.download_as_bytes()
 __all__ = [
 ````
 
-## File: fn/src/interface/handlers/_https_helpers.py
-````python
-"""
-HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
-供 parse_document / rag_query / rag_reindex 共享使用。
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def _extract_auth_uid(req: https_fn.CallableRequest) -> str
-⋮----
-auth = getattr(req, "auth", None)
-⋮----
-uid = str(getattr(auth, "uid", "")).strip()
-⋮----
-token = getattr(auth, "token", None)
-⋮----
-def _assert_account_access(uid: str, account_id: str) -> None
-⋮----
-db = fb_firestore.client()
-snap = db.collection("accounts").document(account_id).get()
-⋮----
-data = snap.to_dict() or {}
-owner_id = str(data.get("ownerId", "")).strip()
-member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
-member_set = {str(item or "").strip() for item in member_ids}
-⋮----
-def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None
-⋮----
-snap = db.collection("workspaces").document(workspace_id).get()
-⋮----
-bound_account_id = str(data.get("accountId", "")).strip()
-⋮----
-def _parse_taxonomy_filters(raw_value: Any) -> list[str]
-⋮----
-def _to_bool(raw_value: Any, default_value: bool) -> bool
-⋮----
-raw = str(raw_value or "").strip().lower()
-⋮----
-def _parse_gs_uri(gs_uri: str) -> tuple[str, str]
-⋮----
-path_part = gs_uri.split("gs://", 1)[1]
-````
-
 ## File: fn/src/interface/handlers/https.py
 ````python
 """
@@ -1805,63 +1990,6 @@ HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
 """
 ⋮----
 __all__ = [
-````
-
-## File: fn/src/interface/handlers/parse_document.py
-````python
-"""
-HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
-
-Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
-before any application-layer call.
-"""
-⋮----
-logger = logging.getLogger(__name__)
-⋮----
-def handle_parse_document(req: https_fn.CallableRequest) -> dict
-⋮----
-"""
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    All external input is validated through ParseDocumentRequest before
-    reaching the application layer (Rule 4).
-    """
-runtime = get_document_pipeline()
-⋮----
-schema = ParseDocumentRequest.from_raw(req.data or {})
-⋮----
-# Derive bucket / object_path from the validated URI.
-path_part = schema.gcs_uri.split("gs://", 1)[1]
-⋮----
-# ── 初始化 Firestore document ───────────────────────────────────────────
-⋮----
-# ── 同步解析 ─────────────────────────────────────────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-json_object_path = runtime.layout_json_path(object_path)
-json_gcs_uri = runtime.upload_json(
-⋮----
-rag = ingest_document_for_rag(
-⋮----
-# OCR Processor — full-page text extraction with dedicated OCR JSON artifact.
-# char-split-v2 chunking is applied since OCR gives no semantic chunks.
-json_object_path = runtime.ocr_json_path(object_path)
-⋮----
-# OCR does not return semantic chunks; `ingest_document_for_rag`
-# will apply char-split-v2 chunking when layout_chunks=None.
-⋮----
-# OCR has no layout chunks → char-split-v2 fallback.
-⋮----
-json_object_path = runtime.form_json_path(object_path)
-⋮----
-else:  # "genkit"
-json_object_path = runtime.genkit_json_path(object_path)
-⋮----
-# OCR-first text baseline for scanned / dense PDFs
-# (e.g. 4510250181-AP8_v0-8150.PDF) before downstream AI workflows.
 ````
 
 ## File: fn/src/interface/handlers/rag_query_handler.py
@@ -1897,7 +2025,8 @@ response = {
 HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
 
 Schema validation (Rule 4) is performed via RagReindexRequest.from_raw()
-before any application-layer call.
+before any application-layer call.  All orchestration is delegated to the
+rag_reindex use case.
 """
 ⋮----
 logger = logging.getLogger(__name__)
@@ -1905,36 +2034,12 @@ logger = logging.getLogger(__name__)
 def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict
 ⋮----
 """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion."""
-runtime = get_document_pipeline()
 ⋮----
 schema = RagReindexRequest.from_raw(req.data or {})
 ⋮----
-json_bytes = runtime.download_bytes(
-parsed_payload: dict = (
+status_gateway = get_document_status_gateway()
 ⋮----
-text = str(parsed_payload.get("text", "")).strip()
-⋮----
-# Enrich from the JSON payload when schema fields were left empty.
-source_gcs_uri = schema.source_gcs_uri or str(
-⋮----
-workspace_id = schema.workspace_id
-⋮----
-workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
-⋮----
-workspace_id = str(
-⋮----
-filename = schema.filename
-⋮----
-filename = (
-⋮----
-page_count = schema.page_count
-⋮----
-page_count = int(parsed_payload.get("page_count", 0) or 0)
-⋮----
-# Read stored layout chunks; passes None when absent (falls back to char-split).
-layout_chunks: list[dict] | None = parsed_payload.get("chunks") or None
-⋮----
-rag = ingest_document_for_rag(
+result = execute_rag_reindex(
 ````
 
 ## File: fn/src/interface/handlers/storage.py
@@ -2000,7 +2105,6 @@ filename = str(candidate or "").strip()
     - 初始化 → Document AI 解析 → 更新 Firestore
     - 異常時記錄至 Firestore。
     """
-runtime = get_document_pipeline()
 data = event.data
 ⋮----
 bucket_name: str = data.bucket
@@ -2015,30 +2119,12 @@ account_id = _extract_account_id(object_path, data.metadata)
 ⋮----
 workspace_id = _extract_workspace_id(data.metadata)
 ⋮----
-# doc_id 由實際儲存物件名稱推導；顯示檔名則優先使用上傳時的 custom metadata。
 storage_filename = os.path.basename(object_path)
 display_filename = _extract_display_filename(object_path, data.metadata)
 ⋮----
 gcs_uri = f"gs://{bucket_name}/{object_path}"
 ⋮----
-# ── Step 1: 初始化 Firestore document ──────────────────────────────────
-⋮----
-# ── Step 2: Document AI 解析（Layout Parser） ─────────────────────────
-start_time = time.time()
-⋮----
-parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type, parser="layout")
-extraction_ms = int((time.time() - start_time) * 1000)
-⋮----
-# ── Step 3: 將解析全文寫回 GCS（files/ 前綴，.layout.json 副檔名）─
-json_object_path = runtime.layout_json_path(object_path)
-json_data = {
-json_gcs_uri = runtime.upload_json(
-⋮----
-# ── Step 4: 更新 Firestore 索引（layout 欄位）──────────────────────
-⋮----
-# ── Step 5/6: RAG ingestion（embed + vector + ready）───────────────
-⋮----
-rag = ingest_document_for_rag(
+status_gateway = get_document_status_gateway()
 ````
 
 ## File: fn/src/interface/schemas/__init__.py
@@ -2245,6 +2331,67 @@ page_count = 0
 ## File: fn/tests/conftest.py
 ````python
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
+````
+
+## File: fn/tests/test_domain_repository_gateways.py
+````python
+class _FakeRagQueryGateway
+⋮----
+def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+⋮----
+def get_query_cache(self, cache_key: str) -> dict | None
+⋮----
+def save_query_cache(self, cache_key: str, payload: dict) -> None
+⋮----
+def to_query_vector(self, query: str) -> list[float]
+⋮----
+def query_vector(self, vector: list[float], top_k: int) -> list[dict]
+⋮----
+def query_search(self, query: str, top_k: int) -> list[dict]
+⋮----
+def generate_answer(self, *, query: str, context_block: str) -> str
+⋮----
+class _FakeRagIngestionGateway
+⋮----
+def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+⋮----
+def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
+⋮----
+def upsert_search_documents(self, documents: list[dict]) -> int
+⋮----
+def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
+⋮----
+def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
+⋮----
+class _FakeDocumentPipelineGateway
+⋮----
+def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
+⋮----
+def record_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+⋮----
+def parsed_json_path(self, upload_object_path: str) -> str
+⋮----
+def layout_json_path(self, upload_object_path: str) -> str
+⋮----
+def form_json_path(self, upload_object_path: str) -> str
+⋮----
+def ocr_json_path(self, upload_object_path: str) -> str
+⋮----
+def genkit_json_path(self, upload_object_path: str) -> str
+⋮----
+def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
+⋮----
+def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+⋮----
+def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
+⋮----
+rag_query_gateway = _FakeRagQueryGateway()
+rag_ingestion_gateway = _FakeRagIngestionGateway()
+document_pipeline_gateway = _FakeDocumentPipelineGateway()
+⋮----
+def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
 ````
 
 ## File: fn/tests/test_input_schemas.py
@@ -2978,63 +3125,142 @@ upstash-search>=0.1.1,<1.0.0
 qstash>=3.0.0,<4.0.0
 ````
 
-## File: fn/tests/test_domain_repository_gateways.py
+## File: fn/src/application/use_cases/rag_reindex.py
 ````python
-class _FakeRagQueryGateway
+"""
+RAG reindex application use case.
+
+Downloads the layout JSON artifact from GCS, enriches missing fields,
+then re-runs the RAG ingestion pipeline and marks the document ready.
+"""
 ⋮----
-def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
+logger = logging.getLogger(__name__)
 ⋮----
-def get_query_cache(self, cache_key: str) -> dict | None
+@dataclass
+class RagReindexCommand
 ⋮----
-def save_query_cache(self, cache_key: str, payload: dict) -> None
+"""Input contract for the rag-reindex use case."""
 ⋮----
-def to_query_vector(self, query: str) -> list[float]
+doc_id: str
+json_gcs_uri: str
+account_id: str
+# Optional fields — enriched from the stored JSON artifact when absent.
+source_gcs_uri: str = ""
+workspace_id: str = ""
+filename: str = ""
+page_count: int = 0
 ⋮----
-def query_vector(self, vector: list[float], top_k: int) -> list[dict]
+@dataclass
+class RagReindexResult
 ⋮----
-def query_search(self, query: str, top_k: int) -> list[dict]
+"""Output contract for the rag-reindex use case."""
 ⋮----
-def generate_answer(self, *, query: str, context_block: str) -> str
+chunk_count: int
+vector_count: int
+raw_chars: int
+normalized_chars: int
+normalization_version: str
+language_hint: str
 ⋮----
-class _FakeRagIngestionGateway
+"""Download the layout JSON, enrich fields, re-ingest into RAG index.
+
+    Raises:
+        ValueError: when required fields are absent from both cmd and the stored JSON.
+        Exception:  propagated from GCS / embedding / vector calls.
+    """
+artifact_gateway = artifact_gateway or get_document_artifact_gateway()
+status_gateway = status_gateway or get_document_status_gateway()
 ⋮----
-def embed_texts(self, texts: list[str], model: str) -> list[list[float]]
+json_bytes = artifact_gateway.download_bytes(
+payload: dict = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
 ⋮----
-def upsert_vectors(self, items: list[dict], namespace: str = "") -> None
+text = str(payload.get("text", "")).strip()
 ⋮----
-def upsert_search_documents(self, documents: list[dict]) -> int
+source_gcs_uri = cmd.source_gcs_uri or str(payload.get("source_gcs_uri", "")).strip()
 ⋮----
-def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None
+workspace_id = cmd.workspace_id
 ⋮----
-def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
+workspace_id = str(payload.get("workspace_id", "")).strip()
 ⋮----
-class _FakeDocumentPipelineGateway
+workspace_id = str((payload.get("metadata") or {}).get("space_id", "")).strip()
 ⋮----
-def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict
+filename = cmd.filename
 ⋮----
-def record_error(self, doc_id: str, message: str, account_id: str) -> None
+filename = (
 ⋮----
-def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
+page_count = cmd.page_count
 ⋮----
-def parsed_json_path(self, upload_object_path: str) -> str
+page_count = int(payload.get("page_count", 0) or 0)
 ⋮----
-def layout_json_path(self, upload_object_path: str) -> str
+layout_chunks: list[dict] | None = payload.get("chunks") or None
 ⋮----
-def form_json_path(self, upload_object_path: str) -> str
+rag = ingest_for_rag(
+````
+
+## File: fn/src/interface/handlers/_https_helpers.py
+````python
+"""
+HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
+供 parse_document / rag_query / rag_reindex 共享使用。
+"""
 ⋮----
-def ocr_json_path(self, upload_object_path: str) -> str
+logger = logging.getLogger(__name__)
 ⋮----
-def genkit_json_path(self, upload_object_path: str) -> str
+def _extract_auth_uid(req: https_fn.CallableRequest) -> str
 ⋮----
-def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str
+auth = getattr(req, "auth", None)
 ⋮----
-def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
+uid = str(getattr(auth, "uid", "")).strip()
 ⋮----
-def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None
+token = getattr(auth, "token", None)
 ⋮----
-rag_query_gateway = _FakeRagQueryGateway()
-rag_ingestion_gateway = _FakeRagIngestionGateway()
-document_pipeline_gateway = _FakeDocumentPipelineGateway()
+def _assert_account_access(uid: str, account_id: str) -> None
 ⋮----
-def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
+db = fb_firestore.client()
+snap = db.collection("accounts").document(account_id).get()
+⋮----
+data = snap.to_dict() or {}
+owner_id = str(data.get("ownerId", "")).strip()
+member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
+member_set = {str(item or "").strip() for item in member_ids}
+⋮----
+def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None
+⋮----
+snap = db.collection("workspaces").document(workspace_id).get()
+⋮----
+bound_account_id = str(data.get("accountId", "")).strip()
+⋮----
+def _parse_taxonomy_filters(raw_value: Any) -> list[str]
+⋮----
+def _to_bool(raw_value: Any, default_value: bool) -> bool
+⋮----
+raw = str(raw_value or "").strip().lower()
+⋮----
+def _parse_gs_uri(gs_uri: str) -> tuple[str, str]
+````
+
+## File: fn/src/interface/handlers/parse_document.py
+````python
+"""
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
+
+Schema validation (Rule 4) is performed via ParseDocumentRequest.from_raw()
+before any application-layer call.  All pipeline orchestration is delegated
+to the parse_document_pipeline use case.
+"""
+⋮----
+logger = logging.getLogger(__name__)
+⋮----
+def handle_parse_document(req: https_fn.CallableRequest) -> dict
+⋮----
+"""
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    All external input is validated through ParseDocumentRequest before
+    reaching the application layer (Rule 4).
+    """
+⋮----
+schema = ParseDocumentRequest.from_raw(req.data or {})
+⋮----
+status_gateway = get_document_status_gateway()
 ````
