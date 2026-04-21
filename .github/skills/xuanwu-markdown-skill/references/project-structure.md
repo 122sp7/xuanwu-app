@@ -128,7 +128,7 @@ docs/
       genkit-flow-standards.md (229 lines)
     nextjs/
       state-machine-model.md (186 lines)
-    commands-reference.md (54 lines)
+    commands-reference.md (57 lines)
     knowledge-base-reference.md (41 lines)
   AGENTS.md (39 lines)
   README.md (156 lines)
@@ -140,12 +140,18 @@ packages/
     client-state/
       AGENTS.md (33 lines)
       README.md (19 lines)
+    date/
+      AGENTS.md (37 lines)
+      README.md (38 lines)
     form/
       AGENTS.md (59 lines)
       README.md (101 lines)
     http/
       AGENTS.md (34 lines)
       README.md (38 lines)
+    query/
+      AGENTS.md (37 lines)
+      README.md (40 lines)
     serialization/
       AGENTS.md (33 lines)
       README.md (20 lines)
@@ -167,7 +173,8 @@ packages/
     zod/
       AGENTS.md (34 lines)
       README.md (57 lines)
-    AGENTS.md (47 lines)
+    AGENTS.md (55 lines)
+    README.md (33 lines)
   integration-ai/
     AGENTS.md (45 lines)
     README.md (69 lines)
@@ -198,8 +205,8 @@ packages/
   ui-visualization/
     AGENTS.md (35 lines)
     README.md (87 lines)
-  AGENTS.md (107 lines)
-  README.md (137 lines)
+  AGENTS.md (115 lines)
+  README.md (141 lines)
 src/
   app/
     AGENTS.md (23 lines)

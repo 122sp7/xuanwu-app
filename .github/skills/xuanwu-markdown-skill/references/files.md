@@ -1,82 +1,5 @@
 # Files
 
-## File: docs/decisions/architecture/0004-occam-gap-triage-baseline-focus.md
-````markdown
-# ADR 0004 — Occam 缺口分流與基線聚焦
-
-## Status
-
-Accepted
-
-## Date
-
-2026-04-20
-
-## Context
-
-目前 `src/modules/*/subdomains/` 與 `docs/structure/domain/subdomains.md` baseline 仍有明顯落差。現況（2026-04-20）目錄快照：
-
-- notion: `block`, `collaboration`, `database`, `page`, `template`, `view`
-- notebooklm: `conversation`, `document`, `notebook`
-- ai: `chunk`, `citation`, `context`, `embedding`, `evaluation`, `generation`, `memory`, `pipeline`, `retrieval`, `tool-calling`
-- platform: `background-job`, `cache`, `file-storage`, `notification`, `platform-config`, `search`
-- billing: `entitlement`, `subscription`, `usage-metering`
-- analytics: `event-contracts`, `event-ingestion`, `event-projection`, `experimentation`, `insights`, `metrics`, `realtime-insights`
-- iam: `access-control`, `account`, `authentication`, `authorization`, `federation`, `identity`, `organization`, `security-policy`, `session`, `tenant`
-- workspace: `activity`, `api-key`, `approval`, `audit`, `feed`, `invitation`, `issue`, `lifecycle`, `membership`, `orchestration`, `quality`, `resource`, `schedule`, `settlement`, `share`, `task`, `task-formation`
-
-若直接補齊全部缺口，會產生大量空骨架與命名搬移，違反最小必要設計（Occam / YAGNI）。
-
-## Decision
-
-### 一定要做（Must-Do Baseline）
-
-以下缺口屬於「語言衝突」或「核心能力缺失」，不做會持續破壞主域邊界：
-
-| 優先級 | 主域 | 必做基線 |
-|---|---|---|
-| P0 | notebooklm | `document` → `source` 命名修正，避免與 notion 內容語言衝突 |
-| P0 | notebooklm | 建立 `synthesis` 子域，承接 RAG 合成/摘要/洞察正典責任 |
-| P0 | notion | 建立 `knowledge` 正典容器，讓 `page/block` 回到實作細節而非子域語言 |
-| P1 | ai | 建立 `safety` 子域，補上所有 AI 輸出路徑的安全護欄 |
-| P1 | platform | 建立 `audit-log` 與 `feature-flag` 子域，補齊治理與發佈控制基線 |
-
-### 現階段不重要（Defer / Not-Now）
-
-以下缺口視為可延後，不作為本輪必交：
-
-| 類別 | 主域 | 延後項目 | 理由 |
-|---|---|---|---|
-| Gap subdomain | workspace | `presence` | 無即時協作需求時屬預建風險 |
-| Gap subdomain | iam | `consent`, `secret-governance` | 尚未出現直接需求壓力 |
-| Gap subdomain | billing | `pricing`, `invoice`, `quota-policy` | 與當前核心流程無直接阻斷 |
-| 命名對齊 | analytics | `insights` ↔ `reporting`, `dashboards` | 可先 ADR 對齊語言，後續再落實目錄 |
-| 延伸能力 | platform | `support`, `content`, `workflow` 細分 | 非當前治理阻斷點 |
-
-### 禁止事項（Occam Guardrail）
-
-1. 不一次建立所有缺口子域空目錄。
-2. 不在未有實際 use case 前預建抽象層。
-3. 不把 naming fix 與大規模功能重寫綁在同一批變更。
-
-## Consequences
-
-**正面：** 先修掉最破壞邊界的缺口，快速恢復語言一致性與核心治理能力。  
-**負面：** 仍保留部分 gap subdomain 未建立，需要持續追蹤。  
-**中性：** 延後項目必須以「觸發條件」驅動，不再以目錄數量作為進度指標。
-
-## References
-
-- `docs/structure/domain/subdomains.md`
-- `docs/decisions/architecture/0001-ddd-subdomain-boundary-governance.md`
-- `docs/decisions/domain/0001-notebooklm-document-to-source-rename.md`
-- `docs/decisions/domain/0002-notion-subdomain-expansion.md`
-- `docs/decisions/domain/0003-notebooklm-synthesis-subdomain.md`
-- `docs/decisions/platform/0001-platform-audit-log-vs-workspace-audit.md`
-- `docs/decisions/platform/0002-feature-flag-subdomain.md`
-- `docs/decisions/ai/0002-ai-safety-subdomain.md`
-````
-
 ## File: docs/decisions/ai/0001-ai-chunk-embedding-pipeline-ownership.md
 ````markdown
 # ADR 0001 — ai module chunk/embedding/pipeline 子域歸屬
@@ -854,6 +777,83 @@ const { workspace } = useWorkspaceContext(); // 在 notion/ components 裡
 - `.github/instructions/architecture-core.instructions.md` — index.ts 公開入口規則
 - `eslint.config.mjs` — no-restricted-imports 現有配置
 - `src/modules/<context>/index.ts` — 待審查文件
+````
+
+## File: docs/decisions/architecture/0004-occam-gap-triage-baseline-focus.md
+````markdown
+# ADR 0004 — Occam 缺口分流與基線聚焦
+
+## Status
+
+Accepted
+
+## Date
+
+2026-04-20
+
+## Context
+
+目前 `src/modules/*/subdomains/` 與 `docs/structure/domain/subdomains.md` baseline 仍有明顯落差。現況（2026-04-20）目錄快照：
+
+- notion: `block`, `collaboration`, `database`, `page`, `template`, `view`
+- notebooklm: `conversation`, `document`, `notebook`
+- ai: `chunk`, `citation`, `context`, `embedding`, `evaluation`, `generation`, `memory`, `pipeline`, `retrieval`, `tool-calling`
+- platform: `background-job`, `cache`, `file-storage`, `notification`, `platform-config`, `search`
+- billing: `entitlement`, `subscription`, `usage-metering`
+- analytics: `event-contracts`, `event-ingestion`, `event-projection`, `experimentation`, `insights`, `metrics`, `realtime-insights`
+- iam: `access-control`, `account`, `authentication`, `authorization`, `federation`, `identity`, `organization`, `security-policy`, `session`, `tenant`
+- workspace: `activity`, `api-key`, `approval`, `audit`, `feed`, `invitation`, `issue`, `lifecycle`, `membership`, `orchestration`, `quality`, `resource`, `schedule`, `settlement`, `share`, `task`, `task-formation`
+
+若直接補齊全部缺口，會產生大量空骨架與命名搬移，違反最小必要設計（Occam / YAGNI）。
+
+## Decision
+
+### 一定要做（Must-Do Baseline）
+
+以下缺口屬於「語言衝突」或「核心能力缺失」，不做會持續破壞主域邊界：
+
+| 優先級 | 主域 | 必做基線 |
+|---|---|---|
+| P0 | notebooklm | `document` → `source` 命名修正，避免與 notion 內容語言衝突 |
+| P0 | notebooklm | 建立 `synthesis` 子域，承接 RAG 合成/摘要/洞察正典責任 |
+| P0 | notion | 建立 `knowledge` 正典容器，讓 `page/block` 回到實作細節而非子域語言 |
+| P1 | ai | 建立 `safety` 子域，補上所有 AI 輸出路徑的安全護欄 |
+| P1 | platform | 建立 `audit-log` 與 `feature-flag` 子域，補齊治理與發佈控制基線 |
+
+### 現階段不重要（Defer / Not-Now）
+
+以下缺口視為可延後，不作為本輪必交：
+
+| 類別 | 主域 | 延後項目 | 理由 |
+|---|---|---|---|
+| Gap subdomain | workspace | `presence` | 無即時協作需求時屬預建風險 |
+| Gap subdomain | iam | `consent`, `secret-governance` | 尚未出現直接需求壓力 |
+| Gap subdomain | billing | `pricing`, `invoice`, `quota-policy` | 與當前核心流程無直接阻斷 |
+| 命名對齊 | analytics | `insights` ↔ `reporting`, `dashboards` | 可先 ADR 對齊語言，後續再落實目錄 |
+| 延伸能力 | platform | `support`, `content`, `workflow` 細分 | 非當前治理阻斷點 |
+
+### 禁止事項（Occam Guardrail）
+
+1. 不一次建立所有缺口子域空目錄。
+2. 不在未有實際 use case 前預建抽象層。
+3. 不把 naming fix 與大規模功能重寫綁在同一批變更。
+
+## Consequences
+
+**正面：** 先修掉最破壞邊界的缺口，快速恢復語言一致性與核心治理能力。  
+**負面：** 仍保留部分 gap subdomain 未建立，需要持續追蹤。  
+**中性：** 延後項目必須以「觸發條件」驅動，不再以目錄數量作為進度指標。
+
+## References
+
+- `docs/structure/domain/subdomains.md`
+- `docs/decisions/architecture/0001-ddd-subdomain-boundary-governance.md`
+- `docs/decisions/domain/0001-notebooklm-document-to-source-rename.md`
+- `docs/decisions/domain/0002-notion-subdomain-expansion.md`
+- `docs/decisions/domain/0003-notebooklm-synthesis-subdomain.md`
+- `docs/decisions/platform/0001-platform-audit-log-vs-workspace-audit.md`
+- `docs/decisions/platform/0002-feature-flag-subdomain.md`
+- `docs/decisions/ai/0002-ai-safety-subdomain.md`
 ````
 
 ## File: docs/decisions/data/0001-firestore-subdomain-collection-boundaries.md
@@ -9946,64 +9946,6 @@ useEffect(() => { setWorkspaceInStore(data); }, [data]);
 - [`../.github/instructions/event-driven-state.instructions.md`](../../../.github/instructions/event-driven-state.instructions.md)
 ````
 
-## File: docs/tooling/commands-reference.md
-````markdown
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- `npm run test` — Run Vitest unit tests
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Python test dependencies: `python -m pip install -r fn/requirements-dev.txt`
-- Firebase CLI: `npx firebase` (no global install required)
-````
-
 ## File: docs/tooling/knowledge-base-reference.md
 ````markdown
 # Knowledge Base — Implementation Navigation
@@ -11731,57 +11673,6 @@ export type WorkspaceId = typeof WorkspaceIdSchema._type
 - `z.object().passthrough()` 禁止用於生產資料路徑。
 ````
 
-## File: packages/infra/AGENTS.md
-````markdown
-# infra — Agent Rules
-
-此目錄是 **本地基礎設施原語（infra primitives）** 的唯一存放層。
-所有套件均**無外部服務依賴**，離線可用，不需要憑證。
-
----
-
-## 子套件一覽
-
-| 子套件 | alias | 職責 |
-|---|---|---|
-| `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務 atom / slice） |
-| `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
-| `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
-| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
-| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider |
-| `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一 id 來源） |
-| `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
-
----
-
-## 核心規則
-
-- 所有 `infra/*` 套件**不得依賴任何外部服務**（Firebase、Google AI、QStash…）
-- 不得 import `src/modules/*` 的任何路徑
-- 每個子套件的 `index.ts` 是唯一公開入口
-- 新增套件前，先確認它是「本地原語」而非「外部服務整合」
-
-## 公開入口檢查
-
-- `infra/client-state/index.ts`
-- `infra/http/index.ts`
-- `infra/serialization/index.ts`
-- `infra/state/index.ts`
-- `infra/trpc/index.ts`
-- `infra/uuid/index.ts`
-- `infra/zod/index.ts`
-
-若新增或刪除 `infra/*` 子套件，需同步更新 `packages/index.ts` 的具名匯出。
-
-## Route Elsewhere
-
-| 類型 | 正確位置 |
-|---|---|
-| 需要 credentials / 網路 / 第三方帳號 | `packages/integration-*` |
-| 業務邏輯 | `src/modules/<context>/domain/` 或 `application/` |
-| UI 元件 | `packages/ui-*` |
-````
-
 ## File: packages/integration-ai/AGENTS.md
 ````markdown
 # integration-ai — Agent Rules
@@ -13157,258 +13048,6 @@ import { XuanwuLineChart, XuanwuBarChart, XuanwuPieChart } from '@ui-visualizati
 
 - 文件：`/recharts/recharts`
 - `ResponsiveContainer` + percentage 寬高為標準響應式模式。
-````
-
-## File: packages/AGENTS.md
-````markdown
-# packages — Agent Rules
-
-此目錄是所有 **外部 SDK 與共享能力的唯一封裝層**。修改或新增任何套件前，先確認責任歸屬。
-
----
-
-## Route Here（放這裡）
-
-### 🧱 infra/* — 基礎設施原語層
-
-| 類型 | 正確套件 |
-|---|---|
-| client-side 狀態原語（非業務） | `infra/client-state/` → `@infra/client-state` |
-| HTTP 工具（fetch wrapper、retry） | `infra/http/` → `@infra/http` |
-| 序列化 / 反序列化工具 | `infra/serialization/` → `@infra/serialization` |
-| 本地狀態管理原語（Zustand store factory、XState machine helpers） | `infra/state/` → `@infra/state` |
-| tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） | `infra/trpc/` → `@infra/trpc` |
-| UUID 生成（domain 層 id 的唯一來源） | `infra/uuid/` → `@infra/uuid` |
-| Zod 共用 schema 片段、brand helper | `infra/zod/` → `@infra/zod` |
-
-### 🔌 integration-* — 外部服務整合層
-
-| 類型 | 正確套件 |
-|---|---|
-| AI 服務整合（Genkit 封裝、Google AI、OpenAI） | `integration-ai/` → `@integration-ai` |
-| Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） | `integration-firebase/` → `@integration-firebase` |
-| 訊息佇列整合（QStash、Cloud Tasks） | `integration-queue/` → `@integration-queue` |
-
-### 🎨 ui-* — UI 元件層
-
-| 類型 | 正確套件 |
-|---|---|
-| 業務無關自訂 UI 元件（wrap、design-system 擴充） | `ui-components/` → `@ui-components` |
-| 富文本編輯器（TipTap 封裝） | `ui-editor/` → `@ui-editor` |
-| Markdown 渲染元件 | `ui-markdown/` → `@ui-markdown` |
-| 官方 shadcn/ui 組件（`npx shadcn add`） | `ui-shadcn/` → `@ui-shadcn`（CLI 管理，禁止手動修改） |
-| 數據視覺化元件（圖表、圖形） | `ui-visualization/` → `@ui-visualization` |
-
-## Route Elsewhere（不放這裡）
-
-| 類型 | 正確位置 |
-|---|---|
-| 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
-| Repository 實作 | `src/modules/<context>/adapters/outbound/` |
-| 頁面組合與路由 | `src/app/` |
-| 模組業務 UI pattern | `src/modules/<context>/interfaces/` |
-
----
-
-## 嚴禁
-
-```ts
-// ❌ 在任何 packages/ 套件中 import modules
-import { something } from '@/modules/...'
-
-// ❌ 在 src/modules/ 直接 import 第三方 library
-import { getFirestore } from 'firebase/firestore'
-
-// ❌ 直接修改 ui-shadcn/ui/ 的官方組件
-// ui/button.tsx ← 禁止手動編輯
-
-// ✅ 自訂組件放 ui-custom/
-// ui-custom/AppButton.tsx ← 正確位置
-```
-
-- 不得在套件層加入業務判斷邏輯
-- 每個套件的 `index.ts` 是唯一公開入口
-- 不得洩漏第三方 SDK 型別至消費端（能 wrap 就 wrap）
-
-## 公開匯出規則
-
-- 所有子套件需維持各自 `index.ts` 作為公開入口
-- `packages/index.ts` 必須具名匯出所有套件（`infra-*`、`integration-*`、`ui-*`）
-- 新增套件時，需同步更新本檔、`packages/README.md`、`packages/index.ts`
-
-## Context7 文件對齊規則
-
-- 涉及下列套件時，先以 Context7 查核官方文件再實作：`infra/state`、`infra/trpc`、`infra/uuid`、`infra/zod`、`integration-ai`、`integration-firebase`、`integration-queue`、`ui-markdown`、`ui-shadcn`。
-- 基線文件清單與實作準則以 `packages/README.md` 的「Context7 官方文件基線（repomix:packages）」為準。
-- 若升級相依版本造成 API 差異，需先更新基線文件再改程式碼。
-
----
-
-## 每個套件都有自己的 AGENTS.md
-
-進入任何套件子目錄前，先讀該目錄的 `AGENTS.md`：
-
-**infra/***
-- [infra/client-state/AGENTS.md](./infra/client-state/AGENTS.md)
-- [infra/http/AGENTS.md](./infra/http/AGENTS.md)
-- [infra/serialization/AGENTS.md](./infra/serialization/AGENTS.md)
-- [infra/state/AGENTS.md](./infra/state/AGENTS.md)
-- [infra/trpc/AGENTS.md](./infra/trpc/AGENTS.md)
-- [infra/uuid/AGENTS.md](./infra/uuid/AGENTS.md)
-- [infra/zod/AGENTS.md](./infra/zod/AGENTS.md)
-
-**integration-***
-- [integration-ai/AGENTS.md](./integration-ai/AGENTS.md)
-- [integration-firebase/AGENTS.md](./integration-firebase/AGENTS.md)
-- [integration-queue/AGENTS.md](./integration-queue/AGENTS.md)
-
-**ui-***
-- [ui-components/AGENTS.md](./ui-components/AGENTS.md)
-- [ui-editor/AGENTS.md](./ui-editor/AGENTS.md)
-- [ui-markdown/AGENTS.md](./ui-markdown/AGENTS.md)
-- [ui-shadcn/AGENTS.md](./ui-shadcn/AGENTS.md)
-- [ui-visualization/AGENTS.md](./ui-visualization/AGENTS.md)
-````
-
-## File: packages/README.md
-````markdown
-# Packages Layer
-
-此目錄是所有**共享平台能力**的唯一存放層。`src/modules/` 與 `src/app/` 不得直接依賴第三方 library，必須透過此層的套件存取外部能力。
-
----
-
-## 層次位置
-
-```
-src/app / src/modules  →  packages  →  third-party libraries
-```
-
-規則：
-- `src/modules/` 不得直接 import 第三方 library
-- `src/modules/` 只能 import `packages/` 提供的套件
-- `packages/` 是唯一允許直接依賴外部 library 的層
-
----
-
-## 現有套件清單
-
-套件分三層：**基礎設施原語**（`infra/*`）、**外部服務整合**（`integration-*`）、**UI 元件**（`ui-*`）。
-
----
-
-### 🧱 infra/* — 基礎設施原語層 (`@infra/*`)
-
-純功能原語，**無外部服務依賴**，離線可用，不需要憑證。
-
-| 套件 | alias | 職責 |
-|---|---|---|
-| `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務的 atom / slice） |
-| `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
-| `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
-| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
-| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） |
-| `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一允許的 id 生成入口） |
-| `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
-
----
-
-### 🔌 integration-* — 外部服務整合層 (`@integration-*`)
-
-連接**外部服務**，需要憑證、網路呼叫、第三方帳號。封裝 SDK，標準化 API 介面，normalize 錯誤與型別。
-
-| 套件 | alias | 封裝目標 |
-|---|---|---|
-| `integration-ai` | `@integration-ai` | AI 服務整合（Genkit 封裝、Google AI、OpenAI） |
-| `integration-firebase` | `@integration-firebase` | Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） |
-| `integration-queue` | `@integration-queue` | 訊息佇列整合（QStash、Cloud Tasks） |
-
----
-
-### 🎨 ui-* — UI 元件層 (`@ui-*`)
-
-共享 UI 元件與設計系統；無業務邏輯。
-
-| 套件 | alias | 說明 |
-|---|---|---|
-| `ui-components` | `@ui-components` | 業務無關的自訂 UI 元件（wrap、design-system 擴充） |
-| `ui-editor` | `@ui-editor` | 富文本編輯器（TipTap 封裝） |
-| `ui-markdown` | `@ui-markdown` | Markdown 渲染元件 |
-| `ui-shadcn` | `@ui-shadcn` | 官方 shadcn/ui 組件（CLI 管理，禁止手動修改） |
-| `ui-visualization` | `@ui-visualization` | 數據視覺化元件（圖表、圖形） |
-
-> **自訂 UI 組件唯一存放位置**：`packages/ui-components/`  
-> 任何對官方組件的 wrap、設計系統擴充、業務語意層一律放入 `ui-components/`，不放在 `src/modules/` 或 `src/app/`。
-
----
-
-## 硬性規則
-
-### 1. modules 不得直接使用第三方 library
-
-```ts
-// ❌ 錯誤：在 modules 直接 import uuid
-import { v4 as uuidv4 } from 'uuid'
-
-// ✅ 正確：透過 packages 套件
-import { generateId } from '@infra/uuid'
-```
-
-### 2. 每個套件必須有穩定公開介面
-
-- `index.ts` 是唯一公開入口
-- 隱藏實作細節，不洩漏 SDK 型別
-- 不洩漏第三方 API 至消費端
-
-### 3. 不得加入業務邏輯
-
-套件不得：
-- 包含 domain rule 或 use case 邏輯
-- 直接 import `src/modules/*`
-- 對特定功能或模組有感知
-
-### 4. packages/index.ts 必須維持具名匯出
-
-`packages/index.ts` 是 packages 層總入口，必須具名匯出以下三類套件：
-- `infra*`（基礎設施原語）
-- `integration*`（外部服務整合）
-- `ui*`（共享 UI 套件）
-
-新增/刪除套件時需同步更新 `packages/index.ts`。
-
----
-
-## 判斷原則
-
-| 問題 | 結果 |
-|---|---|
-| 可跨多個 modules 重用，且無業務語意？無外部服務依賴，離線可用？ | → 放 `packages/infra/*/` |
-| 是第三方 SDK 封裝或外部系統整合？需要憑證 / 網路 / 第三方帳號？ | → 放 `packages/integration-*/` |
-| 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
-| 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
-| 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
-
----
-
-## Context7 官方文件基線（repomix:packages）
-
-以下為 packages 層「各包」在實作與維護時需對齊的官方文件基線（已透過 Context7 查核）。
-
-| 套件 | Context7 文件 | 實作基線 |
-|---|---|---|
-| `infra/state` | `/pmndrs/zustand`、`/statelyai/xstate` | Zustand：`create`（React hook factory，canonical）+ `createStore`（vanilla）+ `StateCreator`（slice 組合）；XState：`createMachine` + `createActor` + `setup`（型別推導），不在 machine 放 I/O 業務規則。 |
-| `infra/trpc` | `/trpc/trpc` | 優先使用 v11 `createTRPCClient`；link 組合以 `httpBatchLink` + `splitLink` 為主。`createTRPCProxyClient` 為相容 alias。 |
-| `infra/uuid` | `/uuidjs/uuid` | 以 `v4` 產生 ID，驗證時使用 `validate()`（必要時加 `version()===4`）。 |
-| `infra/zod` | `/colinhacks/zod` | boundary 驗證採 `zodParseOrThrow`（拋出型）或 `zodSafeParse`（不拋出型）；錯誤統一回傳 `ZodError.issues` 結構；`createBrandedUuidSchema` 用於 domain value object。 |
-| `integration-ai` | `/websites/genkit_dev_js` | flow/tool 必須有 Zod schema（inputSchema + outputSchema）；Genkit singleton 在 `genkit.ts` 初始化；避免回傳未驗證的模型結果；只在 `infrastructure/ai/` 使用。 |
-| `integration-firebase` | `/firebase/firebase-js-sdk` | 採 modular API；App 初始化維持 singleton（`getApps/getApp/initializeApp`）。 |
-| `integration-queue` | `/websites/upstash_qstash` | `createQStashClient` 以 HTTP API 發布（無 npm 依賴）；佇列發布需支援 retry、delay、callback/failureCallback；token 來自 env var。 |
-| `ui-markdown` | `/remarkjs/react-markdown`、`/remarkjs/remark-gfm` | 預設維持安全渲染（不開 raw HTML）；GFM 功能透過 `remark-gfm` 啟用。 |
-| `ui-editor` | `/ueberdosis/tiptap-docs` | TipTap 3 `useEditor` + `EditorContent`；`immediatelyRender: false` 避免 Next.js SSR hydration mismatch；HTML string 為 I/O 格式。 |
-| `ui-shadcn` | `/shadcn-ui/ui` | 元件來源透過 `npx shadcn@latest add`；官方檔案不手改，以 wrapper 擴充。 |
-| `ui-visualization` | `/recharts/recharts` | `ResponsiveContainer` + percentage 寬高為標準響應式模式；`XuanwuLineChart`、`XuanwuBarChart`、`XuanwuPieChart` 為封裝入口。 |
-
-> `infra/client-state`、`infra/http`、`infra/serialization`、`ui-components` 目前未綁定單一第三方 SDK 官方文件，維持本專案既有封裝規則即可。
 ````
 
 ## File: src/app/AGENTS.md
@@ -15663,4 +15302,593 @@ cp -r src/modules/template src/modules/<your-context>
 - `src/modules/` — 所有主域模組實作層（Hexagonal Architecture + DDD）
 
 詳見 [AGENTS.md](./AGENTS.md) 與 [src/modules/README.md](./modules/README.md)。
+````
+
+## File: docs/tooling/commands-reference.md
+````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run lint:markdown` — Run repo-wide Markdown linting (`.markdownlint-cli2.jsonc`)
+- `npm run test` — Run Vitest unit tests
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:fn` — Deploy the `fn` Cloud Functions target
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:markdown` — Generate the markdown-only skill (`xuanwu-markdown-skill`)
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `.markdownlint-cli2.jsonc` | Repo-wide Markdown lint configuration |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r fn/requirements-dev.txt`
+- Firebase CLI: `npx firebase` (no global install required)
+````
+
+## File: packages/infra/AGENTS.md
+````markdown
+# infra — Agent Rules
+
+此目錄是 **本地基礎設施原語（infra primitives）** 的唯一存放層。
+所有套件均**無外部服務依賴**，離線可用，不需要憑證。
+
+---
+
+## 子套件一覽
+
+| 子套件 | alias | 職責 |
+|---|---|---|
+| `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務 atom / slice） |
+| `infra/date` | `@infra/date` | 日期解析、格式化、比較與區間工具 |
+| `infra/form` | `@infra/form` | headless 表單狀態管理原語 |
+| `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
+| `infra/query` | `@infra/query` | TanStack Query server-state 原語 |
+| `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
+| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
+| `infra/table` | `@infra/table` | TanStack Table headless 表格原語 |
+| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider |
+| `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一 id 來源） |
+| `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
+
+---
+
+## 核心規則
+
+- 所有 `infra/*` 套件**不得依賴任何外部服務**（Firebase、Google AI、QStash…）
+- 不得 import `src/modules/*` 的任何路徑
+- 每個子套件的 `index.ts` 是唯一公開入口
+- 新增套件前，先確認它是「本地原語」而非「外部服務整合」
+
+## 公開入口檢查
+
+- `infra/client-state/index.ts`
+- `infra/date/index.ts`
+- `infra/form/index.ts`
+- `infra/http/index.ts`
+- `infra/query/index.ts`
+- `infra/serialization/index.ts`
+- `infra/state/index.ts`
+- `infra/table/index.ts`
+- `infra/trpc/index.ts`
+- `infra/uuid/index.ts`
+- `infra/zod/index.ts`
+
+若新增或刪除 `infra/*` 子套件，需同步更新 `packages/index.ts` 的具名匯出。
+
+## Route Elsewhere
+
+| 類型 | 正確位置 |
+|---|---|
+| 需要 credentials / 網路 / 第三方帳號 | `packages/integration-*` |
+| 業務邏輯 | `src/modules/<context>/domain/` 或 `application/` |
+| UI 元件 | `packages/ui-*` |
+````
+
+## File: packages/AGENTS.md
+````markdown
+# packages — Agent Rules
+
+此目錄是所有 **外部 SDK 與共享能力的唯一封裝層**。修改或新增任何套件前，先確認責任歸屬。
+
+---
+
+## Route Here（放這裡）
+
+### 🧱 infra/* — 基礎設施原語層
+
+| 類型 | 正確套件 |
+|---|---|
+| client-side 狀態原語（非業務） | `infra/client-state/` → `@infra/client-state` |
+| 日期解析、格式化與比較 | `infra/date/` → `@infra/date` |
+| headless 表單狀態管理 | `infra/form/` → `@infra/form` |
+| HTTP 工具（fetch wrapper、retry） | `infra/http/` → `@infra/http` |
+| Server-state query / mutation 原語 | `infra/query/` → `@infra/query` |
+| 序列化 / 反序列化工具 | `infra/serialization/` → `@infra/serialization` |
+| 本地狀態管理原語（Zustand store factory、XState machine helpers） | `infra/state/` → `@infra/state` |
+| Headless 表格狀態管理 | `infra/table/` → `@infra/table` |
+| tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） | `infra/trpc/` → `@infra/trpc` |
+| UUID 生成（domain 層 id 的唯一來源） | `infra/uuid/` → `@infra/uuid` |
+| Zod 共用 schema 片段、brand helper | `infra/zod/` → `@infra/zod` |
+
+### 🔌 integration-* — 外部服務整合層
+
+| 類型 | 正確套件 |
+|---|---|
+| AI 服務整合（Genkit 封裝、Google AI、OpenAI） | `integration-ai/` → `@integration-ai` |
+| Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） | `integration-firebase/` → `@integration-firebase` |
+| 訊息佇列整合（QStash、Cloud Tasks） | `integration-queue/` → `@integration-queue` |
+
+### 🎨 ui-* — UI 元件層
+
+| 類型 | 正確套件 |
+|---|---|
+| 業務無關自訂 UI 元件（wrap、design-system 擴充） | `ui-components/` → `@ui-components` |
+| 富文本編輯器（TipTap 封裝） | `ui-editor/` → `@ui-editor` |
+| Markdown 渲染元件 | `ui-markdown/` → `@ui-markdown` |
+| 官方 shadcn/ui 組件（`npx shadcn add`） | `ui-shadcn/` → `@ui-shadcn`（CLI 管理，禁止手動修改） |
+| 數據視覺化元件（圖表、圖形） | `ui-visualization/` → `@ui-visualization` |
+
+## Route Elsewhere（不放這裡）
+
+| 類型 | 正確位置 |
+|---|---|
+| 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
+| Repository 實作 | `src/modules/<context>/adapters/outbound/` |
+| 頁面組合與路由 | `src/app/` |
+| 模組業務 UI pattern | `src/modules/<context>/interfaces/` |
+
+---
+
+## 嚴禁
+
+```ts
+// ❌ 在任何 packages/ 套件中 import modules
+import { something } from '@/modules/...'
+
+// ❌ 在 src/modules/ 直接 import 第三方 library
+import { getFirestore } from 'firebase/firestore'
+
+// ❌ 直接修改 ui-shadcn/ui/ 的官方組件
+// ui/button.tsx ← 禁止手動編輯
+
+// ✅ 自訂組件放 ui-custom/
+// ui-custom/AppButton.tsx ← 正確位置
+```
+
+- 不得在套件層加入業務判斷邏輯
+- 每個套件的 `index.ts` 是唯一公開入口
+- 不得洩漏第三方 SDK 型別至消費端（能 wrap 就 wrap）
+
+## 公開匯出規則
+
+- 所有子套件需維持各自 `index.ts` 作為公開入口
+- `packages/index.ts` 必須具名匯出所有套件（`infra-*`、`integration-*`、`ui-*`）
+- 新增套件時，需同步更新本檔、`packages/README.md`、`packages/index.ts`
+
+## Context7 文件對齊規則
+
+- 涉及下列套件時，先以 Context7 查核官方文件再實作：`infra/state`、`infra/trpc`、`infra/uuid`、`infra/zod`、`integration-ai`、`integration-firebase`、`integration-queue`、`ui-markdown`、`ui-shadcn`。
+- 基線文件清單與實作準則以 `packages/README.md` 的「Context7 官方文件基線（repomix:packages）」為準。
+- 若升級相依版本造成 API 差異，需先更新基線文件再改程式碼。
+
+---
+
+## 每個套件都有自己的 AGENTS.md
+
+進入任何套件子目錄前，先讀該目錄的 `AGENTS.md`：
+
+**infra/***
+- [infra/client-state/AGENTS.md](./infra/client-state/AGENTS.md)
+- [infra/date/AGENTS.md](./infra/date/AGENTS.md)
+- [infra/form/AGENTS.md](./infra/form/AGENTS.md)
+- [infra/http/AGENTS.md](./infra/http/AGENTS.md)
+- [infra/query/AGENTS.md](./infra/query/AGENTS.md)
+- [infra/serialization/AGENTS.md](./infra/serialization/AGENTS.md)
+- [infra/state/AGENTS.md](./infra/state/AGENTS.md)
+- [infra/table/AGENTS.md](./infra/table/AGENTS.md)
+- [infra/trpc/AGENTS.md](./infra/trpc/AGENTS.md)
+- [infra/uuid/AGENTS.md](./infra/uuid/AGENTS.md)
+- [infra/zod/AGENTS.md](./infra/zod/AGENTS.md)
+
+**integration-***
+- [integration-ai/AGENTS.md](./integration-ai/AGENTS.md)
+- [integration-firebase/AGENTS.md](./integration-firebase/AGENTS.md)
+- [integration-queue/AGENTS.md](./integration-queue/AGENTS.md)
+
+**ui-***
+- [ui-components/AGENTS.md](./ui-components/AGENTS.md)
+- [ui-editor/AGENTS.md](./ui-editor/AGENTS.md)
+- [ui-markdown/AGENTS.md](./ui-markdown/AGENTS.md)
+- [ui-shadcn/AGENTS.md](./ui-shadcn/AGENTS.md)
+- [ui-visualization/AGENTS.md](./ui-visualization/AGENTS.md)
+````
+
+## File: packages/README.md
+````markdown
+# Packages Layer
+
+此目錄是所有**共享平台能力**的唯一存放層。`src/modules/` 與 `src/app/` 不得直接依賴第三方 library，必須透過此層的套件存取外部能力。
+
+---
+
+## 層次位置
+
+```
+src/app / src/modules  →  packages  →  third-party libraries
+```
+
+規則：
+- `src/modules/` 不得直接 import 第三方 library
+- `src/modules/` 只能 import `packages/` 提供的套件
+- `packages/` 是唯一允許直接依賴外部 library 的層
+
+---
+
+## 現有套件清單
+
+套件分三層：**基礎設施原語**（`infra/*`）、**外部服務整合**（`integration-*`）、**UI 元件**（`ui-*`）。
+
+---
+
+### 🧱 infra/* — 基礎設施原語層 (`@infra/*`)
+
+純功能原語，**無外部服務依賴**，離線可用，不需要憑證。
+
+| 套件 | alias | 職責 |
+|---|---|---|
+| `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務的 atom / slice） |
+| `infra/date` | `@infra/date` | 日期解析、格式化、比較與區間工具 |
+| `infra/form` | `@infra/form` | headless 表單狀態管理原語 |
+| `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
+| `infra/query` | `@infra/query` | TanStack Query server-state 原語 |
+| `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
+| `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
+| `infra/table` | `@infra/table` | TanStack Table headless 表格原語 |
+| `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） |
+| `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一允許的 id 生成入口） |
+| `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
+
+---
+
+### 🔌 integration-* — 外部服務整合層 (`@integration-*`)
+
+連接**外部服務**，需要憑證、網路呼叫、第三方帳號。封裝 SDK，標準化 API 介面，normalize 錯誤與型別。
+
+| 套件 | alias | 封裝目標 |
+|---|---|---|
+| `integration-ai` | `@integration-ai` | AI 服務整合（Genkit 封裝、Google AI、OpenAI） |
+| `integration-firebase` | `@integration-firebase` | Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） |
+| `integration-queue` | `@integration-queue` | 訊息佇列整合（QStash、Cloud Tasks） |
+
+---
+
+### 🎨 ui-* — UI 元件層 (`@ui-*`)
+
+共享 UI 元件與設計系統；無業務邏輯。
+
+| 套件 | alias | 說明 |
+|---|---|---|
+| `ui-components` | `@ui-components` | 業務無關的自訂 UI 元件（wrap、design-system 擴充） |
+| `ui-editor` | `@ui-editor` | 富文本編輯器（TipTap 封裝） |
+| `ui-markdown` | `@ui-markdown` | Markdown 渲染元件 |
+| `ui-shadcn` | `@ui-shadcn` | 官方 shadcn/ui 組件（CLI 管理，禁止手動修改） |
+| `ui-visualization` | `@ui-visualization` | 數據視覺化元件（圖表、圖形） |
+
+> **自訂 UI 組件唯一存放位置**：`packages/ui-components/`  
+> 任何對官方組件的 wrap、設計系統擴充、業務語意層一律放入 `ui-components/`，不放在 `src/modules/` 或 `src/app/`。
+
+---
+
+## 硬性規則
+
+### 1. modules 不得直接使用第三方 library
+
+```ts
+// ❌ 錯誤：在 modules 直接 import uuid
+import { v4 as uuidv4 } from 'uuid'
+
+// ✅ 正確：透過 packages 套件
+import { generateId } from '@infra/uuid'
+```
+
+### 2. 每個套件必須有穩定公開介面
+
+- `index.ts` 是唯一公開入口
+- 隱藏實作細節，不洩漏 SDK 型別
+- 不洩漏第三方 API 至消費端
+
+### 3. 不得加入業務邏輯
+
+套件不得：
+- 包含 domain rule 或 use case 邏輯
+- 直接 import `src/modules/*`
+- 對特定功能或模組有感知
+
+### 4. packages/index.ts 必須維持具名匯出
+
+`packages/index.ts` 是 packages 層總入口，必須具名匯出以下三類套件：
+- `infra*`（基礎設施原語）
+- `integration*`（外部服務整合）
+- `ui*`（共享 UI 套件）
+
+新增/刪除套件時需同步更新 `packages/index.ts`。
+
+---
+
+## 判斷原則
+
+| 問題 | 結果 |
+|---|---|
+| 可跨多個 modules 重用，且無業務語意？無外部服務依賴，離線可用？ | → 放 `packages/infra/*/` |
+| 是第三方 SDK 封裝或外部系統整合？需要憑證 / 網路 / 第三方帳號？ | → 放 `packages/integration-*/` |
+| 是 UI 元件（業務無關自訂）？ | → 放 `packages/ui-components/` |
+| 是 shadcn 官方組件？ | → 放 `packages/ui-shadcn/`（CLI 管理） |
+| 是業務邏輯或 domain rule？ | → 放 `src/modules/` |
+
+---
+
+## Context7 官方文件基線（repomix:packages）
+
+以下為 packages 層「各包」在實作與維護時需對齊的官方文件基線（已透過 Context7 查核）。
+
+| 套件 | Context7 文件 | 實作基線 |
+|---|---|---|
+| `infra/state` | `/pmndrs/zustand`、`/statelyai/xstate` | Zustand：`create`（React hook factory，canonical）+ `createStore`（vanilla）+ `StateCreator`（slice 組合）；XState：`createMachine` + `createActor` + `setup`（型別推導），不在 machine 放 I/O 業務規則。 |
+| `infra/trpc` | `/trpc/trpc` | 優先使用 v11 `createTRPCClient`；link 組合以 `httpBatchLink` + `splitLink` 為主。`createTRPCProxyClient` 為相容 alias。 |
+| `infra/uuid` | `/uuidjs/uuid` | 以 `v4` 產生 ID，驗證時使用 `validate()`（必要時加 `version()===4`）。 |
+| `infra/zod` | `/colinhacks/zod` | boundary 驗證採 `zodParseOrThrow`（拋出型）或 `zodSafeParse`（不拋出型）；錯誤統一回傳 `ZodError.issues` 結構；`createBrandedUuidSchema` 用於 domain value object。 |
+| `integration-ai` | `/websites/genkit_dev_js` | flow/tool 必須有 Zod schema（inputSchema + outputSchema）；Genkit singleton 在 `genkit.ts` 初始化；避免回傳未驗證的模型結果；只在 `infrastructure/ai/` 使用。 |
+| `integration-firebase` | `/firebase/firebase-js-sdk` | 採 modular API；App 初始化維持 singleton（`getApps/getApp/initializeApp`）。 |
+| `integration-queue` | `/websites/upstash_qstash` | `createQStashClient` 以 HTTP API 發布（無 npm 依賴）；佇列發布需支援 retry、delay、callback/failureCallback；token 來自 env var。 |
+| `ui-markdown` | `/remarkjs/react-markdown`、`/remarkjs/remark-gfm` | 預設維持安全渲染（不開 raw HTML）；GFM 功能透過 `remark-gfm` 啟用。 |
+| `ui-editor` | `/ueberdosis/tiptap-docs` | TipTap 3 `useEditor` + `EditorContent`；`immediatelyRender: false` 避免 Next.js SSR hydration mismatch；HTML string 為 I/O 格式。 |
+| `ui-shadcn` | `/shadcn-ui/ui` | 元件來源透過 `npx shadcn@latest add`；官方檔案不手改，以 wrapper 擴充。 |
+| `ui-visualization` | `/recharts/recharts` | `ResponsiveContainer` + percentage 寬高為標準響應式模式；`XuanwuLineChart`、`XuanwuBarChart`、`XuanwuPieChart` 為封裝入口。 |
+
+> `infra/client-state`、`infra/http`、`infra/serialization`、`ui-components` 目前未綁定單一第三方 SDK 官方文件，維持本專案既有封裝規則即可。
+````
+
+## File: packages/infra/date/AGENTS.md
+````markdown
+# infra/date — Agent Rules
+
+此套件提供 **日期處理原語**，封裝 `date-fns` 的解析、格式化、比較與區間工具。
+
+---
+
+## Route Here
+
+| 類型 | 說明 |
+|---|---|
+| 日期格式化 | `format`、`formatISO`、`formatDistance` |
+| 日期解析 | `parse`、`parseISO` |
+| 日期比較 | `isBefore`、`isAfter`、`compareAsc` |
+| 日期區間邊界 | `startOfDay`、`endOfMonth`、`startOfWeek` |
+| 日期運算 | `addDays`、`subMonths`、`differenceInDays` |
+
+## Route Elsewhere
+
+| 類型 | 正確位置 |
+|---|---|
+| 業務日曆規則、排程語意 | `src/modules/<context>/domain/` 或 `application/` |
+| 時區 / locale 業務決策 | owning module `interfaces/` 或 `application/` |
+| Server-state 快取 | `packages/infra/query/` |
+
+---
+
+## 嚴禁
+
+- 不得在此套件加入業務判斷或 workflow 規則
+- 不得 import `src/modules/*`
+- 不得依賴任何外部服務或 I/O
+
+## Alias
+
+```ts
+import { format, parseISO, addDays } from '@infra/date'
+```
+````
+
+## File: packages/infra/date/README.md
+````markdown
+# @infra/date
+
+Date manipulation utilities via **date-fns v4**.
+
+## Purpose
+
+提供純函式的日期原語，供 `interfaces/`、`application/` 與共享套件做格式化、比較與日期區間計算。
+這裡只封裝通用日期能力，不承載任何業務日曆規則。
+
+## Import
+
+```ts
+import {
+  format,
+  parseISO,
+  addDays,
+  startOfMonth,
+  differenceInDays,
+  type Locale,
+} from '@infra/date'
+```
+
+## Key Exports
+
+| 類別 | 代表函式 |
+|---|---|
+| Parsing & formatting | `parse`, `parseISO`, `format`, `formatISO` |
+| Validation | `isValid`, `isDate` |
+| Arithmetic | `addDays`, `subWeeks`, `addMonths`, `subYears` |
+| Boundaries | `startOfDay`, `endOfWeek`, `startOfMonth`, `endOfYear` |
+| Comparison | `isBefore`, `isAfter`, `isEqual`, `compareAsc` |
+| Difference | `differenceInDays`, `differenceInHours`, `differenceInMonths` |
+
+## Guardrails
+
+- 只放通用日期工具，不放業務時程邏輯
+- 保持純函式，避免副作用
+- 業務語意（例如工作日、需求優先級日曆）屬於 owning module
+````
+
+## File: packages/infra/query/AGENTS.md
+````markdown
+# infra/query — Agent Rules
+
+此套件提供 **TanStack Query v5 server-state 原語**。
+它負責 query client、query hook 與型別安全的 options factory，不負責業務資料模型。
+
+---
+
+## Route Here
+
+| 類型 | 說明 |
+|---|---|
+| Query client 與 provider | `QueryClient`、`QueryClientProvider` |
+| Query hooks | `useQuery`、`useMutation`、`useInfiniteQuery` |
+| Query factory helpers | `queryOptions`、`infiniteQueryOptions` |
+| Server-state 型別 | `UseQueryOptions`、`QueryKey`、`InfiniteData` |
+
+## Route Elsewhere
+
+| 類型 | 正確位置 |
+|---|---|
+| 具業務語意的 query key / query function | `src/modules/<context>/interfaces/queries/` |
+| UI toggle / panel state | `src/modules/<context>/interfaces/stores/` 或 `@infra/state` |
+| 業務 invariant | `src/modules/<context>/domain/` |
+
+---
+
+## 嚴禁
+
+- 不得在此套件加入業務 query key 或資料轉換規則
+- 不得把 TanStack Query 資料鏡像到本地 store
+- 不得 import `src/modules/*`
+
+## Alias
+
+```ts
+import { useQuery, useMutation, queryOptions } from '@infra/query'
+```
+````
+
+## File: packages/infra/query/README.md
+````markdown
+# @infra/query
+
+Server-state management via **TanStack Query v5**.
+
+## Purpose
+
+提供查詢快取、mutation lifecycle 與 options factory，作為 `interfaces/` 層處理 server-state 的標準入口。
+資料的業務語意與 query key 命名仍由 owning module 決定。
+
+## Import
+
+```ts
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+  useMutation,
+  queryOptions,
+  type QueryKey,
+} from '@infra/query'
+```
+
+## Key Exports
+
+| Export | 類型 | 說明 |
+|---|---|---|
+| `QueryClient` | Class | 建立全域 query client |
+| `QueryClientProvider` | Component | React provider |
+| `useQuery` | Hook | 讀取 server-state |
+| `useMutation` | Hook | 提交寫入 / side effect |
+| `useInfiniteQuery` | Hook | 分頁查詢 |
+| `useSuspenseQuery` | Hook | Suspense 查詢 |
+| `queryOptions` | Helper | 型別安全 query options factory |
+| `infiniteQueryOptions` | Helper | infinite query options factory |
+
+## Guardrails
+
+- TanStack Query 是 server-state authority
+- 不把 query result 複製到 Zustand / local store
+- 業務 query function 與 query key 留在 owning module
+````
+
+## File: packages/infra/README.md
+````markdown
+# Infra Packages
+
+`packages/infra/` 是本 repo 的**本地基礎設施原語層**。
+這些套件可被 `src/app/` 與 `src/modules/` 重用，但不得攜帶業務語意，也不得依賴外部服務。
+
+## 套件清單
+
+| 套件 | alias | 用途 |
+|---|---|---|
+| `client-state` | `@infra/client-state` | client-side 狀態工具 |
+| `date` | `@infra/date` | date-fns 日期解析、格式化與比較工具 |
+| `form` | `@infra/form` | TanStack Form headless 表單原語 |
+| `http` | `@infra/http` | HTTP 請求工具 |
+| `query` | `@infra/query` | TanStack Query server-state 原語 |
+| `serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
+| `state` | `@infra/state` | Zustand / XState 本地狀態原語 |
+| `table` | `@infra/table` | TanStack Table headless 表格原語 |
+| `trpc` | `@infra/trpc` | tRPC 客戶端與 Provider 原語 |
+| `uuid` | `@infra/uuid` | UUID 生成與驗證 |
+| `virtual` | `@infra/virtual` | 虛擬化列表 / 視窗化工具 |
+| `zod` | `@infra/zod` | Zod schema / brand helper 原語 |
+
+## Guardrails
+
+- 僅放置可跨模組重用的本地原語
+- 不得 import `src/modules/*`
+- 不得依賴 Firebase、Genkit、QStash 等外部服務
+- 每個子套件以自己的 `index.ts` 作為唯一公開入口
+
+## Read Next
+
+- `packages/infra/AGENTS.md`
+- `packages/README.md`
 ````
