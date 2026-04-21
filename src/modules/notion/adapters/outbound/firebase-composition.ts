@@ -31,7 +31,7 @@ import {
   CreateTemplateUseCase,
 } from "../../subdomains/template/application/use-cases/TemplateUseCases";
 import type { CreatePageInput } from "../../subdomains/page/domain/entities/Page";
-import type { CreateDatabaseInput } from "../../subdomains/database/domain/entities/Database";
+import type { CreateDatabaseInput, DatabaseProperty } from "../../subdomains/database/domain/entities/Database";
 
 // ── Singleton repositories ────────────────────────────────────────────────────
 
@@ -119,4 +119,9 @@ export async function queryDatabases(workspaceId: string) {
 export async function createDatabase(input: CreateDatabaseInput) {
   const { createDatabase: uc } = createClientNotionDatabaseUseCases();
   return uc.execute(input);
+}
+
+export async function addDatabaseProperty(databaseId: string, property: DatabaseProperty) {
+  const { addProperty: uc } = createClientNotionDatabaseUseCases();
+  return uc.execute(databaseId, property);
 }

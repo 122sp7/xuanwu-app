@@ -82,6 +82,12 @@ sequenceDiagram
 - workspace listener registration: `createKnowledgeToWorkflowListener`
 - platform event infra factory: `createPlatformEventInfrastructure`
 
+## Local Knowledge Surface Clarification
+
+- `Pages` / `Database` tabs are workspace-scoped knowledge surfaces owned by `notion`; they are **Notion-like local models**, not a promise of full Notion API compatibility.
+- `workspace.task-formation` only keeps source references in URL/query state (`sourceKind`, `sourceId`), then resolves the concrete page/database context through the notion public boundary before extraction.
+- page summaries / source labels and database parent/schema metadata exist to make source-to-task handoff auditable without copying canonical knowledge ownership into workspace.
+
 ## Architecture Guardrails
 
 - UI 只顯示 step 狀態，不內嵌 business rule。

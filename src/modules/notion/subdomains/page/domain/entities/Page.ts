@@ -10,6 +10,8 @@ export interface PageSnapshot {
   readonly accountId: string;
   readonly workspaceId?: string;
   readonly title: string;
+  readonly summary?: string;
+  readonly sourceLabel?: string;
   readonly slug: string;
   readonly parentPageId: string | null;
   readonly order: number;
@@ -27,6 +29,8 @@ export interface CreatePageInput {
   readonly accountId: string;
   readonly workspaceId?: string;
   readonly title: string;
+  readonly summary?: string;
+  readonly sourceLabel?: string;
   readonly parentPageId?: string | null;
   readonly createdByUserId: string;
   readonly order?: number;
@@ -52,6 +56,8 @@ export class Page {
       accountId: input.accountId,
       workspaceId: input.workspaceId,
       title: input.title,
+      summary: input.summary?.trim() || undefined,
+      sourceLabel: input.sourceLabel?.trim() || undefined,
       slug: slugify(input.title),
       parentPageId: input.parentPageId ?? null,
       order: input.order ?? 0,
@@ -85,6 +91,15 @@ export class Page {
     };
   }
 
+  updateContext(summary?: string, sourceLabel?: string): void {
+    this._props = {
+      ...this._props,
+      summary: summary?.trim() || undefined,
+      sourceLabel: sourceLabel?.trim() || undefined,
+      updatedAtISO: new Date().toISOString(),
+    };
+  }
+
   appendBlock(blockId: string): void {
     if (this._props.blockIds.includes(blockId)) return;
     this._props = {
@@ -107,6 +122,8 @@ export class Page {
 
   get id(): string { return this._props.id; }
   get title(): string { return this._props.title; }
+  get summary(): string | undefined { return this._props.summary; }
+  get sourceLabel(): string | undefined { return this._props.sourceLabel; }
   get slug(): string { return this._props.slug; }
   get status(): PageStatus { return this._props.status; }
   get blockIds(): readonly string[] { return this._props.blockIds; }

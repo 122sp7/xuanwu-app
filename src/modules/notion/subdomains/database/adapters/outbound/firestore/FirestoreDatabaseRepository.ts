@@ -31,7 +31,7 @@ const FirestoreDatabasePropertySchema = z.object({
 
 const FirestoreDatabaseSnapshotSchema = z.object({
   id: z.string(),
-  pageId: z.string(),
+  parentPageId: z.string().nullable(),
   workspaceId: z.string(),
   accountId: z.string(),
   title: z.string(),
@@ -62,10 +62,10 @@ export class FirestoreDatabaseRepository implements DatabaseRepository {
     return toSnapshot({ id: snap.id, ...snap.data() });
   }
 
-  async findByPageId(pageId: string): Promise<DatabaseSnapshot[]> {
+  async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]> {
     const db = getFirebaseFirestore();
     const { collection, query, where, getDocs } = firestoreApi;
-    const q = query(collection(db, COLLECTION), where("pageId", "==", pageId));
+    const q = query(collection(db, COLLECTION), where("parentPageId", "==", parentPageId));
     const snap = await getDocs(q);
     return snap.docs.map((d) => toSnapshot({ id: d.id, ...d.data() }));
   }

@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * NotionPagesSection — notion.pages tab — hierarchical page list.
+ * NotionPagesSection — notion.pages tab — workspace knowledge pages.
  *
- * Closed-loop design: pages are the knowledge output of document parsing.
- * Each page can be sent to workspace.task-formation as a task generation source.
+ * This surface is intentionally "Notion-like" rather than a full Notion API
+ * clone. Pages carry lightweight workspace knowledge context that can be
+ * forwarded into workspace.task-formation as a concrete source reference.
  */
 
 import { Button, Input } from "@packages";
@@ -26,8 +27,13 @@ interface NotionPagesSectionProps {
   currentUserId: string;
 }
 
-function taskFormationHref(accountId: string, workspaceId: string) {
-  return `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=TaskFormation`;
+function taskFormationHref(accountId: string, workspaceId: string, pageId: string) {
+  const params = new URLSearchParams({
+    tab: "TaskFormation",
+    sourceKind: "page",
+    sourceId: pageId,
+  });
+  return `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?${params.toString()}`;
 }
 
 export function NotionPagesSection({
@@ -38,6 +44,8 @@ export function NotionPagesSection({
   const [pages, setPages] = useState<PageSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newSummary, setNewSummary] = useState("");
+  const [newSourceLabel, setNewSourceLabel] = useState("");
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -54,7 +62,6 @@ export function NotionPagesSection({
     });
   };
 
-  // Auto-load on mount
   useEffect(() => {
     load();
   }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -66,9 +73,13 @@ export function NotionPagesSection({
         workspaceId,
         accountId,
         title: newTitle.trim(),
+        summary: newSummary.trim() || undefined,
+        sourceLabel: newSourceLabel.trim() || undefined,
         createdByUserId: currentUserId,
       });
       setNewTitle("");
+      setNewSummary("");
+      setNewSourceLabel("");
       await reloadPages();
     });
   };
@@ -109,9 +120,13 @@ export function NotionPagesSection({
         </div>
       </div>
 
+      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 text-xs text-muted-foreground">
+        這裡的頁面是 workspace 內的知識頁面，不追求完整 Notion page 相容；目前重點是保留標題、摘要與來源脈絡，供後續任務形成使用。
+      </div>
+
       {loaded && (
         <>
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <Input
               placeholder="新頁面標題…"
               value={newTitle}
@@ -119,19 +134,35 @@ export function NotionPagesSection({
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               className="h-8 text-sm"
             />
-            <Button size="sm" onClick={handleCreate} disabled={isPending || !newTitle.trim()}>
-              <Plus className="size-3.5" />
-            </Button>
+            <Input
+              placeholder="摘要／內容預覽（可選）…"
+              value={newSummary}
+              onChange={(e) => setNewSummary(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              className="h-8 text-sm"
+            />
+            <div className="flex gap-2">
+              <Input
+                placeholder="來源標籤（例如：上傳文件、人工整理）…"
+                value={newSourceLabel}
+                onChange={(e) => setNewSourceLabel(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                className="h-8 text-sm"
+              />
+              <Button size="sm" onClick={handleCreate} disabled={isPending || !newTitle.trim()}>
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
           </div>
 
           {pages.length === 0 ? (
-            <p className="text-sm text-muted-foreground">尚無頁面，請建立第一個頁面。</p>
+            <p className="text-sm text-muted-foreground">尚無頁面，請建立第一個知識頁面。</p>
           ) : (
             <ul className="space-y-2">
               {pages.map((page) => (
                 <li
                   key={page.id}
-                  className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2 text-sm"
+                  className="flex items-start justify-between rounded-lg border border-border/40 px-3 py-2 text-sm"
                 >
                   <div className="min-w-0 flex-1">
                     {editingPageId === page.id ? (
@@ -166,9 +197,22 @@ export function NotionPagesSection({
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{page.title}</span>
-                        <span className="text-xs text-muted-foreground">{page.status}</span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{page.title}</span>
+                          <span className="text-xs text-muted-foreground">{page.status}</span>
+                        </div>
+                        {page.summary ? (
+                          <p className="line-clamp-2 text-xs text-muted-foreground">{page.summary}</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            尚未提供摘要，任務形成會先使用標題與頁面脈絡。
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                          <span>{page.blockIds.length} 個內容區塊</span>
+                          {page.sourceLabel && <span>來源：{page.sourceLabel}</span>}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -198,7 +242,7 @@ export function NotionPagesSection({
                       </>
                     )}
                     <Link
-                      href={taskFormationHref(accountId, workspaceId)}
+                      href={taskFormationHref(accountId, workspaceId, page.id)}
                       className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                       title="發送至任務形成"
                     >
@@ -212,7 +256,7 @@ export function NotionPagesSection({
           )}
           {pages.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              點擊頁面右側「→ 任務形成」可將此頁面作為任務生成的來源。
+              點擊頁面右側「→ 任務形成」可帶入具體頁面 reference，讓 task formation 讀取此頁面的摘要與來源脈絡。
             </p>
           )}
         </>
