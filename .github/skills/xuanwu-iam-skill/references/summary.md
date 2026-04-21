@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-142 files | 3,037 lines
+142 files | 3,044 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 131 | 2,668 |
+| TypeScript | 131 | 2,672 |
 | Markdown | 8 | 265 |
-| TypeScript (TSX) | 3 | 104 |
+| TypeScript (TSX) | 3 | 107 |
 
 **Largest files:**
 - `src/modules/iam/adapters/outbound/firebase-composition.ts` (169 lines)

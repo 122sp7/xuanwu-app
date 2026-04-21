@@ -2882,38 +2882,6 @@ export function useAuth(): AuthContextValue
 // Re-export account subscription for consumers that don't go through AppContext.
 ````
 
-## File: src/modules/iam/adapters/inbound/react/PublicLandingView.tsx
-````typescript
-/**
- * PublicLandingView — iam inbound adapter (React).
- *
- * Self-contained public landing + auth panel component.
- * Manages login / register / guest state internally.
- * Consumed by src/app/(public)/page.tsx as a pure Server Component shim.
- *
- * Ported from: app/(public)/page.tsx
- */
-⋮----
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-⋮----
-import { useAuth, createClientAuthUseCases } from "./AuthContext";
-import { createClientAccountUseCases } from "./AuthContext";
-⋮----
-type Tab = "login" | "register";
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-async function handleGuestAccess()
-⋮----
-async function handlePasswordReset()
-⋮----
-setError(null);
-setResetSent(false);
-setIsAuthPanelOpen((prev)
-````
-
 ## File: src/modules/iam/adapters/outbound/FirebaseAccountQueryRepository.ts
 ````typescript
 /**
@@ -3480,41 +3448,6 @@ export function createSubjectRef(
   subjectId: string,
   subjectType: SubjectRef["subjectType"],
 ): SubjectRef
-````
-
-## File: src/modules/iam/subdomains/account/adapters/inbound/http/AccountController.ts
-````typescript
-import type { CreateUserAccountUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { UpdateUserProfileUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { UpdateAccountProfileUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { CreditWalletUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { DebitWalletUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { AssignAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { RevokeAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
-⋮----
-/** HTTP inbound adapter stub — translates HTTP requests into application use-case calls. */
-export class AccountController {
-⋮----
-constructor(
-⋮----
-async createAccount(body:
-⋮----
-async updateProfile(body:
-⋮----
-async updateAccountProfile(body:
-⋮----
-async creditWallet(body:
-⋮----
-async debitWallet(body:
-⋮----
-async assignRole(body: {
-    accountId: string;
-    role: string;
-    grantedBy: string;
-    traceId?: string;
-})
-⋮----
-async revokeRole(body:
 ````
 
 ## File: src/modules/iam/subdomains/account/adapters/inbound/index.ts
@@ -4385,31 +4318,6 @@ unlinkProvider(uid: string, provider: FederationProvider): Promise<void>;
 getLinkedProviders(uid: string): Promise<FederatedIdentity[]>;
 ````
 
-## File: src/modules/iam/subdomains/identity/adapters/inbound/http/IdentityController.ts
-````typescript
-import type { SignInUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignInAnonymouslyUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { RegisterUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SendPasswordResetEmailUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignOutUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignInCredentials, RegistrationInput } from "../../../domain/entities/Identity";
-⋮----
-/** HTTP inbound adapter stub — translates HTTP requests into identity use-case calls. */
-export class IdentityController {
-⋮----
-constructor(
-⋮----
-async signIn(body: SignInCredentials)
-⋮----
-async signInAnonymously()
-⋮----
-async register(body: RegistrationInput)
-⋮----
-async sendPasswordReset(body:
-⋮----
-async signOut()
-````
-
 ## File: src/modules/iam/subdomains/identity/adapters/inbound/index.ts
 ````typescript
 
@@ -5019,6 +4927,11 @@ async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>
 
 ````
 
+## File: src/modules/iam/subdomains/organization/application/index.ts
+````typescript
+
+````
+
 ## File: src/modules/iam/subdomains/organization/application/use-cases/OrganizationLifecycleUseCases.ts
 ````typescript
 import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
@@ -5048,6 +4961,64 @@ async execute(command: UpdateOrganizationSettingsCommand): Promise<CommandResult
 export class DeleteOrganizationUseCase {
 ⋮----
 async execute(organizationId: string): Promise<CommandResult>
+````
+
+## File: src/modules/iam/subdomains/organization/application/use-cases/OrganizationMemberUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type {
+  InviteMemberInput,
+  MemberReference,
+  UpdateMemberRoleInput,
+} from "../../domain/entities/Organization";
+⋮----
+export class InviteMemberUseCase {
+⋮----
+constructor(private readonly orgRepo: OrganizationRepository)
+async execute(input: InviteMemberInput): Promise<CommandResult>
+⋮----
+export class RecruitMemberUseCase {
+⋮----
+async execute(organizationId: string, memberId: string, name: string, email: string): Promise<CommandResult>
+⋮----
+export class RemoveMemberUseCase {
+⋮----
+async execute(organizationId: string, memberId: string): Promise<CommandResult>
+⋮----
+export class UpdateMemberRoleUseCase {
+⋮----
+async execute(input: UpdateMemberRoleInput): Promise<CommandResult>
+⋮----
+export class ListOrganizationMembersUseCase {
+⋮----
+async execute(organizationId: string): Promise<MemberReference[]>
+````
+
+## File: src/modules/iam/subdomains/organization/application/use-cases/OrganizationTeamUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type { CreateTeamInput, Team } from "../../domain/entities/Organization";
+⋮----
+export class CreateTeamUseCase {
+⋮----
+constructor(private readonly orgRepo: OrganizationRepository)
+async execute(input: CreateTeamInput): Promise<CommandResult>
+⋮----
+export class DeleteTeamUseCase {
+⋮----
+async execute(organizationId: string, teamId: string): Promise<CommandResult>
+⋮----
+export class AddMemberToTeamUseCase {
+⋮----
+async execute(organizationId: string, teamId: string, memberId: string): Promise<CommandResult>
+⋮----
+export class RemoveMemberFromTeamUseCase {
+⋮----
+export class ListOrganizationTeamsUseCase {
+⋮----
+async execute(organizationId: string): Promise<Team[]>
 ````
 
 ## File: src/modules/iam/subdomains/organization/domain/aggregates/Organization.ts
@@ -10783,6 +10754,176 @@ export function appendWorkspaceContextQuery(
 ): string
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
+````typescript
+/**
+ * workspace-shell-interop — workspace shell integration components & hooks.
+ *
+ * Bridges the workspace module with the platform shell:
+ *   - WorkspaceQuickAccessRow   (icon strip in sidebar header)
+ *   - WorkspaceSectionContent   (domain-grouped tab nav in sidebar body)
+ *   - CustomizeNavigationDialog (user nav-preference editor)
+ *   - CreateWorkspaceDialogRail (workspace creation triggered from app rail)
+ *   - useRecentWorkspaces       (recent workspace list hook)
+ *   - useSidebarLocale          (locale bundle stub hook)
+ *   - buildWorkspaceQuickAccessItems (URL builder for quick-access items)
+ *
+ * All pure navigation data (types, constants, URL helpers) lives in
+ * workspace-nav-model.ts — import from there for non-React consumers.
+ */
+⋮----
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input } from "@packages";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  AlertCircle,
+  BadgeCheck,
+  BookOpen,
+  Brain,
+  ClipboardCheck,
+  FileStack,
+  FileText,
+  FolderOpen,
+  Home,
+  Inbox,
+  LayoutTemplate,
+  ListTodo,
+  MessageSquare,
+  Notebook,
+  Receipt,
+  Settings,
+  Shield,
+  Table2,
+  Users,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+⋮----
+import type { WorkspaceEntity } from "./WorkspaceContext";
+import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
+import {
+  DEFAULT_NAV_PREFS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
+  WORKSPACE_TAB_ITEMS,
+  getWorkspaceIdFromPath,
+  readNavPreferences,
+  resolveWorkspaceTabValue,
+  sanitizeNavPreferences,
+  writeNavPreferences,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+  type WorkspaceDomainGroup,
+} from "./workspace-nav-model";
+⋮----
+// Re-export types so callers that previously imported from workspace-ui-stubs
+// can keep working without change when workspace-ui-stubs becomes a barrel.
+⋮----
+// ── WorkspaceQuickAccessItem ──────────────────────────────────────────────────
+⋮----
+interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+⋮----
+interface WorkspaceQuickAccessItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+⋮----
+/**
+ * WORKSPACE_TAB_ICONS — icon for each WorkspaceTabValue.
+ *
+ * This is the ONLY UI-specific data that cannot live in workspace-nav-model.ts
+ * (nav-model is JSX-free). All other tab metadata (label, id, value, group)
+ * is owned by WORKSPACE_TAB_ITEMS — never duplicate it here.
+ */
+⋮----
+// workspace group
+⋮----
+// notion group
+⋮----
+// notebooklm group
+⋮----
+/**
+ * WORKSPACE_QUICK_ACCESS_TEMPLATES — quick-access icon strip items.
+ *
+ * Tab-based items are auto-derived from WORKSPACE_TAB_ITEMS so that
+ * labels and IDs always stay in sync with workspace-nav-model.ts.
+ * Only non-tab panel shortcuts (e.g. governance panel) are defined manually.
+ */
+⋮----
+// Non-tab panel shortcut — not backed by a top-level WorkspaceTabValue
+⋮----
+// All tab-based items — derived from WORKSPACE_TAB_ITEMS; labels stay in sync
+⋮----
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId: string | undefined,
+): WorkspaceQuickAccessItem[]
+⋮----
+// ── useRecentWorkspaces ───────────────────────────────────────────────────────
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getRecentStorageKey(accountId: string): string
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string): void
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+):
+⋮----
+export function useSidebarLocale(): SidebarLocaleBundle | null
+⋮----
+// ── Module-level instantiation ────────────────────────────────────────────────
+⋮----
+// ── WorkspaceQuickAccessRow ───────────────────────────────────────────────────
+⋮----
+interface WorkspaceQuickAccessRowProps {
+  items: WorkspaceQuickAccessItem[];
+  pathname: string;
+  currentPanel: string | null;
+  currentWorkspaceTab: string | null;
+  workspaceSettingsHref: string;
+  isActiveRoute: (href: string) => boolean;
+}
+⋮----
+// ── WorkspaceSectionContent ───────────────────────────────────────────────────
+⋮----
+className=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+// ── CustomizeNavigationDialog ─────────────────────────────────────────────────
+⋮----
+setDraft((prev) => (
+⋮----
+setDraft(DEFAULT_NAV_PREFS);
+⋮----
+// ── CreateWorkspaceDialogRail ─────────────────────────────────────────────────
+⋮----
+function reset()
+⋮----
+async function handleSubmit(event: FormEvent<HTMLFormElement>)
+⋮----
+onOpenChange(isOpen);
+⋮----
+reset();
+onOpenChange(false);
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
 ````typescript
 /**
@@ -11219,6 +11360,22 @@ export async function rejectApprovalAction(decisionId: string, rawInput?: unknow
 export async function listApprovalDecisionsAction(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>
 ````
 
+## File: src/modules/workspace/adapters/inbound/server-actions/audit-actions.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { RecordAuditEntrySchema } from "../../../subdomains/audit/application/dto/AuditDTO";
+import { createClientAuditUseCases } from "../../outbound/firebase-composition";
+import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+⋮----
+// actorId injection from session is pending GAP-05 ADR decision.
+// Until platform.AuthAPI.requireAuth() is available, actorId is accepted from
+// client input via RecordAuditEntrySchema — tracked as GAP-05.
+⋮----
+export async function recordAuditEntryAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function listAuditEntriesByWorkspaceAction(workspaceId: string): Promise<AuditEntrySnapshot[]>
+````
+
 ## File: src/modules/workspace/adapters/inbound/server-actions/issue-actions.ts
 ````typescript
 import { z } from "zod";
@@ -11253,6 +11410,25 @@ export async function passQualityReviewAction(reviewId: string, rawInput?: unkno
 export async function failQualityReviewAction(reviewId: string, rawInput?: unknown): Promise<CommandResult>
 ⋮----
 export async function listQualityReviewsAction(workspaceId: string): Promise<QualityReviewSnapshot[]>
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/schedule-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { CreateWorkDemandSchema } from "../../../subdomains/schedule/application/dto/ScheduleDTO";
+import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
+import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
+⋮----
+// actorId injection from session is pending GAP-05 ADR decision.
+// Until platform.AuthAPI.requireAuth() is available, workspaceId membership is
+// not verified here — tracked as GAP-05.
+⋮----
+export async function createWorkDemandAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function assignWorkDemandAction(demandId: string, rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function listWorkDemandsByWorkspaceAction(workspaceId: string): Promise<WorkDemandSnapshot[]>
 ````
 
 ## File: src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts
@@ -11976,6 +12152,25 @@ export type RecordAuditEntryDTO = z.infer<typeof RecordAuditEntrySchema>;
 ## File: src/modules/workspace/subdomains/audit/application/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/audit/application/use-cases/AuditUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+import { AuditEntry } from "../../domain/entities/AuditEntry";
+import type { AuditEntrySnapshot, RecordAuditEntryInput } from "../../domain/entities/AuditEntry";
+⋮----
+export class RecordAuditEntryUseCase {
+⋮----
+constructor(private readonly auditRepo: AuditRepository)
+⋮----
+async execute(input: RecordAuditEntryInput): Promise<CommandResult>
+⋮----
+export class ListWorkspaceAuditEntriesUseCase {
+⋮----
+async execute(workspaceId: string): Promise<AuditEntrySnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/audit/domain/entities/AuditEntry.ts
@@ -13818,26 +14013,6 @@ export type ResourceQuotaDomainEventType = QuotaProvisionedEvent | QuotaExceeded
 
 ````
 
-## File: src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts
-````typescript
-import type { ResourceQuotaSnapshot } from "../entities/ResourceQuota";
-import type { ResourceKind } from "../entities/ResourceQuota";
-⋮----
-export interface ResourceQuotaRepository {
-  findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
-  findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
-  findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
-  save(quota: ResourceQuotaSnapshot): Promise<void>;
-  updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
-}
-⋮----
-findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
-findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
-findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
-save(quota: ResourceQuotaSnapshot): Promise<void>;
-updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
-````
-
 ## File: src/modules/workspace/subdomains/schedule/adapters/inbound/index.ts
 ````typescript
 
@@ -13894,6 +14069,29 @@ export type CreateWorkDemandDTO = z.infer<typeof CreateWorkDemandSchema>;
 ## File: src/modules/workspace/subdomains/schedule/application/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/schedule/application/use-cases/ScheduleUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { DemandRepository } from "../../domain/repositories/DemandRepository";
+import { WorkDemand } from "../../domain/entities/WorkDemand";
+import type { CreateWorkDemandInput, WorkDemandSnapshot } from "../../domain/entities/WorkDemand";
+⋮----
+export class CreateWorkDemandUseCase {
+⋮----
+constructor(private readonly demandRepo: DemandRepository)
+⋮----
+async execute(input: CreateWorkDemandInput): Promise<CommandResult>
+⋮----
+export class AssignWorkDemandUseCase {
+⋮----
+async execute(demandId: string, assignedUserId: string): Promise<CommandResult>
+⋮----
+export class ListWorkspaceDemandsUseCase {
+⋮----
+async execute(workspaceId: string): Promise<WorkDemandSnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/schedule/domain/entities/WorkDemand.ts
@@ -15688,6 +15886,214 @@ check(input: ContentSafetyInput): Promise<SafetyCheckResult>;
 - [../../../docs/README.md](../../../docs/README.md)
 ````
 
+## File: src/modules/iam/adapters/inbound/react/PublicLandingView.tsx
+````typescript
+/**
+ * PublicLandingView — iam inbound adapter (React).
+ *
+ * Self-contained public landing + auth panel component.
+ * Manages login / register / guest state internally.
+ * Consumed by src/app/(public)/page.tsx as a pure Server Component shim.
+ *
+ * Ported from: app/(public)/page.tsx
+ */
+⋮----
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+⋮----
+import {
+  useAuth,
+  createClientAuthUseCases,
+  createClientAccountUseCases,
+} from "./AuthContext";
+⋮----
+type Tab = "login" | "register";
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+async function handleGuestAccess()
+⋮----
+async function handlePasswordReset()
+⋮----
+setError(null);
+setResetSent(false);
+setIsAuthPanelOpen((prev)
+````
+
+## File: src/modules/iam/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — iam module outbound composition root.
+ *
+ * Wires Firebase-backed repository implementations into domain use cases.
+ * This file is the ONLY entry point for Firebase SDK access within the iam
+ * module. All other layers remain infrastructure-agnostic.
+ *
+ * ESLint: @integration-firebase is allowed here because this file lives in
+ * src/modules/iam/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { getFirebaseAuth, onFirebaseAuthStateChanged, signOutFirebase, getFirebaseFirestore, firestoreApi, type User } from "@packages";
+import { FirebaseAuthIdentityRepository } from "./FirebaseAuthIdentityRepository";
+import { FirebaseAccountQueryRepository } from "./FirebaseAccountQueryRepository";
+import {
+  FirestoreAccountRepository,
+  type FirestoreLike,
+} from "../../subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository";
+import {
+  FirestoreOrganizationRepository,
+  type OrgFirestoreLike,
+} from "../../subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository";
+import {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+} from "../../subdomains/identity/application/use-cases/IdentityUseCases";
+import { CreateUserAccountUseCase } from "../../subdomains/account/application/use-cases/AccountUseCases";
+import { CreateOrganizationUseCase } from "../../subdomains/organization/application/use-cases/OrganizationLifecycleUseCases";
+import {
+  InviteMemberUseCase,
+  ListOrganizationMembersUseCase,
+  UpdateMemberRoleUseCase,
+  RecruitMemberUseCase,
+} from "../../subdomains/organization/application/use-cases/OrganizationMemberUseCases";
+import {
+  CreateTeamUseCase,
+  ListOrganizationTeamsUseCase,
+} from "../../subdomains/organization/application/use-cases/OrganizationTeamUseCases";
+import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
+import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
+import type {
+  CreateTeamInput,
+  InviteMemberInput,
+  MemberReference,
+  Team,
+  UpdateMemberRoleInput,
+} from "../../subdomains/organization/domain/entities/Organization";
+import type { CommandResult } from "../../../shared";
+⋮----
+// ─── Singleton repositories ───────────────────────────────────────────────────
+⋮----
+function getIdentityRepo(): FirebaseAuthIdentityRepository
+⋮----
+function getAccountQueryRepo(): FirebaseAccountQueryRepository
+⋮----
+function getOrgRepo(): FirestoreOrganizationRepository
+⋮----
+// ─── FirestoreLike adapter ────────────────────────────────────────────────────
+// Bridges the Firestore SDK to the FirestoreLike interface expected by
+// FirestoreAccountRepository (subdomain-level adapter, technology-agnostic).
+⋮----
+function createFirestoreLikeAdapter(): FirestoreLike
+⋮----
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+⋮----
+// ─── OrgFirestoreLike adapter ─────────────────────────────────────────────────
+// Bridges the Firestore SDK to the OrgFirestoreLike interface for org operations
+// (subcollections, etc.).
+⋮----
+function createOrgFirestoreLikeAdapter(): OrgFirestoreLike
+⋮----
+async get(col: string, id: string): Promise<Record<string, unknown> | null>
+async set(col: string, id: string, data: Record<string, unknown>): Promise<void>
+async delete(col: string, id: string): Promise<void>
+async getSubcollection(
+      col: string,
+      parentId: string,
+      sub: string,
+): Promise<
+async setSubdoc(
+      col: string,
+      parentId: string,
+      sub: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async deleteSubdoc(
+      col: string,
+      parentId: string,
+      sub: string,
+      id: string,
+): Promise<void>
+⋮----
+// ─── Auth use-case factory ────────────────────────────────────────────────────
+⋮----
+/**
+ * Returns Firebase-backed auth use cases for use in "use client" components.
+ * Each call creates fresh use-case instances sharing one repository instance.
+ */
+export function createClientAuthUseCases()
+⋮----
+// ─── Account use-case factory ─────────────────────────────────────────────────
+⋮----
+/**
+ * Returns Firebase-backed account use cases for use in "use client" components.
+ */
+export function createClientAccountUseCases()
+⋮----
+// ─── Auth state subscription ──────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to Firebase auth state changes.
+ * Returns an unsubscribe function.
+ * For use in "use client" auth providers only.
+ */
+export function subscribeToAuthState(
+  callback: (user: User | null) => void,
+): Unsubscribe
+⋮----
+/**
+ * Signs the current user out of Firebase Auth.
+ */
+export async function firebaseSignOut(): Promise<void>
+⋮----
+// ─── Account subscriptions ────────────────────────────────────────────────────
+⋮----
+/**
+ * Subscribes to real-time updates for all organisation accounts associated
+ * with the given userId (owned or membership).
+ */
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountSnapshot>) => void,
+): Unsubscribe
+⋮----
+// ─── Organisation use-case factory ───────────────────────────────────────────
+⋮----
+/**
+ * Returns Firebase-backed organisation use cases for use in "use client"
+ * components.
+ */
+export function createClientOrganizationUseCases()
+⋮----
+export async function listOrganizationMembers(organizationId: string): Promise<MemberReference[]>
+⋮----
+export async function listOrganizationTeams(organizationId: string): Promise<Team[]>
+⋮----
+export async function inviteOrganizationMember(input: InviteMemberInput): Promise<CommandResult>
+⋮----
+export async function recruitOrganizationMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult>
+⋮----
+export async function updateOrganizationMemberRole(
+  input: UpdateMemberRoleInput,
+): Promise<CommandResult>
+⋮----
+export async function createOrganizationTeam(input: CreateTeamInput): Promise<CommandResult>
+````
+
 ## File: src/modules/iam/AGENTS.md
 ````markdown
 # IAM Module — Agent Guide
@@ -15775,67 +16181,68 @@ check(input: ContentSafetyInput): Promise<SafetyCheckResult>;
 - [../../../docs/README.md](../../../docs/README.md)
 ````
 
-## File: src/modules/iam/subdomains/organization/application/index.ts
+## File: src/modules/iam/subdomains/account/adapters/inbound/http/AccountController.ts
 ````typescript
-
-````
-
-## File: src/modules/iam/subdomains/organization/application/use-cases/OrganizationMemberUseCases.ts
-````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
 import type {
-  InviteMemberInput,
-  MemberReference,
-  UpdateMemberRoleInput,
-} from "../../domain/entities/Organization";
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  UpdateAccountProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "../../../application/use-cases/AccountUseCases";
 ⋮----
-export class InviteMemberUseCase {
+/** HTTP inbound adapter stub — translates HTTP requests into application use-case calls. */
+export class AccountController {
 ⋮----
-constructor(private readonly orgRepo: OrganizationRepository)
-async execute(input: InviteMemberInput): Promise<CommandResult>
+constructor(
 ⋮----
-export class RecruitMemberUseCase {
+async createAccount(body:
 ⋮----
-async execute(organizationId: string, memberId: string, name: string, email: string): Promise<CommandResult>
+async updateProfile(body:
 ⋮----
-export class RemoveMemberUseCase {
+async updateAccountProfile(body:
 ⋮----
-async execute(organizationId: string, memberId: string): Promise<CommandResult>
+async creditWallet(body:
 ⋮----
-export class UpdateMemberRoleUseCase {
+async debitWallet(body:
 ⋮----
-async execute(input: UpdateMemberRoleInput): Promise<CommandResult>
+async assignRole(body: {
+    accountId: string;
+    role: string;
+    grantedBy: string;
+    traceId?: string;
+})
 ⋮----
-export class ListOrganizationMembersUseCase {
-⋮----
-async execute(organizationId: string): Promise<MemberReference[]>
+async revokeRole(body:
 ````
 
-## File: src/modules/iam/subdomains/organization/application/use-cases/OrganizationTeamUseCases.ts
+## File: src/modules/iam/subdomains/identity/adapters/inbound/http/IdentityController.ts
 ````typescript
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type { CreateTeamInput, Team } from "../../domain/entities/Organization";
+import type {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+  SignOutUseCase,
+} from "../../../application/use-cases/IdentityUseCases";
+import type { SignInCredentials, RegistrationInput } from "../../../domain/entities/Identity";
 ⋮----
-export class CreateTeamUseCase {
+/** HTTP inbound adapter stub — translates HTTP requests into identity use-case calls. */
+export class IdentityController {
 ⋮----
-constructor(private readonly orgRepo: OrganizationRepository)
-async execute(input: CreateTeamInput): Promise<CommandResult>
+constructor(
 ⋮----
-export class DeleteTeamUseCase {
+async signIn(body: SignInCredentials)
 ⋮----
-async execute(organizationId: string, teamId: string): Promise<CommandResult>
+async signInAnonymously()
 ⋮----
-export class AddMemberToTeamUseCase {
+async register(body: RegistrationInput)
 ⋮----
-async execute(organizationId: string, teamId: string, memberId: string): Promise<CommandResult>
+async sendPasswordReset(body:
 ⋮----
-export class RemoveMemberFromTeamUseCase {
-⋮----
-export class ListOrganizationTeamsUseCase {
-⋮----
-async execute(organizationId: string): Promise<Team[]>
+async signOut()
 ````
 
 ## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmNotebookSection.tsx
@@ -16727,6 +17134,97 @@ async function handleSubmit(e: React.FormEvent)
 onOpenChange(nextOpen);
 ````
 
+## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
+````typescript
+/**
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
+ *
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
+ */
+⋮----
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  LayoutDashboard,
+  NotebookText,
+  Plus,
+  Settings,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+⋮----
+import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
+import { CreateOrganizationDialog } from "../platform-ui-stubs";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "../../../../index";
+import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/packages/ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/packages/ui-shadcn/ui/tooltip";
+⋮----
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+⋮----
+interface RailItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+⋮----
+function getInitial(name: string | undefined | null): string
+⋮----
+function isActive(href: string)
+⋮----
+function buildWorkspaceDetailHref(workspaceId: string): string
+⋮----
+onClick=
+⋮----
+onSelectWorkspace(workspace.id);
+````
+
 ## File: src/modules/platform/adapters/inbound/server-actions/file-actions.ts
 ````typescript
 /**
@@ -16946,23 +17444,6 @@ async query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>
 ## File: src/modules/platform/subdomains/audit-log/application/index.ts
 ````typescript
 
-````
-
-## File: src/modules/platform/subdomains/audit-log/application/use-cases/AuditLogUseCases.ts
-````typescript
-import { AuditLogEntry, type RecordAuditEntryInput } from "../../domain/entities/AuditLogEntry";
-import type { AuditLogRepository, AuditLogQuery } from "../../domain/repositories/AuditLogRepository";
-import type { AuditLogEntrySnapshot } from "../../domain/entities/AuditLogEntry";
-⋮----
-export class RecordAuditEntryUseCase {
-⋮----
-constructor(private readonly repo: AuditLogRepository)
-⋮----
-async execute(input: RecordAuditEntryInput): Promise<AuditLogEntrySnapshot>
-⋮----
-export class QueryAuditLogUseCase {
-⋮----
-async execute(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>
 ````
 
 ## File: src/modules/platform/subdomains/audit-log/domain/entities/AuditLogEntry.ts
@@ -17336,6 +17817,33 @@ import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entiti
 function buildEntry(partial: Partial<AuditEntrySnapshot>): AuditEntrySnapshot
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx
+````typescript
+/**
+ * WorkspaceAuditSection — workspace.audit tab — activity / audit log.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import { Activity, Filter } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createClientAuditUseCases } from "../../outbound/firebase-composition";
+import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+import {
+  AUDIT_EVENT_TYPES,
+  matchesAuditEventType,
+  type EventTypeFilter,
+} from "./workspace-audit-filter";
+⋮----
+interface WorkspaceAuditSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+{/* Header */}
+⋮----
+{/* Filter chips */}
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
 ````typescript
 /**
@@ -17454,41 +17962,6 @@ if (task.status === "draft")
 ⋮----
 // Show "重新送驗" when approval was previously rejected (bypass re-QA);
 // show "送交質檢" for the normal first-pass or post-QA-failure path.
-````
-
-## File: src/modules/workspace/adapters/inbound/server-actions/audit-actions.ts
-````typescript
-import { commandFailureFrom, type CommandResult } from "../../../../shared";
-import { RecordAuditEntrySchema } from "../../../subdomains/audit/application/dto/AuditDTO";
-import { createClientAuditUseCases } from "../../outbound/firebase-composition";
-import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
-⋮----
-// actorId injection from session is pending GAP-05 ADR decision.
-// Until platform.AuthAPI.requireAuth() is available, actorId is accepted from
-// client input via RecordAuditEntrySchema — tracked as GAP-05.
-⋮----
-export async function recordAuditEntryAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function listAuditEntriesByWorkspaceAction(workspaceId: string): Promise<AuditEntrySnapshot[]>
-````
-
-## File: src/modules/workspace/adapters/inbound/server-actions/schedule-actions.ts
-````typescript
-import { z } from "zod";
-import { commandFailureFrom, type CommandResult } from "../../../../shared";
-import { CreateWorkDemandSchema } from "../../../subdomains/schedule/application/dto/ScheduleDTO";
-import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
-import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
-⋮----
-// actorId injection from session is pending GAP-05 ADR decision.
-// Until platform.AuthAPI.requireAuth() is available, workspaceId membership is
-// not verified here — tracked as GAP-05.
-⋮----
-export async function createWorkDemandAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function assignWorkDemandAction(demandId: string, rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function listWorkDemandsByWorkspaceAction(workspaceId: string): Promise<WorkDemandSnapshot[]>
 ````
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/settlement-actions.ts
@@ -17630,25 +18103,6 @@ export async function listTasksByWorkspaceAction(workspaceId: string): Promise<T
 
 - [../AGENTS.md](../AGENTS.md)
 - [../../../docs/README.md](../../../docs/README.md)
-````
-
-## File: src/modules/workspace/subdomains/audit/application/use-cases/AuditUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-import { AuditEntry } from "../../domain/entities/AuditEntry";
-import type { AuditEntrySnapshot, RecordAuditEntryInput } from "../../domain/entities/AuditEntry";
-⋮----
-export class RecordAuditEntryUseCase {
-⋮----
-constructor(private readonly auditRepo: AuditRepository)
-⋮----
-async execute(input: RecordAuditEntryInput): Promise<CommandResult>
-⋮----
-export class ListWorkspaceAuditEntriesUseCase {
-⋮----
-async execute(workspaceId: string): Promise<AuditEntrySnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
@@ -17914,27 +18368,26 @@ import { describe, expect, it } from "vitest";
 import { WorkspaceRolePolicy } from "./WorkspaceRolePolicy";
 ````
 
-## File: src/modules/workspace/subdomains/schedule/application/use-cases/ScheduleUseCases.ts
+## File: src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts
 ````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { DemandRepository } from "../../domain/repositories/DemandRepository";
-import { WorkDemand } from "../../domain/entities/WorkDemand";
-import type { CreateWorkDemandInput, WorkDemandSnapshot } from "../../domain/entities/WorkDemand";
+import type {
+  ResourceQuotaSnapshot,
+  ResourceKind,
+} from "../entities/ResourceQuota";
 ⋮----
-export class CreateWorkDemandUseCase {
+export interface ResourceQuotaRepository {
+  findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
+  findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
+  findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
+  save(quota: ResourceQuotaSnapshot): Promise<void>;
+  updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
+}
 ⋮----
-constructor(private readonly demandRepo: DemandRepository)
-⋮----
-async execute(input: CreateWorkDemandInput): Promise<CommandResult>
-⋮----
-export class AssignWorkDemandUseCase {
-⋮----
-async execute(demandId: string, assignedUserId: string): Promise<CommandResult>
-⋮----
-export class ListWorkspaceDemandsUseCase {
-⋮----
-async execute(workspaceId: string): Promise<WorkDemandSnapshot[]>
+findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
+findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
+findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
+save(quota: ResourceQuotaSnapshot): Promise<void>;
+updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository.ts
@@ -18633,49 +19086,6 @@ export async function addWorkspaceKnowledgeDatabaseProperty(
 ): Promise<CommandResult>
 ````
 
-## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
-````typescript
-/**
- * FirestorePageRepository — Firestore adapter for the page subdomain.
- *
- * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a PageSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/page/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import { z } from "@packages";
-import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
-⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
-⋮----
-function toSnapshot(raw: unknown): PageSnapshot
-⋮----
-export class FirestorePageRepository implements PageRepository {
-⋮----
-async save(snapshot: PageSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<PageSnapshot | null>
-⋮----
-async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
-⋮----
-async findChildren(parentPageId: string): Promise<PageSnapshot[]>
-⋮----
-async query(params: PageQuery): Promise<PageSnapshot[]>
-⋮----
-// Build equality constraints — no composite index required for equality-only filters.
-⋮----
-async delete(id: string): Promise<void>
-````
-
 ## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
 ````typescript
 /**
@@ -18746,95 +19156,24 @@ getSnapshot(): Readonly<PageSnapshot>
 pullDomainEvents()
 ````
 
-## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
+## File: src/modules/platform/subdomains/audit-log/application/use-cases/AuditLogUseCases.ts
 ````typescript
-/**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
- */
-⋮----
-import Link from "next/link";
 import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  LayoutDashboard,
-  NotebookText,
-  Plus,
-  Settings,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+  AuditLogEntry,
+  type AuditLogEntrySnapshot,
+  type RecordAuditEntryInput,
+} from "../../domain/entities/AuditLogEntry";
+import type { AuditLogRepository, AuditLogQuery } from "../../domain/repositories/AuditLogRepository";
 ⋮----
-import type { AuthUser, ActiveAccount, AccountEntity } from "../AppContext";
-import { CreateOrganizationDialog } from "../platform-ui-stubs";
-import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  buildShellContextualHref,
-  type ShellRailCatalogItem,
-} from "../../../../index";
-import type { WorkspaceEntity } from "../../../../../workspace/adapters/inbound/react/WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "../../../../../workspace/adapters/inbound/react/workspace-ui-stubs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/packages/ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/packages/ui-shadcn/ui/tooltip";
+export class RecordAuditEntryUseCase {
 ⋮----
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
+constructor(private readonly repo: AuditLogRepository)
 ⋮----
-interface RailItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
+async execute(input: RecordAuditEntryInput): Promise<AuditLogEntrySnapshot>
 ⋮----
-function getInitial(name: string | undefined | null): string
+export class QueryAuditLogUseCase {
 ⋮----
-function isActive(href: string)
-⋮----
-function buildWorkspaceDetailHref(workspaceId: string): string
-⋮----
-onClick=
-⋮----
-onSelectWorkspace(workspace.id);
+async execute(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>
 ````
 
 ## File: src/modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
@@ -19009,176 +19348,6 @@ function buildWorkspace(
   accountId: string,
   accountType: "user" | "organization" = "organization",
 ): WorkspaceEntity
-````
-
-## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
-````typescript
-/**
- * workspace-shell-interop — workspace shell integration components & hooks.
- *
- * Bridges the workspace module with the platform shell:
- *   - WorkspaceQuickAccessRow   (icon strip in sidebar header)
- *   - WorkspaceSectionContent   (domain-grouped tab nav in sidebar body)
- *   - CustomizeNavigationDialog (user nav-preference editor)
- *   - CreateWorkspaceDialogRail (workspace creation triggered from app rail)
- *   - useRecentWorkspaces       (recent workspace list hook)
- *   - useSidebarLocale          (locale bundle stub hook)
- *   - buildWorkspaceQuickAccessItems (URL builder for quick-access items)
- *
- * All pure navigation data (types, constants, URL helpers) lives in
- * workspace-nav-model.ts — import from there for non-React consumers.
- */
-⋮----
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input } from "@packages";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import {
-  AlertCircle,
-  BadgeCheck,
-  BookOpen,
-  Brain,
-  ClipboardCheck,
-  FileStack,
-  FileText,
-  FolderOpen,
-  Home,
-  Inbox,
-  LayoutTemplate,
-  ListTodo,
-  MessageSquare,
-  Notebook,
-  Receipt,
-  Settings,
-  Shield,
-  Table2,
-  Users,
-} from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-⋮----
-import type { WorkspaceEntity } from "./WorkspaceContext";
-import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
-import {
-  DEFAULT_NAV_PREFS,
-  WORKSPACE_DOMAIN_GROUP_LABELS,
-  WORKSPACE_TAB_ITEMS,
-  getWorkspaceIdFromPath,
-  readNavPreferences,
-  resolveWorkspaceTabValue,
-  sanitizeNavPreferences,
-  writeNavPreferences,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-  type WorkspaceDomainGroup,
-} from "./workspace-nav-model";
-⋮----
-// Re-export types so callers that previously imported from workspace-ui-stubs
-// can keep working without change when workspace-ui-stubs becomes a barrel.
-⋮----
-// ── WorkspaceQuickAccessItem ──────────────────────────────────────────────────
-⋮----
-interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-⋮----
-interface WorkspaceQuickAccessItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-⋮----
-/**
- * WORKSPACE_TAB_ICONS — icon for each WorkspaceTabValue.
- *
- * This is the ONLY UI-specific data that cannot live in workspace-nav-model.ts
- * (nav-model is JSX-free). All other tab metadata (label, id, value, group)
- * is owned by WORKSPACE_TAB_ITEMS — never duplicate it here.
- */
-⋮----
-// workspace group
-⋮----
-// notion group
-⋮----
-// notebooklm group
-⋮----
-/**
- * WORKSPACE_QUICK_ACCESS_TEMPLATES — quick-access icon strip items.
- *
- * Tab-based items are auto-derived from WORKSPACE_TAB_ITEMS so that
- * labels and IDs always stay in sync with workspace-nav-model.ts.
- * Only non-tab panel shortcuts (e.g. governance panel) are defined manually.
- */
-⋮----
-// Non-tab panel shortcut — not backed by a top-level WorkspaceTabValue
-⋮----
-// All tab-based items — derived from WORKSPACE_TAB_ITEMS; labels stay in sync
-⋮----
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId: string | undefined,
-): WorkspaceQuickAccessItem[]
-⋮----
-// ── useRecentWorkspaces ───────────────────────────────────────────────────────
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getRecentStorageKey(accountId: string): string
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string): void
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-):
-⋮----
-export function useSidebarLocale(): SidebarLocaleBundle | null
-⋮----
-// ── Module-level instantiation ────────────────────────────────────────────────
-⋮----
-// ── WorkspaceQuickAccessRow ───────────────────────────────────────────────────
-⋮----
-interface WorkspaceQuickAccessRowProps {
-  items: WorkspaceQuickAccessItem[];
-  pathname: string;
-  currentPanel: string | null;
-  currentWorkspaceTab: string | null;
-  workspaceSettingsHref: string;
-  isActiveRoute: (href: string) => boolean;
-}
-⋮----
-// ── WorkspaceSectionContent ───────────────────────────────────────────────────
-⋮----
-className=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-// ── CustomizeNavigationDialog ─────────────────────────────────────────────────
-⋮----
-setDraft((prev) => (
-⋮----
-setDraft(DEFAULT_NAV_PREFS);
-⋮----
-// ── CreateWorkspaceDialogRail ─────────────────────────────────────────────────
-⋮----
-function reset()
-⋮----
-async function handleSubmit(event: FormEvent<HTMLFormElement>)
-⋮----
-onOpenChange(isOpen);
-⋮----
-reset();
-onOpenChange(false);
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
@@ -19421,6 +19590,36 @@ function createActiveMember(
 ): WorkspaceMemberSnapshot
 ````
 
+## File: src/modules/workspace/subdomains/membership/application/use-cases/MembershipUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { WorkspaceMemberRepository } from "../../domain/repositories/WorkspaceMemberRepository";
+import { WorkspaceMember } from "../../domain/entities/WorkspaceMember";
+import type { AddMemberInput, MemberRole } from "../../domain/entities/WorkspaceMember";
+import type { PermissionCheckPort } from "../ports/PermissionCheckPort";
+⋮----
+export class AddMemberUseCase {
+⋮----
+constructor(
+⋮----
+async execute(actorId: string, input: AddMemberInput): Promise<CommandResult>
+⋮----
+export class ChangeMemberRoleUseCase {
+⋮----
+async execute(actorId: string, memberId: string, role: MemberRole): Promise<CommandResult>
+⋮----
+export class RemoveMemberUseCase {
+⋮----
+async execute(actorId: string, memberId: string): Promise<CommandResult>
+⋮----
+export class ListWorkspaceMembersUseCase {
+⋮----
+constructor(private readonly memberRepo: WorkspaceMemberRepository)
+⋮----
+async execute(workspaceId: string)
+````
+
 ## File: src/modules/workspace/subdomains/membership/domain/value-objects/WorkspaceRolePolicy.ts
 ````typescript
 import type { MemberRole } from "../entities/WorkspaceMember";
@@ -19445,258 +19644,6 @@ import { FirebaseCallableTaskCandidateExtractor } from "./FirebaseCallableTaskCa
 ⋮----
 // Minimal AP8 PO dense text excerpt mimicking Document AI OCR output.
 // Format: {item_no} 3RDTW{code} SET {price}...小計{total}（{section_numeral}）{description}
-````
-
-## File: src/modules/iam/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — iam module outbound composition root.
- *
- * Wires Firebase-backed repository implementations into domain use cases.
- * This file is the ONLY entry point for Firebase SDK access within the iam
- * module. All other layers remain infrastructure-agnostic.
- *
- * ESLint: @integration-firebase is allowed here because this file lives in
- * src/modules/iam/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import { getFirebaseAuth, onFirebaseAuthStateChanged, signOutFirebase, getFirebaseFirestore, firestoreApi, type User } from "@packages";
-import { FirebaseAuthIdentityRepository } from "./FirebaseAuthIdentityRepository";
-import { FirebaseAccountQueryRepository } from "./FirebaseAccountQueryRepository";
-import {
-  FirestoreAccountRepository,
-  type FirestoreLike,
-} from "../../subdomains/account/adapters/outbound/firestore/FirestoreAccountRepository";
-import {
-  FirestoreOrganizationRepository,
-  type OrgFirestoreLike,
-} from "../../subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository";
-import {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-} from "../../subdomains/identity/application/use-cases/IdentityUseCases";
-import { CreateUserAccountUseCase } from "../../subdomains/account/application/use-cases/AccountUseCases";
-import { CreateOrganizationUseCase } from "../../subdomains/organization/application/use-cases/OrganizationLifecycleUseCases";
-import {
-  InviteMemberUseCase,
-  ListOrganizationMembersUseCase,
-  UpdateMemberRoleUseCase,
-  RecruitMemberUseCase,
-} from "../../subdomains/organization/application/use-cases/OrganizationMemberUseCases";
-import {
-  CreateTeamUseCase,
-  ListOrganizationTeamsUseCase,
-} from "../../subdomains/organization/application/use-cases/OrganizationTeamUseCases";
-import type { AccountSnapshot } from "../../subdomains/account/domain/entities/Account";
-import type { Unsubscribe } from "../../subdomains/account/domain/repositories/AccountQueryRepository";
-import type {
-  CreateTeamInput,
-  InviteMemberInput,
-  MemberReference,
-  Team,
-  UpdateMemberRoleInput,
-} from "../../subdomains/organization/domain/entities/Organization";
-import type { CommandResult } from "../../../shared";
-⋮----
-// ─── Singleton repositories ───────────────────────────────────────────────────
-⋮----
-function getIdentityRepo(): FirebaseAuthIdentityRepository
-⋮----
-function getAccountQueryRepo(): FirebaseAccountQueryRepository
-⋮----
-function getOrgRepo(): FirestoreOrganizationRepository
-⋮----
-// ─── FirestoreLike adapter ────────────────────────────────────────────────────
-// Bridges the Firestore SDK to the FirestoreLike interface expected by
-// FirestoreAccountRepository (subdomain-level adapter, technology-agnostic).
-⋮----
-function createFirestoreLikeAdapter(): FirestoreLike
-⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-⋮----
-// ─── OrgFirestoreLike adapter ─────────────────────────────────────────────────
-// Bridges the Firestore SDK to the OrgFirestoreLike interface for org operations
-// (subcollections, etc.).
-⋮----
-function createOrgFirestoreLikeAdapter(): OrgFirestoreLike
-⋮----
-async get(col: string, id: string): Promise<Record<string, unknown> | null>
-async set(col: string, id: string, data: Record<string, unknown>): Promise<void>
-async delete(col: string, id: string): Promise<void>
-async getSubcollection(
-      col: string,
-      parentId: string,
-      sub: string,
-): Promise<
-async setSubdoc(
-      col: string,
-      parentId: string,
-      sub: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async deleteSubdoc(
-      col: string,
-      parentId: string,
-      sub: string,
-      id: string,
-): Promise<void>
-⋮----
-// ─── Auth use-case factory ────────────────────────────────────────────────────
-⋮----
-/**
- * Returns Firebase-backed auth use cases for use in "use client" components.
- * Each call creates fresh use-case instances sharing one repository instance.
- */
-export function createClientAuthUseCases()
-⋮----
-// ─── Account use-case factory ─────────────────────────────────────────────────
-⋮----
-/**
- * Returns Firebase-backed account use cases for use in "use client" components.
- */
-export function createClientAccountUseCases()
-⋮----
-// ─── Auth state subscription ──────────────────────────────────────────────────
-⋮----
-/**
- * Subscribes to Firebase auth state changes.
- * Returns an unsubscribe function.
- * For use in "use client" auth providers only.
- */
-export function subscribeToAuthState(
-  callback: (user: User | null) => void,
-): Unsubscribe
-⋮----
-/**
- * Signs the current user out of Firebase Auth.
- */
-export async function firebaseSignOut(): Promise<void>
-⋮----
-// ─── Account subscriptions ────────────────────────────────────────────────────
-⋮----
-/**
- * Subscribes to real-time updates for all organisation accounts associated
- * with the given userId (owned or membership).
- */
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountSnapshot>) => void,
-): Unsubscribe
-⋮----
-// ─── Organisation use-case factory ───────────────────────────────────────────
-⋮----
-/**
- * Returns Firebase-backed organisation use cases for use in "use client"
- * components.
- */
-export function createClientOrganizationUseCases()
-⋮----
-export async function listOrganizationMembers(organizationId: string): Promise<MemberReference[]>
-⋮----
-export async function listOrganizationTeams(organizationId: string): Promise<Team[]>
-⋮----
-export async function inviteOrganizationMember(input: InviteMemberInput): Promise<CommandResult>
-⋮----
-export async function recruitOrganizationMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult>
-⋮----
-export async function updateOrganizationMemberRole(
-  input: UpdateMemberRoleInput,
-): Promise<CommandResult>
-⋮----
-export async function createOrganizationTeam(input: CreateTeamInput): Promise<CommandResult>
-````
-
-## File: src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts
-````typescript
-/**
- * FirebaseCallableAdapter — HTTPS Callable bridge to fn.
- *
- * Wraps Firebase Cloud Function callables for:
- *   - rag_query  (RAG retrieval + generation)
- *   - parse_document (manual trigger for document parsing)
- *   - rag_reindex_document (re-embed a document)
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/adapters/outbound/callable/
- * which matches src/modules/<context>/adapters/outbound/**.
- */
-⋮----
-import { getFirebaseFunctions, httpsCallable } from "@packages";
-⋮----
-// ── Input / output contracts ──────────────────────────────────────────────────
-⋮----
-export interface RagQueryInput {
-  readonly account_id: string;
-  readonly workspace_id: string;
-  readonly query: string;
-  readonly top_k?: number;
-}
-⋮----
-export interface RagQueryCitation {
-  readonly doc_id: string;
-  readonly chunk_id: string;
-  readonly filename: string;
-  readonly score: number;
-}
-⋮----
-export interface RagQueryOutput {
-  readonly answer: string;
-  readonly citations: RagQueryCitation[];
-  readonly cache: "hit" | "miss";
-  readonly vector_hits: number;
-  readonly search_hits: number;
-}
-⋮----
-export interface ParseDocumentInput {
-  readonly account_id: string;
-  readonly workspace_id: string;
-  readonly gcs_uri: string;
-  readonly doc_id?: string;
-  readonly filename?: string;
-  readonly mime_type?: string;
-  readonly size_bytes?: number;
-  /** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
-  readonly run_rag?: boolean;
-}
-⋮----
-/** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
-⋮----
-export interface ParseDocumentOutput {
-  readonly doc_id: string;
-  readonly account_scope: string;
-  readonly status: string;
-}
-⋮----
-export interface ReindexDocumentInput {
-  readonly account_id: string;
-  readonly doc_id: string;
-  /** GCS URI of the parsed JSON file (gs://bucket/files/…json). Required by fn. */
-  readonly json_gcs_uri: string;
-}
-⋮----
-/** GCS URI of the parsed JSON file (gs://bucket/files/…json). Required by fn. */
-⋮----
-// ── Callable wrappers ─────────────────────────────────────────────────────────
-⋮----
-export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput>
-⋮----
-export async function callParseDocument(input: ParseDocumentInput): Promise<ParseDocumentOutput>
-⋮----
-export async function callReindexDocument(input: ReindexDocumentInput): Promise<void>
 ````
 
 ## File: src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx
@@ -19744,45 +19691,6 @@ import { createClientNotionDatabaseUseCases } from "../../outbound/firebase-comp
 export async function queryDatabasesAction(rawInput: unknown)
 ⋮----
 export async function createDatabaseAction(rawInput: unknown)
-````
-
-## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
-````typescript
-/**
- * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
- *
- * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a DatabaseSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/database/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import { z } from "@packages";
-import type { DatabaseSnapshot } from "../../../domain/entities/Database";
-import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
-⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
-⋮----
-function toSnapshot(raw: unknown): DatabaseSnapshot
-⋮----
-export class FirestoreDatabaseRepository implements DatabaseRepository {
-⋮----
-async save(snapshot: DatabaseSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<DatabaseSnapshot | null>
-⋮----
-async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
 ````
 
 ## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
@@ -19848,31 +19756,82 @@ get properties(): DatabaseProperty[]
 getSnapshot(): Readonly<DatabaseSnapshot>
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx
+## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
 ````typescript
 /**
- * WorkspaceAuditSection — workspace.audit tab — activity / audit log.
+ * FirestorePageRepository — Firestore adapter for the page subdomain.
+ *
+ * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a PageSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/page/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): PageSnapshot
+⋮----
+export class FirestorePageRepository implements PageRepository {
+⋮----
+async save(snapshot: PageSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<PageSnapshot | null>
+⋮----
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+⋮----
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+// Build equality constraints — no composite index required for equality-only filters.
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
+````typescript
+/**
+ * WorkspaceMembersSection — workspace.members tab — team member list.
  */
 ⋮----
 import { Badge, Button } from "@packages";
-import { Activity, Filter } from "lucide-react";
+import { Users, UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createClientAuditUseCases } from "../../outbound/firebase-composition";
-import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+import { createClientMembershipUseCases } from "../../outbound/firebase-composition";
+import type { WorkspaceMemberSnapshot } from "../../../subdomains/membership/domain/entities/WorkspaceMember";
 import {
-  AUDIT_EVENT_TYPES,
-  matchesAuditEventType,
-  type EventTypeFilter,
-} from "./workspace-audit-filter";
+  addMemberAction,
+  changeMemberRoleAction,
+} from "../server-actions/membership-actions";
 ⋮----
-interface WorkspaceAuditSectionProps {
+interface WorkspaceMembersSectionProps {
   workspaceId: string;
   accountId: string;
+  currentUserId?: string;
 }
+⋮----
+async function loadMembers(): Promise<void>
+⋮----
+async function handleInviteMember(): Promise<void>
+⋮----
+// TODO(workspace-membership): replace this fallback with IAM directory lookup (email -> actorId).
+// Temporary mapping: use normalized email as target actor identity.
+⋮----
+async function handleRoleChange(memberId: string, nextRole: "owner" | "admin" | "member"): Promise<void>
 ⋮----
 {/* Header */}
 ⋮----
-{/* Filter chips */}
+{/* Role filter */}
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.test.ts
@@ -19882,34 +19841,138 @@ import { describe, expect, it } from "vitest";
 import { parseLocalDatetimeInput, toLocalDatetimeInputValue } from "./workspace-schedule-datetime";
 ````
 
-## File: src/modules/workspace/subdomains/membership/application/use-cases/MembershipUseCases.ts
+## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.test.ts
 ````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { WorkspaceMemberRepository } from "../../domain/repositories/WorkspaceMemberRepository";
-import { WorkspaceMember } from "../../domain/entities/WorkspaceMember";
-import type { AddMemberInput, MemberRole } from "../../domain/entities/WorkspaceMember";
-import type { PermissionCheckPort } from "../ports/PermissionCheckPort";
+import { describe, expect, it } from 'vitest';
+import {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithOwnerUseCase,
+} from './WorkspaceLifecycleUseCases';
+import type { WorkspaceSnapshot } from '../../domain/entities/Workspace';
+import type { WorkspaceRepository } from '../../domain/repositories/WorkspaceRepository';
+import type { WorkspaceMemberSnapshot } from '../../../membership/domain/entities/WorkspaceMember';
+import type { WorkspaceMemberRepository } from '../../../membership/domain/repositories/WorkspaceMemberRepository';
+import type { AuditEntrySnapshot } from '../../../audit/domain/entities/AuditEntry';
+import type { AuditRepository } from '../../../audit/domain/repositories/AuditRepository';
 ⋮----
-export class AddMemberUseCase {
+class InMemoryWorkspaceRepository implements WorkspaceRepository {
 ⋮----
-constructor(
+async findById(workspaceId: string): Promise<WorkspaceSnapshot | null>
 ⋮----
-async execute(actorId: string, input: AddMemberInput): Promise<CommandResult>
+async findByAccountId(accountId: string): Promise<WorkspaceSnapshot[]>
 ⋮----
-export class ChangeMemberRoleUseCase {
+async save(workspace: WorkspaceSnapshot): Promise<void>
 ⋮----
-async execute(actorId: string, memberId: string, role: MemberRole): Promise<CommandResult>
+async delete(workspaceId: string): Promise<void>
 ⋮----
-export class RemoveMemberUseCase {
+class InMemoryWorkspaceRepositoryWithDeleteFailure extends InMemoryWorkspaceRepository {
 ⋮----
-async execute(actorId: string, memberId: string): Promise<CommandResult>
+async delete(_workspaceId: string): Promise<void>
 ⋮----
-export class ListWorkspaceMembersUseCase {
+class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository {
 ⋮----
-constructor(private readonly memberRepo: WorkspaceMemberRepository)
+async findById(memberId: string): Promise<WorkspaceMemberSnapshot | null>
 ⋮----
-async execute(workspaceId: string)
+async findByWorkspaceId(workspaceId: string): Promise<WorkspaceMemberSnapshot[]>
+⋮----
+async findByActorAndWorkspace(actorId: string, workspaceId: string): Promise<WorkspaceMemberSnapshot | null>
+⋮----
+async save(member: WorkspaceMemberSnapshot): Promise<void>
+⋮----
+async delete(memberId: string): Promise<void>
+⋮----
+class InMemoryAuditRepository implements AuditRepository {
+⋮----
+async save(entry: AuditEntrySnapshot): Promise<void>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<AuditEntrySnapshot[]>
+⋮----
+async findByWorkspaceIds(workspaceIds: string[]): Promise<AuditEntrySnapshot[]>
+⋮----
+async save(): Promise<void>
+````
+
+## File: src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts
+````typescript
+/**
+ * FirebaseCallableAdapter — HTTPS Callable bridge to fn.
+ *
+ * Wraps Firebase Cloud Function callables for:
+ *   - rag_query  (RAG retrieval + generation)
+ *   - parse_document (manual trigger for document parsing)
+ *   - rag_reindex_document (re-embed a document)
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/callable/
+ * which matches src/modules/<context>/adapters/outbound/**.
+ */
+⋮----
+import { getFirebaseFunctions, httpsCallable } from "@packages";
+⋮----
+// ── Input / output contracts ──────────────────────────────────────────────────
+⋮----
+export interface RagQueryInput {
+  readonly account_id: string;
+  readonly workspace_id: string;
+  readonly query: string;
+  readonly top_k?: number;
+}
+⋮----
+export interface RagQueryCitation {
+  readonly doc_id: string;
+  readonly chunk_id: string;
+  readonly filename: string;
+  readonly score: number;
+}
+⋮----
+export interface RagQueryOutput {
+  readonly answer: string;
+  readonly citations: RagQueryCitation[];
+  readonly cache: "hit" | "miss";
+  readonly vector_hits: number;
+  readonly search_hits: number;
+}
+⋮----
+export interface ParseDocumentInput {
+  readonly account_id: string;
+  readonly workspace_id: string;
+  readonly gcs_uri: string;
+  readonly doc_id?: string;
+  readonly filename?: string;
+  readonly mime_type?: string;
+  readonly size_bytes?: number;
+  /** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
+  readonly run_rag?: boolean;
+  /** Parser variant: "layout" | "form" | "ocr" | "genkit". Defaults to "layout" in fn. */
+  readonly parser?: "layout" | "form" | "ocr" | "genkit";
+}
+⋮----
+/** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
+⋮----
+/** Parser variant: "layout" | "form" | "ocr" | "genkit". Defaults to "layout" in fn. */
+⋮----
+export interface ParseDocumentOutput {
+  readonly doc_id: string;
+  readonly account_scope: string;
+  readonly status: string;
+}
+⋮----
+export interface ReindexDocumentInput {
+  readonly account_id: string;
+  readonly doc_id: string;
+  /** GCS URI of the parsed JSON file (gs://bucket/files/…json). Required by fn. */
+  readonly json_gcs_uri: string;
+}
+⋮----
+/** GCS URI of the parsed JSON file (gs://bucket/files/…json). Required by fn. */
+⋮----
+// ── Callable wrappers ─────────────────────────────────────────────────────────
+⋮----
+export async function callRagQuery(input: RagQueryInput): Promise<RagQueryOutput>
+⋮----
+export async function callParseDocument(input: ParseDocumentInput): Promise<ParseDocumentOutput>
+⋮----
+export async function callReindexDocument(input: ReindexDocumentInput): Promise<void>
 ````
 
 ## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
@@ -19958,6 +20021,44 @@ const handleRename = (pageId: string) =>
 const handleArchive = (pageId: string) =>
 ⋮----
 href=
+````
+
+## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+````typescript
+/**
+ * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ *
+ * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a DatabaseSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): DatabaseSnapshot
+⋮----
+export class FirestoreDatabaseRepository implements DatabaseRepository {
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
@@ -20028,6 +20129,94 @@ if (accountType === "organization")
 // Two-segment routes
 ⋮----
 // Fallback
+````
+
+## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
+````typescript
+/**
+ * workspace-route-screens — workspace-scoped route screen components.
+ *
+ * Provides screens rendered within a workspace context:
+ *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
+ *   - WorkspaceHubScreen          (workspace listing / hub for an account)
+ *
+ * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
+ * etc.) belong in platform-ui-stubs because they are platform-owned, not
+ * workspace-owned.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
+import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
+import { WorkspaceDailySection } from "./WorkspaceDailySection";
+import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
+import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
+import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
+import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
+import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
+import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
+import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
+import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
+import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
+import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
+import {
+  WORKSPACE_TAB_ITEMS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
+  resolveWorkspaceTabValue,
+  type WorkspaceTabValue,
+  type WorkspaceDomainGroup,
+} from "./workspace-nav-model";
+⋮----
+// Cross-module: notion section components (via adapters/inbound/react boundary)
+import {
+  NotionKnowledgeSection,
+  NotionPagesSection,
+  NotionDatabaseSection,
+  NotionTemplatesSection,
+} from "@/src/modules/notion/adapters/inbound/react";
+⋮----
+// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
+import {
+  NotebooklmNotebookSection,
+  NotebooklmAiChatSection,
+  NotebooklmSourcesSection,
+  NotebooklmResearchSection,
+} from "@/src/modules/notebooklm/adapters/inbound/react";
+⋮----
+// ── Internal helpers ──────────────────────────────────────────────────────────
+⋮----
+function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
+⋮----
+// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
+⋮----
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string;
+  accountsHydrated: boolean;
+  currentUserId?: string;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+⋮----
+const tabHref = (tab: WorkspaceTabValue)
+⋮----
+<Badge variant=
+⋮----
+{/* ── workspace group ── */}
+⋮----
+{/* ── notebooklm group ── */}
+⋮----
+// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
+⋮----
+onClick=
+⋮----
+router.push(href);
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-schedule-datetime.ts
@@ -20111,55 +20300,61 @@ function handleConfirm()
 function handleReset()
 ````
 
-## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.test.ts
+## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.ts
 ````typescript
-import { describe, expect, it } from 'vitest';
-import {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithOwnerUseCase,
-} from './WorkspaceLifecycleUseCases';
-import type { WorkspaceSnapshot } from '../../domain/entities/Workspace';
-import type { WorkspaceRepository } from '../../domain/repositories/WorkspaceRepository';
-import type { WorkspaceMemberSnapshot } from '../../../membership/domain/entities/WorkspaceMember';
-import type { WorkspaceMemberRepository } from '../../../membership/domain/repositories/WorkspaceMemberRepository';
-import type { AuditEntrySnapshot } from '../../../audit/domain/entities/AuditEntry';
-import type { AuditRepository } from '../../../audit/domain/repositories/AuditRepository';
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import { Workspace } from "../../domain/entities/Workspace";
+import type { CreateWorkspaceInput } from "../../domain/entities/Workspace";
+import { WorkspaceMember } from "../../../membership/domain/entities/WorkspaceMember";
+import type { WorkspaceMemberRepository } from "../../../membership/domain/repositories/WorkspaceMemberRepository";
+import type { AuditRepository } from "../../../audit/domain/repositories/AuditRepository";
+import { AuditEntry } from "../../../audit/domain/entities/AuditEntry";
+import { createAuditAction } from "../../../audit/domain/value-objects/AuditAction";
+import { createAuditSeverity } from "../../../audit/domain/value-objects/AuditSeverity";
 ⋮----
-class InMemoryWorkspaceRepository implements WorkspaceRepository {
+interface CreateWorkspaceWithOwnerInput {
+  readonly workspace: CreateWorkspaceInput;
+  readonly owner: {
+    readonly actorId: string;
+    readonly displayName: string;
+    readonly email?: string;
+  };
+}
 ⋮----
-async findById(workspaceId: string): Promise<WorkspaceSnapshot | null>
+interface WorkspaceCreatorInput {
+  readonly actorId: string;
+  readonly displayName: string;
+  readonly email?: string;
+}
 ⋮----
-async findByAccountId(accountId: string): Promise<WorkspaceSnapshot[]>
+interface CreateWorkspaceWithCreatorInput extends CreateWorkspaceInput {
+  readonly creator?: WorkspaceCreatorInput;
+}
 ⋮----
-async save(workspace: WorkspaceSnapshot): Promise<void>
+export class CreateWorkspaceUseCase {
 ⋮----
-async delete(workspaceId: string): Promise<void>
+constructor(
 ⋮----
-class InMemoryWorkspaceRepositoryWithDeleteFailure extends InMemoryWorkspaceRepository {
+async execute(input: CreateWorkspaceWithCreatorInput): Promise<CommandResult>
 ⋮----
-async delete(_workspaceId: string): Promise<void>
+// Best-effort audit logging: do not mask successful workspace creation.
+// Keep a traceable error record for observability.
 ⋮----
-class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository {
+export class CreateWorkspaceWithOwnerUseCase {
 ⋮----
-async findById(memberId: string): Promise<WorkspaceMemberSnapshot | null>
+async execute(input: CreateWorkspaceWithOwnerInput): Promise<CommandResult>
 ⋮----
-async findByWorkspaceId(workspaceId: string): Promise<WorkspaceMemberSnapshot[]>
+export class ActivateWorkspaceUseCase {
 ⋮----
-async findByActorAndWorkspace(actorId: string, workspaceId: string): Promise<WorkspaceMemberSnapshot | null>
+constructor(private readonly workspaceRepo: WorkspaceRepository)
 ⋮----
-async save(member: WorkspaceMemberSnapshot): Promise<void>
+async execute(workspaceId: string): Promise<CommandResult>
 ⋮----
-async delete(memberId: string): Promise<void>
+export class StopWorkspaceUseCase {
 ⋮----
-class InMemoryAuditRepository implements AuditRepository {
-⋮----
-async save(entry: AuditEntrySnapshot): Promise<void>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<AuditEntrySnapshot[]>
-⋮----
-async findByWorkspaceIds(workspaceIds: string[]): Promise<AuditEntrySnapshot[]>
-⋮----
-async save(): Promise<void>
+export class DeleteWorkspaceUseCase {
 ````
 
 ## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts
@@ -20291,128 +20486,210 @@ export async function addDatabaseProperty(
 ): Promise<CommandResult>
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
+## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
 ````typescript
 /**
- * workspace-route-screens — workspace-scoped route screen components.
+ * firebase-composition — workspace module outbound composition root.
  *
- * Provides screens rendered within a workspace context:
- *   - WorkspaceDetailRouteScreen  (tabbed workspace detail page)
- *   - WorkspaceHubScreen          (workspace listing / hub for an account)
+ * Single entry point for all Firebase operations owned by the workspace module.
+ * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
  *
- * Account/organization-level route screens (AccountDashboard, OrganizationTeams,
- * etc.) belong in platform-ui-stubs because they are platform-owned, not
- * workspace-owned.
+ * ESLint: @integration-firebase is allowed here because this file lives at
+ * src/modules/workspace/adapters/outbound/ which matches the permitted glob
+ * (src/modules/<context>/adapters/outbound/**).
+ *
+ * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
+ * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
  */
 ⋮----
-import { Badge, Button } from "@packages";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useWorkspaceContext, type WorkspaceEntity } from "./WorkspaceContext";
-import { CreateWorkspaceDialogRail } from "./workspace-shell-interop";
-import { WorkspaceDailySection } from "./WorkspaceDailySection";
-import { WorkspaceScheduleSection } from "./WorkspaceScheduleSection";
-import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceFilesSection } from "./WorkspaceFilesSection";
-import { WorkspaceMembersSection } from "./WorkspaceMembersSection";
-import { WorkspaceSettingsSection } from "./WorkspaceSettingsSection";
-import { WorkspaceTaskFormationSection } from "./WorkspaceTaskFormationSection";
-import { WorkspaceTasksSection } from "./WorkspaceTasksSection";
-import { WorkspaceQualitySection } from "./WorkspaceQualitySection";
-import { WorkspaceApprovalSection } from "./WorkspaceApprovalSection";
-import { WorkspaceSettlementSection } from "./WorkspaceSettlementSection";
-import { WorkspaceIssuesSection } from "./WorkspaceIssuesSection";
-import { WorkspaceOverviewSection } from "./WorkspaceOverviewSection";
+import { getFirebaseFirestore, firestoreApi } from "@packages";
 import {
-  WORKSPACE_TAB_ITEMS,
-  WORKSPACE_DOMAIN_GROUP_LABELS,
-  resolveWorkspaceTabValue,
-  type WorkspaceTabValue,
-  type WorkspaceDomainGroup,
-} from "./workspace-nav-model";
+  FirebaseWorkspaceQueryRepository,
+  type Unsubscribe,
+} from "./FirebaseWorkspaceQueryRepository";
+import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
 ⋮----
-// Cross-module: notion section components (via adapters/inbound/react boundary)
 import {
-  NotionKnowledgeSection,
-  NotionPagesSection,
-  NotionDatabaseSection,
-  NotionTemplatesSection,
-} from "@/src/modules/notion/adapters/inbound/react";
-⋮----
-// Cross-module: notebooklm section components (via adapters/inbound/react boundary)
+  FirestoreWorkspaceRepository,
+  type FirestoreLike,
+} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
 import {
-  NotebooklmNotebookSection,
-  NotebooklmAiChatSection,
-  NotebooklmSourcesSection,
-  NotebooklmResearchSection,
-} from "@/src/modules/notebooklm/adapters/inbound/react";
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithOwnerUseCase,
+  ActivateWorkspaceUseCase,
+  StopWorkspaceUseCase,
+} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
+import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
+import { FirestorePermissionCheckAdapter } from "../../subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter";
+import {
+  AddMemberUseCase,
+  ChangeMemberRoleUseCase,
+  ListWorkspaceMembersUseCase,
+  RemoveMemberUseCase,
+} from "../../subdomains/membership/application/use-cases/MembershipUseCases";
+import { MembershipController } from "../../subdomains/membership/adapters/inbound/http/MembershipController";
+import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
+import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
+import {
+  ExtractTaskCandidatesUseCase,
+  ConfirmCandidatesUseCase,
+} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
+import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import {
+  CreateTaskUseCase,
+  UpdateTaskUseCase,
+  TransitionTaskStatusUseCase,
+  DeleteTaskUseCase,
+} from "../../subdomains/task/application/use-cases/TaskUseCases";
+import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
+import {
+  OpenIssueUseCase,
+  TransitionIssueStatusUseCase,
+  ResolveIssueUseCase,
+  CloseIssueUseCase,
+} from "../../subdomains/issue/application/use-cases/IssueUseCases";
+import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
+import {
+  StartQualityReviewUseCase,
+  PassQualityReviewUseCase,
+  FailQualityReviewUseCase,
+  ListQualityReviewsUseCase,
+} from "../../subdomains/quality/application/use-cases/QualityUseCases";
+import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
+import {
+  CreateApprovalDecisionUseCase,
+  ApproveTaskUseCase,
+  RejectApprovalUseCase,
+  ListApprovalDecisionsUseCase,
+} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
+import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
+import {
+  CreateFeedPostUseCase,
+  ListAccountFeedPostsUseCase,
+  ListFeedPostsUseCase,
+} from "../../subdomains/feed/application/use-cases/FeedUseCases";
+import { FirestoreDemandRepository } from "../../subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository";
+import {
+  AssignWorkDemandUseCase,
+  CreateWorkDemandUseCase,
+  ListWorkspaceDemandsUseCase,
+} from "../../subdomains/schedule/application/use-cases/ScheduleUseCases";
+import { FirestoreAuditRepository } from "../../subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository";
+import {
+  ListWorkspaceAuditEntriesUseCase,
+  RecordAuditEntryUseCase,
+} from "../../subdomains/audit/application/use-cases/AuditUseCases";
+import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
+import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
+import { CreateInvoiceFromAcceptedTasksUseCase } from "../../subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
 ⋮----
-// ── Internal helpers ──────────────────────────────────────────────────────────
+type FirestoreWhereOperator =
+  | "<"
+  | "<="
+  | "=="
+  | "!="
+  | ">="
+  | ">"
+  | "array-contains"
+  | "in"
+  | "array-contains-any"
+  | "not-in";
 ⋮----
-function getLifecycleBadgeVariant(lifecycleState: WorkspaceEntity["lifecycleState"])
+// ── Singleton repository ───────────────────────────────────────────────────────
 ⋮----
-// ── WorkspaceDetailRouteScreen ────────────────────────────────────────────────
+function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
 ⋮----
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string;
-  accountsHydrated: boolean;
-  currentUserId?: string;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
+export function createFirestoreLikeAdapter()
 ⋮----
-const tabHref = (tab: WorkspaceTabValue)
+async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
+async set(
+      collectionName: string,
+      id: string,
+      data: Record<string, unknown>,
+): Promise<void>
+async delete(collectionName: string, id: string): Promise<void>
+async query(
+      collectionName: string,
+      filters: Array<{ field: string; op: string; value: unknown }>,
+): Promise<Record<string, unknown>[]>
+async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
 ⋮----
-<Badge variant=
+function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
 ⋮----
-{/* ── workspace group ── */}
+function getWorkspaceMemberRepo(): FirestoreMemberRepository
 ⋮----
-{/* ── notebooklm group ── */}
+function createAuditRepo(): FirestoreAuditRepository
 ⋮----
-// ── WorkspaceHubScreen ────────────────────────────────────────────────────────
+function createMembershipPermissionCheck(repo: FirestoreMemberRepository): FirestorePermissionCheckAdapter
 ⋮----
-onClick=
+// ── Public subscriptions ───────────────────────────────────────────────────────
 ⋮----
-router.push(href);
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
-````typescript
 /**
- * WorkspaceMembersSection — workspace.members tab — team member list.
+ * Subscribes to real-time workspace updates for the given account.
+ * Calls `onUpdate` immediately with the current dataset and again on every
+ * subsequent Firestore change.
+ *
+ * Returns an unsubscribe function — call it when the subscriber unmounts to
+ * avoid memory leaks and unnecessary Firestore reads.
  */
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
+): Unsubscribe
 ⋮----
-import { Badge, Button } from "@packages";
-import { Users, UserPlus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { createClientMembershipUseCases } from "../../outbound/firebase-composition";
-import type { WorkspaceMemberSnapshot } from "../../../subdomains/membership/domain/entities/WorkspaceMember";
-import {
-  addMemberAction,
-  changeMemberRoleAction,
-} from "../server-actions/membership-actions";
+export function createClientWorkspaceLifecycleUseCases()
 ⋮----
-interface WorkspaceMembersSectionProps {
-  workspaceId: string;
+export function createClientMembershipUseCases()
+⋮----
+export function createClientMembershipController(): MembershipController
+⋮----
+export function createClientTaskFormationUseCases()
+⋮----
+export function createClientTaskUseCases()
+⋮----
+export function createClientIssueUseCases()
+⋮----
+export function createClientQualityUseCases()
+⋮----
+export function createClientApprovalUseCases()
+⋮----
+export function createClientFeedUseCases()
+⋮----
+// ── Client-side feed helpers ──────────────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+// The Firebase Web Client SDK requires a signed-in user in the browser context.
+// A Server Action has no active Firebase user session → Firestore Security Rules
+// block any operation (read or write) with "Missing or insufficient permissions".
+⋮----
+export async function listFeedPosts(params: {
   accountId: string;
-  currentUserId?: string;
-}
+  workspaceId: string;
+  dateKey?: string;
+  limit?: number;
+})
 ⋮----
-async function loadMembers(): Promise<void>
+export async function createFeedPost(params: {
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  content: string;
+  photoUrls?: string[];
+  replyToPostId?: string;
+  repostOfPostId?: string;
+})
 ⋮----
-async function handleInviteMember(): Promise<void>
+export async function listAccountFeedPosts(params: {
+  accountId: string;
+  dateKey?: string;
+  limit?: number;
+})
 ⋮----
-// TODO(workspace-membership): replace this fallback with IAM directory lookup (email -> actorId).
-// Temporary mapping: use normalized email as target actor identity.
+export function createClientScheduleUseCases()
 ⋮----
-async function handleRoleChange(memberId: string, nextRole: "owner" | "admin" | "member"): Promise<void>
+export function createClientAuditUseCases()
 ⋮----
-{/* Header */}
-⋮----
-{/* Role filter */}
+export function createClientSettlementUseCases()
 ````
 
 ## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts
@@ -20531,186 +20808,6 @@ const handleCreate = () =>
 const updatePropertyDraft = (databaseId: string, patch: Partial<PropertyDraft>) =>
 ⋮----
 const handleAddProperty = (databaseId: string) =>
-````
-
-## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import { Workspace } from "../../domain/entities/Workspace";
-import type { CreateWorkspaceInput } from "../../domain/entities/Workspace";
-import { WorkspaceMember } from "../../../membership/domain/entities/WorkspaceMember";
-import type { WorkspaceMemberRepository } from "../../../membership/domain/repositories/WorkspaceMemberRepository";
-import type { AuditRepository } from "../../../audit/domain/repositories/AuditRepository";
-import { AuditEntry } from "../../../audit/domain/entities/AuditEntry";
-import { createAuditAction } from "../../../audit/domain/value-objects/AuditAction";
-import { createAuditSeverity } from "../../../audit/domain/value-objects/AuditSeverity";
-⋮----
-interface CreateWorkspaceWithOwnerInput {
-  readonly workspace: CreateWorkspaceInput;
-  readonly owner: {
-    readonly actorId: string;
-    readonly displayName: string;
-    readonly email?: string;
-  };
-}
-⋮----
-interface WorkspaceCreatorInput {
-  readonly actorId: string;
-  readonly displayName: string;
-  readonly email?: string;
-}
-⋮----
-interface CreateWorkspaceWithCreatorInput extends CreateWorkspaceInput {
-  readonly creator?: WorkspaceCreatorInput;
-}
-⋮----
-export class CreateWorkspaceUseCase {
-⋮----
-constructor(
-⋮----
-async execute(input: CreateWorkspaceWithCreatorInput): Promise<CommandResult>
-⋮----
-// Best-effort audit logging: do not mask successful workspace creation.
-// Keep a traceable error record for observability.
-⋮----
-export class CreateWorkspaceWithOwnerUseCase {
-⋮----
-async execute(input: CreateWorkspaceWithOwnerInput): Promise<CommandResult>
-⋮----
-export class ActivateWorkspaceUseCase {
-⋮----
-constructor(private readonly workspaceRepo: WorkspaceRepository)
-⋮----
-async execute(workspaceId: string): Promise<CommandResult>
-⋮----
-export class StopWorkspaceUseCase {
-⋮----
-export class DeleteWorkspaceUseCase {
-````
-
-## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — notebooklm module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the notebooklm module.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
-import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
-import {
-  RegisterIngestionSourceUseCase,
-  ArchiveIngestionSourceUseCase,
-  QueryIngestionSourcesUseCase,
-} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
-import {
-  CreateNotebookUseCase,
-  AddDocumentToNotebookUseCase,
-  GenerateNotebookResponseUseCase,
-} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
-import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
-⋮----
-// ── Singleton repositories ────────────────────────────────────────────────────
-⋮----
-function getSourceRepo(): FirestoreIngestionSourceRepository
-⋮----
-function getNotebookRepo(): InMemoryNotebookRepository
-⋮----
-// ── RagQuery generation port bridge ──────────────────────────────────────────
-⋮----
-class RagQueryGenerationPort implements NotebookGenerationPort {
-⋮----
-constructor(
-⋮----
-async generateResponse(input: {
-    prompt: string;
-    notebookId: string;
-    model?: string;
-}): Promise<
-⋮----
-// ── Factory functions ─────────────────────────────────────────────────────────
-⋮----
-export function createClientNotebooklmSourceUseCases()
-⋮----
-export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
-⋮----
-// ── Storage upload helper ─────────────────────────────────────────────────────
-⋮----
-/**
- * Upload a document to a workspace-scoped source path.
- * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
- * Parsing / indexing are triggered manually from the Sources UI.
- */
-export async function uploadDocumentToStorage(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
- * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
- *
- * Accepts both gs://bucket/path and relative paths like workspaces/...
- */
-export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
-⋮----
-// keep firestore & firestoreApi accessible within this composition module
-⋮----
-// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
-⋮----
-/**
- * Convert a relative Storage path to a gs:// URI.
- * Already-absolute gs:// URIs are returned unchanged.
- */
-export function toGcsUri(pathOrUri: string): string
-⋮----
-// ── Client-side Firestore source initialisation ───────────────────────────────
-⋮----
-/**
- * Write an initial source-document record to Firestore so the document appears
- * in the Sources list immediately after upload — even before fn parses it.
- *
- * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
- * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
- * so calling parse later will add parsed.* fields without overwriting these.
- */
-export async function initSourceDocumentInFirestore(params: {
-  docId: string;
-  gcsUri: string;
-  filename: string;
-  sizeBytes: number;
-  mimeType: string;
-  accountId: string;
-  workspaceId: string;
-}): Promise<void>
-⋮----
-// "active" = upload done, ready to parse.
-// fn's parse_document callable will overwrite with "processing" when it starts,
-// then "completed" when done.
-⋮----
-// ── Client-side Firestore query helper ───────────────────────────────────────
-⋮----
-/**
- * queryDocuments — query ingestion sources directly from the browser.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.  A Server Action
- * has no active Firebase user session, which causes "Missing or insufficient
- * permissions" even when rules only require `isSignedIn()`.
- */
-export async function queryDocuments(params: {
-  accountId: string;
-  workspaceId?: string;
-})
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx
@@ -20920,210 +21017,127 @@ async function handleCreateTeam(): Promise<void>
 {/* Log — empty state */}
 ````
 
-## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
+## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
 ````typescript
 /**
- * firebase-composition — workspace module outbound composition root.
+ * firebase-composition — notebooklm module outbound composition root.
  *
- * Single entry point for all Firebase operations owned by the workspace module.
- * Mirrors the pattern established by iam/adapters/outbound/firebase-composition.ts.
+ * Single entry point for all Firebase operations owned by the notebooklm module.
  *
- * ESLint: @integration-firebase is allowed here because this file lives at
- * src/modules/workspace/adapters/outbound/ which matches the permitted glob
- * (src/modules/<context>/adapters/outbound/**).
- *
- * Consumers (e.g. WorkspaceScopeProvider) import from this file — they must not
- * import directly from FirebaseWorkspaceQueryRepository or firebase/firestore.
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
  */
 ⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
+import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
+import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
+import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
 import {
-  FirebaseWorkspaceQueryRepository,
-  type Unsubscribe,
-} from "./FirebaseWorkspaceQueryRepository";
-import type { WorkspaceSnapshot } from "../../subdomains/lifecycle/domain/entities/Workspace";
+  RegisterIngestionSourceUseCase,
+  ArchiveIngestionSourceUseCase,
+  QueryIngestionSourcesUseCase,
+} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
+import {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
+import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
+import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
 ⋮----
-import {
-  FirestoreWorkspaceRepository,
-  type FirestoreLike,
-} from "../../subdomains/lifecycle/adapters/outbound/firestore/FirestoreWorkspaceRepository";
-import {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithOwnerUseCase,
-  ActivateWorkspaceUseCase,
-  StopWorkspaceUseCase,
-} from "../../subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases";
-import { FirestoreMemberRepository } from "../../subdomains/membership/adapters/outbound/firestore/FirestoreMemberRepository";
-import { FirestorePermissionCheckAdapter } from "../../subdomains/membership/adapters/outbound/permission/FirestorePermissionCheckAdapter";
-import {
-  AddMemberUseCase,
-  ChangeMemberRoleUseCase,
-  ListWorkspaceMembersUseCase,
-  RemoveMemberUseCase,
-} from "../../subdomains/membership/application/use-cases/MembershipUseCases";
-import { MembershipController } from "../../subdomains/membership/adapters/inbound/http/MembershipController";
-import { FirestoreTaskFormationJobRepository } from "../../subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
-import { FirebaseCallableTaskCandidateExtractor } from "../../subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor";
-import {
-  ExtractTaskCandidatesUseCase,
-  ConfirmCandidatesUseCase,
-} from "../../subdomains/task-formation/application/use-cases/TaskFormationUseCases";
-import { FirestoreTaskRepository } from "../../subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
-import {
-  CreateTaskUseCase,
-  UpdateTaskUseCase,
-  TransitionTaskStatusUseCase,
-  DeleteTaskUseCase,
-} from "../../subdomains/task/application/use-cases/TaskUseCases";
-import { FirestoreIssueRepository } from "../../subdomains/issue/adapters/outbound/firestore/FirestoreIssueRepository";
-import {
-  OpenIssueUseCase,
-  TransitionIssueStatusUseCase,
-  ResolveIssueUseCase,
-  CloseIssueUseCase,
-} from "../../subdomains/issue/application/use-cases/IssueUseCases";
-import { FirestoreQualityReviewRepository } from "../../subdomains/quality/adapters/outbound/firestore/FirestoreQualityReviewRepository";
-import {
-  StartQualityReviewUseCase,
-  PassQualityReviewUseCase,
-  FailQualityReviewUseCase,
-  ListQualityReviewsUseCase,
-} from "../../subdomains/quality/application/use-cases/QualityUseCases";
-import { FirestoreApprovalDecisionRepository } from "../../subdomains/approval/adapters/outbound/firestore/FirestoreApprovalDecisionRepository";
-import {
-  CreateApprovalDecisionUseCase,
-  ApproveTaskUseCase,
-  RejectApprovalUseCase,
-  ListApprovalDecisionsUseCase,
-} from "../../subdomains/approval/application/use-cases/ApprovalUseCases";
-import { FirestoreFeedRepository } from "../../subdomains/feed/adapters/outbound/firestore/FirestoreFeedRepository";
-import {
-  CreateFeedPostUseCase,
-  ListAccountFeedPostsUseCase,
-  ListFeedPostsUseCase,
-} from "../../subdomains/feed/application/use-cases/FeedUseCases";
-import { FirestoreDemandRepository } from "../../subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository";
-import {
-  AssignWorkDemandUseCase,
-  CreateWorkDemandUseCase,
-  ListWorkspaceDemandsUseCase,
-} from "../../subdomains/schedule/application/use-cases/ScheduleUseCases";
-import { FirestoreAuditRepository } from "../../subdomains/audit/adapters/outbound/firestore/FirestoreAuditRepository";
-import {
-  ListWorkspaceAuditEntriesUseCase,
-  RecordAuditEntryUseCase,
-} from "../../subdomains/audit/application/use-cases/AuditUseCases";
-import { FirestoreInvoiceRepository } from "../../subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository";
-import { CreateInvoiceUseCase, TransitionInvoiceStatusUseCase } from "../../subdomains/settlement/application/use-cases/SettlementUseCases";
-import { CreateInvoiceFromAcceptedTasksUseCase } from "../../subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase";
+// ── Singleton repositories ────────────────────────────────────────────────────
 ⋮----
-type FirestoreWhereOperator =
-  | "<"
-  | "<="
-  | "=="
-  | "!="
-  | ">="
-  | ">"
-  | "array-contains"
-  | "in"
-  | "array-contains-any"
-  | "not-in";
+function getSourceRepo(): FirestoreIngestionSourceRepository
 ⋮----
-// ── Singleton repository ───────────────────────────────────────────────────────
+function getNotebookRepo(): InMemoryNotebookRepository
 ⋮----
-function getWorkspaceQueryRepo(): FirebaseWorkspaceQueryRepository
+// ── RagQuery generation port bridge ──────────────────────────────────────────
 ⋮----
-export function createFirestoreLikeAdapter()
+class RagQueryGenerationPort implements NotebookGenerationPort {
 ⋮----
-async get(collectionName: string, id: string): Promise<Record<string, unknown> | null>
-async set(
-      collectionName: string,
-      id: string,
-      data: Record<string, unknown>,
-): Promise<void>
-async delete(collectionName: string, id: string): Promise<void>
-async query(
-      collectionName: string,
-      filters: Array<{ field: string; op: string; value: unknown }>,
-): Promise<Record<string, unknown>[]>
-async increment(collectionName: string, id: string, field: string, delta: number): Promise<void>
+constructor(
 ⋮----
-function getWorkspaceLifecycleRepo(): FirestoreWorkspaceRepository
+async generateResponse(input: {
+    prompt: string;
+    notebookId: string;
+    model?: string;
+}): Promise<
 ⋮----
-function getWorkspaceMemberRepo(): FirestoreMemberRepository
+// ── Factory functions ─────────────────────────────────────────────────────────
 ⋮----
-function createAuditRepo(): FirestoreAuditRepository
+export function createClientNotebooklmSourceUseCases()
 ⋮----
-function createMembershipPermissionCheck(repo: FirestoreMemberRepository): FirestorePermissionCheckAdapter
+export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
 ⋮----
-// ── Public subscriptions ───────────────────────────────────────────────────────
+// ── Storage upload helper ─────────────────────────────────────────────────────
 ⋮----
 /**
- * Subscribes to real-time workspace updates for the given account.
- * Calls `onUpdate` immediately with the current dataset and again on every
- * subsequent Firestore change.
- *
- * Returns an unsubscribe function — call it when the subscriber unmounts to
- * avoid memory leaks and unnecessary Firestore reads.
+ * Upload a document to a workspace-scoped source path.
+ * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+ * Parsing / indexing are triggered manually from the Sources UI.
  */
-export function subscribeToWorkspacesForAccount(
+export async function uploadDocumentToStorage(
+  file: File,
   accountId: string,
-  onUpdate: (workspaces: Record<string, WorkspaceSnapshot>) => void,
-): Unsubscribe
+  workspaceId: string,
+): Promise<string>
 ⋮----
-export function createClientWorkspaceLifecycleUseCases()
+/**
+ * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
+ * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspaces/...
+ */
+export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
 ⋮----
-export function createClientMembershipUseCases()
+// keep firestore & firestoreApi accessible within this composition module
 ⋮----
-export function createClientMembershipController(): MembershipController
+// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
 ⋮----
-export function createClientTaskFormationUseCases()
+/**
+ * Convert a relative Storage path to a gs:// URI.
+ * Already-absolute gs:// URIs are returned unchanged.
+ */
+export function toGcsUri(pathOrUri: string): string
 ⋮----
-export function createClientTaskUseCases()
+// ── Client-side Firestore source initialisation ───────────────────────────────
 ⋮----
-export function createClientIssueUseCases()
-⋮----
-export function createClientQualityUseCases()
-⋮----
-export function createClientApprovalUseCases()
-⋮----
-export function createClientFeedUseCases()
-⋮----
-// ── Client-side feed helpers ──────────────────────────────────────────────────
-//
-// MUST be called from client components, NOT from Server Actions.
-// The Firebase Web Client SDK requires a signed-in user in the browser context.
-// A Server Action has no active Firebase user session → Firestore Security Rules
-// block any operation (read or write) with "Missing or insufficient permissions".
-⋮----
-export async function listFeedPosts(params: {
+/**
+ * Write an initial source-document record to Firestore so the document appears
+ * in the Sources list immediately after upload — even before fn parses it.
+ *
+ * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
+ * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
+ * so calling parse later will add parsed.* fields without overwriting these.
+ */
+export async function initSourceDocumentInFirestore(params: {
+  docId: string;
+  gcsUri: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string;
   accountId: string;
   workspaceId: string;
-  dateKey?: string;
-  limit?: number;
-})
+}): Promise<void>
 ⋮----
-export async function createFeedPost(params: {
+// "active" = upload done, ready to parse.
+// fn's parse_document callable will overwrite with "processing" when it starts,
+// then "completed" when done.
+⋮----
+// ── Client-side Firestore query helper ───────────────────────────────────────
+⋮----
+/**
+ * queryDocuments — query ingestion sources directly from the browser.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.  A Server Action
+ * has no active Firebase user session, which causes "Missing or insufficient
+ * permissions" even when rules only require `isSignedIn()`.
+ */
+export async function queryDocuments(params: {
   accountId: string;
-  workspaceId: string;
-  authorAccountId: string;
-  content: string;
-  photoUrls?: string[];
-  replyToPostId?: string;
-  repostOfPostId?: string;
+  workspaceId?: string;
 })
-⋮----
-export async function listAccountFeedPosts(params: {
-  accountId: string;
-  dateKey?: string;
-  limit?: number;
-})
-⋮----
-export function createClientScheduleUseCases()
-⋮----
-export function createClientAuditUseCases()
-⋮----
-export function createClientSettlementUseCases()
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx
@@ -21254,8 +21268,6 @@ import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/
 import {
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
-  parseDocumentAction,
-  reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
   queryDocuments,
@@ -21263,6 +21275,8 @@ import {
   getDocumentDownloadUrl,
   initSourceDocumentInFirestore,
   toGcsUri,
+  callParseDocument,
+  callReindexDocument,
 } from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotebooklmSourcesSectionProps {

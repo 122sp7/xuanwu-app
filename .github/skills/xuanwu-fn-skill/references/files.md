@@ -1,7 +1,7 @@
 # Files
 
 ## File: fn/.env.example
-````
+```
 # fn/.env.example
 # 複製為 fn/.env 後填入實際值，再執行 fn/ 的 Cloud Functions。
 # 唯一真實來源：fn/src/core/config.py
@@ -67,17 +67,17 @@ RAG_QUERY_DEFAULT_MAX_AGE_DAYS=365
 RAG_QUERY_REQUIRE_READY_STATUS=true
 RAG_DOC_CACHE_TTL_SECONDS=2592000
 RAG_REDIS_PREFIX=rag
-````
+```
 
 ## File: fn/requirements-dev.txt
-````
+```
 # Dev/test dependencies (not deployed to Cloud Functions)
 pytest>=8.0.0,<9.0.0
 pytest-mock>=3.14.0,<4.0.0
-````
+```
 
 ## File: fn/requirements.txt
-````
+```
 # Firebase Functions runtime
 firebase-functions>=0.4.2,<1.0.0
 
@@ -101,15 +101,15 @@ upstash-vector>=0.8.0,<1.0.0
 upstash-redis>=1.0.0,<2.0.0
 upstash-search>=0.1.1,<1.0.0
 qstash>=3.0.0,<4.0.0
-````
+```
 
 ## File: fn/src/app/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/app/bootstrap/__init__.py
-````python
+```python
 """
 Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 其他模組直接 import firebase_admin 即可取得已初始化的 app。
@@ -117,20 +117,20 @@ Firebase Admin SDK 初始化 — 整個 fn 只 initialize_app() 一次，
 ⋮----
 # Cloud Run / Cloud Functions 執行環境使用 ADC（Application Default Credentials）
 # 本機測試時請先執行： gcloud auth application-default login
-````
+```
 
 ## File: fn/src/app/container/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/application/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/application/dto/chunk_job.py
-````python
+```python
 """
 chunk_job.py
 
@@ -162,10 +162,10 @@ max_tokens_per_chunk: Optional[int] = Field(
 requested_at: datetime = Field(..., description="ISO 8601 timestamp when the job was requested")
 ⋮----
 model_config = {"str_strip_whitespace": True}
-````
+```
 
 ## File: fn/src/application/dto/embedding_job.py
-````python
+```python
 """
 embedding_job.py
 
@@ -190,47 +190,47 @@ model_hint: Optional[str] = Field(None, description="Preferred embedding model; 
 requested_at: datetime = Field(..., description="ISO 8601 timestamp when the job was requested")
 ⋮----
 model_config = {"str_strip_whitespace": True}
-````
+```
 
 ## File: fn/src/application/ports/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/application/ports/input/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/application/ports/output/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/application/services/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/application/services/authorization.py
-````python
+```python
 def get_authorization() -> AuthorizationGateway
-````
+```
 
 ## File: fn/src/application/services/rag_query_effects.py
-````python
+```python
 logger = logging.getLogger(__name__)
 ⋮----
 effects_gateway = effects_gateway or get_rag_query_effects_gateway()
-````
+```
 
 ## File: fn/src/core/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/core/auth_errors.py
-````python
+```python
 class UnauthenticatedError(PermissionError)
 ⋮----
 """Raised when a callable command requires an authenticated actor."""
@@ -238,39 +238,39 @@ class UnauthenticatedError(PermissionError)
 class AuthorizationError(PermissionError)
 ⋮----
 """Raised when an actor lacks access to the requested scope."""
-````
+```
 
 ## File: fn/src/core/storage_uri.py
-````python
+```python
 def parse_gs_uri(gs_uri: str) -> tuple[str, str]
 ⋮----
 path_part = gs_uri.split("gs://", 1)[1]
-````
+```
 
 ## File: fn/src/domain/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/domain/events/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/domain/exceptions/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/domain/services/__init__.py
-````python
+```python
 """Domain services."""
 ⋮----
 __all__ = [
-````
+```
 
 ## File: fn/src/domain/services/rag_ingestion_text.py
-````python
+```python
 """
 Domain Service — RAG ingestion text processing.
 
@@ -334,10 +334,10 @@ end = min(start + chunk_size, text_len)
 content = text[start:end].strip()
 ⋮----
 start = end - overlap
-````
+```
 
 ## File: fn/src/domain/services/rag_result_filter.py
-````python
+```python
 """
 Domain Service — RAG result filtering and snippet extraction.
 
@@ -393,17 +393,17 @@ snippet = extract_text_candidate(candidate)
 def resolve_filename(metadata: dict[str, Any], fallback: str | None = None) -> str | None
 ⋮----
 name = str(value or "").strip()
-````
+```
 
 ## File: fn/src/domain/value_objects/__init__.py
-````python
+```python
 """Domain value objects."""
 ⋮----
 __all__ = [
-````
+```
 
 ## File: fn/src/domain/value_objects/rag.py
-````python
+```python
 @dataclass(frozen=True)
 class RagQueryInput
 ⋮----
@@ -466,32 +466,32 @@ search_hits: int
 debug: dict[str, Any] | None = None
 ⋮----
 payload: dict[str, Any] = {
-````
+```
 
 ## File: fn/src/infrastructure/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/audit/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/audit/qstash.py
-````python
+```python
 logger = logging.getLogger(__name__)
 ⋮----
 def publish_query_audit(*, query: str, top_k: int, citation_count: int, vector_hits: int, search_hits: int) -> None
-````
+```
 
 ## File: fn/src/infrastructure/cache/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/cache/rag_query_cache.py
-````python
+```python
 def build_query_cache_key(*, account_scope: str, query: str, top_k: int) -> str
 ⋮----
 key_base = (
@@ -500,20 +500,20 @@ digest = hashlib.sha256(key_base.encode("utf-8")).hexdigest()
 def get_query_cache(cache_key: str) -> dict[str, Any] | None
 ⋮----
 def save_query_cache(cache_key: str, payload: dict[str, Any]) -> None
-````
+```
 
 ## File: fn/src/infrastructure/external/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/external/documentai/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/external/documentai/client.py
-````python
+```python
 """
 Document AI 服務層 — 封裝 google-cloud-documentai 的 process_document 呼叫。
 
@@ -652,15 +652,15 @@ parsed = process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
 form_name = DOCAI_FORM_PROCESSOR_NAME
 ⋮----
 form_parsed = process_document_gcs(
-````
+```
 
 ## File: fn/src/infrastructure/external/openai/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/external/openai/client.py
-````python
+```python
 """
 OpenAI client service — 提供 embeddings / LLM 共用 client。
 """
@@ -677,10 +677,10 @@ def get_openai_client() -> OpenAI
     """
 ⋮----
 _client = OpenAI(
-````
+```
 
 ## File: fn/src/infrastructure/external/openai/embeddings.py
-````python
+```python
 """
 Embeddings service — 封裝 OpenAI embedding 呼叫。
 """
@@ -717,10 +717,10 @@ def embed_texts(texts: list[str], model: str | None = None) -> list[list[float]]
     Returns:
         list[list[float]]: 與輸入順序一致的向量列表。
     """
-````
+```
 
 ## File: fn/src/infrastructure/external/openai/llm.py
-````python
+```python
 """
 LLM service — 封裝 OpenAI chat completion 呼叫。
 """
@@ -739,22 +739,22 @@ LLM service — 封裝 OpenAI chat completion 呼叫。
 client = get_openai_client()
 resp = client.chat.completions.create(
 content = resp.choices[0].message.content
-````
+```
 
 ## File: fn/src/infrastructure/external/openai/rag_query.py
-````python
+```python
 def to_query_vector(query: str, *, model: str) -> list[float]
 ⋮----
 def generate_answer(*, query: str, context_block: str) -> str
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/_base.py
-````python
+```python
 """
 Upstash 共用工具 — 錯誤類別與基礎輔助函數。
 供 vector_client / redis_client / search_client / qstash_client 共享使用。
@@ -773,10 +773,10 @@ class UpstashSdkError(RuntimeError)
 def _require(value: str, name: str) -> str
 ⋮----
 def _import_module(module_name: str, install_hint: str)
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/qstash_client.py
-````python
+```python
 """
 Upstash QStash 客戶端 — 非同步訊息投遞操作。
 """
@@ -810,17 +810,17 @@ client = get_qstash_client()
 publish_json = getattr(client, "publish_json", None)
 ⋮----
 publish = getattr(client, "publish", None)
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/rag_query.py
-````python
+```python
 def query_vector(vector: list[float], top_k: int) -> list[dict]
 ⋮----
 def query_search(query: str, top_k: int) -> list[dict]
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/redis_client.py
-````python
+```python
 """
 Upstash Redis 客戶端 — JSON 讀寫與固定窗口限流操作。
 """
@@ -862,15 +862,15 @@ current = int(client.incr(key) or 0)
 ⋮----
 allowed = current <= max_requests
 remaining = max(0, max_requests - current)
-````
+```
 
 ## File: fn/src/infrastructure/gateways/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/gateways/document_artifact_gateway.py
-````python
+```python
 """Infrastructure implementation of DocumentArtifactGateway."""
 ⋮----
 class InfraDocumentArtifactGateway
@@ -888,10 +888,10 @@ def genkit_json_path(self, upload_object_path: str) -> str
 def upload_json(self, *, bucket_name: str, object_path: str, data: dict[str, Any]) -> str
 ⋮----
 def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
-````
+```
 
 ## File: fn/src/infrastructure/gateways/document_parser_gateway.py
-````python
+```python
 """Infrastructure implementation of DocumentParserGateway."""
 ⋮----
 logger = logging.getLogger(__name__)
@@ -913,17 +913,17 @@ fallback_processor = DOCAI_OCR_PROCESSOR_NAME or DOCAI_FORM_PROCESSOR_NAME
 fallback_parsed = process_document_gcs(
 fallback_text = (fallback_parsed.text or layout_parsed.text or "").strip()
 fallback_chunks = (
-````
+```
 
 ## File: fn/src/infrastructure/gateways/document_rate_limit_gateway.py
-````python
+```python
 """Infrastructure implementation of DocumentRateLimitGateway."""
 ⋮----
 class InfraDocumentRateLimitGateway
-````
+```
 
 ## File: fn/src/infrastructure/gateways/document_status_gateway.py
-````python
+```python
 """Infrastructure implementation of DocumentStatusGateway."""
 ⋮----
 class InfraDocumentStatusGateway
@@ -931,10 +931,10 @@ class InfraDocumentStatusGateway
 def record_error(self, doc_id: str, message: str, account_id: str) -> None
 ⋮----
 def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None
-````
+```
 
 ## File: fn/src/infrastructure/gateways/rag_ingestion_gateway.py
-````python
+```python
 """Infrastructure implementation of RagIngestionGateway.
 
 Handles embedding generation, vector/search upsert, Redis metadata
@@ -957,44 +957,44 @@ def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int
 ⋮----
 deleted_vec = _delete_vectors_by_doc(doc_id=doc_id, namespace=namespace)
 deleted_search = _delete_search_documents_by_doc(doc_id=doc_id)
-````
+```
 
 ## File: fn/src/infrastructure/gateways/rag_query_effects_gateway.py
-````python
+```python
 """Infrastructure implementation of RagQueryEffectsGateway."""
 ⋮----
 class InfraRagQueryEffectsGateway
 ⋮----
 def save_query_cache(self, cache_key: str, payload: dict[str, Any]) -> None
-````
+```
 
 ## File: fn/src/infrastructure/persistence/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/persistence/firestore/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/infrastructure/persistence/storage/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/interface/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/interface/schemas/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/src/interface/schemas/rag_query.py
-````python
+```python
 """
 Input schema for rag_query HTTPS Callable (Rule 4 — Contract / Schema).
 
@@ -1066,10 +1066,10 @@ text = str(raw_ready).strip().lower()
 require_ready = True
 ⋮----
 require_ready = False
-````
+```
 
 ## File: fn/src/interface/schemas/rag_reindex.py
-````python
+```python
 """
 Input schema for rag_reindex_document HTTPS Callable (Rule 4 — Contract / Schema).
 
@@ -1112,20 +1112,20 @@ filename = (
 page_count = int(raw.get("page_count", 0) or 0)
 ⋮----
 page_count = 0
-````
+```
 
 ## File: fn/tests/__init__.py
-````python
+```python
 
-````
+```
 
 ## File: fn/tests/conftest.py
-````python
+```python
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
-````
+```
 
 ## File: fn/tests/test_rag_ingestion_text.py
-````python
+```python
 """Unit tests for domain/services/rag_ingestion_text.py — Layout Parser path."""
 ⋮----
 def test_layoutChunksToRagChunks_WithValidChunks_ReturnsExpectedShape() -> None
@@ -1150,10 +1150,10 @@ def test_layoutChunksToRagChunks_WithMissingOptionalFields_UsesDefaults() -> Non
 layout_chunks = [{"text": "只有文字欄位"}]
 ⋮----
 chunk = result[0]
-````
+```
 
 ## File: fn/tests/test_rag_query_use_case.py
-````python
+```python
 class _FakeRagQueryGateway
 ⋮----
 def __init__(self, *, cached: dict | None = None) -> None
@@ -1175,17 +1175,17 @@ def test_execute_rag_query_with_cache_hit_returns_no_effect_plan() -> None
 execution = execute_rag_query(
 ⋮----
 def test_execute_rag_query_with_generated_answer_returns_effect_plan() -> None
-````
+```
 
 ## File: fn/src/application/dto/__init__.py
-````python
+```python
 """Application DTOs."""
 ⋮----
 __all__ = [
-````
+```
 
 ## File: fn/src/application/dto/rag.py
-````python
+```python
 @dataclass
 class RagIngestionResult
 ⋮----
@@ -1213,34 +1213,34 @@ class RagQueryExecution
 ⋮----
 response: dict[str, Any]
 effect_plan: RagQueryEffectPlan | None = None
-````
+```
 
 ## File: fn/src/application/services/document_pipeline.py
-````python
+```python
 def get_document_parser() -> DocumentParserGateway
 ⋮----
 def get_document_artifact_gateway() -> DocumentArtifactGateway
 ⋮----
 def get_document_status_gateway() -> DocumentStatusGateway
-````
+```
 
 ## File: fn/src/application/use_cases/__init__.py
-````python
+```python
 """Application use cases."""
 ⋮----
 __all__ = [
-````
+```
 
 ## File: fn/src/application/use_cases/parse_document_command.py
-````python
+```python
 """Authorized command wrapper for parse-document callable entry."""
 ⋮----
 auth_gateway = auth_gateway or get_authorization()
 status_gateway = status_gateway or get_document_status_gateway()
-````
+```
 
 ## File: fn/src/application/use_cases/rag_query.py
-````python
+```python
 """
 RAG query — application use case orchestration.
 
@@ -1287,18 +1287,18 @@ context_block = "\n\n---\n\n".join(contexts[: request.top_k])
 ⋮----
 answer = gateway.generate_answer(query=request.query, context_block=context_block)
 response = RagQueryResult(
-````
+```
 
 ## File: fn/src/application/use_cases/rag_reindex_command.py
-````python
+```python
 """Authorized command wrapper for rag-reindex callable entry."""
 ⋮----
 auth_gateway = auth_gateway or get_authorization()
 status_gateway = status_gateway or get_document_status_gateway()
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/clients.py
-````python
+```python
 """
 Upstash clients — 向後相容的重新匯出桶。
 各功能已拆分至對應的聚焦模組：
@@ -1312,10 +1312,10 @@ Upstash clients — 向後相容的重新匯出桶。
 """
 ⋮----
 __all__ = [
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/search_client.py
-````python
+```python
 """
 Upstash Search 客戶端 — 全文搜尋 upsert / query 操作。
 """
@@ -1415,10 +1415,10 @@ candidates = []
 candidates = (
 ⋮----
 candidates = payload
-````
+```
 
 ## File: fn/src/infrastructure/gateways/rag_query_gateway.py
-````python
+```python
 """Infrastructure implementation of RagQueryGateway."""
 ⋮----
 class InfraRagQueryGateway
@@ -1434,10 +1434,10 @@ def query_vector(self, vector: list[float], top_k: int) -> list[dict[str, Any]]
 def query_search(self, query: str, top_k: int) -> list[dict[str, Any]]
 ⋮----
 def generate_answer(self, *, query: str, context_block: str) -> str
-````
+```
 
 ## File: fn/src/interface/handlers/_https_helpers.py
-````python
+```python
 """
 HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
 供 parse_document / rag_query / rag_reindex 共享使用。
@@ -1476,10 +1476,10 @@ def _to_bool(raw_value: Any, default_value: bool) -> bool
 raw = str(raw_value or "").strip().lower()
 ⋮----
 def _parse_gs_uri(gs_uri: str) -> tuple[str, str]
-````
+```
 
 ## File: fn/src/interface/handlers/rag_query_handler.py
-````python
+```python
 """
 HTTPS Callable — handle_rag_query：RAG 查詢（Step 7）。
 
@@ -1505,10 +1505,10 @@ execution = execute_rag_query(
 result = execution.response
 ⋮----
 response = {
-````
+```
 
 ## File: fn/tests/test_command_use_cases.py
-````python
+```python
 class _FakeAuthorizationGateway
 ⋮----
 def __init__(self) -> None
@@ -1548,10 +1548,10 @@ result = execute_rag_reindex_command(
 def test_execute_rag_reindex_command_records_error_on_failure(monkeypatch) -> None
 ⋮----
 def _fake_execute_rag_reindex(_: RagReindexCommand) -> RagReindexResult
-````
+```
 
 ## File: fn/tests/test_po_extraction.py
-````python
+```python
 """
 Unit tests for domain/services/po_extraction.py.
 
@@ -1677,10 +1677,10 @@ def test_emptyInput_returnsEmpty(self) -> None
 def test_charStartIsZeroAndCharEndIsTextLength(self) -> None
 ⋮----
 chunk = po_line_items_to_rag_chunks(line_items)[0]
-````
+```
 
 ## File: fn/main.py
-````python
+```python
 """
 fn — Firebase Functions (Python) 入口檔
 ========================================
@@ -1722,10 +1722,10 @@ def rag_query(req: https_fn.CallableRequest) -> dict
 def rag_reindex_document(req: https_fn.CallableRequest) -> dict
 ⋮----
 """手動重新整理文件（normalization + ingestion）。"""
-````
+```
 
 ## File: fn/src/application/use_cases/parse_document_pipeline.py
-````python
+```python
 """
 Parse-document application use case.
 
@@ -1815,10 +1815,10 @@ json_path = artifact_gateway.form_json_path(cmd.object_path)
 ⋮----
 # "genkit"
 json_path = artifact_gateway.genkit_json_path(cmd.object_path)
-````
+```
 
 ## File: fn/src/application/use_cases/rag_ingestion.py
-````python
+```python
 """
 RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
 """
@@ -1871,10 +1871,10 @@ chunk_id = f"{doc_id}:{i:04d}"
 search_docs = [
 ⋮----
 # 文件索引摘要寫入 Redis，方便後續檢視與治理。
-````
+```
 
 ## File: fn/src/domain/services/po_extraction.py
-````python
+```python
 """
 Domain Service — Purchase Order (PO) line item extraction and classification.
 
@@ -2044,10 +2044,10 @@ deduped: list[dict[str, Any]] = []
 result: list[dict[str, Any]] = []
 ⋮----
 text = (
-````
+```
 
 ## File: fn/src/infrastructure/external/upstash/vector_client.py
-````python
+```python
 """
 Upstash Vector 客戶端 — 向量 upsert / query / delete 操作。
 
@@ -2118,10 +2118,10 @@ result = index.query(
 result = index.query(vector=vector, top_k=top_k, namespace=namespace)
 ⋮----
 candidates = result.get("result") or result.get("matches") or result.get("data") or []
-````
+```
 
 ## File: fn/src/infrastructure/gateways/authorization_gateway.py
-````python
+```python
 """Infrastructure implementation of AuthorizationGateway."""
 ⋮----
 class FirestoreAuthorizationGateway
@@ -2141,10 +2141,10 @@ def assert_workspace_belongs_account(self, *, account_id: str, workspace_id: str
 snap = db.collection("workspaces").document(workspace_id).get()
 ⋮----
 bound_account_id = str(data.get("accountId", "")).strip()
-````
+```
 
 ## File: fn/src/infrastructure/persistence/storage/client.py
-````python
+```python
 """
 Cloud Storage 服務層 — 使用 firebase-admin 的 storage 模組下載／上傳物件。
 
@@ -2249,15 +2249,15 @@ def download_bytes(bucket_name: str, object_path: str) -> bytes
     """
 ⋮----
 data = blob.download_as_bytes()
-````
+```
 
 ## File: fn/src/interface/handlers/__init__.py
-````python
+```python
 __all__ = [
-````
+```
 
 ## File: fn/src/interface/handlers/https.py
-````python
+```python
 """
 HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
 各 handler 已拆分至對應的聚焦模組：
@@ -2270,180 +2270,17 @@ HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
 """
 ⋮----
 __all__ = [
-````
-
-## File: fn/AGENTS.md
-````markdown
-# fn — Agent Guide
-
-<!-- nested-index:start -->
-## Immediate Index
-
-- Pair: [README.md](README.md)
-- Parent AGENTS: [AGENTS.md](../AGENTS.md)
-
-## Package / Directory Index
-
-- `.env.example`
-- `main.py`
-- `requirements-dev.txt`
-- `requirements.txt`
-- `src/`
-- `tests/`
-
-## Drift Guard
-
-- `AGENTS.md` 擁有 `fn/` 的 routing 與 nested index。
-- `README.md` 保留同節點的人類可讀概覽。
-<!-- nested-index:end -->
-
-
-## Purpose
-
-`fn/` 是 Python Cloud Functions 的 worker 層，負責 ingestion、parsing、chunking、embedding 與 background job 等需要高資源消耗或可重試的批次作業。
-
-> **遷移說明**：`fn/` 取代舊的 `fn/`，採相同 Hexagonal Architecture，
-> 全面對齊 `.github/copilot-instructions.md` 20 條 Mandatory Compliance Rules。
-
----
-
-## Runtime Boundary
-
-| 執行時 | 負責項目 |
-|---|---|
-| `fn/` (Python) | parse、clean、taxonomy、chunk、embed、persistence pipeline |
-| Next.js (`src/`) | upload UX、browser-facing API、response orchestration |
-
-兩者互動**只透過**：
-- QStash 訊息
-- Firestore trigger
-- 事件契約
-
----
-
-## Route Here When
-
-- 需要解析、清洗文件內容（PDF、Markdown、HTML）
-- 需要呼叫 Document AI（Layout Parser / Form Parser）
-- 需要 chunk、embed、存入向量資料庫（Upstash Vector）
-- 需要可重試的背景作業或批次處理
-- 需要 Firestore 寫入（ingestion 管線）
-
-## Route Elsewhere When
-
-- 需要 browser-facing API 或即時回應 → `src/app/`
-- 需要 use case 業務邏輯（workspace、notion、notebooklm 邊界） → `src/modules/<context>/`
-- 需要 session / auth / permission 判斷 → `src/modules/iam/`
-
----
-
-## Architecture（Hexagonal）
-
-```text
-fn/src/
-├─ app/           # 應用入口（bootstrap、container、設定）
-├─ application/   # use cases、DTO、ports、application services
-├─ domain/        # entities、value objects、repositories、domain services（零外部依賴）
-├─ infrastructure/# Firestore、Storage、Document AI、OpenAI、Upstash adapters
-├─ interface/     # Cloud Function handler（inbound adapter）+ schema validation
-└─ core/          # 全層共用常數、config（環境變數唯一入口）
 ```
-
-**依賴方向**（不可逆）：
-```
-interface → application → domain ← infrastructure
-app → interface / application / infrastructure / core
-domain → only core
-```
-
-詳細架構規範見 [README.md](README.md)。
-
----
-
-## Document AI Processors（US Region）
-
-⚠️ 兩個 processor 均位於 **US region**，client endpoint 必須使用 `us-documentai.googleapis.com`。
-
-| Processor | 用途 | Resource Name |
-|---|---|---|
-| **Layout Parser（主）** | 語意分塊（標題、段落、表格各自成 chunk） | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
-| **Form Parser（副）** | 結構化欄位擷取（PO號、金額、日期、供應商） | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
-
-### 雙通道設計
-
-```text
-GCS Document
-    ├─ Layout Parser  →  ParsedDocument.chunks   →  RAG 語意分塊（主）
-    └─ Form Parser    →  ParsedDocument.entities  →  結構化欄位（副，best-effort）
-```
-
-- 主通道（Layout Parser）失敗 → 整體 pipeline 失敗（拋例外）
-- 副通道（Form Parser）失敗 → 記錄 `WARNING`，以空 `entities` 繼續（不阻斷主流程）
-
-### 環境變數
-
-| 變數 | 預設值 | 說明 |
-|---|---|---|
-| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser（主，不可空） |
-| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser（設空字串可停用） |
-| `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | 不可改為 eu 或 global |
-
----
-
-## Mandatory Compliance Mapping
-
-| Rule | 在 fn/ 的體現 |
-|---|---|
-| Rule 4 — Contract / Schema | `interface/schemas/` 驗證所有 Cloud Function input |
-| Rule 10 — Failure Strategy | 每個外部呼叫皆有 raise / warning / dead-letter 路徑 |
-| Rule 12 — Hexagonal Architecture | `domain/` 零 SDK import；所有外部依賴在 `infrastructure/` |
-| Rule 13 — Dependency Direction | interface → application → domain ← infrastructure（不可逆） |
-| Rule 15 — Observability | 所有跨層呼叫使用 `logging.getLogger(__name__)`，不用 print |
-
----
-
-## Cloud Functions Entry Points
-
-| 函式名稱 | 觸發類型 | 說明 |
-|---|---|---|
-| `on_document_uploaded` | Storage trigger（`UPLOAD_BUCKET`） | GCS 新物件 → Document AI → Firestore |
-| `parse_document` | HTTPS Callable | 手動觸發解析，回傳解析摘要 |
-| `rag_query` | HTTPS Callable | RAG 檢索 + 生成查詢 |
-| `rag_reindex_document` | HTTPS Callable | 手動重新 chunk + embed 文件 |
-
----
-
-## Development Checklist
-
-修改 `fn/` 時，依序確認：
-
-1. **依賴方向**：`domain/` 是否引入了外部 SDK？ → 移到 `infrastructure/`
-2. **Schema 驗證**：新的 Cloud Function input 是否在 `interface/schemas/` 驗證？
-3. **Failure Strategy**：新的外部呼叫是否定義了失敗路徑（raise / warning / dead-letter）？
-4. **Observability**：新的跨層呼叫是否用 `logger.info/warning/error` 記錄？
-5. **US Endpoint**：Document AI client 是否仍使用 `us-documentai.googleapis.com`？
-6. **Tests**：`tests/` 中是否有對應覆蓋？
-
----
-
-## Validation Commands
-
-```bash
-cd fn
-python -m compileall -q .
-python -m pytest tests/ -v
-```
-````
 
 ## File: fn/src/application/ports/output/gateways.py
-````python
+```python
 """Backward-compatible application-layer re-export of domain repository contracts."""
 ⋮----
 __all__ = [
-````
+```
 
 ## File: fn/src/application/use_cases/rag_reindex.py
-````python
+```python
 """
 RAG reindex application use case.
 
@@ -2512,10 +2349,10 @@ page_count = int(payload.get("page_count", 0) or 0)
 layout_chunks: list[dict] | None = payload.get("chunks") or None
 ⋮----
 rag = ingest_for_rag(
-````
+```
 
 ## File: fn/src/core/config.py
-````python
+```python
 """
 專案層級常數 — 從環境變數讀取，讓同一份程式碼在 dev / staging / prod 皆可用。
 """
@@ -2589,17 +2426,17 @@ RAG_QUERY_DEFAULT_MAX_AGE_DAYS: int = int(os.environ.get("RAG_QUERY_DEFAULT_MAX_
 RAG_QUERY_REQUIRE_READY_STATUS: bool = os.environ.get("RAG_QUERY_REQUIRE_READY_STATUS", "true").strip().lower() in (
 RAG_DOC_CACHE_TTL_SECONDS: int = int(os.environ.get("RAG_DOC_CACHE_TTL_SECONDS", "2592000"))
 RAG_REDIS_PREFIX: str = os.environ.get("RAG_REDIS_PREFIX", "rag").strip()
-````
+```
 
 ## File: fn/src/domain/repositories/__init__.py
-````python
+```python
 """Domain repository contracts."""
 ⋮----
 __all__ = [
-````
+```
 
 ## File: fn/src/infrastructure/persistence/firestore/document_repository.py
-````python
+```python
 """
 Firestore 服務層 — 使用 firebase-admin 管理完整的 document lifecycle。
 
@@ -2729,10 +2566,10 @@ def record_error(doc_id: str, message: str, account_id: str) -> None
 def record_rag_error(doc_id: str, message: str, account_id: str) -> None
 ⋮----
 """記錄 RAG ingestion 失敗，不覆蓋 parse 狀態。"""
-````
+```
 
 ## File: fn/src/interface/schemas/parse_document.py
-````python
+```python
 """
 Input schema for parse_document HTTPS Callable (Rule 4 — Contract / Schema).
 
@@ -2794,250 +2631,15 @@ size_bytes = 0
 run_rag = bool(raw.get("run_rag", True))
 ⋮----
 parser = str(raw.get("parser", "layout")).strip().lower()
-````
-
-## File: fn/README.md
-````markdown
-# fn — Python Cloud Functions 架構規範
-
-<!-- nested-index:start -->
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent AGENTS: [AGENTS.md](../AGENTS.md)
-
-## Package / Directory Index
-
-- `.env.example`
-- `main.py`
-- `requirements-dev.txt`
-- `requirements.txt`
-- `src/`
-- `tests/`
-
-## Pair Contract
-
-- `README.md` 保留最短概覽與實際目錄索引。
-- `AGENTS.md` 保留 routing 與放置決策。
-<!-- nested-index:end -->
-
-
-`fn/` 是 Python Cloud Functions worker 層，負責 ingestion、parsing、chunking、embedding 與 background job。
-這份規範以「路徑級依賴」為核心，看完整路徑判斷依賴方向，而非單看資料夾名稱。
-
-> **遷移說明**：`fn/` 取代舊的 `fn/`，依相同 Hexagonal Architecture 重建，
-> 全面對齊 `.github/copilot-instructions.md` 的 20 條 Mandatory Compliance Rules。
-
----
-
-## 0. Document AI 雙通道設計（US Region）
-
-⚠️ 兩個 processor 均位於 **US region**，`DOCAI_API_ENDPOINT` 必須為 `us-documentai.googleapis.com`。
-
-| Processor | 用途 | 完整 Resource Name |
-|---|---|---|
-| **Layout Parser（主）** | 語意分塊：標題、段落、表格各自成 chunk，保留溯源引用鏈 | `projects/65970295651/locations/us/processors/929c4719f45b1eee` |
-| **Form Parser（副）** | 結構化欄位擷取：PO號、金額、日期、供應商等 KV entity | `projects/65970295651/locations/us/processors/7318076ba71e0758` |
-
-**API Endpoint（強制）**：
-```
-https://us-documentai.googleapis.com/v1/...
 ```
 
-### 雙通道流程
+## File: fn/AGENTS.md
+```markdown
 
-```text
-GCS Document
-    ├─ Layout Parser  → ParsedDocument.chunks   → RAG 語意分塊（chunking_strategy="layout-v1"）
-    └─ Form Parser    → ParsedDocument.entities → 結構化欄位存 JSON GCS（best-effort）
 ```
-
-- **主通道（Layout Parser）**若回傳空輸出（0 page 且無 text/chunk）→ 自動改走後備 OCR/Form processor 補齊文字，再繼續流程
-- **主通道（Layout Parser）**API 失敗（拋例外）→ 整體 pipeline 失敗（Rule 10）
-- **副通道（Form Parser）**失敗 → 記錄 `WARNING`，以空 `entities` 繼續，不阻斷主流程（Rule 10）
-
-### 環境變數
-
-| 變數 | 預設值 | 說明 |
-|---|---|---|
-| `DOCAI_LAYOUT_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/929c4719f45b1eee` | Layout Parser 資源名稱（主通道，不可空） |
-| `DOCAI_FORM_PROCESSOR_NAME` | `projects/65970295651/locations/us/processors/7318076ba71e0758` | Form Parser 資源名稱（設為空字串可停用副通道） |
-| `DOCAI_OCR_PROCESSOR_NAME` | ``（預設空） | Layout 空輸出時使用的 OCR 後備 processor（選填，建議 US region） |
-| `DOCAI_API_ENDPOINT` | `us-documentai.googleapis.com` | **不可改為 eu 或 global** |
-| `DOCAI_LOCATION` | `us` | processor 所在 region |
-
-### Form Parser 擷取欄位（AP8 採購訂購單示例）
-
-| 欄位 | Document AI Entity Type |
-|---|---|
-| 訂購單號 | `id` / 自定義 KV |
-| 供應商 | `organization` |
-| 買方 | `organization` |
-| 金額小計 | `price` / `quantity` |
-| 交貨日期 | `date_time` |
-| 聯絡人 | `person` + `phone` + `email` |
-
----
-
-## 1. 全域依賴方向（Rule 12、13）
-
-```text
-interface  → application → domain
-infrastructure → application → domain
-app        → interface / application / infrastructure / core
-core       → all layers（只允許向外）
-domain     → only core（零框架依賴）
-```
-
-**禁止反向**：`domain` 不得 import `infrastructure`、`application`、`interface`。
-
----
-
-## 2. 目錄結構
-
-```text
-fn/
-├─ src/
-│  ├─ app/                    # 應用入口
-│  │  ├─ bootstrap/           # Firebase Admin SDK 一次初始化
-│  │  ├─ container/           # DI / runtime_dependencies
-│  │  ├─ config/              # 僅 app-layer 設定（功能開關等）
-│  │  └─ settings/            # 部署環境設定覆寫
-│  ├─ application/            # Use Cases、DTO、Ports、Services、Mappers
-│  │  ├─ use_cases/           # 業務流程編排（不含 domain invariant）
-│  │  ├─ dto/                 # 跨層傳輸物件（不含 domain entity）
-│  │  ├─ ports/               # Port 介面（input / output）
-│  │  │  ├─ input/
-│  │  │  └─ output/
-│  │  ├─ services/            # Application services（不含 domain rule）
-│  │  └─ mappers/             # domain ↔ DTO 轉換
-│  ├─ domain/                 # 純業務規則（零外部依賴）
-│  │  ├─ entities/            # 聚合、子實體
-│  │  ├─ value_objects/       # 不可變值對象
-│  │  ├─ repositories/        # Repository 介面（僅介面）
-│  │  ├─ services/            # Domain services（無狀態業務邏輯）
-│  │  ├─ events/              # Domain events
-│  │  └─ exceptions/          # Domain exceptions
-│  ├─ infrastructure/         # 外部依賴實作（永遠在最外層）
-│  │  ├─ external/
-│  │  │  └─ documentai/       # Document AI client（US endpoint）
-│  │  ├─ persistence/
-│  │  │  ├─ firestore/        # Firestore repository 實作
-│  │  │  └─ storage/          # GCS client
-│  │  ├─ cache/               # Redis / Upstash cache
-│  │  ├─ audit/               # QStash audit publisher
-│  │  └─ external/
-│  │     └─ openai/           # OpenAI embeddings / LLM
-│  ├─ interface/              # Function handler（inbound adapter）
-│  │  ├─ handlers/            # Cloud Functions handler 實作
-│  │  └─ schemas/             # Input schema validation（Pydantic / dataclass）
-│  └─ core/                   # 全層共用常數、型別、config
-│     └─ config.py            # 所有環境變數讀取（唯一真實來源）
-├─ tests/                     # pytest 單元測試
-├─ main.py                    # Firebase Functions 入口（裝飾器宣告）
-├─ requirements.txt
-├─ requirements-dev.txt
-├─ AGENTS.md                  # Agent 任務指引
-└─ README.md                  # 本文件
-```
-
----
-
-## 3. 層級職責（Rule 12、17、18）
-
-| 路徑前綴 | 職責 | 禁止 |
-|---|---|---|
-| `domain/` | 業務規則、不變量、Entity、Value Object、Repository 介面 | import Firebase、HTTP、ORM、任何 SDK |
-| `application/` | Use case 編排、DTO、Port 定義、Application service | 直接呼叫 SDK；包含 domain invariant |
-| `infrastructure/` | Port 實作、Firestore repo、Storage client、Document AI client | 包含 business rule；反向依賴 domain 實作 |
-| `interface/` | Cloud Function handler、input schema 驗證 | 直接呼叫 repository；bypass use case |
-| `core/` | 環境變數、常數、工具函式 | 依賴 domain/application/infrastructure |
-| `app/` | Bootstrap、DI container、全域選項 | 包含 business logic |
-
----
-
-## 4. Schema 驗證規則（Rule 4）
-
-所有進入系統的外部輸入（Cloud Function request、Storage event）必須先通過 schema 驗證，才能傳遞給 use case。
-
-```python
-# ✅ 正確：interface/handlers/ 在呼叫 use case 前先驗證
-from interface.schemas.parse_document import ParseDocumentRequest
-req_data = ParseDocumentRequest(**raw_data)   # raises ValidationError if invalid
-result = handle_parse_document_use_case(req_data)
-
-# ❌ 錯誤：直接將 req.data 傳給 use case
-result = ingest_document_for_rag(**req.data)
-```
-
----
-
-## 5. Failure Strategy（Rule 10）
-
-| 呼叫類型 | 策略 |
-|---|---|
-| Layout Parser（主通道） | 失敗時拋例外，pipeline 整體中止 |
-| Form Parser（副通道） | 失敗時 `logger.warning`，以空 `entities` 繼續 |
-| OpenAI Embeddings | 失敗時拋例外，由上層 retry / dead-letter |
-| Upstash Search 同步 | 失敗時 `logger.warning`，不阻斷主流程 |
-| Redis doc summary | 失敗時 `logger.warning`，不阻斷主流程 |
-| Firestore 寫入 | 失敗時拋例外，由上層 retry |
-
----
-
-## 6. 命名規則（Rule 3）
-
-| 概念 | 命名 | 禁止 |
-|---|---|---|
-| Use case 函式 | `verb_noun(…)` e.g. `ingest_document_for_rag` | `doXxx`, `processXxx` |
-| Repository 介面 | `XxxGateway` / `XxxRepository` | `IXxx`, `XxxService`（用於 domain service） |
-| Domain event | 過去式 e.g. `DocumentIngested` | 現在式 |
-| DTO | `XxxRequest` / `XxxResult` / `XxxJob` | `XxxData`, `XxxPayload`（除非已在 glossary） |
-| Config 常數 | `UPPER_SNAKE_CASE` | camelCase |
-
----
-
-## 7. RAG Pipeline 流程
-
-```text
-1. Cloud Storage trigger → on_document_uploaded
-2. interface/handlers/storage.py → handle_object_finalized
-3. application/services/document_pipeline.py → orchestrate
-4. infrastructure/external/documentai/client.py → process_document_gcs_with_form
-   ├─ Layout Parser → ParsedDocument.chunks
-   └─ Form Parser   → ParsedDocument.entities (best-effort)
-5. application/use_cases/rag_ingestion.py → ingest_document_for_rag
-   ├─ layout_chunks 非空 → layout_chunks_to_rag_chunks (chunking_strategy="layout-v1")
-   └─ layout_chunks 為空 → chunk_text char-split (chunking_strategy="char-split-v2")
-6. gateway.embed_texts → OpenAI text-embedding-3-small
-7. gateway.upsert_vectors → Upstash Vector
-8. gateway.upsert_search_documents → Upstash Search (best-effort)
-9. gateway.redis_set_json → Upstash Redis doc summary (best-effort)
-10. infrastructure/persistence/firestore/document_repository.py → mark status=ready
-```
-
----
-
-## 8. 驗證指令
-
-```bash
-cd fn
-python -m compileall -q .
-python -m pytest tests/ -v
-```
-
----
-
-## 9. 相關文件
-
-- `.github/copilot-instructions.md` — 全系統 20 條 Mandatory Compliance Rules
-- `.github/instructions/cloud-functions.instructions.md` — Cloud Functions 邊界規則
-- `.github/instructions/rag-architecture.instructions.md` — RAG 架構規則
-- `docs/structure/system/architecture-overview.md` — 主域關係圖
-````
 
 ## File: fn/src/interface/handlers/storage.py
-````python
+```python
 """
 Storage 觸發器 — 監聽 GCS 物件建立事件，自動送 Document AI 解析。
 
@@ -3119,10 +2721,10 @@ display_filename = _extract_display_filename(object_path, data.metadata)
 gcs_uri = f"gs://{bucket_name}/{object_path}"
 ⋮----
 status_gateway = get_document_status_gateway()
-````
+```
 
 ## File: fn/tests/test_domain_repository_gateways.py
-````python
+```python
 class _FakeRagQueryGateway
 ⋮----
 def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str
@@ -3183,10 +2785,10 @@ rag_ingestion_gateway = _FakeRagIngestionGateway()
 document_pipeline_gateway = _FakeDocumentPipelineGateway()
 ⋮----
 def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
-````
+```
 
 ## File: fn/tests/test_input_schemas.py
-````python
+```python
 """
 Unit tests for interface/schemas/ — Rule 4 (Contract / Schema) compliance.
 
@@ -3250,10 +2852,15 @@ def test_fromRaw_MissingDocId_RaisesValueError(self) -> None
 def test_fromRaw_MissingJsonGcsUri_RaisesValueError(self) -> None
 ⋮----
 def test_fromRaw_WithPageCount_ParsesInt(self) -> None
-````
+```
+
+## File: fn/README.md
+```markdown
+
+```
 
 ## File: fn/src/interface/handlers/rag_reindex_handler.py
-````python
+```python
 """
 HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
 
@@ -3272,10 +2879,10 @@ actor_id = _extract_auth_uid(req)
 schema = RagReindexRequest.from_raw(req.data or {})
 ⋮----
 result = execute_rag_reindex_command(
-````
+```
 
 ## File: fn/src/domain/repositories/rag.py
-````python
+```python
 class RagQueryGateway(Protocol)
 ⋮----
 def build_query_cache_key(self, *, account_scope: str, query: str, top_k: int) -> str: ...
@@ -3448,10 +3055,10 @@ def download_bytes(self, *, bucket_name: str, object_path: str) -> bytes
 def get_document_pipeline_gateway() -> DocumentPipelineGateway
 ⋮----
 _composed_document_pipeline_gateway = _ComposedDocumentPipelineGateway()
-````
+```
 
 ## File: fn/src/app/container/runtime_dependencies.py
-````python
+```python
 """Dependency registration — thin composer wiring gateways into the registry.
 
 Each gateway implementation lives in its own module under
@@ -3459,10 +3066,10 @@ infrastructure/gateways/ following SRP. This file only wires them.
 """
 ⋮----
 def register_runtime_dependencies() -> None
-````
+```
 
 ## File: fn/src/interface/handlers/parse_document.py
-````python
+```python
 """
 HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
 
@@ -3484,4 +3091,4 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict
 actor_id = _extract_auth_uid(req)
 ⋮----
 schema = ParseDocumentRequest.from_raw(req.data or {})
-````
+```

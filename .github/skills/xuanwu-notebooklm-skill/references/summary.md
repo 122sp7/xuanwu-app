@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-64 files | 1,965 lines
+64 files | 1,969 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 52 | 1,156 |
+| TypeScript | 52 | 1,160 |
 | Markdown | 8 | 581 |
 | TypeScript (TSX) | 4 | 228 |
 
@@ -59,5 +59,5 @@ This skill contains the following reference files:
 - `src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts` (100 lines)
 - `docs/structure/contexts/notebooklm/ubiquitous-language.md` (93 lines)
 - `docs/structure/contexts/notebooklm/AGENTS.md` (89 lines)
+- `src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts` (79 lines)
 - `docs/structure/contexts/notebooklm/context-map.md` (77 lines)
-- `src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts` (77 lines)

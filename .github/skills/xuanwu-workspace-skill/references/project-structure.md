@@ -209,7 +209,7 @@ src/modules/workspace/subdomains/resource/application/use-cases/ResourceUseCases
 src/modules/workspace/subdomains/resource/domain/entities/ResourceQuota.ts (49 lines)
 src/modules/workspace/subdomains/resource/domain/events/ResourceQuotaDomainEvent.ts (20 lines)
 src/modules/workspace/subdomains/resource/domain/index.ts (0 lines)
-src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts (16 lines)
+src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts (18 lines)
 src/modules/workspace/subdomains/schedule/adapters/inbound/index.ts (0 lines)
 src/modules/workspace/subdomains/schedule/adapters/index.ts (0 lines)
 src/modules/workspace/subdomains/schedule/adapters/outbound/firestore/FirestoreDemandRepository.ts (26 lines)

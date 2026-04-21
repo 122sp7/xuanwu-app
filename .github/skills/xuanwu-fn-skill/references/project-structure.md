@@ -2,9 +2,9 @@
 
 ```
 fn/.env.example (65 lines)
-fn/AGENTS.md (159 lines)
+fn/AGENTS.md (0 lines)
 fn/main.py (41 lines)
-fn/README.md (236 lines)
+fn/README.md (0 lines)
 fn/requirements-dev.txt (3 lines)
 fn/requirements.txt (23 lines)
 fn/src/app/__init__.py (0 lines)

@@ -1828,9 +1828,13 @@ export interface ParseDocumentInput {
   readonly size_bytes?: number;
   /** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
   readonly run_rag?: boolean;
+  /** Parser variant: "layout" | "form" | "ocr" | "genkit". Defaults to "layout" in fn. */
+  readonly parser?: "layout" | "form" | "ocr" | "genkit";
 }
 ⋮----
 /** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
+⋮----
+/** Parser variant: "layout" | "form" | "ocr" | "genkit". Defaults to "layout" in fn. */
 ⋮----
 export interface ParseDocumentOutput {
   readonly doc_id: string;
@@ -2088,8 +2092,6 @@ import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/
 import {
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
-  parseDocumentAction,
-  reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
   queryDocuments,
@@ -2097,6 +2099,8 @@ import {
   getDocumentDownloadUrl,
   initSourceDocumentInFirestore,
   toGcsUri,
+  callParseDocument,
+  callReindexDocument,
 } from "../../../adapters/outbound/firebase-composition";
 ⋮----
 interface NotebooklmSourcesSectionProps {

@@ -42,14 +42,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1182 files | 28,631 lines
+1182 files | 28,252 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 900 | 13,373 |
-| Markdown | 107 | 9,351 |
+| TypeScript | 900 | 13,384 |
+| Markdown | 107 | 8,958 |
 | Python | 87 | 2,266 |
-| TypeScript (TSX) | 53 | 2,523 |
+| TypeScript (TSX) | 53 | 2,526 |
 | No Extension | 18 | 18 |
 | JSON | 6 | 727 |
 | Text | 3 | 108 |
@@ -63,9 +63,9 @@ This skill contains the following reference files:
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
 - `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)
-- `fn/README.md` (236 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
 - `docs/structure/domain/ddd-strategic-design.md` (221 lines)
 - `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
 - `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)

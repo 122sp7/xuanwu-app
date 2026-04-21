@@ -200,6 +200,176 @@ export function appendWorkspaceContextQuery(
 ): string
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
+````typescript
+/**
+ * workspace-shell-interop — workspace shell integration components & hooks.
+ *
+ * Bridges the workspace module with the platform shell:
+ *   - WorkspaceQuickAccessRow   (icon strip in sidebar header)
+ *   - WorkspaceSectionContent   (domain-grouped tab nav in sidebar body)
+ *   - CustomizeNavigationDialog (user nav-preference editor)
+ *   - CreateWorkspaceDialogRail (workspace creation triggered from app rail)
+ *   - useRecentWorkspaces       (recent workspace list hook)
+ *   - useSidebarLocale          (locale bundle stub hook)
+ *   - buildWorkspaceQuickAccessItems (URL builder for quick-access items)
+ *
+ * All pure navigation data (types, constants, URL helpers) lives in
+ * workspace-nav-model.ts — import from there for non-React consumers.
+ */
+⋮----
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input } from "@packages";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  AlertCircle,
+  BadgeCheck,
+  BookOpen,
+  Brain,
+  ClipboardCheck,
+  FileStack,
+  FileText,
+  FolderOpen,
+  Home,
+  Inbox,
+  LayoutTemplate,
+  ListTodo,
+  MessageSquare,
+  Notebook,
+  Receipt,
+  Settings,
+  Shield,
+  Table2,
+  Users,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+⋮----
+import type { WorkspaceEntity } from "./WorkspaceContext";
+import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
+import {
+  DEFAULT_NAV_PREFS,
+  WORKSPACE_DOMAIN_GROUP_LABELS,
+  WORKSPACE_TAB_ITEMS,
+  getWorkspaceIdFromPath,
+  readNavPreferences,
+  resolveWorkspaceTabValue,
+  sanitizeNavPreferences,
+  writeNavPreferences,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+  type WorkspaceDomainGroup,
+} from "./workspace-nav-model";
+⋮----
+// Re-export types so callers that previously imported from workspace-ui-stubs
+// can keep working without change when workspace-ui-stubs becomes a barrel.
+⋮----
+// ── WorkspaceQuickAccessItem ──────────────────────────────────────────────────
+⋮----
+interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+⋮----
+interface WorkspaceQuickAccessItem {
+  id: string;
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+⋮----
+/**
+ * WORKSPACE_TAB_ICONS — icon for each WorkspaceTabValue.
+ *
+ * This is the ONLY UI-specific data that cannot live in workspace-nav-model.ts
+ * (nav-model is JSX-free). All other tab metadata (label, id, value, group)
+ * is owned by WORKSPACE_TAB_ITEMS — never duplicate it here.
+ */
+⋮----
+// workspace group
+⋮----
+// notion group
+⋮----
+// notebooklm group
+⋮----
+/**
+ * WORKSPACE_QUICK_ACCESS_TEMPLATES — quick-access icon strip items.
+ *
+ * Tab-based items are auto-derived from WORKSPACE_TAB_ITEMS so that
+ * labels and IDs always stay in sync with workspace-nav-model.ts.
+ * Only non-tab panel shortcuts (e.g. governance panel) are defined manually.
+ */
+⋮----
+// Non-tab panel shortcut — not backed by a top-level WorkspaceTabValue
+⋮----
+// All tab-based items — derived from WORKSPACE_TAB_ITEMS; labels stay in sync
+⋮----
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId: string | undefined,
+): WorkspaceQuickAccessItem[]
+⋮----
+// ── useRecentWorkspaces ───────────────────────────────────────────────────────
+⋮----
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+⋮----
+function getRecentStorageKey(accountId: string): string
+⋮----
+function readRecentWorkspaceIds(accountId: string): string[]
+⋮----
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
+⋮----
+function trackWorkspaceFromPath(pathname: string, accountId: string): void
+⋮----
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+):
+⋮----
+export function useSidebarLocale(): SidebarLocaleBundle | null
+⋮----
+// ── Module-level instantiation ────────────────────────────────────────────────
+⋮----
+// ── WorkspaceQuickAccessRow ───────────────────────────────────────────────────
+⋮----
+interface WorkspaceQuickAccessRowProps {
+  items: WorkspaceQuickAccessItem[];
+  pathname: string;
+  currentPanel: string | null;
+  currentWorkspaceTab: string | null;
+  workspaceSettingsHref: string;
+  isActiveRoute: (href: string) => boolean;
+}
+⋮----
+// ── WorkspaceSectionContent ───────────────────────────────────────────────────
+⋮----
+className=
+⋮----
+onSelectWorkspace(workspace.id);
+⋮----
+// ── CustomizeNavigationDialog ─────────────────────────────────────────────────
+⋮----
+setDraft((prev) => (
+⋮----
+setDraft(DEFAULT_NAV_PREFS);
+⋮----
+// ── CreateWorkspaceDialogRail ─────────────────────────────────────────────────
+⋮----
+function reset()
+⋮----
+async function handleSubmit(event: FormEvent<HTMLFormElement>)
+⋮----
+onOpenChange(isOpen);
+⋮----
+reset();
+onOpenChange(false);
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/workspace-ui-stubs.tsx
 ````typescript
 /**
@@ -636,6 +806,22 @@ export async function rejectApprovalAction(decisionId: string, rawInput?: unknow
 export async function listApprovalDecisionsAction(workspaceId: string): Promise<ApprovalDecisionSnapshot[]>
 ````
 
+## File: src/modules/workspace/adapters/inbound/server-actions/audit-actions.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { RecordAuditEntrySchema } from "../../../subdomains/audit/application/dto/AuditDTO";
+import { createClientAuditUseCases } from "../../outbound/firebase-composition";
+import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+⋮----
+// actorId injection from session is pending GAP-05 ADR decision.
+// Until platform.AuthAPI.requireAuth() is available, actorId is accepted from
+// client input via RecordAuditEntrySchema — tracked as GAP-05.
+⋮----
+export async function recordAuditEntryAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function listAuditEntriesByWorkspaceAction(workspaceId: string): Promise<AuditEntrySnapshot[]>
+````
+
 ## File: src/modules/workspace/adapters/inbound/server-actions/issue-actions.ts
 ````typescript
 import { z } from "zod";
@@ -670,6 +856,25 @@ export async function passQualityReviewAction(reviewId: string, rawInput?: unkno
 export async function failQualityReviewAction(reviewId: string, rawInput?: unknown): Promise<CommandResult>
 ⋮----
 export async function listQualityReviewsAction(workspaceId: string): Promise<QualityReviewSnapshot[]>
+````
+
+## File: src/modules/workspace/adapters/inbound/server-actions/schedule-actions.ts
+````typescript
+import { z } from "zod";
+import { commandFailureFrom, type CommandResult } from "../../../../shared";
+import { CreateWorkDemandSchema } from "../../../subdomains/schedule/application/dto/ScheduleDTO";
+import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
+import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
+⋮----
+// actorId injection from session is pending GAP-05 ADR decision.
+// Until platform.AuthAPI.requireAuth() is available, workspaceId membership is
+// not verified here — tracked as GAP-05.
+⋮----
+export async function createWorkDemandAction(rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function assignWorkDemandAction(demandId: string, rawInput: unknown): Promise<CommandResult>
+⋮----
+export async function listWorkDemandsByWorkspaceAction(workspaceId: string): Promise<WorkDemandSnapshot[]>
 ````
 
 ## File: src/modules/workspace/adapters/outbound/FirebaseWorkspaceQueryRepository.ts
@@ -1393,6 +1598,25 @@ export type RecordAuditEntryDTO = z.infer<typeof RecordAuditEntrySchema>;
 ## File: src/modules/workspace/subdomains/audit/application/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/audit/application/use-cases/AuditUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+import { AuditEntry } from "../../domain/entities/AuditEntry";
+import type { AuditEntrySnapshot, RecordAuditEntryInput } from "../../domain/entities/AuditEntry";
+⋮----
+export class RecordAuditEntryUseCase {
+⋮----
+constructor(private readonly auditRepo: AuditRepository)
+⋮----
+async execute(input: RecordAuditEntryInput): Promise<CommandResult>
+⋮----
+export class ListWorkspaceAuditEntriesUseCase {
+⋮----
+async execute(workspaceId: string): Promise<AuditEntrySnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/audit/domain/entities/AuditEntry.ts
@@ -3235,26 +3459,6 @@ export type ResourceQuotaDomainEventType = QuotaProvisionedEvent | QuotaExceeded
 
 ````
 
-## File: src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts
-````typescript
-import type { ResourceQuotaSnapshot } from "../entities/ResourceQuota";
-import type { ResourceKind } from "../entities/ResourceQuota";
-⋮----
-export interface ResourceQuotaRepository {
-  findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
-  findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
-  findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
-  save(quota: ResourceQuotaSnapshot): Promise<void>;
-  updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
-}
-⋮----
-findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
-findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
-findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
-save(quota: ResourceQuotaSnapshot): Promise<void>;
-updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
-````
-
 ## File: src/modules/workspace/subdomains/schedule/adapters/inbound/index.ts
 ````typescript
 
@@ -3311,6 +3515,29 @@ export type CreateWorkDemandDTO = z.infer<typeof CreateWorkDemandSchema>;
 ## File: src/modules/workspace/subdomains/schedule/application/index.ts
 ````typescript
 
+````
+
+## File: src/modules/workspace/subdomains/schedule/application/use-cases/ScheduleUseCases.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import type { DemandRepository } from "../../domain/repositories/DemandRepository";
+import { WorkDemand } from "../../domain/entities/WorkDemand";
+import type { CreateWorkDemandInput, WorkDemandSnapshot } from "../../domain/entities/WorkDemand";
+⋮----
+export class CreateWorkDemandUseCase {
+⋮----
+constructor(private readonly demandRepo: DemandRepository)
+⋮----
+async execute(input: CreateWorkDemandInput): Promise<CommandResult>
+⋮----
+export class AssignWorkDemandUseCase {
+⋮----
+async execute(demandId: string, assignedUserId: string): Promise<CommandResult>
+⋮----
+export class ListWorkspaceDemandsUseCase {
+⋮----
+async execute(workspaceId: string): Promise<WorkDemandSnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/schedule/domain/entities/WorkDemand.ts
@@ -5232,6 +5459,33 @@ import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entiti
 function buildEntry(partial: Partial<AuditEntrySnapshot>): AuditEntrySnapshot
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx
+````typescript
+/**
+ * WorkspaceAuditSection — workspace.audit tab — activity / audit log.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import { Activity, Filter } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createClientAuditUseCases } from "../../outbound/firebase-composition";
+import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
+import {
+  AUDIT_EVENT_TYPES,
+  matchesAuditEventType,
+  type EventTypeFilter,
+} from "./workspace-audit-filter";
+⋮----
+interface WorkspaceAuditSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+{/* Header */}
+⋮----
+{/* Filter chips */}
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceFilesSection.tsx
 ````typescript
 /**
@@ -5350,41 +5604,6 @@ if (task.status === "draft")
 ⋮----
 // Show "重新送驗" when approval was previously rejected (bypass re-QA);
 // show "送交質檢" for the normal first-pass or post-QA-failure path.
-````
-
-## File: src/modules/workspace/adapters/inbound/server-actions/audit-actions.ts
-````typescript
-import { commandFailureFrom, type CommandResult } from "../../../../shared";
-import { RecordAuditEntrySchema } from "../../../subdomains/audit/application/dto/AuditDTO";
-import { createClientAuditUseCases } from "../../outbound/firebase-composition";
-import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
-⋮----
-// actorId injection from session is pending GAP-05 ADR decision.
-// Until platform.AuthAPI.requireAuth() is available, actorId is accepted from
-// client input via RecordAuditEntrySchema — tracked as GAP-05.
-⋮----
-export async function recordAuditEntryAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function listAuditEntriesByWorkspaceAction(workspaceId: string): Promise<AuditEntrySnapshot[]>
-````
-
-## File: src/modules/workspace/adapters/inbound/server-actions/schedule-actions.ts
-````typescript
-import { z } from "zod";
-import { commandFailureFrom, type CommandResult } from "../../../../shared";
-import { CreateWorkDemandSchema } from "../../../subdomains/schedule/application/dto/ScheduleDTO";
-import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
-import type { WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
-⋮----
-// actorId injection from session is pending GAP-05 ADR decision.
-// Until platform.AuthAPI.requireAuth() is available, workspaceId membership is
-// not verified here — tracked as GAP-05.
-⋮----
-export async function createWorkDemandAction(rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function assignWorkDemandAction(demandId: string, rawInput: unknown): Promise<CommandResult>
-⋮----
-export async function listWorkDemandsByWorkspaceAction(workspaceId: string): Promise<WorkDemandSnapshot[]>
 ````
 
 ## File: src/modules/workspace/adapters/inbound/server-actions/settlement-actions.ts
@@ -5526,25 +5745,6 @@ export async function listTasksByWorkspaceAction(workspaceId: string): Promise<T
 
 - [../AGENTS.md](../AGENTS.md)
 - [../../../docs/README.md](../../../docs/README.md)
-````
-
-## File: src/modules/workspace/subdomains/audit/application/use-cases/AuditUseCases.ts
-````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-import { AuditEntry } from "../../domain/entities/AuditEntry";
-import type { AuditEntrySnapshot, RecordAuditEntryInput } from "../../domain/entities/AuditEntry";
-⋮----
-export class RecordAuditEntryUseCase {
-⋮----
-constructor(private readonly auditRepo: AuditRepository)
-⋮----
-async execute(input: RecordAuditEntryInput): Promise<CommandResult>
-⋮----
-export class ListWorkspaceAuditEntriesUseCase {
-⋮----
-async execute(workspaceId: string): Promise<AuditEntrySnapshot[]>
 ````
 
 ## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
@@ -5810,27 +6010,26 @@ import { describe, expect, it } from "vitest";
 import { WorkspaceRolePolicy } from "./WorkspaceRolePolicy";
 ````
 
-## File: src/modules/workspace/subdomains/schedule/application/use-cases/ScheduleUseCases.ts
+## File: src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts
 ````typescript
-import { v4 as uuid } from "uuid";
-import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
-import type { DemandRepository } from "../../domain/repositories/DemandRepository";
-import { WorkDemand } from "../../domain/entities/WorkDemand";
-import type { CreateWorkDemandInput, WorkDemandSnapshot } from "../../domain/entities/WorkDemand";
+import type {
+  ResourceQuotaSnapshot,
+  ResourceKind,
+} from "../entities/ResourceQuota";
 ⋮----
-export class CreateWorkDemandUseCase {
+export interface ResourceQuotaRepository {
+  findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
+  findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
+  findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
+  save(quota: ResourceQuotaSnapshot): Promise<void>;
+  updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
+}
 ⋮----
-constructor(private readonly demandRepo: DemandRepository)
-⋮----
-async execute(input: CreateWorkDemandInput): Promise<CommandResult>
-⋮----
-export class AssignWorkDemandUseCase {
-⋮----
-async execute(demandId: string, assignedUserId: string): Promise<CommandResult>
-⋮----
-export class ListWorkspaceDemandsUseCase {
-⋮----
-async execute(workspaceId: string): Promise<WorkDemandSnapshot[]>
+findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;
+findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise<ResourceQuotaSnapshot | null>;
+findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
+save(quota: ResourceQuotaSnapshot): Promise<void>;
+updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository.ts
@@ -6168,176 +6367,6 @@ function buildWorkspace(
 ): WorkspaceEntity
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx
-````typescript
-/**
- * workspace-shell-interop — workspace shell integration components & hooks.
- *
- * Bridges the workspace module with the platform shell:
- *   - WorkspaceQuickAccessRow   (icon strip in sidebar header)
- *   - WorkspaceSectionContent   (domain-grouped tab nav in sidebar body)
- *   - CustomizeNavigationDialog (user nav-preference editor)
- *   - CreateWorkspaceDialogRail (workspace creation triggered from app rail)
- *   - useRecentWorkspaces       (recent workspace list hook)
- *   - useSidebarLocale          (locale bundle stub hook)
- *   - buildWorkspaceQuickAccessItems (URL builder for quick-access items)
- *
- * All pure navigation data (types, constants, URL helpers) lives in
- * workspace-nav-model.ts — import from there for non-React consumers.
- */
-⋮----
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input } from "@packages";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import {
-  AlertCircle,
-  BadgeCheck,
-  BookOpen,
-  Brain,
-  ClipboardCheck,
-  FileStack,
-  FileText,
-  FolderOpen,
-  Home,
-  Inbox,
-  LayoutTemplate,
-  ListTodo,
-  MessageSquare,
-  Notebook,
-  Receipt,
-  Settings,
-  Shield,
-  Table2,
-  Users,
-} from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-⋮----
-import type { WorkspaceEntity } from "./WorkspaceContext";
-import { createClientWorkspaceLifecycleUseCases } from "../../outbound/firebase-composition";
-import {
-  DEFAULT_NAV_PREFS,
-  WORKSPACE_DOMAIN_GROUP_LABELS,
-  WORKSPACE_TAB_ITEMS,
-  getWorkspaceIdFromPath,
-  readNavPreferences,
-  resolveWorkspaceTabValue,
-  sanitizeNavPreferences,
-  writeNavPreferences,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-  type WorkspaceDomainGroup,
-} from "./workspace-nav-model";
-⋮----
-// Re-export types so callers that previously imported from workspace-ui-stubs
-// can keep working without change when workspace-ui-stubs becomes a barrel.
-⋮----
-// ── WorkspaceQuickAccessItem ──────────────────────────────────────────────────
-⋮----
-interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-⋮----
-interface WorkspaceQuickAccessItem {
-  id: string;
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-⋮----
-/**
- * WORKSPACE_TAB_ICONS — icon for each WorkspaceTabValue.
- *
- * This is the ONLY UI-specific data that cannot live in workspace-nav-model.ts
- * (nav-model is JSX-free). All other tab metadata (label, id, value, group)
- * is owned by WORKSPACE_TAB_ITEMS — never duplicate it here.
- */
-⋮----
-// workspace group
-⋮----
-// notion group
-⋮----
-// notebooklm group
-⋮----
-/**
- * WORKSPACE_QUICK_ACCESS_TEMPLATES — quick-access icon strip items.
- *
- * Tab-based items are auto-derived from WORKSPACE_TAB_ITEMS so that
- * labels and IDs always stay in sync with workspace-nav-model.ts.
- * Only non-tab panel shortcuts (e.g. governance panel) are defined manually.
- */
-⋮----
-// Non-tab panel shortcut — not backed by a top-level WorkspaceTabValue
-⋮----
-// All tab-based items — derived from WORKSPACE_TAB_ITEMS; labels stay in sync
-⋮----
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId: string | undefined,
-): WorkspaceQuickAccessItem[]
-⋮----
-// ── useRecentWorkspaces ───────────────────────────────────────────────────────
-⋮----
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-⋮----
-function getRecentStorageKey(accountId: string): string
-⋮----
-function readRecentWorkspaceIds(accountId: string): string[]
-⋮----
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]): void
-⋮----
-function trackWorkspaceFromPath(pathname: string, accountId: string): void
-⋮----
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-):
-⋮----
-export function useSidebarLocale(): SidebarLocaleBundle | null
-⋮----
-// ── Module-level instantiation ────────────────────────────────────────────────
-⋮----
-// ── WorkspaceQuickAccessRow ───────────────────────────────────────────────────
-⋮----
-interface WorkspaceQuickAccessRowProps {
-  items: WorkspaceQuickAccessItem[];
-  pathname: string;
-  currentPanel: string | null;
-  currentWorkspaceTab: string | null;
-  workspaceSettingsHref: string;
-  isActiveRoute: (href: string) => boolean;
-}
-⋮----
-// ── WorkspaceSectionContent ───────────────────────────────────────────────────
-⋮----
-className=
-⋮----
-onSelectWorkspace(workspace.id);
-⋮----
-// ── CustomizeNavigationDialog ─────────────────────────────────────────────────
-⋮----
-setDraft((prev) => (
-⋮----
-setDraft(DEFAULT_NAV_PREFS);
-⋮----
-// ── CreateWorkspaceDialogRail ─────────────────────────────────────────────────
-⋮----
-function reset()
-⋮----
-async function handleSubmit(event: FormEvent<HTMLFormElement>)
-⋮----
-onOpenChange(isOpen);
-⋮----
-reset();
-onOpenChange(false);
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
 ````typescript
 import { Badge } from "@packages";
@@ -6578,66 +6607,6 @@ function createActiveMember(
 ): WorkspaceMemberSnapshot
 ````
 
-## File: src/modules/workspace/subdomains/membership/domain/value-objects/WorkspaceRolePolicy.ts
-````typescript
-import type { MemberRole } from "../entities/WorkspaceMember";
-⋮----
-export type WorkspaceMembershipAction = typeof WORKSPACE_MEMBERSHIP_ACTIONS[number];
-⋮----
-export class WorkspaceRolePolicy {
-⋮----
-constructor(
-⋮----
-can(role: MemberRole, action: WorkspaceMembershipAction): boolean
-⋮----
-canChangeRole(actorRole: MemberRole, targetRole: MemberRole, nextRole: MemberRole): boolean
-⋮----
-canRemove(actorRole: MemberRole, targetRole: MemberRole): boolean
-````
-
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-import { FirebaseCallableTaskCandidateExtractor } from "./FirebaseCallableTaskCandidateExtractor";
-⋮----
-// Minimal AP8 PO dense text excerpt mimicking Document AI OCR output.
-// Format: {item_no} 3RDTW{code} SET {price}...小計{total}（{section_numeral}）{description}
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceAuditSection.tsx
-````typescript
-/**
- * WorkspaceAuditSection — workspace.audit tab — activity / audit log.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import { Activity, Filter } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { createClientAuditUseCases } from "../../outbound/firebase-composition";
-import type { AuditEntrySnapshot } from "../../../subdomains/audit/domain/entities/AuditEntry";
-import {
-  AUDIT_EVENT_TYPES,
-  matchesAuditEventType,
-  type EventTypeFilter,
-} from "./workspace-audit-filter";
-⋮----
-interface WorkspaceAuditSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-{/* Header */}
-⋮----
-{/* Filter chips */}
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { parseLocalDatetimeInput, toLocalDatetimeInputValue } from "./workspace-schedule-datetime";
-````
-
 ## File: src/modules/workspace/subdomains/membership/application/use-cases/MembershipUseCases.ts
 ````typescript
 import { v4 as uuid } from "uuid";
@@ -6666,6 +6635,126 @@ export class ListWorkspaceMembersUseCase {
 constructor(private readonly memberRepo: WorkspaceMemberRepository)
 ⋮----
 async execute(workspaceId: string)
+````
+
+## File: src/modules/workspace/subdomains/membership/domain/value-objects/WorkspaceRolePolicy.ts
+````typescript
+import type { MemberRole } from "../entities/WorkspaceMember";
+⋮----
+export type WorkspaceMembershipAction = typeof WORKSPACE_MEMBERSHIP_ACTIONS[number];
+⋮----
+export class WorkspaceRolePolicy {
+⋮----
+constructor(
+⋮----
+can(role: MemberRole, action: WorkspaceMembershipAction): boolean
+⋮----
+canChangeRole(actorRole: MemberRole, targetRole: MemberRole, nextRole: MemberRole): boolean
+⋮----
+canRemove(actorRole: MemberRole, targetRole: MemberRole): boolean
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+import { FirebaseCallableTaskCandidateExtractor } from "./FirebaseCallableTaskCandidateExtractor";
+⋮----
+// Minimal AP8 PO dense text excerpt mimicking Document AI OCR output.
+// Format: {item_no} 3RDTW{code} SET {price}...小計{total}（{section_numeral}）{description}
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
+````typescript
+/**
+ * WorkspaceMembersSection — workspace.members tab — team member list.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import { Users, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createClientMembershipUseCases } from "../../outbound/firebase-composition";
+import type { WorkspaceMemberSnapshot } from "../../../subdomains/membership/domain/entities/WorkspaceMember";
+import {
+  addMemberAction,
+  changeMemberRoleAction,
+} from "../server-actions/membership-actions";
+⋮----
+interface WorkspaceMembersSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+async function loadMembers(): Promise<void>
+⋮----
+async function handleInviteMember(): Promise<void>
+⋮----
+// TODO(workspace-membership): replace this fallback with IAM directory lookup (email -> actorId).
+// Temporary mapping: use normalized email as target actor identity.
+⋮----
+async function handleRoleChange(memberId: string, nextRole: "owner" | "admin" | "member"): Promise<void>
+⋮----
+{/* Header */}
+⋮----
+{/* Role filter */}
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+⋮----
+import { parseLocalDatetimeInput, toLocalDatetimeInputValue } from "./workspace-schedule-datetime";
+````
+
+## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.test.ts
+````typescript
+import { describe, expect, it } from 'vitest';
+import {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithOwnerUseCase,
+} from './WorkspaceLifecycleUseCases';
+import type { WorkspaceSnapshot } from '../../domain/entities/Workspace';
+import type { WorkspaceRepository } from '../../domain/repositories/WorkspaceRepository';
+import type { WorkspaceMemberSnapshot } from '../../../membership/domain/entities/WorkspaceMember';
+import type { WorkspaceMemberRepository } from '../../../membership/domain/repositories/WorkspaceMemberRepository';
+import type { AuditEntrySnapshot } from '../../../audit/domain/entities/AuditEntry';
+import type { AuditRepository } from '../../../audit/domain/repositories/AuditRepository';
+⋮----
+class InMemoryWorkspaceRepository implements WorkspaceRepository {
+⋮----
+async findById(workspaceId: string): Promise<WorkspaceSnapshot | null>
+⋮----
+async findByAccountId(accountId: string): Promise<WorkspaceSnapshot[]>
+⋮----
+async save(workspace: WorkspaceSnapshot): Promise<void>
+⋮----
+async delete(workspaceId: string): Promise<void>
+⋮----
+class InMemoryWorkspaceRepositoryWithDeleteFailure extends InMemoryWorkspaceRepository {
+⋮----
+async delete(_workspaceId: string): Promise<void>
+⋮----
+class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository {
+⋮----
+async findById(memberId: string): Promise<WorkspaceMemberSnapshot | null>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<WorkspaceMemberSnapshot[]>
+⋮----
+async findByActorAndWorkspace(actorId: string, workspaceId: string): Promise<WorkspaceMemberSnapshot | null>
+⋮----
+async save(member: WorkspaceMemberSnapshot): Promise<void>
+⋮----
+async delete(memberId: string): Promise<void>
+⋮----
+class InMemoryAuditRepository implements AuditRepository {
+⋮----
+async save(entry: AuditEntrySnapshot): Promise<void>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<AuditEntrySnapshot[]>
+⋮----
+async findByWorkspaceIds(workspaceIds: string[]): Promise<AuditEntrySnapshot[]>
+⋮----
+async save(): Promise<void>
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
@@ -6736,187 +6825,6 @@ if (accountType === "organization")
 // Two-segment routes
 ⋮----
 // Fallback
-````
-
-## File: src/modules/workspace/adapters/inbound/react/workspace-schedule-datetime.ts
-````typescript
-export function toLocalDatetimeInputValue(date: Date): string
-⋮----
-const pad = (value: number): string
-⋮----
-export function parseLocalDatetimeInput(value: string): string | null
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
-````typescript
-/**
- * WorkspaceTaskFormationSection — workspace.task-formation tab.
- *
- * Task formation keeps only source references in URL/query state, then resolves
- * concrete page/database context through the notion public boundary before
- * sending the source to the extractor.
- *
- * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
- * model" boundary behind this handoff.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import {
-  ListPlus,
-  ArrowRight,
-  FileText,
-  LayoutGrid,
-  BookOpen,
-  Upload,
-  ChevronRight,
-  Info,
-  Check,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
-⋮----
-import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
-import {
-  listWorkspaceKnowledgeDatabases,
-  listWorkspaceKnowledgePages,
-} from "@/src/modules/notion";
-import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
-import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
-⋮----
-interface WorkspaceTaskFormationSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
-}
-⋮----
-type SelectedSourceKind = "page" | "database" | "research" | null;
-type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
-⋮----
-type ConcreteSource = {
-  readonly id: string;
-  readonly kind: Exclude<SelectedSourceKind, null>;
-  readonly title: string;
-  readonly description: string;
-  readonly sourceText?: string;
-};
-⋮----
-function buildPageSource(page: PageSnapshot): ConcreteSource
-⋮----
-function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
-⋮----
-function toggleCandidate(i: number)
-⋮----
-function handleSelectSource(nextSource: SelectedSourceKind)
-⋮----
-function handleExtract()
-⋮----
-function handleConfirm()
-⋮----
-function handleReset()
-````
-
-## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.test.ts
-````typescript
-import { describe, expect, it } from 'vitest';
-import {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithOwnerUseCase,
-} from './WorkspaceLifecycleUseCases';
-import type { WorkspaceSnapshot } from '../../domain/entities/Workspace';
-import type { WorkspaceRepository } from '../../domain/repositories/WorkspaceRepository';
-import type { WorkspaceMemberSnapshot } from '../../../membership/domain/entities/WorkspaceMember';
-import type { WorkspaceMemberRepository } from '../../../membership/domain/repositories/WorkspaceMemberRepository';
-import type { AuditEntrySnapshot } from '../../../audit/domain/entities/AuditEntry';
-import type { AuditRepository } from '../../../audit/domain/repositories/AuditRepository';
-⋮----
-class InMemoryWorkspaceRepository implements WorkspaceRepository {
-⋮----
-async findById(workspaceId: string): Promise<WorkspaceSnapshot | null>
-⋮----
-async findByAccountId(accountId: string): Promise<WorkspaceSnapshot[]>
-⋮----
-async save(workspace: WorkspaceSnapshot): Promise<void>
-⋮----
-async delete(workspaceId: string): Promise<void>
-⋮----
-class InMemoryWorkspaceRepositoryWithDeleteFailure extends InMemoryWorkspaceRepository {
-⋮----
-async delete(_workspaceId: string): Promise<void>
-⋮----
-class InMemoryWorkspaceMemberRepository implements WorkspaceMemberRepository {
-⋮----
-async findById(memberId: string): Promise<WorkspaceMemberSnapshot | null>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<WorkspaceMemberSnapshot[]>
-⋮----
-async findByActorAndWorkspace(actorId: string, workspaceId: string): Promise<WorkspaceMemberSnapshot | null>
-⋮----
-async save(member: WorkspaceMemberSnapshot): Promise<void>
-⋮----
-async delete(memberId: string): Promise<void>
-⋮----
-class InMemoryAuditRepository implements AuditRepository {
-⋮----
-async save(entry: AuditEntrySnapshot): Promise<void>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<AuditEntrySnapshot[]>
-⋮----
-async findByWorkspaceIds(workspaceIds: string[]): Promise<AuditEntrySnapshot[]>
-⋮----
-async save(): Promise<void>
-````
-
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts
-````typescript
-import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
-import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
-⋮----
-// ── Flow I/O types (replicated to avoid static z import at module scope) ──────
-⋮----
-interface TaskCandidateItem {
-  title: string;
-  description?: string;
-  dueDate?: string;
-  confidence: number;
-  sourceSnippet?: string;
-}
-⋮----
-interface ExtractFlowOutput {
-  candidates: TaskCandidateItem[];
-}
-⋮----
-// ── Prompt builder ─────────────────────────────────────────────────────────────
-⋮----
-function buildExtractionPrompt(sourceText: string, pageRefs: string): string
-⋮----
-// ── Adapter ────────────────────────────────────────────────────────────────────
-⋮----
-/**
- * GenkitTaskCandidateExtractor — synchronous Genkit flow implementation of
- * TaskCandidateExtractorPort.
- *
- * Flow name: workspace.extract-task-candidates
- * Model: DEFAULT_AI_MODEL (gemini-2.5-flash) via shared Genkit singleton.
- * I/O validated with Zod per @integration-ai/README guardrails.
- *
- * ADR: AI extraction → synchronous Genkit flow (option A).
- *
- * Dynamic import: genkit is loaded lazily inside `extract()` to keep static
- * genkit imports out of browser bundles. firebase-composition.ts is transitively
- * imported by client components; a top-level `import { ai } from genkit` would
- * pull Node.js-only genkit deps into the browser bundle.
- *
- * ESLint: Genkit dynamic import is permitted here — outbound adapter layer.
- */
-export class GenkitTaskCandidateExtractor implements TaskCandidateExtractorPort {
-⋮----
-async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
-⋮----
-// Dynamic import — keeps Node.js-only genkit deps out of browser bundles.
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
@@ -7007,113 +6915,85 @@ onClick=
 router.push(href);
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
+## File: src/modules/workspace/adapters/inbound/react/workspace-schedule-datetime.ts
+````typescript
+export function toLocalDatetimeInputValue(date: Date): string
+⋮----
+const pad = (value: number): string
+⋮----
+export function parseLocalDatetimeInput(value: string): string | null
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
 ````typescript
 /**
- * WorkspaceMembersSection — workspace.members tab — team member list.
+ * WorkspaceTaskFormationSection — workspace.task-formation tab.
+ *
+ * Task formation keeps only source references in URL/query state, then resolves
+ * concrete page/database context through the notion public boundary before
+ * sending the source to the extractor.
+ *
+ * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
+ * model" boundary behind this handoff.
  */
 ⋮----
 import { Badge, Button } from "@packages";
-import { Users, UserPlus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { createClientMembershipUseCases } from "../../outbound/firebase-composition";
-import type { WorkspaceMemberSnapshot } from "../../../subdomains/membership/domain/entities/WorkspaceMember";
 import {
-  addMemberAction,
-  changeMemberRoleAction,
-} from "../server-actions/membership-actions";
+  ListPlus,
+  ArrowRight,
+  FileText,
+  LayoutGrid,
+  BookOpen,
+  Upload,
+  ChevronRight,
+  Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
 ⋮----
-interface WorkspaceMembersSectionProps {
+import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
+import {
+  listWorkspaceKnowledgeDatabases,
+  listWorkspaceKnowledgePages,
+} from "@/src/modules/notion";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
+⋮----
+interface WorkspaceTaskFormationSectionProps {
   workspaceId: string;
   accountId: string;
   currentUserId?: string;
 }
 ⋮----
-async function loadMembers(): Promise<void>
+type SelectedSourceKind = "page" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
 ⋮----
-async function handleInviteMember(): Promise<void>
+type ConcreteSource = {
+  readonly id: string;
+  readonly kind: Exclude<SelectedSourceKind, null>;
+  readonly title: string;
+  readonly description: string;
+  readonly sourceText?: string;
+};
 ⋮----
-// TODO(workspace-membership): replace this fallback with IAM directory lookup (email -> actorId).
-// Temporary mapping: use normalized email as target actor identity.
+function buildPageSource(page: PageSnapshot): ConcreteSource
 ⋮----
-async function handleRoleChange(memberId: string, nextRole: "owner" | "admin" | "member"): Promise<void>
+function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
 ⋮----
-{/* Header */}
+function toggleCandidate(i: number)
 ⋮----
-{/* Role filter */}
-````
-
-## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts
-````typescript
-import { z } from "zod";
-import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
-import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+function handleSelectSource(nextSource: SelectedSourceKind)
 ⋮----
-// Simple line items: "10 光纖熔接" or "10 高空作業費"
+function handleExtract()
 ⋮----
-// Dense AP8 PO format: item number + 3RDTW product code + price block ending in 小計
-// followed by Chinese section header （numeral） and task description.
-// Capture groups:
-//   1 — item number (10–540, step 10)
-//   2 — section numeral character(s) (e.g., "伍" for Section 5 / 雜項費用)
-//   3 — task description text (max 120 chars)
+function handleConfirm()
 ⋮----
-// Chinese section numeral chars whose entire section is 費用管銷
-⋮----
-// Description-level patterns that indicate 費用管銷 regardless of section
-⋮----
-/費$/u,           // ends with 費 (高空作業費, 工程衛生費 …)
-/費用/u,          // 費用 anywhere
-/管理\d*人/u,     // management headcount
-⋮----
-/圖控與軟體/u,    // SCADA software deliverable (cost item)
-⋮----
-/**
- * FirebaseCallableTaskCandidateExtractor — working implementation of
- * TaskCandidateExtractorPort with Firebase-only runtime behavior.
- *
- * Supports two text formats:
- *   1. Clean line-item format: "10 光纖熔接" (simple rule-based extraction)
- *   2. Dense AP8 PO format from Document AI OCR/Layout Parser output with
- *      price blocks and Chinese section headers (po_dense path).
- *
- * Classification follows the AP8 PO 4510250181 two-category model:
- *   施工作業 — installation, cabling, construction, fiber splicing, positioning
- *   費用管銷 — management fees, insurance, sanitation, profit, software cost
- *
- * ESLint: @integration-firebase is allowed here — outbound adapter layer.
- */
-export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort {
-⋮----
-/** Classify a task description as 施工作業 or 費用管銷. */
-private _inferCategory(description: string, sectionChar?: string): "施工作業" | "費用管銷"
-⋮----
-// Section-level override: 伍 (雜項費用) and 玖 (利潤及雜費) are always costs
-⋮----
-// Description-level pattern matching (highest precision, checked first)
-⋮----
-// Keyword-score fallback for unstructured text
-⋮----
-/**
-   * Extract candidates from dense AP8 PO text (Document AI OCR/Layout output).
-   *
-   * Matches pattern: {item_no} 3RDTW… …小計{amount}（{section}）{description}
-   */
-private _extractDensePoCandidates(
-    text: string,
-    source: "rule" | "ai",
-    sourceBlockId: string | undefined,
-): Array<z.infer<typeof CandidateSchema>>
-⋮----
-// Reset lastIndex before iterating (global regex)
-⋮----
-async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
-⋮----
-// ── Path 1: Dense AP8 PO format detection ─────────────────────────────
-// If the text contains the ABB product code prefix "3RDTW", treat it as a
-// dense PO document and use the structured dense-PO extractor.
-⋮----
-// ── Path 2: Simple line-item format ────────────────────────────────────
+function handleReset()
 ````
 
 ## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.ts
@@ -7171,6 +7051,55 @@ async execute(workspaceId: string): Promise<CommandResult>
 export class StopWorkspaceUseCase {
 ⋮----
 export class DeleteWorkspaceUseCase {
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor.ts
+````typescript
+import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+⋮----
+// ── Flow I/O types (replicated to avoid static z import at module scope) ──────
+⋮----
+interface TaskCandidateItem {
+  title: string;
+  description?: string;
+  dueDate?: string;
+  confidence: number;
+  sourceSnippet?: string;
+}
+⋮----
+interface ExtractFlowOutput {
+  candidates: TaskCandidateItem[];
+}
+⋮----
+// ── Prompt builder ─────────────────────────────────────────────────────────────
+⋮----
+function buildExtractionPrompt(sourceText: string, pageRefs: string): string
+⋮----
+// ── Adapter ────────────────────────────────────────────────────────────────────
+⋮----
+/**
+ * GenkitTaskCandidateExtractor — synchronous Genkit flow implementation of
+ * TaskCandidateExtractorPort.
+ *
+ * Flow name: workspace.extract-task-candidates
+ * Model: DEFAULT_AI_MODEL (gemini-2.5-flash) via shared Genkit singleton.
+ * I/O validated with Zod per @integration-ai/README guardrails.
+ *
+ * ADR: AI extraction → synchronous Genkit flow (option A).
+ *
+ * Dynamic import: genkit is loaded lazily inside `extract()` to keep static
+ * genkit imports out of browser bundles. firebase-composition.ts is transitively
+ * imported by client components; a top-level `import { ai } from genkit` would
+ * pull Node.js-only genkit deps into the browser bundle.
+ *
+ * ESLint: Genkit dynamic import is permitted here — outbound adapter layer.
+ */
+export class GenkitTaskCandidateExtractor implements TaskCandidateExtractorPort {
+⋮----
+async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
+⋮----
+// Dynamic import — keeps Node.js-only genkit deps out of browser bundles.
 ````
 
 ## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
@@ -7377,6 +7306,79 @@ export function createClientScheduleUseCases()
 export function createClientAuditUseCases()
 ⋮----
 export function createClientSettlementUseCases()
+````
+
+## File: src/modules/workspace/subdomains/task-formation/adapters/outbound/callable/FirebaseCallableTaskCandidateExtractor.ts
+````typescript
+import { z } from "zod";
+import type { TaskCandidateExtractorPort, ExtractTaskCandidatesInput } from "../../../domain/ports/TaskCandidateExtractorPort";
+import type { ExtractedTaskCandidate } from "../../../domain/value-objects/TaskCandidate";
+⋮----
+// Simple line items: "10 光纖熔接" or "10 高空作業費"
+⋮----
+// Dense AP8 PO format: item number + 3RDTW product code + price block ending in 小計
+// followed by Chinese section header （numeral） and task description.
+// Capture groups:
+//   1 — item number (10–540, step 10)
+//   2 — section numeral character(s) (e.g., "伍" for Section 5 / 雜項費用)
+//   3 — task description text (max 120 chars)
+⋮----
+// Chinese section numeral chars whose entire section is 費用管銷
+⋮----
+// Description-level patterns that indicate 費用管銷 regardless of section
+⋮----
+/費$/u,           // ends with 費 (高空作業費, 工程衛生費 …)
+/費用/u,          // 費用 anywhere
+/管理\d*人/u,     // management headcount
+⋮----
+/圖控與軟體/u,    // SCADA software deliverable (cost item)
+⋮----
+/**
+ * FirebaseCallableTaskCandidateExtractor — working implementation of
+ * TaskCandidateExtractorPort with Firebase-only runtime behavior.
+ *
+ * Supports two text formats:
+ *   1. Clean line-item format: "10 光纖熔接" (simple rule-based extraction)
+ *   2. Dense AP8 PO format from Document AI OCR/Layout Parser output with
+ *      price blocks and Chinese section headers (po_dense path).
+ *
+ * Classification follows the AP8 PO 4510250181 two-category model:
+ *   施工作業 — installation, cabling, construction, fiber splicing, positioning
+ *   費用管銷 — management fees, insurance, sanitation, profit, software cost
+ *
+ * ESLint: @integration-firebase is allowed here — outbound adapter layer.
+ */
+export class FirebaseCallableTaskCandidateExtractor implements TaskCandidateExtractorPort {
+⋮----
+/** Classify a task description as 施工作業 or 費用管銷. */
+private _inferCategory(description: string, sectionChar?: string): "施工作業" | "費用管銷"
+⋮----
+// Section-level override: 伍 (雜項費用) and 玖 (利潤及雜費) are always costs
+⋮----
+// Description-level pattern matching (highest precision, checked first)
+⋮----
+// Keyword-score fallback for unstructured text
+⋮----
+/**
+   * Extract candidates from dense AP8 PO text (Document AI OCR/Layout output).
+   *
+   * Matches pattern: {item_no} 3RDTW… …小計{amount}（{section}）{description}
+   */
+private _extractDensePoCandidates(
+    text: string,
+    source: "rule" | "ai",
+    sourceBlockId: string | undefined,
+): Array<z.infer<typeof CandidateSchema>>
+⋮----
+// Reset lastIndex before iterating (global regex)
+⋮----
+async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
+⋮----
+// ── Path 1: Dense AP8 PO format detection ─────────────────────────────
+// If the text contains the ABB product code prefix "3RDTW", treat it as a
+// dense PO document and use the structured dense-PO extractor.
+⋮----
+// ── Path 2: Simple line-item format ────────────────────────────────────
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx

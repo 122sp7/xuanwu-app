@@ -813,6 +813,203 @@ flowchart LR
 - [strategic-patterns.md](../../system/strategic-patterns.md)
 ````
 
+## File: docs/structure/contexts/notion/README.md
+````markdown
+# Notion Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
+
+## Why This Context Exists
+
+- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
+- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
+- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 正典知識內容生命週期 |
+| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope |
+| Downstream Consumer | notebooklm |
+| Core Principle | notion 擁有正式內容，不擁有治理、商業或推理過程 |
+
+## Baseline Subdomains
+
+- knowledge
+- authoring
+- collaboration
+- database
+- knowledge-engagement
+- attachments
+- automation
+- external-knowledge-sync
+- notes
+- templates
+- knowledge-versioning
+
+## Recommended Gap Subdomains
+
+- taxonomy
+- relations
+- publishing
+
+## Key Relationships
+
+- 與 iam：notion 消費 actor、tenant 與 access decision。
+- 與 billing：notion 消費 entitlement 與 subscription capability signal。
+- 與 ai：notion 消費 ai capability、model policy 與 safety result。
+- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
+- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENTS.md](./AGENTS.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
+- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
+- 不把 platform 的治理語言混成內容生命週期本身。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
+- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 ai context，而不是在 notion 再建一個 generic `ai` 子域。
+- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
+- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notion boundary"]
+	Workspace["workspace"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Notion domain"]
+	Domain --> Output["KnowledgeArtifact / Publication"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [README.md](../../../README.md)
+- [architecture-overview.md](../../system/architecture-overview.md)
+- [integration-guidelines.md](../../system/integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/structure/contexts/notion/subdomains.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付（實作層以 `page` + `block` 對應）|
+| authoring | 知識庫文章建立、驗證與分類（實作層整合至 `page` 子域）|
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
+| knowledge-engagement | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| external-knowledge-sync | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+| taxonomy | 分類法與語義組織邊界 |
+| relations | 內容之間關聯與 backlink 邊界 |
+| publishing | 正式發布與對外交付邊界 |
+
+> **實作層命名備注：** `src/modules/notion/` 以 `page`、`block`、`database`、`view`、`collaboration`、`template` 作為子域目錄名稱。
+> `view` 子域承接 `database` 的多視圖能力；`block` 是 `page` 的內容區塊子結構。
+> `knowledge-database` 已正式重命名為 `database`；所有戰略文件與實作路徑均已同步更新。
+
+## Recommended Gap Subdomains
+
+無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
+
+## Anti-Patterns
+
+- 不把 taxonomy 混成 authoring 裡的附屬設定。
+- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
+- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
+- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-engagement、external-knowledge-sync、knowledge-versioning 哪一個內容責任。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
+- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Authoring["Authoring"] --> Knowledge["Knowledge"]
+	Knowledge --> Taxonomy["Taxonomy"]
+	Knowledge --> Relations["Relations"]
+	Taxonomy --> Publishing["Publishing"]
+	Relations --> Publishing
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../../domain/subdomains.md)
+- [bounded-contexts.md](../../domain/bounded-contexts.md)
+````
+
 ## File: docs/structure/contexts/notion/ubiquitous-language.md
 ````markdown
 # Notion
@@ -1300,242 +1497,6 @@ export class CreateTemplateUseCase {
 async execute(input: CreateTemplateInput): Promise<CommandResult>
 ````
 
-## File: docs/structure/contexts/notion/subdomains.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付（實作層以 `page` + `block` 對應）|
-| authoring | 知識庫文章建立、驗證與分類（實作層整合至 `page` 子域）|
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
-| knowledge-engagement | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| external-knowledge-sync | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-| taxonomy | 分類法與語義組織邊界 |
-| relations | 內容之間關聯與 backlink 邊界 |
-| publishing | 正式發布與對外交付邊界 |
-
-> **實作層命名備注：** `src/modules/notion/` 以 `page`、`block`、`database`、`view`、`collaboration`、`template` 作為子域目錄名稱。
-> `view` 子域承接 `database` 的多視圖能力；`block` 是 `page` 的內容區塊子結構。
-> `knowledge-database` 已正式重命名為 `database`；所有戰略文件與實作路徑均已同步更新。
-
-## Recommended Gap Subdomains
-
-無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
-
-## Anti-Patterns
-
-- 不把 taxonomy 混成 authoring 裡的附屬設定。
-- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
-- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
-- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-engagement、external-knowledge-sync、knowledge-versioning 哪一個內容責任。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
-- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Authoring["Authoring"] --> Knowledge["Knowledge"]
-	Knowledge --> Taxonomy["Taxonomy"]
-	Knowledge --> Relations["Relations"]
-	Taxonomy --> Publishing["Publishing"]
-	Relations --> Publishing
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [subdomains.md](../../domain/subdomains.md)
-- [bounded-contexts.md](../../domain/bounded-contexts.md)
-````
-
-## File: src/modules/notion/adapters/inbound/server-actions/database-actions.test.ts
-````typescript
-import { beforeEach, describe, expect, it, vi } from "vitest";
-⋮----
-import { createDatabaseAction } from "./database-actions";
-````
-
-## File: src/modules/notion/index.ts
-````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
-import type { PageSnapshot } from "./subdomains/page/domain";
-import type { CommandResult } from "../shared";
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// knowledge (canonical KnowledgeArtifact aggregate)
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-⋮----
-export async function listWorkspaceKnowledgePages(params: {
-  accountId: string;
-  workspaceId: string;
-}): Promise<ReadonlyArray<PageSnapshot>>
-⋮----
-export async function listWorkspaceKnowledgeDatabases(
-  workspaceId: string,
-): Promise<ReadonlyArray<DatabaseSnapshot>>
-⋮----
-export async function addWorkspaceKnowledgeDatabaseProperty(
-  databaseId: string,
-  property: DatabaseProperty,
-): Promise<CommandResult>
-````
-
-## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
-````typescript
-/**
- * FirestorePageRepository — Firestore adapter for the page subdomain.
- *
- * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a PageSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/page/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import { z } from "@packages";
-import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
-⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
-⋮----
-function toSnapshot(raw: unknown): PageSnapshot
-⋮----
-export class FirestorePageRepository implements PageRepository {
-⋮----
-async save(snapshot: PageSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<PageSnapshot | null>
-⋮----
-async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
-⋮----
-async findChildren(parentPageId: string): Promise<PageSnapshot[]>
-⋮----
-async query(params: PageQuery): Promise<PageSnapshot[]>
-⋮----
-// Build equality constraints — no composite index required for equality-only filters.
-⋮----
-async delete(id: string): Promise<void>
-````
-
-## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
-````typescript
-/**
- * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type PageStatus = "active" | "archived";
-⋮----
-export interface PageSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly summary?: string;
-  readonly sourceLabel?: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: PageStatus;
-  readonly ownerId?: string;
-  readonly iconUrl?: string;
-  readonly coverUrl?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly summary?: string;
-  readonly sourceLabel?: string;
-  readonly parentPageId?: string | null;
-  readonly createdByUserId: string;
-  readonly order?: number;
-}
-⋮----
-function slugify(title: string): string
-⋮----
-export class Page {
-⋮----
-private constructor(private _props: PageSnapshot)
-⋮----
-static create(input: CreatePageInput): Page
-⋮----
-static reconstitute(snapshot: PageSnapshot): Page
-⋮----
-rename(title: string): void
-⋮----
-appendBlock(blockId: string): void
-⋮----
-archive(): void
-⋮----
-get id(): string
-get title(): string
-get summary(): string | undefined
-get sourceLabel(): string | undefined
-get slug(): string
-get status(): PageStatus
-get blockIds(): readonly string[]
-get parentPageId(): string | null
-⋮----
-getSnapshot(): Readonly<PageSnapshot>
-⋮----
-pullDomainEvents()
-````
-
 ## File: docs/structure/contexts/notion/bounded-contexts.md
 ````markdown
 # Notion
@@ -1618,125 +1579,121 @@ flowchart LR
 - [subdomains.md](../../domain/subdomains.md)
 ````
 
-## File: docs/structure/contexts/notion/README.md
-````markdown
-# Notion Context
+## File: src/modules/notion/adapters/inbound/server-actions/database-actions.test.ts
+````typescript
+import { beforeEach, describe, expect, it, vi } from "vitest";
+⋮----
+import { createDatabaseAction } from "./database-actions";
+````
 
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+## File: src/modules/notion/index.ts
+````typescript
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
+import type { PageSnapshot } from "./subdomains/page/domain";
+import type { CommandResult } from "../shared";
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// knowledge (canonical KnowledgeArtifact aggregate)
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
+⋮----
+export async function listWorkspaceKnowledgePages(params: {
+  accountId: string;
+  workspaceId: string;
+}): Promise<ReadonlyArray<PageSnapshot>>
+⋮----
+export async function listWorkspaceKnowledgeDatabases(
+  workspaceId: string,
+): Promise<ReadonlyArray<DatabaseSnapshot>>
+⋮----
+export async function addWorkspaceKnowledgeDatabaseProperty(
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<CommandResult>
+````
 
-## Purpose
-
-notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
-
-## Why This Context Exists
-
-- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
-- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
-- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 正典知識內容生命週期 |
-| Upstream Dependency | iam 治理、billing entitlement、ai capability、workspace scope |
-| Downstream Consumer | notebooklm |
-| Core Principle | notion 擁有正式內容，不擁有治理、商業或推理過程 |
-
-## Baseline Subdomains
-
-- knowledge
-- authoring
-- collaboration
-- database
-- knowledge-engagement
-- attachments
-- automation
-- external-knowledge-sync
-- notes
-- templates
-- knowledge-versioning
-
-## Recommended Gap Subdomains
-
-- taxonomy
-- relations
-- publishing
-
-## Key Relationships
-
-- 與 iam：notion 消費 actor、tenant 與 access decision。
-- 與 billing：notion 消費 entitlement 與 subscription capability signal。
-- 與 ai：notion 消費 ai capability、model policy 與 safety result。
-- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
-- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENTS.md](./AGENTS.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
-
-## Anti-Pattern Rules
-
-- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
-- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
-- 不把 platform 的治理語言混成內容生命週期本身。
-- 不把 ai context 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
-- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 ai context，而不是在 notion 再建一個 generic `ai` 子域。
-- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
-- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["notion boundary"]
-	Workspace["workspace"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Notion domain"]
-	Domain --> Output["KnowledgeArtifact / Publication"]
-	Output --> NotebookLM["notebooklm consumer"]
-```
-
-## Document Network
-
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [README.md](../../../README.md)
-- [architecture-overview.md](../../system/architecture-overview.md)
-- [integration-guidelines.md](../../system/integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
+## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
+````typescript
+/**
+ * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type PageStatus = "active" | "archived";
+⋮----
+export interface PageSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly summary?: string;
+  readonly sourceLabel?: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: PageStatus;
+  readonly ownerId?: string;
+  readonly iconUrl?: string;
+  readonly coverUrl?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly summary?: string;
+  readonly sourceLabel?: string;
+  readonly parentPageId?: string | null;
+  readonly createdByUserId: string;
+  readonly order?: number;
+}
+⋮----
+function slugify(title: string): string
+⋮----
+export class Page {
+⋮----
+private constructor(private _props: PageSnapshot)
+⋮----
+static create(input: CreatePageInput): Page
+⋮----
+static reconstitute(snapshot: PageSnapshot): Page
+⋮----
+rename(title: string): void
+⋮----
+appendBlock(blockId: string): void
+⋮----
+archive(): void
+⋮----
+get id(): string
+get title(): string
+get summary(): string | undefined
+get sourceLabel(): string | undefined
+get slug(): string
+get status(): PageStatus
+get blockIds(): readonly string[]
+get parentPageId(): string | null
+⋮----
+getSnapshot(): Readonly<PageSnapshot>
+⋮----
+pullDomainEvents()
 ````
 
 ## File: src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx
@@ -1784,45 +1741,6 @@ import { createClientNotionDatabaseUseCases } from "../../outbound/firebase-comp
 export async function queryDatabasesAction(rawInput: unknown)
 ⋮----
 export async function createDatabaseAction(rawInput: unknown)
-````
-
-## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
-````typescript
-/**
- * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
- *
- * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a DatabaseSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/database/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import { z } from "@packages";
-import type { DatabaseSnapshot } from "../../../domain/entities/Database";
-import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
-⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
-⋮----
-function toSnapshot(raw: unknown): DatabaseSnapshot
-⋮----
-export class FirestoreDatabaseRepository implements DatabaseRepository {
-⋮----
-async save(snapshot: DatabaseSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<DatabaseSnapshot | null>
-⋮----
-async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
 ````
 
 ## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
@@ -1888,6 +1806,48 @@ get properties(): DatabaseProperty[]
 getSnapshot(): Readonly<DatabaseSnapshot>
 ````
 
+## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
+````typescript
+/**
+ * FirestorePageRepository — Firestore adapter for the page subdomain.
+ *
+ * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a PageSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/page/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): PageSnapshot
+⋮----
+export class FirestorePageRepository implements PageRepository {
+⋮----
+async save(snapshot: PageSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<PageSnapshot | null>
+⋮----
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+⋮----
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+// Build equality constraints — no composite index required for equality-only filters.
+⋮----
+async delete(id: string): Promise<void>
+````
+
 ## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
 ````typescript
 /**
@@ -1934,6 +1894,44 @@ const handleRename = (pageId: string) =>
 const handleArchive = (pageId: string) =>
 ⋮----
 href=
+````
+
+## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+````typescript
+/**
+ * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ *
+ * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a DatabaseSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): DatabaseSnapshot
+⋮----
+export class FirestoreDatabaseRepository implements DatabaseRepository {
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
 ````
 
 ## File: src/modules/notion/adapters/outbound/firebase-composition.ts

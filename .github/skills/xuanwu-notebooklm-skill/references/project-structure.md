@@ -15,7 +15,7 @@ src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx (157 
 src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts (77 lines)
 src/modules/notebooklm/adapters/inbound/server-actions/notebook-actions.ts (27 lines)
 src/modules/notebooklm/adapters/inbound/server-actions/source-processing-actions.ts (43 lines)
-src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts (75 lines)
+src/modules/notebooklm/adapters/outbound/callable/FirebaseCallableAdapter.ts (79 lines)
 src/modules/notebooklm/adapters/outbound/firebase-composition.ts (119 lines)
 src/modules/notebooklm/adapters/outbound/TaskMaterializationWorkflowAdapter.ts (49 lines)
 src/modules/notebooklm/AGENTS.md (41 lines)
