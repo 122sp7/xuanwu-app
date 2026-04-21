@@ -9,6 +9,7 @@
 ## Lint & Type Check
 
 - `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run lint:markdown` — Run repo-wide Markdown linting (`.markdownlint-cli2.jsonc`)
 - `npm run test` — Run Vitest unit tests
 - TypeScript type-checking is included in `npm run build`
 
@@ -21,12 +22,13 @@
 - `npm run deploy:rules` — Deploy Firestore rules + Storage rules
 - `npm run deploy:apphosting` — Deploy App Hosting configuration
 - `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:fn` — Deploy the `fn` Cloud Functions target
 - `npm run deploy:functions:all` — Deploy all Cloud Functions
 
 ## Repomix (AI Skill Generation)
 
 - `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:markdown` — Generate the markdown-only skill (`xuanwu-markdown-skill`)
 - `npm run repomix:remote` — Generate a skill from a remote GitHub repository
 - `npm run repomix:local` — Generate a skill from a local directory
 
@@ -37,6 +39,7 @@
 | `next.config.ts` | Next.js 16 App Router configuration |
 | `tsconfig.json` | TypeScript config with `@alias` path mappings |
 | `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `.markdownlint-cli2.jsonc` | Repo-wide Markdown lint configuration |
 | `tailwind.config.ts` | Tailwind CSS 4 configuration |
 | `firebase.json` | Firebase project configuration |
 | `firestore.rules` | Firestore security rules |

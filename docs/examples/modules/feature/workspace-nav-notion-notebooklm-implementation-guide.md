@@ -24,9 +24,9 @@
 
 | 層次 | 內容 |
 |---|---|
-| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`documentIds[]`、`model`、status）；`Document` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: `"user"` / `"assistant"` / `"system"`，此處 `"user"` 為 AI message role 術語，非 `Actor` 身份語意；`content`）|
-| **行為層 (Behavior / Capability Layer)** | Notebook: `CreateNotebook`、`AddDocumentToNotebook`、`RemoveDocument`、`GenerateNotebookResponse`、`ArchiveNotebook`；Document: `CreateDocument`（upload trigger）、`ArchiveDocument`、`DeleteDocument`；Conversation: `StartConversation`、`AddMessage`（user message → RAG grounding → assistant reply）|
-| **UI / Navigation 層** | `notebooklm.notebook` → RAG 查詢（notebook 列表 + 執行 grounding query）；`notebooklm.ai-chat` → AI 對話（Conversation thread UI）；`notebooklm.sources` → 來源文件（Document 上傳 / 狀態追蹤）；`notebooklm.research` → 研究摘要（Conversation synthesis / summary 視圖）|
+| **資料層 (Data / Resource Layer)** | `Notebook` — AI 筆記本（`sourceIds[]`、`model`、status）；`IngestionSource` — 已 ingested 的來源文件（`mimeType`、`sizeBytes`、`classification`: image / manifest / record / other、`status`: active / processing / archived / deleted、`storageUrl`）；`Conversation` — 與 Notebook 綁定的 thread（`messages[]`：`role`: `"user"` / `"assistant"` / `"system"`，此處 `"user"` 為 AI message role 術語，非 `Actor` 身份語意；`content`）|
+| **行為層 (Behavior / Capability Layer)** | Notebook: `CreateNotebook`、`AddSourceToNotebook`、`RemoveSource`、`GenerateNotebookResponse`、`ArchiveNotebook`；IngestionSource: `AddSource`（upload trigger）、`ArchiveSource`、`DeleteSource`；Conversation: `StartConversation`、`AddMessage`（user message → RAG grounding → assistant reply）|
+| **UI / Navigation 層** | `notebooklm.notebook` → RAG 查詢（notebook 列表 + 執行 grounding query）；`notebooklm.ai-chat` → AI 對話（Conversation thread UI）；`notebooklm.sources` → 來源文件（IngestionSource 上傳 / 狀態追蹤）；`notebooklm.research` → 研究摘要（Conversation synthesis / summary 視圖）|
 
 ---
 
@@ -195,7 +195,7 @@ Database                   →  notion         →  notion/database + notion/vie
 Templates                  →  notion         →  notion/template
 Notebook                   →  notebooklm     →  notebooklm/notebook
 AiChat                     →  notebooklm     →  notebooklm/conversation
-Sources                    →  notebooklm     →  notebooklm/document
+Sources                    →  notebooklm     →  notebooklm/source
 Research                   →  notebooklm     →  notebooklm/conversation (synthesis mode)
 ```
 

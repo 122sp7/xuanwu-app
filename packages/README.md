@@ -30,9 +30,13 @@ src/app / src/modules  →  packages  →  third-party libraries
 | 套件 | alias | 職責 |
 |---|---|---|
 | `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務的 atom / slice） |
+| `infra/date` | `@infra/date` | 日期解析、格式化、比較與區間工具 |
+| `infra/form` | `@infra/form` | headless 表單狀態管理原語 |
 | `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
+| `infra/query` | `@infra/query` | TanStack Query server-state 原語 |
 | `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
 | `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
+| `infra/table` | `@infra/table` | TanStack Table headless 表格原語 |
 | `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） |
 | `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一允許的 id 生成入口） |
 | `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |

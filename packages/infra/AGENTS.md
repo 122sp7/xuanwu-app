@@ -10,9 +10,13 @@
 | 子套件 | alias | 職責 |
 |---|---|---|
 | `infra/client-state` | `@infra/client-state` | client-side 狀態原語（非業務 atom / slice） |
+| `infra/date` | `@infra/date` | 日期解析、格式化、比較與區間工具 |
+| `infra/form` | `@infra/form` | headless 表單狀態管理原語 |
 | `infra/http` | `@infra/http` | HTTP 工具（fetch wrapper、retry、timeout） |
+| `infra/query` | `@infra/query` | TanStack Query server-state 原語 |
 | `infra/serialization` | `@infra/serialization` | 序列化 / 反序列化工具 |
 | `infra/state` | `@infra/state` | 本地狀態管理原語（Zustand store factory、XState machine helpers） |
+| `infra/table` | `@infra/table` | TanStack Table headless 表格原語 |
 | `infra/trpc` | `@infra/trpc` | tRPC 客戶端設定與 Provider |
 | `infra/uuid` | `@infra/uuid` | UUID 生成（domain 層唯一 id 來源） |
 | `infra/zod` | `@infra/zod` | Zod 基礎設施原語（共用 schema 片段、brand helper） |
@@ -29,9 +33,13 @@
 ## 公開入口檢查
 
 - `infra/client-state/index.ts`
+- `infra/date/index.ts`
+- `infra/form/index.ts`
 - `infra/http/index.ts`
+- `infra/query/index.ts`
 - `infra/serialization/index.ts`
 - `infra/state/index.ts`
+- `infra/table/index.ts`
 - `infra/trpc/index.ts`
 - `infra/uuid/index.ts`
 - `infra/zod/index.ts`
