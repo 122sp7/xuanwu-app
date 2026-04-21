@@ -22,6 +22,7 @@ import {
 } from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
 import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
 import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
+import { buildSourceUploadPath } from "./source-storage-path";
 
 // ── Singleton repositories ────────────────────────────────────────────────────
 
@@ -87,9 +88,9 @@ export type { RagQueryInput, RagQueryOutput, ParseDocumentInput, ParseDocumentOu
 // ── Storage upload helper ─────────────────────────────────────────────────────
 
 /**
- * Upload a document to the GCS path expected by the fn Storage Trigger.
- * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
- * The Storage Trigger automatically runs parse + RAG on this prefix.
+ * Upload a document to the user-managed source prefix.
+ * Path: sources/{accountId}/{workspaceId}/{uuid}-{filename}
+ * Manual parse / index actions decide when downstream processing runs.
  */
 export async function uploadDocumentToStorage(
   file: File,
@@ -98,8 +99,12 @@ export async function uploadDocumentToStorage(
 ): Promise<string> {
   const storage = getFirebaseStorage();
   const uuid = crypto.randomUUID();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `uploads/${accountId}/${workspaceId}/${uuid}-${safeName}`;
+  const path = buildSourceUploadPath({
+    accountId,
+    workspaceId,
+    filename: file.name,
+    uuid,
+  });
   const storageRef = ref(storage, path);
   const metadata = {
     customMetadata: {
@@ -112,11 +117,32 @@ export async function uploadDocumentToStorage(
   return path;
 }
 
+export async function registerUploadedDocument(params: {
+  accountId: string;
+  workspaceId: string;
+  gcsPath: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}) {
+  const { registerSource } = createClientNotebooklmSourceUseCases();
+  return registerSource.execute({
+    accountId: params.accountId,
+    workspaceId: params.workspaceId,
+    organizationId: "",
+    name: params.filename,
+    mimeType: params.mimeType,
+    sizeBytes: params.sizeBytes,
+    storageUrl: params.gcsPath,
+    originUri: params.gcsPath,
+  });
+}
+
 /**
  * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
  * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
  *
- * Accepts both gs://bucket/path and relative paths like uploads/...
+ * Accepts both gs://bucket/path and relative paths like sources/... / uploads/...
  */
 export async function getDocumentDownloadUrl(storageUrl: string): Promise<string> {
   const storage = getFirebaseStorage();
