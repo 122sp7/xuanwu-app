@@ -15,15 +15,10 @@ interface WorkspaceScheduleSectionProps {
   workspaceId: string;
 }
 
-function isDemandPriority(value: string): value is DemandPriority {
-  return (DEMAND_PRIORITIES as readonly string[]).includes(value);
-}
-
 export function WorkspaceScheduleSection({
   workspaceId,
 }: WorkspaceScheduleSectionProps): React.ReactElement {
   const { listWorkDemandsByWorkspace } = scheduleUseCases;
-  const [period, setPeriod] = useState("本週");
   const [demands, setDemands] = useState<WorkDemandSnapshot[]>([]);
 
   useEffect(() => {
@@ -42,20 +37,6 @@ export function WorkspaceScheduleSection({
       <div className="flex items-center gap-2">
         <CalendarRange className="size-4 text-primary" />
         <h2 className="text-sm font-semibold">排程</h2>
-      </div>
-
-      {/* Phase labels */}
-      <div className="flex flex-wrap gap-2">
-        {["本週", "本月", "季度", "全部"].map((value) => (
-          <Badge
-            key={value}
-            variant={period === value ? "default" : "outline"}
-            className="cursor-pointer text-xs"
-            onClick={() => setPeriod(value)}
-          >
-            {value}
-          </Badge>
-        ))}
       </div>
 
       {demands.length > 0 ? (

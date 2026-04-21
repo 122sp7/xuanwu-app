@@ -84,7 +84,7 @@ export function WorkspaceMembersSection({
       actorId: operatorActorId,
       workspaceId,
       targetActorId: targetActorIdFromEmail,
-      role: inviteRole,
+      role: "member",
       displayName,
       email,
     });
@@ -92,6 +92,18 @@ export function WorkspaceMembersSection({
       setActionError(result.error.message);
       setIsSubmitting(false);
       return;
+    }
+    if (inviteRole !== "member") {
+      const roleResult = await changeMemberRoleAction({
+        actorId: operatorActorId,
+        memberId: result.aggregateId,
+        role: inviteRole,
+      });
+      if (!roleResult.success) {
+        setActionError(roleResult.error.message);
+        setIsSubmitting(false);
+        return;
+      }
     }
     setInviteDisplayName("");
     setInviteEmail("");

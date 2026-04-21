@@ -284,10 +284,11 @@ export function OrganizationMembersRouteScreen(): React.ReactElement {
       setIsSubmitting(false);
       return;
     }
+    const createdMemberId = recruitResult.aggregateId;
     if (inviteRole !== "Member") {
       const roleResult = await updateOrganizationMemberRole({
         organizationId: resolvedAccountId,
-        memberId: memberIdFromEmail,
+        memberId: createdMemberId,
         role: inviteRole,
       });
       if (!roleResult.success) {
