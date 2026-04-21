@@ -4,7 +4,7 @@
  * document-actions — notebooklm document server actions.
  *
  * Handles document upload (via Firebase Storage) and listing.
- * fn Storage Trigger runs parse + RAG automatically after upload.
+ * Parse / index actions are explicit user-triggered steps.
  */
 
 import { z } from "zod";
@@ -21,7 +21,15 @@ import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallab
 
 const _FIREBASE_PROJECT_ID =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "xuanwu-i-00708880-4e2d8";
+const _FIREBASE_STORAGE_BUCKET =
+  process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? `${_FIREBASE_PROJECT_ID}.firebasestorage.app`;
 const _FUNCTIONS_BASE = `https://asia-southeast1-${_FIREBASE_PROJECT_ID}.cloudfunctions.net`;
+
+function _toGcsUri(storageUrl: string): string {
+  if (storageUrl.startsWith("gs://")) return storageUrl;
+  const normalizedPath = storageUrl.replace(/^\/+/, "");
+  return `gs://${_FIREBASE_STORAGE_BUCKET}/${normalizedPath}`;
+}
 
 async function _callCallable<TIn, TOut>(fnName: string, data: TIn): Promise<TOut> {
   const res = await fetch(`${_FUNCTIONS_BASE}/${fnName}`, {
@@ -94,8 +102,8 @@ const ReindexDocumentActionInputSchema = z.object({
  * registerUploadedDocumentAction — register a document snapshot after upload.
  *
  * Call this after uploadDocumentToStorage() completes on the client.
- * fn's Storage Trigger will also fire automatically to run parse + RAG.
- * This action records the document in the local domain for immediate UI feedback.
+ * This action only records the uploaded source for immediate UI feedback.
+ * Parsing / indexing remain separate manual actions.
  */
 export async function registerUploadedDocumentAction(rawInput: unknown) {
   const input = UploadDocumentMetaSchema.parse(rawInput);
@@ -154,6 +162,7 @@ export async function createDatabaseFromDocumentAction(rawInput: unknown) {
  */
 export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocumentOutput> {
   const input = ParseDocumentActionInputSchema.parse(rawInput);
+  const gcsUri = _toGcsUri(input.storageUrl);
   return _callCallable<
     {
       account_id: string;
@@ -170,7 +179,7 @@ export async function parseDocumentAction(rawInput: unknown): Promise<ParseDocum
   >("parse_document", {
     account_id: input.accountId,
     workspace_id: input.workspaceId,
-    gcs_uri: input.storageUrl,
+    gcs_uri: gcsUri,
     doc_id: input.docId,
     filename: input.filename,
     mime_type: input.mimeType,
@@ -193,4 +202,3 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
     { account_id: input.accountId, doc_id: input.docId, json_gcs_uri: input.layoutJsonGcsUri },
   );
 }
-

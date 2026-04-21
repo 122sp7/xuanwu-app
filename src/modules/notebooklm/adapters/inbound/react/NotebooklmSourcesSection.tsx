@@ -4,7 +4,7 @@
  * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
  *
  * Manual Document AI pipeline controls:
- *   ① 上傳文件  — upload to Firebase Storage (fn Storage Trigger auto-runs parse+RAG)
+ *   ① 上傳文件  — upload to Firebase Storage only
  *   ② 解析文件  — manually trigger Layout/Form/OCR/Genkit-AI via callable
  *   ③ RAG 索引  — manually trigger RAG reindex via callable
  *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
@@ -24,7 +24,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  registerUploadedDocumentAction,
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
   parseDocumentAction,
@@ -47,6 +46,37 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "已封存",
   deleted: "已刪除",
 };
+
+function deriveDocIdFromStoragePath(storagePath: string): string {
+  const fileName = storagePath.split("/").pop() ?? storagePath;
+  const dot = fileName.lastIndexOf(".");
+  return dot > 0 ? fileName.slice(0, dot) : fileName;
+}
+
+function createPendingSourceSnapshot(input: {
+  file: File;
+  storagePath: string;
+  workspaceId: string;
+  accountId: string;
+}): IngestionSourceSnapshot {
+  const now = new Date().toISOString();
+  return {
+    id: deriveDocIdFromStoragePath(input.storagePath),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    organizationId: "",
+    name: input.file.name,
+    mimeType: input.file.type || "application/octet-stream",
+    sizeBytes: input.file.size,
+    classification: "other",
+    tags: [],
+    status: "processing",
+    storageUrl: input.storagePath,
+    originUri: input.storagePath,
+    createdAtISO: now,
+    updatedAtISO: now,
+  };
+}
 
 /** MIME types renderable via Google Doc Viewer */
 const PREVIEWABLE_TYPES = new Set([
@@ -121,16 +151,13 @@ export function NotebooklmSourcesSection({
     startUpload(async () => {
       try {
         const path = await uploadDocumentToStorage(file, accountId, workspaceId);
-        await registerUploadedDocumentAction({
-          accountId,
+        const pending = createPendingSourceSnapshot({
+          file,
+          storagePath: path,
           workspaceId,
-          gcsPath: path,
-          filename: file.name,
-          mimeType: file.type || "application/octet-stream",
-          sizeBytes: file.size,
+          accountId,
         });
-        const result = await queryDocuments({ accountId, workspaceId });
-        setDocuments(Array.isArray(result) ? result : []);
+        setDocuments((prev) => [pending, ...prev.filter((doc) => doc.id !== pending.id)]);
         setLoaded(true);
       } catch (err) {
         setUploadError(
@@ -409,9 +436,9 @@ export function NotebooklmSourcesSection({
         <p className="text-sm text-muted-foreground">
           尚無來源文件。請點擊「上傳文件」，或直接上傳至
           <code className="mx-1 rounded bg-muted px-1 text-xs">
-            uploads/{"{accountId}"}/{"{workspaceId}"}/
+            workspaces/{"{workspaceId}"}/sources/{"{accountId}"}/
           </code>
-          前綴，fn Storage Trigger 會自動處理。
+          路徑。上傳後請由你手動執行「解析文件」與「RAG 索引」。
         </p>
       )}
 

@@ -87,9 +87,9 @@ export type { RagQueryInput, RagQueryOutput, ParseDocumentInput, ParseDocumentOu
 // ── Storage upload helper ─────────────────────────────────────────────────────
 
 /**
- * Upload a document to the GCS path expected by the fn Storage Trigger.
- * Path: uploads/{accountId}/{workspaceId}/{uuid}-{filename}
- * The Storage Trigger automatically runs parse + RAG on this prefix.
+ * Upload a document to a workspace-scoped source path.
+ * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+ * Parsing / indexing are triggered manually from the Sources UI.
  */
 export async function uploadDocumentToStorage(
   file: File,
@@ -99,7 +99,7 @@ export async function uploadDocumentToStorage(
   const storage = getFirebaseStorage();
   const uuid = crypto.randomUUID();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `uploads/${accountId}/${workspaceId}/${uuid}-${safeName}`;
+  const path = `workspaces/${workspaceId}/sources/${accountId}/${uuid}-${safeName}`;
   const storageRef = ref(storage, path);
   const metadata = {
     customMetadata: {
@@ -116,7 +116,7 @@ export async function uploadDocumentToStorage(
  * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
  * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
  *
- * Accepts both gs://bucket/path and relative paths like uploads/...
+ * Accepts both gs://bucket/path and relative paths like workspaces/...
  */
 export async function getDocumentDownloadUrl(storageUrl: string): Promise<string> {
   const storage = getFirebaseStorage();
