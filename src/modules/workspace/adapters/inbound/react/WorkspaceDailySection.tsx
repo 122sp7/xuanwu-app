@@ -29,7 +29,10 @@ import {
   getWorkspaceFileDownloadUrl,
 } from "@/src/modules/platform";
 
-import { createFeedPostAction, listFeedPostsAction } from "../../../subdomains/feed/adapters/inbound/server-actions/feed-actions";
+import {
+  listFeedPosts,
+  createFeedPost as createFeedPostClient,
+} from "../../../adapters/outbound/firebase-composition";
 import type { FeedPostSnapshot } from "../../../subdomains/feed/domain/entities/FeedPost";
 
 interface WorkspaceDailySectionProps {
@@ -178,7 +181,7 @@ function PostComposer({
     if (!content.trim() && photoUrls.length === 0) return;
     setUploadError(null);
     startPosting(async () => {
-      await createFeedPostAction({
+      await createFeedPostClient({
         accountId,
         workspaceId,
         authorAccountId,
@@ -295,7 +298,7 @@ export function WorkspaceDailySection({
   async function loadPosts() {
     setLoading(true);
     try {
-      const result = await listFeedPostsAction({ accountId, workspaceId, dateKey });
+      const result = await listFeedPosts({ accountId, workspaceId, dateKey });
       // Sort newest-first
       const sorted = [...result].sort(
         (a, b) => new Date(b.createdAtISO).getTime() - new Date(a.createdAtISO).getTime(),

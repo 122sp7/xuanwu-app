@@ -6,11 +6,11 @@
  * Upload flow:
  *   1. Browser picks a file via hidden <input type="file">.
  *   2. uploadWorkspaceFile() sends it to Firebase Storage (client-side).
- *   3. registerUploadedFileAction() saves metadata to Firestore (server action).
- *   4. listWorkspaceFilesAction() loads the list on mount / after upload.
+ *   3. registerUploadedFile() saves metadata to Firestore (client-side helper).
+ *   4. listWorkspaceFiles() loads the list on mount / after upload.
  *
  * Delete flow:
- *   1. deleteWorkspaceFileAction() soft-deletes the Firestore record (sets deletedAtISO).
+ *   1. deleteWorkspaceFile() soft-deletes the Firestore record (sets deletedAtISO).
  *      The Storage object is kept for safety (GCS lifecycle rules handle eventual removal).
  */
 
@@ -18,12 +18,12 @@ import { Badge, Button } from "@packages";
 import { FolderOpen, Upload, Grid2x2, List, Trash2, FileText, Image, File, RefreshCw, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { uploadWorkspaceFile } from "@/src/modules/platform";
 import {
-  listWorkspaceFilesAction,
-  registerUploadedFileAction,
-  deleteWorkspaceFileAction,
-} from "@/src/modules/platform/adapters/inbound/server-actions/file-actions";
+  uploadWorkspaceFile,
+  listWorkspaceFiles,
+  registerUploadedFile,
+  deleteWorkspaceFile,
+} from "@/src/modules/platform/adapters/outbound/firebase-composition";
 import type { StoredFile } from "@/src/modules/platform";
 
 interface WorkspaceFilesSectionProps {
@@ -82,7 +82,7 @@ export function WorkspaceFilesSection({
 
   const load = () => {
     startRefresh(async () => {
-      const result = await listWorkspaceFilesAction({ workspaceId });
+      const result = await listWorkspaceFiles({ workspaceId });
       setFiles(Array.isArray(result) ? result : []);
       setLoaded(true);
     });
@@ -99,14 +99,14 @@ export function WorkspaceFilesSection({
     startUpload(async () => {
       try {
         const storagePath = await uploadWorkspaceFile(file, accountId, workspaceId);
-        await registerUploadedFileAction({
+        await registerUploadedFile({
           workspaceId,
           fileName: file.name,
           mimeType: file.type || "application/octet-stream",
           sizeBytes: file.size,
           url: storagePath,
         });
-        const result = await listWorkspaceFilesAction({ workspaceId });
+        const result = await listWorkspaceFiles({ workspaceId });
         setFiles(Array.isArray(result) ? result : []);
         setLoaded(true);
       } catch (err) {
@@ -120,7 +120,7 @@ export function WorkspaceFilesSection({
   const handleDelete = async (fileId: string) => {
     setDeletingId(fileId);
     try {
-      await deleteWorkspaceFileAction({ fileId });
+      await deleteWorkspaceFile({ fileId });
       setFiles((prev) => prev.filter((f) => f.fileId !== fileId));
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "刪除失敗，請稍後再試。");

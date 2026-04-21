@@ -83,3 +83,4 @@ def rag_query(req: https_fn.CallableRequest) -> dict:
 def rag_reindex_document(req: https_fn.CallableRequest) -> dict:
     """手動重新整理文件（normalization + ingestion）。"""
     return handle_rag_reindex_document(req)
+

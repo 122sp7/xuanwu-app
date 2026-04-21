@@ -126,3 +126,22 @@ export async function getDocumentDownloadUrl(storageUrl: string): Promise<string
 
 // keep firestore & firestoreApi accessible within this composition module
 export { getFirebaseFirestore, firestoreApi };
+
+// ── Client-side Firestore query helper ───────────────────────────────────────
+
+/**
+ * queryDocuments — query ingestion sources directly from the browser.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.  A Server Action
+ * has no active Firebase user session, which causes "Missing or insufficient
+ * permissions" even when rules only require `isSignedIn()`.
+ */
+export async function queryDocuments(params: {
+  accountId: string;
+  workspaceId?: string;
+}) {
+  const repo = getSourceRepo();
+  return repo.query(params);
+}
