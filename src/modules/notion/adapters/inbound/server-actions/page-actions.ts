@@ -19,6 +19,8 @@ const CreatePageInputSchema = z.object({
   workspaceId: z.string().uuid(),
   accountId: z.string().min(1),
   title: z.string().min(1).max(500),
+  summary: z.string().max(2000).optional(),
+  sourceLabel: z.string().max(200).optional(),
   parentPageId: z.string().nullable().optional(),
   createdByUserId: z.string().min(1),
 });
@@ -50,6 +52,8 @@ export async function createPageAction(rawInput: unknown) {
     accountId: input.accountId,
     workspaceId: input.workspaceId,
     title: input.title,
+    summary: input.summary,
+    sourceLabel: input.sourceLabel,
     parentPageId: input.parentPageId ?? undefined,
     createdByUserId: input.createdByUserId,
   });

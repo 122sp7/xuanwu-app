@@ -4,7 +4,6 @@
  * database-actions — notion database server actions.
  */
 
-import { v4 as uuid } from "uuid";
 import { z } from "zod";
 import { createClientNotionDatabaseUseCases } from "../../outbound/firebase-composition";
 
@@ -18,8 +17,7 @@ const QueryDatabasesInputSchema = z.object({
 const CreateDatabaseInputSchema = z.object({
   workspaceId: z.string().uuid(),
   accountId: z.string().min(1),
-  /** pageId is optional; a new UUID is auto-generated when omitted. */
-  pageId: z.string().uuid().optional(),
+  parentPageId: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(200),
   description: z.string().max(500).optional(),
   createdByUserId: z.string().min(1).optional(),
@@ -39,7 +37,7 @@ export async function createDatabaseAction(rawInput: unknown) {
   return createDatabase.execute({
     workspaceId: input.workspaceId,
     accountId: input.accountId,
-    pageId: input.pageId ?? uuid(),
+    parentPageId: input.parentPageId ?? null,
     title: input.name,
     description: input.description,
     createdByUserId: input.createdByUserId ?? input.accountId,

@@ -12,8 +12,8 @@ export class InMemoryDatabaseRepository implements DatabaseRepository {
     return this.store.get(id) ?? null;
   }
 
-  async findByPageId(pageId: string): Promise<DatabaseSnapshot[]> {
-    return Array.from(this.store.values()).filter((d) => d.pageId === pageId);
+  async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]> {
+    return Array.from(this.store.values()).filter((d) => d.parentPageId === parentPageId);
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]> {

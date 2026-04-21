@@ -23,6 +23,7 @@ describe("createDatabaseAction", () => {
     await createDatabaseAction({
       workspaceId: "00000000-0000-4000-8000-000000000001",
       accountId: "account-1",
+      parentPageId: "00000000-0000-4000-8000-000000000010",
       name: "資料庫 A",
       description: "測試描述",
       createdByUserId: "user-1",
@@ -32,6 +33,7 @@ describe("createDatabaseAction", () => {
       expect.objectContaining({
         workspaceId: "00000000-0000-4000-8000-000000000001",
         accountId: "account-1",
+        parentPageId: "00000000-0000-4000-8000-000000000010",
         title: "資料庫 A",
         description: "測試描述",
         createdByUserId: "user-1",
@@ -49,6 +51,7 @@ describe("createDatabaseAction", () => {
     expect(createDatabaseExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         accountId: "account-2",
+        parentPageId: null,
         createdByUserId: "account-2",
       }),
     );

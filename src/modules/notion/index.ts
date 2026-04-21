@@ -3,6 +3,10 @@
  * All cross-module consumers must import from here only.
  */
 
+import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
+import type { PageSnapshot } from "./subdomains/page/domain";
+import type { CommandResult } from "../shared";
+
 // page
 export * from "./subdomains/page/domain";
 export * from "./subdomains/page/application";
@@ -47,3 +51,26 @@ export type {
   TemplateScope,
   TemplateCategory,
 } from "./subdomains/template/domain/entities/Template";
+
+export async function listWorkspaceKnowledgePages(params: {
+  accountId: string;
+  workspaceId: string;
+}): Promise<ReadonlyArray<PageSnapshot>> {
+  const { queryPages } = await import("./adapters/outbound/firebase-composition");
+  return queryPages(params);
+}
+
+export async function listWorkspaceKnowledgeDatabases(
+  workspaceId: string,
+): Promise<ReadonlyArray<DatabaseSnapshot>> {
+  const { queryDatabases } = await import("./adapters/outbound/firebase-composition");
+  return queryDatabases(workspaceId);
+}
+
+export async function addWorkspaceKnowledgeDatabaseProperty(
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<CommandResult> {
+  const { addDatabaseProperty } = await import("./adapters/outbound/firebase-composition");
+  return addDatabaseProperty(databaseId, property);
+}

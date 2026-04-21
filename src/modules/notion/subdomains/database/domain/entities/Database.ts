@@ -17,7 +17,7 @@ export type DatabaseStatus = "active" | "archived";
 
 export interface DatabaseSnapshot {
   readonly id: string;
-  readonly pageId: string;
+  readonly parentPageId: string | null;
   readonly workspaceId: string;
   readonly accountId: string;
   readonly title: string;
@@ -30,7 +30,7 @@ export interface DatabaseSnapshot {
 }
 
 export interface CreateDatabaseInput {
-  readonly pageId: string;
+  readonly parentPageId?: string | null;
   readonly workspaceId: string;
   readonly accountId: string;
   readonly title: string;
@@ -42,16 +42,27 @@ export interface CreateDatabaseInput {
 export class Database {
   private constructor(private _props: DatabaseSnapshot) {}
 
+  private static createDefaultProperty(): DatabaseProperty {
+    return {
+      id: uuid(),
+      name: "名稱",
+      type: "text",
+    };
+  }
+
   static create(input: CreateDatabaseInput): Database {
     const now = new Date().toISOString();
+    const properties = input.properties?.length
+      ? input.properties
+      : [Database.createDefaultProperty()];
     return new Database({
       id: uuid(),
-      pageId: input.pageId,
+      parentPageId: input.parentPageId ?? null,
       workspaceId: input.workspaceId,
       accountId: input.accountId,
       title: input.title,
       description: input.description,
-      properties: input.properties ?? [],
+      properties,
       status: "active",
       createdByUserId: input.createdByUserId,
       createdAtISO: now,
@@ -64,17 +75,24 @@ export class Database {
   }
 
   addProperty(property: DatabaseProperty): void {
-    if (this._props.properties.some((p) => p.id === property.id)) throw new Error(`Property ${property.id} already exists`);
+    const nextName = property.name.trim();
+    if (!nextName) throw new Error("Property name cannot be empty");
+    if (this._props.properties.some((p) => p.id === property.id)) {
+      throw new Error(`Property with ID '${property.id}' already exists`);
+    }
+    if (this._props.properties.some((p) => p.name.trim().toLowerCase() === nextName.toLowerCase())) {
+      throw new Error(`Property name '${nextName}' already exists (case-insensitive)`);
+    }
     this._props = {
       ...this._props,
-      properties: [...this._props.properties, property],
+      properties: [...this._props.properties, { ...property, name: nextName }],
       updatedAtISO: new Date().toISOString(),
     };
   }
 
   get id(): string { return this._props.id; }
   get title(): string { return this._props.title; }
-  get pageId(): string { return this._props.pageId; }
+  get parentPageId(): string | null { return this._props.parentPageId; }
   get properties(): DatabaseProperty[] { return [...this._props.properties]; }
 
   getSnapshot(): Readonly<DatabaseSnapshot> {
