@@ -108,7 +108,7 @@ def test_execute_parse_document_command_records_error_on_failure(monkeypatch) ->
             status_gateway=status_gateway,
         )
     except RuntimeError as exc:
-        assert str(exc) == "parse_document execution failed"
+        assert str(exc) == "parse_document execution failed for doc_id=doc-2"
     else:
         raise AssertionError("RuntimeError expected")
 
@@ -184,7 +184,7 @@ def test_execute_rag_reindex_command_records_error_on_failure(monkeypatch) -> No
             status_gateway=status_gateway,
         )
     except RuntimeError as exc:
-        assert str(exc) == "rag_reindex execution failed"
+        assert str(exc) == "rag_reindex execution failed for doc_id=doc-4"
     else:
         raise AssertionError("RuntimeError expected")
 

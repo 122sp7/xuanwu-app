@@ -179,6 +179,7 @@ _document_status_gateway: DocumentStatusGateway | None = None
 _document_artifact_gateway: DocumentArtifactGateway | None = None
 _document_pipeline_gateway: DocumentPipelineGateway | None = None
 _authorization_gateway: AuthorizationGateway | None = None
+_composed_document_pipeline_gateway: DocumentPipelineGateway | None = None
 
 
 def register_rag_query_gateway(gateway: RagQueryGateway) -> None:
@@ -354,6 +355,9 @@ class _ComposedDocumentPipelineGateway:
 
 
 def get_document_pipeline_gateway() -> DocumentPipelineGateway:
+    global _composed_document_pipeline_gateway
     if _document_pipeline_gateway is not None:
         return _document_pipeline_gateway
-    return _ComposedDocumentPipelineGateway()
+    if _composed_document_pipeline_gateway is None:
+        _composed_document_pipeline_gateway = _ComposedDocumentPipelineGateway()
+    return _composed_document_pipeline_gateway

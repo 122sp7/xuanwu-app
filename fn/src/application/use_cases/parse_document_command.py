@@ -39,4 +39,4 @@ def execute_parse_document_command(
             str(exc)[:200],
             account_id=cmd.account_id,
         )
-        raise RuntimeError("parse_document execution failed") from exc
+        raise RuntimeError(f"parse_document execution failed for doc_id={cmd.doc_id}") from exc

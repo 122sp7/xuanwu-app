@@ -40,4 +40,4 @@ def execute_rag_reindex_command(
             str(exc)[:200],
             account_id=cmd.account_id,
         )
-        raise RuntimeError("rag_reindex execution failed") from exc
+        raise RuntimeError(f"rag_reindex execution failed for doc_id={cmd.doc_id}") from exc
