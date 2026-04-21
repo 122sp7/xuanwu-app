@@ -3,9 +3,11 @@ from __future__ import annotations
 from domain.repositories import (
     get_document_pipeline_gateway,
     get_rag_ingestion_gateway,
+    get_rag_query_effects_gateway,
     get_rag_query_gateway,
     register_document_pipeline_gateway,
     register_rag_ingestion_gateway,
+    register_rag_query_effects_gateway,
     register_rag_query_gateway,
 )
 
@@ -15,9 +17,6 @@ class _FakeRagQueryGateway:
         return f"{account_scope}:{query}:{top_k}"
 
     def get_query_cache(self, cache_key: str) -> dict | None:
-        return None
-
-    def save_query_cache(self, cache_key: str, payload: dict) -> None:
         return None
 
     def to_query_vector(self, query: str) -> list[float]:
@@ -31,6 +30,10 @@ class _FakeRagQueryGateway:
 
     def generate_answer(self, *, query: str, context_block: str) -> str:
         return query
+
+class _FakeRagQueryEffectsGateway:
+    def save_query_cache(self, cache_key: str, payload: dict) -> None:
+        return None
 
     def publish_query_audit(
         self,
@@ -56,6 +59,9 @@ class _FakeRagIngestionGateway:
 
     def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None:
         return None
+
+    def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int:
+        return 0
 
 
 class _FakeDocumentPipelineGateway:
@@ -96,6 +102,50 @@ class _FakeDocumentPipelineGateway:
     ) -> None:
         return None
 
+    def update_parsed_layout(
+        self,
+        *,
+        doc_id: str,
+        layout_json_gcs_uri: str,
+        page_count: int,
+        extraction_ms: int,
+        account_id: str,
+        chunk_count: int = 0,
+    ) -> None:
+        return None
+
+    def update_parsed_form(
+        self,
+        *,
+        doc_id: str,
+        form_json_gcs_uri: str,
+        account_id: str,
+        extraction_ms: int = 0,
+        entity_count: int = 0,
+    ) -> None:
+        return None
+
+    def update_parsed_ocr(
+        self,
+        *,
+        doc_id: str,
+        ocr_json_gcs_uri: str,
+        account_id: str,
+        page_count: int,
+        extraction_ms: int = 0,
+    ) -> None:
+        return None
+
+    def update_parsed_genkit(
+        self,
+        *,
+        doc_id: str,
+        genkit_json_gcs_uri: str,
+        account_id: str,
+        extraction_ms: int = 0,
+    ) -> None:
+        return None
+
     def mark_rag_ready(
         self,
         *,
@@ -121,6 +171,18 @@ class _FakeDocumentPipelineGateway:
     def parsed_json_path(self, upload_object_path: str) -> str:
         return upload_object_path
 
+    def layout_json_path(self, upload_object_path: str) -> str:
+        return upload_object_path + ".layout.json"
+
+    def form_json_path(self, upload_object_path: str) -> str:
+        return upload_object_path + ".form.json"
+
+    def ocr_json_path(self, upload_object_path: str) -> str:
+        return upload_object_path + ".ocr.json"
+
+    def genkit_json_path(self, upload_object_path: str) -> str:
+        return upload_object_path + ".genkit.json"
+
     def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str:
         return f"gs://{bucket_name}/{object_path}"
 
@@ -130,14 +192,17 @@ class _FakeDocumentPipelineGateway:
 
 def test_register_gateways_WithAllGatewayTypes_RetrievesExactInstances() -> None:
     rag_query_gateway = _FakeRagQueryGateway()
+    rag_query_effects_gateway = _FakeRagQueryEffectsGateway()
     rag_ingestion_gateway = _FakeRagIngestionGateway()
     document_pipeline_gateway = _FakeDocumentPipelineGateway()
 
     register_rag_query_gateway(rag_query_gateway)
+    register_rag_query_effects_gateway(rag_query_effects_gateway)
     register_rag_ingestion_gateway(rag_ingestion_gateway)
     register_document_pipeline_gateway(document_pipeline_gateway)
 
     assert get_rag_query_gateway() is rag_query_gateway
+    assert get_rag_query_effects_gateway() is rag_query_effects_gateway
     assert get_rag_ingestion_gateway() is rag_ingestion_gateway
     assert get_document_pipeline_gateway() is document_pipeline_gateway
 
@@ -150,9 +215,13 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
         get_rag_ingestion_gateway as get_rag_ingestion_gateway_from_shim,
     )
     from application.ports.output.gateways import (
+        get_rag_query_effects_gateway as get_rag_query_effects_gateway_from_shim,
+    )
+    from application.ports.output.gateways import (
         get_rag_query_gateway as get_rag_query_gateway_from_shim,
     )
 
     assert get_rag_query_gateway_from_shim() is get_rag_query_gateway()
+    assert get_rag_query_effects_gateway_from_shim() is get_rag_query_effects_gateway()
     assert get_rag_ingestion_gateway_from_shim() is get_rag_ingestion_gateway()
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()

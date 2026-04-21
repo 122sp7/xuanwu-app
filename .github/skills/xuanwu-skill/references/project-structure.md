@@ -18,6 +18,7 @@ docs/
       0002-cross-runtime-nextjs-fn-bridge.md (71 lines)
       0003-module-public-api-surface.md (77 lines)
       0004-occam-gap-triage-baseline-focus.md (73 lines)
+      0005-ap8-source-to-task-54-item-delivery-contract.md (63 lines)
     data/
       .gitkeep (0 lines)
       0001-firestore-subdomain-collection-boundaries.md (101 lines)
@@ -56,7 +57,7 @@ docs/
       feature/
         AGENTS.md (8 lines)
         notebooklm-source-processing-task-flow.md (86 lines)
-        py-fn-ts-capability-bridge.md (374 lines)
+        py-fn-ts-capability-bridge.md (377 lines)
         README.md (12 lines)
         workspace-nav-notion-notebooklm-implementation-guide.md (215 lines)
   structure/
@@ -73,21 +74,21 @@ docs/
         subdomains.md (96 lines)
         ubiquitous-language.md (49 lines)
       analytics/
-        AGENTS.md (82 lines)
+        AGENTS.md (65 lines)
         bounded-contexts.md (11 lines)
         context-map.md (16 lines)
         README.md (27 lines)
         subdomains.md (20 lines)
         ubiquitous-language.md (15 lines)
       billing/
-        AGENTS.md (82 lines)
+        AGENTS.md (65 lines)
         bounded-contexts.md (11 lines)
         context-map.md (14 lines)
         README.md (27 lines)
         subdomains.md (18 lines)
         ubiquitous-language.md (15 lines)
       iam/
-        AGENTS.md (88 lines)
+        AGENTS.md (71 lines)
         bounded-contexts.md (12 lines)
         context-map.md (16 lines)
         README.md (42 lines)
@@ -158,7 +159,7 @@ docs/
       genkit-flow-standards.md (229 lines)
     nextjs/
       state-machine-model.md (186 lines)
-    commands-reference.md (54 lines)
+    commands-reference.md (57 lines)
     knowledge-base-reference.md (41 lines)
   AGENTS.md (39 lines)
   README.md (156 lines)
@@ -1109,7 +1110,7 @@ src/
             page-actions.ts (18 lines)
             template-actions.ts (15 lines)
         outbound/
-          firebase-composition.ts (45 lines)
+          firebase-composition.ts (70 lines)
           notion-page-stub.ts (25 lines)
       orchestration/
         index.ts (3 lines)
@@ -1161,6 +1162,8 @@ src/
             inbound/
               index.ts (2 lines)
             outbound/
+              firestore/
+                FirestoreDatabaseRepository.ts (30 lines)
               memory/
                 InMemoryDatabaseRepository.ts (14 lines)
               index.ts (2 lines)
@@ -1199,6 +1202,8 @@ src/
             inbound/
               index.ts (2 lines)
             outbound/
+              firestore/
+                FirestorePageRepository.ts (34 lines)
               memory/
                 InMemoryPageRepository.ts (16 lines)
               index.ts (2 lines)
@@ -1674,7 +1679,7 @@ src/
             WorkspaceMembersSection.tsx (32 lines)
             WorkspaceOverviewSection.tsx (72 lines)
             WorkspaceQualitySection.tsx (30 lines)
-            WorkspaceScheduleSection.tsx (19 lines)
+            WorkspaceScheduleSection.tsx (15 lines)
             WorkspaceScopeProvider.tsx (39 lines)
             WorkspaceSettingsSection.tsx (26 lines)
             WorkspaceSettlementSection.tsx (31 lines)
@@ -2157,7 +2162,7 @@ firebase.json (60 lines)
 firestore.indexes.json (437 lines)
 llms.txt (82 lines)
 next.config.ts (7 lines)
-package.json (127 lines)
+package.json (130 lines)
 postcss.config.mjs (0 lines)
 tailwind.config.ts (2 lines)
 tsconfig.json (62 lines)

@@ -97,6 +97,15 @@ def ingest_document_for_rag(
             language_hint=language_hint,
         )
 
+    # ── 刪除舊向量（冪等保護：先清除再 upsert，防止 orphan chunks）──────────
+    # 失敗時僅警告，不中斷 ingestion：向量索引的舊資料頂多造成 stale 結果，
+    # 而中斷 ingestion 會讓文件永遠無法被查詢，危害更大。
+    try:
+        deleted = gateway.delete_vectors_by_doc(doc_id=doc_id, namespace=RAG_VECTOR_NAMESPACE)
+        logger.info("RAG ingestion: purged %d stale vectors for %s before re-upsert", deleted, doc_id)
+    except Exception as del_exc:  # noqa: BLE001  — best-effort; ingestion must proceed
+        logger.warning("RAG ingestion: failed to purge stale vectors for %s: %s", doc_id, del_exc)
+
     texts = [item["text"] for item in base_chunks]
     vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
 

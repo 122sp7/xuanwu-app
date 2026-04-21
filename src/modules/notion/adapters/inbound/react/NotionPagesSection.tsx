@@ -14,11 +14,11 @@ import { useEffect, useState, useTransition } from "react";
 
 import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
 import {
-  queryPagesAction,
-  createPageAction,
-  renamePageAction,
-  archivePageAction,
-} from "../server-actions/page-actions";
+  queryPages,
+  createPage,
+  renamePage,
+  archivePage,
+} from "../../../adapters/outbound/firebase-composition";
 
 interface NotionPagesSectionProps {
   workspaceId: string;
@@ -43,7 +43,7 @@ export function NotionPagesSection({
   const [isPending, startTransition] = useTransition();
 
   const reloadPages = async () => {
-    const result = await queryPagesAction({ workspaceId, accountId });
+    const result = await queryPages({ workspaceId, accountId });
     setPages(Array.isArray(result) ? result : []);
   };
 
@@ -62,7 +62,7 @@ export function NotionPagesSection({
   const handleCreate = () => {
     if (!newTitle.trim()) return;
     startTransition(async () => {
-      await createPageAction({
+      await createPage({
         workspaceId,
         accountId,
         title: newTitle.trim(),
@@ -82,7 +82,7 @@ export function NotionPagesSection({
     const nextTitle = renameTitle.trim();
     if (!nextTitle) return;
     startTransition(async () => {
-      await renamePageAction({ pageId, title: nextTitle });
+      await renamePage(pageId, nextTitle);
       setEditingPageId(null);
       setRenameTitle("");
       await reloadPages();
@@ -91,7 +91,7 @@ export function NotionPagesSection({
 
   const handleArchive = (pageId: string) => {
     startTransition(async () => {
-      await archivePageAction({ pageId });
+      await archivePage(pageId);
       if (editingPageId === pageId) {
         setEditingPageId(null);
         setRenameTitle("");

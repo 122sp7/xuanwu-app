@@ -10,7 +10,7 @@ import { MessageSquare, Send } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import type { RagQueryOutput } from "../../../adapters/outbound/callable/FirebaseCallableAdapter";
-import { ragQueryAction } from "../server-actions/notebook-actions";
+import { callRagQuery } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmAiChatSectionProps {
   workspaceId: string;
@@ -46,11 +46,11 @@ export function NotebooklmAiChatSection({
 
     startTransition(async () => {
       try {
-        const result = await ragQueryAction({
-          accountId,
-          workspaceId,
+        const result = await callRagQuery({
+          account_id: accountId,
+          workspace_id: workspaceId,
           query: trimmed,
-        }) as RagQueryOutput;
+        });
 
         const assistantMsg: ChatMessage = {
           id: crypto.randomUUID(),

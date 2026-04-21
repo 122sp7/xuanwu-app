@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
 import type { DatabaseSnapshot } from "../../../subdomains/database/domain/entities/Database";
-import { queryDatabasesAction, createDatabaseAction } from "../server-actions/database-actions";
+import { queryDatabases, createDatabase } from "../../../adapters/outbound/firebase-composition";
 
 interface NotionDatabaseSectionProps {
   workspaceId: string;
@@ -38,7 +38,7 @@ export function NotionDatabaseSection({
 
   const load = () => {
     startTransition(async () => {
-      const result = await queryDatabasesAction({ workspaceId, accountId });
+      const result = await queryDatabases(workspaceId);
       setDatabases(Array.isArray(result) ? result : []);
       setLoaded(true);
     });
@@ -52,16 +52,17 @@ export function NotionDatabaseSection({
   const handleCreate = () => {
     if (!newName.trim()) return;
     startTransition(async () => {
-      await createDatabaseAction({
+      await createDatabase({
         workspaceId,
         accountId,
-        name: newName.trim(),
+        pageId: crypto.randomUUID(),
+        title: newName.trim(),
         description: newDescription.trim() || undefined,
         createdByUserId: currentUserId,
       });
       setNewName("");
       setNewDescription("");
-      const result = await queryDatabasesAction({ workspaceId, accountId });
+      const result = await queryDatabases(workspaceId);
       setDatabases(Array.isArray(result) ? result : []);
     });
   };
