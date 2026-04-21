@@ -63,7 +63,9 @@
     "package.json",
     "postcss.config.mjs",
     "tailwind.config.ts",
-    "tsconfig.json"
+    "tsconfig.json",
+    "firestore.rules",
+    "storage.rules"
   ],
   "ignore": {
     "useGitignore": true,
