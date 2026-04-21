@@ -32,7 +32,7 @@ import {
   parseDocumentAction,
   reindexDocumentAction,
 } from "../server-actions/document-actions";
-import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace";
 import {
   queryDocuments,
   uploadDocumentToStorage,
@@ -91,7 +91,7 @@ interface TaskFormationReviewState {
   errorMessage?: string;
 }
 
-function buildTaskFormationArtifactSummary(doc: IngestionSourceSnapshot): string {
+function summarizeDocumentArtifacts(doc: IngestionSourceSnapshot): string {
   return [
     `文件標題：${doc.name}`,
     `來源文件 ID：${doc.id}`,
@@ -387,15 +387,20 @@ export function NotebooklmSourcesSection({
         actorId: currentUserId,
         documentId: doc.id,
         documentTitle: doc.name,
-        parsedArtifactSummary: buildTaskFormationArtifactSummary(doc),
+        parsedArtifactSummary: summarizeDocumentArtifacts(doc),
       });
 
       if (!result.success) {
-        setDocAction(doc.id, { taskFormation: "error", message: result.error.message });
+        setDocAction(doc.id, { taskFormation: "error", message: result.error?.message ?? "任務候選萃取失敗" });
         return;
       }
 
-      const extractedCandidates = (result as { candidates?: ReadonlyArray<ExtractedTaskCandidate> }).candidates ?? [];
+      const extractedCandidates = result.candidates;
+      const extractedJobId = result.aggregateId;
+      if (!extractedJobId) {
+        setDocAction(doc.id, { taskFormation: "error", message: "任務候選建立失敗（缺少工作流程編號）。" });
+        return;
+      }
       if (extractedCandidates.length === 0) {
         setDocAction(doc.id, { taskFormation: "done", message: "未產生可建立的任務，請補充來源產出物後再試。" });
         return;
@@ -403,7 +408,7 @@ export function NotebooklmSourcesSection({
 
       setTaskReview({
         doc,
-        jobId: result.aggregateId,
+        jobId: extractedJobId,
         candidates: [...extractedCandidates],
         selectedIndices: extractedCandidates.map((_, i) => i),
         isConfirming: false,
@@ -957,8 +962,6 @@ export function NotebooklmSourcesSection({
           aria-modal="true"
           aria-label="任務形成候選清單"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget && !taskReview.isConfirming) setTaskReview(null); }}
-          onKeyDown={(e) => { if (e.key === "Escape" && !taskReview.isConfirming) setTaskReview(null); }}
         >
           <div className="relative flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">

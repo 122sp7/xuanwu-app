@@ -14,12 +14,8 @@ import {
 import { processSourceDocumentAction } from "./source-processing-actions";
 import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
 import type { ParseDocumentOutput } from "../../outbound/callable/FirebaseCallableAdapter";
-import { createFirestoreLikeAdapter } from "@/src/modules/workspace/adapters/outbound/firebase-composition";
-import { GenkitTaskCandidateExtractor } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/genkit/GenkitTaskCandidateExtractor";
-import { ExtractTaskCandidatesUseCase, ConfirmCandidatesUseCase } from "@/src/modules/workspace/subdomains/task-formation/application/use-cases/TaskFormationUseCases";
-import { FirestoreTaskFormationJobRepository } from "@/src/modules/workspace/subdomains/task-formation/adapters/outbound/firestore/FirestoreTaskFormationJobRepository";
-import { CreateTaskUseCase } from "@/src/modules/workspace/subdomains/task/application/use-cases/TaskUseCases";
-import { FirestoreTaskRepository } from "@/src/modules/workspace/subdomains/task/adapters/outbound/firestore/FirestoreTaskRepository";
+import { createServerTaskFormationUseCasesWithGenkit } from "@/src/modules/workspace/server";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace";
 
 // ── Firebase HTTPS Callable server-side helper ────────────────────────────────
 // Calling Cloud Functions from a Server Action avoids CORS completely.
@@ -103,6 +99,13 @@ const ConfirmTaskFormationFromDocumentInputSchema = z.object({
   actorId: z.string().min(1),
   selectedIndices: z.array(z.number().int().min(0)).min(1),
 });
+
+export interface StartTaskFormationFromDocumentActionResult {
+  readonly success: boolean;
+  readonly aggregateId?: string;
+  readonly error?: { message: string };
+  readonly candidates: readonly ExtractedTaskCandidate[];
+}
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
@@ -220,28 +223,25 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
  * startTaskFormationFromDocumentAction — run Genkit extraction from source artifacts,
  * then return a persisted task-formation job with candidate list for human review.
  */
-export async function startTaskFormationFromDocumentAction(rawInput: unknown) {
+export async function startTaskFormationFromDocumentAction(rawInput: unknown): Promise<StartTaskFormationFromDocumentActionResult> {
   const input = StartTaskFormationFromDocumentInputSchema.parse(rawInput);
-  const db = createFirestoreLikeAdapter();
-  const jobRepo = new FirestoreTaskFormationJobRepository(db);
-  const extractor = new GenkitTaskCandidateExtractor();
-  const extractTaskCandidatesUseCase = new ExtractTaskCandidatesUseCase(jobRepo, extractor);
+  const { extractTaskCandidates, getJobSnapshot } = createServerTaskFormationUseCasesWithGenkit();
 
   const sourceText = input.parsedArtifactSummary?.trim().length
     ? input.parsedArtifactSummary
     : `文件標題：${input.documentTitle}`;
 
-  const result = await extractTaskCandidatesUseCase.execute({
+  const result = await extractTaskCandidates.execute({
     workspaceId: input.workspaceId,
     actorId: input.actorId,
     sourceType: "ai",
     sourcePageIds: [input.documentId],
     sourceText,
   });
-  if (!result.success) return { ...result, candidates: [] };
+  if (!result.success) return { success: false, error: result.error, candidates: [] };
 
-  const snapshot = await jobRepo.findById(result.aggregateId);
-  return { ...result, candidates: snapshot?.candidates ?? [] };
+  const snapshot = await getJobSnapshot(result.aggregateId);
+  return { success: true, aggregateId: result.aggregateId, candidates: snapshot?.candidates ?? [] };
 }
 
 /**
@@ -249,15 +249,9 @@ export async function startTaskFormationFromDocumentAction(rawInput: unknown) {
  */
 export async function confirmTaskFormationFromDocumentAction(rawInput: unknown) {
   const input = ConfirmTaskFormationFromDocumentInputSchema.parse(rawInput);
-  const db = createFirestoreLikeAdapter();
-  const jobRepo = new FirestoreTaskFormationJobRepository(db);
-  const taskRepo = new FirestoreTaskRepository(db);
-  const createTaskUseCase = new CreateTaskUseCase(taskRepo);
-  const confirmCandidatesUseCase = new ConfirmCandidatesUseCase(jobRepo, {
-    createTask: (taskInput) => createTaskUseCase.execute(taskInput),
-  });
+  const { confirmCandidates } = createServerTaskFormationUseCasesWithGenkit();
 
-  return confirmCandidatesUseCase.execute({
+  return confirmCandidates.execute({
     jobId: input.jobId,
     workspaceId: input.workspaceId,
     actorId: input.actorId,

@@ -21,6 +21,7 @@ export { Task } from "./subdomains/task/domain/entities/Task";
 export { CreateTaskUseCase, UpdateTaskUseCase, TransitionTaskStatusUseCase } from "./subdomains/task/application/use-cases/TaskUseCases";
 export type { TaskRepository } from "./subdomains/task/domain/repositories/TaskRepository";
 export type { TaskStatus } from "./subdomains/task/domain/value-objects/TaskStatus";
+export type { ExtractedTaskCandidate } from "./subdomains/task-formation/domain/value-objects/TaskCandidate";
 
 // issue
 export type { IssueSnapshot, OpenIssueInput } from "./subdomains/issue/domain/entities/Issue";
