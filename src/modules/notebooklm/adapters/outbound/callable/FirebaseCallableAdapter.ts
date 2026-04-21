@@ -47,6 +47,8 @@ export interface ParseDocumentInput {
   readonly size_bytes?: number;
   /** When true fn also runs RAG ingestion after parse. Defaults to true in fn. */
   readonly run_rag?: boolean;
+  /** Parser variant: "layout" | "form" | "ocr" | "genkit". Defaults to "layout" in fn. */
+  readonly parser?: "layout" | "form" | "ocr" | "genkit";
 }
 
 export interface ParseDocumentOutput {

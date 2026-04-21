@@ -26,8 +26,6 @@ import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/
 import {
   createPageFromDocumentAction,
   createDatabaseFromDocumentAction,
-  parseDocumentAction,
-  reindexDocumentAction,
 } from "../server-actions/document-actions";
 import {
   queryDocuments,
@@ -35,6 +33,8 @@ import {
   getDocumentDownloadUrl,
   initSourceDocumentInFirestore,
   toGcsUri,
+  callParseDocument,
+  callReindexDocument,
 } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
@@ -230,14 +230,15 @@ export function NotebooklmSourcesSection({
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseLayout: "running", message: undefined });
     try {
-      await parseDocumentAction({
-        accountId,
-        workspaceId,
-        docId: doc.id,
-        storageUrl: doc.storageUrl,
+      await callParseDocument({
+        account_id: accountId,
+        workspace_id: workspaceId,
+        doc_id: doc.id,
+        gcs_uri: toGcsUri(doc.storageUrl),
         filename: doc.name,
-        mimeType: doc.mimeType || "application/pdf",
-        sizeBytes: doc.sizeBytes,
+        mime_type: doc.mimeType || "application/pdf",
+        size_bytes: doc.sizeBytes,
+        run_rag: false,
         parser: "layout",
       });
       setDocAction(doc.id, { parseLayout: "done", message: "Layout Parser 解析完成（文字 + 語意分塊已儲存）" });
@@ -252,14 +253,15 @@ export function NotebooklmSourcesSection({
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseForm: "running", message: undefined });
     try {
-      await parseDocumentAction({
-        accountId,
-        workspaceId,
-        docId: doc.id,
-        storageUrl: doc.storageUrl,
+      await callParseDocument({
+        account_id: accountId,
+        workspace_id: workspaceId,
+        doc_id: doc.id,
+        gcs_uri: toGcsUri(doc.storageUrl),
         filename: doc.name,
-        mimeType: doc.mimeType || "application/pdf",
-        sizeBytes: doc.sizeBytes,
+        mime_type: doc.mimeType || "application/pdf",
+        size_bytes: doc.sizeBytes,
+        run_rag: false,
         parser: "form",
       });
       setDocAction(doc.id, { parseForm: "done", message: "Form Parser 解析完成（結構化欄位已儲存）" });
@@ -274,14 +276,15 @@ export function NotebooklmSourcesSection({
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseOcr: "running", message: undefined });
     try {
-      await parseDocumentAction({
-        accountId,
-        workspaceId,
-        docId: doc.id,
-        storageUrl: doc.storageUrl,
+      await callParseDocument({
+        account_id: accountId,
+        workspace_id: workspaceId,
+        doc_id: doc.id,
+        gcs_uri: toGcsUri(doc.storageUrl),
         filename: doc.name,
-        mimeType: doc.mimeType || "application/pdf",
-        sizeBytes: doc.sizeBytes,
+        mime_type: doc.mimeType || "application/pdf",
+        size_bytes: doc.sizeBytes,
+        run_rag: false,
         parser: "ocr",
       });
       setDocAction(doc.id, { parseOcr: "done", message: "Document OCR 解析完成（OCR JSON 已儲存）" });
@@ -296,14 +299,15 @@ export function NotebooklmSourcesSection({
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseGenkit: "running", message: undefined });
     try {
-      await parseDocumentAction({
-        accountId,
-        workspaceId,
-        docId: doc.id,
-        storageUrl: doc.storageUrl,
+      await callParseDocument({
+        account_id: accountId,
+        workspace_id: workspaceId,
+        doc_id: doc.id,
+        gcs_uri: toGcsUri(doc.storageUrl),
         filename: doc.name,
-        mimeType: doc.mimeType || "application/pdf",
-        sizeBytes: doc.sizeBytes,
+        mime_type: doc.mimeType || "application/pdf",
+        size_bytes: doc.sizeBytes,
+        run_rag: false,
         parser: "genkit",
       });
       setDocAction(doc.id, { parseGenkit: "done", message: "Genkit-AI 解析完成（Genkit JSON 已儲存）" });
@@ -322,7 +326,7 @@ export function NotebooklmSourcesSection({
     }
     setDocAction(doc.id, { index: "running", message: undefined });
     try {
-      await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
+      await callReindexDocument({ account_id: accountId, doc_id: doc.id, json_gcs_uri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成（使用 Layout Parser 產出物）" });
       const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
@@ -339,7 +343,7 @@ export function NotebooklmSourcesSection({
     }
     setDocAction(doc.id, { reindex: "running", message: undefined });
     try {
-      await reindexDocumentAction({ accountId, docId: doc.id, layoutJsonGcsUri: doc.parsedLayoutJsonGcsUri });
+      await callReindexDocument({ account_id: accountId, doc_id: doc.id, json_gcs_uri: doc.parsedLayoutJsonGcsUri });
       setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成（使用 Layout Parser 產出物）" });
       const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
