@@ -22,7 +22,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import type { DocumentSnapshot } from "../../../subdomains/document/domain/entities/Document";
+import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
   queryDocumentsAction,
   registerUploadedDocumentAction,
@@ -86,7 +86,7 @@ export function NotebooklmSourcesSection({
   workspaceId,
   accountId,
 }: NotebooklmSourcesSectionProps): React.ReactElement {
-  const [documents, setDocuments] = useState<DocumentSnapshot[]>([]);
+  const [documents, setDocuments] = useState<IngestionSourceSnapshot[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [isRefreshing, startRefresh] = useTransition();
   const [isUploading, startUpload] = useTransition();
@@ -94,7 +94,7 @@ export function NotebooklmSourcesSection({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Preview state
-  const [previewDoc, setPreviewDoc] = useState<DocumentSnapshot | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<IngestionSourceSnapshot | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -104,7 +104,7 @@ export function NotebooklmSourcesSection({
   const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
 
   // JSON viewer modal state
-  const [jsonViewer, setJsonViewer] = useState<{ doc: DocumentSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
+  const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
 
   const load = () => {
     startRefresh(async () => {
@@ -146,7 +146,7 @@ export function NotebooklmSourcesSection({
     });
   };
 
-  const handlePreview = async (doc: DocumentSnapshot) => {
+  const handlePreview = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setPreviewDoc(doc);
     setPreviewUrl(null);
@@ -181,7 +181,7 @@ export function NotebooklmSourcesSection({
     });
   };
 
-  const handleParseLayout = async (doc: DocumentSnapshot) => {
+  const handleParseLayout = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseLayout: "running", message: undefined });
     try {
@@ -203,7 +203,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleParseForm = async (doc: DocumentSnapshot) => {
+  const handleParseForm = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseForm: "running", message: undefined });
     try {
@@ -225,7 +225,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleParseOcr = async (doc: DocumentSnapshot) => {
+  const handleParseOcr = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseOcr: "running", message: undefined });
     try {
@@ -247,7 +247,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleParseGenkit = async (doc: DocumentSnapshot) => {
+  const handleParseGenkit = async (doc: IngestionSourceSnapshot) => {
     if (!doc.storageUrl) return;
     setDocAction(doc.id, { parseGenkit: "running", message: undefined });
     try {
@@ -269,7 +269,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleIndex = async (doc: DocumentSnapshot) => {
+  const handleIndex = async (doc: IngestionSourceSnapshot) => {
     if (!doc.id) return;
     if (!doc.parsedLayoutJsonGcsUri) {
       setDocAction(doc.id, { index: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
@@ -286,7 +286,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleReindex = async (doc: DocumentSnapshot) => {
+  const handleReindex = async (doc: IngestionSourceSnapshot) => {
     if (!doc.id) return;
     if (!doc.parsedLayoutJsonGcsUri) {
       setDocAction(doc.id, { reindex: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
@@ -303,7 +303,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleCreatePage = async (doc: DocumentSnapshot) => {
+  const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
       const result = await createPageFromDocumentAction({
@@ -319,7 +319,7 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleCreateDatabase = async (doc: DocumentSnapshot) => {
+  const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
       await createDatabaseFromDocumentAction({

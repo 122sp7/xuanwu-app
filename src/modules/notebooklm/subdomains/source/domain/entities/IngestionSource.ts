@@ -3,9 +3,8 @@
  * ingested document in the notebooklm bounded context.
  *
  * "Source" is the strategic name per docs/structure/domain/ubiquitous-language.md.
- * The legacy "document" subdomain sub-folder is kept for backward compatibility
- * with existing Firestore adapters and server actions; new code should reference
- * IngestionSource instead.
+ * The legacy "document" subdomain has been removed; all consumers now reference
+ * IngestionSource and IngestionSourceSnapshot directly.
  */
 import { v4 as uuid } from "uuid";
 
@@ -30,6 +29,30 @@ export interface IngestionSourceSnapshot {
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
   readonly deletedAtISO?: string;
+
+  // ── fn pipeline status fields ──────────────────────────────────────────────
+  /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
+  readonly parsedPageCount?: number;
+  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
+  readonly parsedLayoutChunkCount?: number;
+  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
+  readonly parsedFormEntityCount?: number;
+  /** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+  readonly parsedLayoutJsonGcsUri?: string;
+  /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
+  readonly parsedFormJsonGcsUri?: string;
+  /** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
+  readonly parsedOcrJsonGcsUri?: string;
+  /** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
+  readonly parsedGenkitJsonGcsUri?: string;
+  /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
+  readonly ragChunkCount?: number;
+  /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
+  readonly ragVectorCount?: number;
+  /** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
+  readonly ragStatus?: string;
+  /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
+  readonly errorMessage?: string;
 }
 
 export interface RegisterIngestionSourceInput {

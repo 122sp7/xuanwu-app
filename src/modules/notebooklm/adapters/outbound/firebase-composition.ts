@@ -8,13 +8,13 @@
  */
 
 import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreDocumentRepository } from "../../subdomains/document/adapters/outbound/firestore/FirestoreDocumentRepository";
+import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
 import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
 import {
-  AddDocumentUseCase,
-  ArchiveDocumentUseCase,
-  QueryDocumentsUseCase,
-} from "../../subdomains/document/application/use-cases/DocumentUseCases";
+  RegisterIngestionSourceUseCase,
+  ArchiveIngestionSourceUseCase,
+  QueryIngestionSourcesUseCase,
+} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
 import {
   CreateNotebookUseCase,
   AddDocumentToNotebookUseCase,
@@ -25,12 +25,12 @@ import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInpu
 
 // ── Singleton repositories ────────────────────────────────────────────────────
 
-let _docRepo: FirestoreDocumentRepository | undefined;
+let _sourceRepo: FirestoreIngestionSourceRepository | undefined;
 let _notebookRepo: InMemoryNotebookRepository | undefined;
 
-function getDocumentRepo(): FirestoreDocumentRepository {
-  if (!_docRepo) _docRepo = new FirestoreDocumentRepository();
-  return _docRepo;
+function getSourceRepo(): FirestoreIngestionSourceRepository {
+  if (!_sourceRepo) _sourceRepo = new FirestoreIngestionSourceRepository();
+  return _sourceRepo;
 }
 
 function getNotebookRepo(): InMemoryNotebookRepository {
@@ -62,12 +62,12 @@ class RagQueryGenerationPort implements NotebookGenerationPort {
 
 // ── Factory functions ─────────────────────────────────────────────────────────
 
-export function createClientNotebooklmDocumentUseCases() {
-  const repo = getDocumentRepo();
+export function createClientNotebooklmSourceUseCases() {
+  const repo = getSourceRepo();
   return {
-    addDocument: new AddDocumentUseCase(repo),
-    archiveDocument: new ArchiveDocumentUseCase(repo),
-    queryDocuments: new QueryDocumentsUseCase(repo),
+    registerSource: new RegisterIngestionSourceUseCase(repo),
+    archiveSource: new ArchiveIngestionSourceUseCase(repo),
+    querySources: new QueryIngestionSourcesUseCase(repo),
   };
 }
 

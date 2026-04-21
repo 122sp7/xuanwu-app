@@ -1,28 +1,27 @@
 /**
- * FirestoreDocumentRepository — read-only Firestore adapter for notebooklm documents.
+ * FirestoreIngestionSourceRepository — Firestore adapter for the source subdomain.
  *
- * fn owns all writes to accounts/{accountId}/documents/{docId}.
- * TypeScript side is read-only: it subscribes to Firestore status updates
- * written by the fn pipeline (parse + RAG ingestion).
+ * Reads from accounts/{accountId}/documents/{docId}, which is the same collection
+ * written by the fn pipeline.  TypeScript side is read-only: fn is the sole writer.
  *
  * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/subdomains/document/adapters/outbound/firestore/
+ * src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/
  * which matches the extended outbound glob.
  */
 
 import { getFirebaseFirestore, firestoreApi } from "@packages";
 import type {
-  DocumentSnapshot as DocumentSnap,
-  DocumentStatus,
-} from "../../../domain/entities/Document";
+  IngestionSourceSnapshot,
+  SourceStatus,
+} from "../../../domain/entities/IngestionSource";
 import type {
-  DocumentRepository,
-  DocumentQuery,
-} from "../../../domain/repositories/DocumentRepository";
+  IngestionSourceRepository,
+  IngestionSourceQuery,
+} from "../../../domain/repositories/IngestionSourceRepository";
 
-// ── Firestore record shape written by fn ───────────────────────────────────
+// ── Firestore record shape written by fn ──────────────────────────────────────
 
-interface PyFnDocumentRecord {
+interface PyFnSourceRecord {
   id?: string;
   title?: string;
   status?: string;
@@ -73,36 +72,50 @@ interface PyFnDocumentRecord {
 
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 
-function mapPyFnStatus(docStatus: string | undefined, ragStatus: string | undefined): DocumentStatus {
+function mapPyFnStatus(
+  docStatus: string | undefined,
+  ragStatus: string | undefined,
+): SourceStatus {
   if (docStatus === "processing") return "processing";
   if (docStatus === "error") return "archived";
   if (ragStatus === "ready") return "active";
   // fn sets status="completed" after a successful parse but before RAG indexing.
-  // Treat it as "active" — the document artifact is usable.
   if (docStatus === "completed") return "active";
   return "processing";
 }
 
-function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap {
+function fromFirestore(
+  raw: PyFnSourceRecord,
+  docId: string,
+): IngestionSourceSnapshot {
   const uploadedAt = raw.source?.uploaded_at?.toDate?.() ?? new Date();
   return {
     id: docId,
     workspaceId: raw.spaceId ?? raw.metadata?.space_id ?? "",
     accountId: raw.account_id ?? "",
     organizationId: "",
-    name: raw.title ?? raw.source?.display_name ?? raw.source?.filename ?? docId,
+    name:
+      raw.title ??
+      raw.source?.display_name ??
+      raw.source?.filename ??
+      docId,
     mimeType: raw.source?.mime_type ?? "",
     sizeBytes: raw.source?.size_bytes ?? 0,
     classification: "other",
     tags: [],
     status: mapPyFnStatus(raw.status, raw.rag?.status),
     storageUrl: raw.source?.gcs_uri,
+    originUri: raw.source?.gcs_uri,
     createdAtISO: uploadedAt.toISOString(),
     updatedAtISO: uploadedAt.toISOString(),
+    // fn pipeline fields
     parsedPageCount: raw.parsed?.page_count,
-    parsedLayoutChunkCount: raw.parsed?.layout_chunk_count ?? raw.parsed?.chunk_count,
-    parsedFormEntityCount: raw.parsed?.form_entity_count ?? raw.parsed?.entity_count,
-    parsedLayoutJsonGcsUri: raw.parsed?.layout_json_gcs_uri ?? raw.parsed?.json_gcs_uri,
+    parsedLayoutChunkCount:
+      raw.parsed?.layout_chunk_count ?? raw.parsed?.chunk_count,
+    parsedFormEntityCount:
+      raw.parsed?.form_entity_count ?? raw.parsed?.entity_count,
+    parsedLayoutJsonGcsUri:
+      raw.parsed?.layout_json_gcs_uri ?? raw.parsed?.json_gcs_uri,
     parsedFormJsonGcsUri: raw.parsed?.form_json_gcs_uri,
     parsedOcrJsonGcsUri: raw.parsed?.ocr_json_gcs_uri,
     parsedGenkitJsonGcsUri: raw.parsed?.genkit_json_gcs_uri,
@@ -115,27 +128,29 @@ function fromFirestore(raw: PyFnDocumentRecord, docId: string): DocumentSnap {
 
 // ── Repository implementation ─────────────────────────────────────────────────
 
-export class FirestoreDocumentRepository implements DocumentRepository {
-  async save(_snapshot: DocumentSnap): Promise<void> {
+export class FirestoreIngestionSourceRepository
+  implements IngestionSourceRepository
+{
+  async save(_snapshot: IngestionSourceSnapshot): Promise<void> {
     // Intentionally no-op: fn is the sole writer for this collection.
     // TypeScript side is read-only.
   }
 
-  async findById(id: string): Promise<DocumentSnap | null> {
+  async findById(_id: string): Promise<IngestionSourceSnapshot | null> {
     // findById requires accountId context; use query() for list operations.
-    // This minimal implementation returns null — callers should use query().
-    void id;
     return null;
   }
 
-  async findByNotebookId(notebookId: string): Promise<DocumentSnap[]> {
-    // Notebook → document relationship is managed by the Notebook aggregate.
-    // Fall back to empty until a cross-reference index is available.
-    void notebookId;
+  async findByNotebookId(
+    _notebookId: string,
+  ): Promise<IngestionSourceSnapshot[]> {
+    // Notebook → source relationship is managed by the Notebook aggregate.
     return [];
   }
 
-  async query(params: DocumentQuery): Promise<DocumentSnap[]> {
+  async query(
+    params: IngestionSourceQuery,
+  ): Promise<IngestionSourceSnapshot[]> {
     if (!params.accountId) return [];
 
     const db = getFirebaseFirestore();
@@ -143,13 +158,18 @@ export class FirestoreDocumentRepository implements DocumentRepository {
 
     const colRef = collection(db, "accounts", params.accountId, "documents");
     const constraints = params.workspaceId
-      ? [where("spaceId", "==", params.workspaceId), orderBy("source.uploaded_at", "desc")]
+      ? [
+          where("spaceId", "==", params.workspaceId),
+          orderBy("source.uploaded_at", "desc"),
+        ]
       : [orderBy("source.uploaded_at", "desc")];
 
     const q = query(colRef, ...constraints);
     const snap = await getDocs(q);
 
-    return snap.docs.map((docSnap) => fromFirestore(docSnap.data() as PyFnDocumentRecord, docSnap.id));
+    return snap.docs.map((docSnap) =>
+      fromFirestore(docSnap.data() as PyFnSourceRecord, docSnap.id),
+    );
   }
 
   async delete(_id: string): Promise<void> {

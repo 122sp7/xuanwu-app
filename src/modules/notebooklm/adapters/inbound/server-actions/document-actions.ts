@@ -9,7 +9,7 @@
 
 import { z } from "zod";
 import {
-  createClientNotebooklmDocumentUseCases,
+  createClientNotebooklmSourceUseCases,
 } from "../../outbound/firebase-composition";
 import { processSourceDocumentAction } from "./source-processing-actions";
 import { createDatabaseAction } from "@/src/modules/notion/adapters/inbound/server-actions/database-actions";
@@ -95,8 +95,8 @@ const ReindexDocumentActionInputSchema = z.object({
  */
 export async function queryDocumentsAction(rawInput: unknown) {
   const input = QueryDocumentsInputSchema.parse(rawInput);
-  const { queryDocuments } = createClientNotebooklmDocumentUseCases();
-  return queryDocuments.execute({
+  const { querySources } = createClientNotebooklmSourceUseCases();
+  return querySources.execute({
     accountId: input.accountId,
     workspaceId: input.workspaceId,
   });
@@ -111,17 +111,17 @@ export async function queryDocumentsAction(rawInput: unknown) {
  */
 export async function registerUploadedDocumentAction(rawInput: unknown) {
   const input = UploadDocumentMetaSchema.parse(rawInput);
-  const { addDocument } = createClientNotebooklmDocumentUseCases();
-  return addDocument.execute({
+  const { registerSource } = createClientNotebooklmSourceUseCases();
+  return registerSource.execute({
     accountId: input.accountId,
     workspaceId: input.workspaceId,
     organizationId: "",
     name: input.filename,
     mimeType: input.mimeType,
     sizeBytes: input.sizeBytes,
-    status: "processing",
     storageUrl: input.gcsPath,
-  } as Parameters<typeof addDocument.execute>[0]);
+    originUri: input.gcsPath,
+  });
 }
 
 /**
