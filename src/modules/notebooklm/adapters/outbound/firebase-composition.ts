@@ -169,7 +169,10 @@ export async function initSourceDocumentInFirestore(params: {
     {
       id: params.docId,
       title: params.filename,
-      status: "processing",
+      // "active" = upload done, ready to parse.
+      // fn's parse_document callable will overwrite with "processing" when it starts,
+      // then "completed" when done.
+      status: "active",
       account_id: params.accountId,
       spaceId: params.workspaceId,
       source: {

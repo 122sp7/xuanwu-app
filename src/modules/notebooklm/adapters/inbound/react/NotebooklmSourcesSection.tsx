@@ -72,7 +72,9 @@ function createPendingSourceSnapshot(input: {
     sizeBytes: input.file.size,
     classification: "other",
     tags: [],
-    status: "processing",
+    // Upload is done; show "已就緒" until a parse callable is explicitly triggered.
+    // fn's parse_document callable will set status back to "processing" when it starts.
+    status: "active",
     storageUrl: input.storagePath,
     originUri: input.storagePath,
     createdAtISO: now,
