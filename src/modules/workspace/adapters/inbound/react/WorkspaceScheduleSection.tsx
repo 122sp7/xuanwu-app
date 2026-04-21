@@ -18,7 +18,11 @@ import {
 import { CalendarRange, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
-import type { DemandPriority, WorkDemandSnapshot } from "../../../subdomains/schedule/domain/entities/WorkDemand";
+import {
+  DEMAND_PRIORITIES,
+  type DemandPriority,
+  type WorkDemandSnapshot,
+} from "../../../subdomains/schedule/domain/entities/WorkDemand";
 import { createWorkDemandAction } from "../server-actions/schedule-actions";
 import { parseLocalDatetimeInput, toLocalDatetimeInputValue } from "./workspace-schedule-datetime";
 const scheduleUseCases = createClientScheduleUseCases();
@@ -27,6 +31,10 @@ interface WorkspaceScheduleSectionProps {
   workspaceId: string;
   accountId: string;
   currentUserId?: string;
+}
+
+function isDemandPriority(value: string): value is DemandPriority {
+  return (DEMAND_PRIORITIES as readonly string[]).includes(value);
 }
 
 export function WorkspaceScheduleSection({
@@ -132,7 +140,14 @@ export function WorkspaceScheduleSection({
           value={scheduledAtLocal}
           onChange={(event) => setScheduledAtLocal(event.target.value)}
         />
-        <Select value={priority} onValueChange={(value) => setPriority(value as DemandPriority)}>
+        <Select
+          value={priority}
+          onValueChange={(value) => {
+            if (isDemandPriority(value)) {
+              setPriority(value);
+            }
+          }}
+        >
           <SelectTrigger aria-label="排程優先度">
             <SelectValue placeholder="選擇優先度" />
           </SelectTrigger>
