@@ -18,6 +18,8 @@ from infrastructure.external.upstash.clients import (
     redis_set_json,
     upsert_search_documents,
     upsert_vectors,
+    delete_vectors_by_doc as _delete_vectors_by_doc,
+    delete_search_documents_by_doc as _delete_search_documents_by_doc,
 )
 from infrastructure.external.upstash.rag_query import query_search, query_vector
 from infrastructure.persistence.firestore.document_repository import (
@@ -98,6 +100,17 @@ class InfraRagIngestionGateway:
 
     def redis_set_json(self, key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None:
         redis_set_json(key, value, ttl_seconds=ttl_seconds)
+
+    def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int:
+        deleted_vec = _delete_vectors_by_doc(doc_id=doc_id, namespace=namespace)
+        deleted_search = _delete_search_documents_by_doc(doc_id=doc_id)
+        logger.info(
+            "delete_vectors_by_doc: doc_id=%s vector=%d search=%d",
+            doc_id,
+            deleted_vec,
+            deleted_search,
+        )
+        return deleted_vec
 
 
 class InfraDocumentPipelineGateway:

@@ -20,6 +20,7 @@ from infrastructure.external.upstash.vector_client import (
     get_vector_index,
     upsert_vectors,
     query_vectors,
+    delete_vectors_by_doc,
 )
 from infrastructure.external.upstash.redis_client import (
     get_redis_client,
@@ -31,6 +32,7 @@ from infrastructure.external.upstash.search_client import (
     get_search_index,
     upsert_search_documents,
     query_search_documents,
+    delete_search_documents_by_doc,
 )
 from infrastructure.external.upstash.qstash_client import (
     get_qstash_client,
@@ -43,6 +45,7 @@ __all__ = [
     "get_vector_index",
     "upsert_vectors",
     "query_vectors",
+    "delete_vectors_by_doc",
     "get_redis_client",
     "redis_get_json",
     "redis_set_json",
@@ -50,6 +53,7 @@ __all__ = [
     "get_search_index",
     "upsert_search_documents",
     "query_search_documents",
+    "delete_search_documents_by_doc",
     "get_qstash_client",
     "publish_qstash_json",
 ]

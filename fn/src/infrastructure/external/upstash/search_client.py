@@ -81,6 +81,47 @@ def upsert_search_documents(documents: list[dict[str, Any]]) -> int:
         return 0
 
 
+def delete_search_documents_by_doc(doc_id: str) -> int:
+    """刪除屬於指定 doc_id 的所有搜尋索引文件（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Search SDK 的 prefix delete，與 vector 刪除搭配使用，
+    確保 Upstash Search 與 Upstash Vector 的資料一致性。
+
+    Args:
+        doc_id: 文件識別碼，對應 search doc ID 格式 ``{doc_id}:{i:04d}``。
+
+    Returns:
+        int: 實際刪除的文件數量（0 表示無資料、未設定或操作失敗）。
+    """
+    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
+        return 0
+    if not doc_id:
+        return 0
+    prefix = f"{doc_id}:"
+    try:
+        index = get_search_index()
+        result = index.delete(prefix=prefix)
+        if isinstance(result, int):
+            deleted = result
+        elif hasattr(result, "deleted"):
+            deleted = int(result.deleted or 0)
+        elif isinstance(result, dict):
+            deleted = int(result.get("deleted", 0))
+        else:
+            deleted = 0
+        logger.info(
+            "delete_search_documents_by_doc: removed %d docs for doc_id=%s",
+            deleted,
+            doc_id,
+        )
+        return deleted
+    except Exception as exc:
+        logger.warning(
+            "delete_search_documents_by_doc failed for doc_id=%s: %s", doc_id, exc
+        )
+        return 0
+
+
 def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
     """
     以 Upstash Search REST 進行補充檢索（best effort）。

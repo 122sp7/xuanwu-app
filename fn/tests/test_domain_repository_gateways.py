@@ -57,6 +57,9 @@ class _FakeRagIngestionGateway:
     def redis_set_json(self, key: str, value: dict, ttl_seconds: int = 0) -> None:
         return None
 
+    def delete_vectors_by_doc(self, doc_id: str, namespace: str = "") -> int:
+        return 0
+
 
 class _FakeDocumentPipelineGateway:
     def process_document_gcs(self, gcs_uri: str, mime_type: str = "application/pdf") -> dict:

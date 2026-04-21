@@ -81,6 +81,47 @@ def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any:
                 return index.upsert(items, namespace=namespace)
 
 
+def delete_vectors_by_doc(doc_id: str, namespace: str = "") -> int:
+    """刪除屬於指定 doc_id 的所有向量（依 ID 前綴 `{doc_id}:`）。
+
+    使用 Upstash Vector SDK 的 prefix delete，一次清除整份文件的所有 chunk
+    向量，避免重新索引後留下孤立 (orphan) chunk 資料。
+
+    Args:
+        doc_id:    文件識別碼，對應 chunk ID 格式 ``{doc_id}:{i:04d}``。
+        namespace: Upstash Vector 命名空間（與 upsert 時一致）。
+
+    Returns:
+        int: 實際刪除的向量數量（0 表示無向量或操作失敗）。
+    """
+    if not doc_id:
+        return 0
+    index = get_vector_index()
+    prefix = f"{doc_id}:"
+    try:
+        result = index.delete(prefix=prefix, namespace=namespace)
+        if isinstance(result, int):
+            deleted = result
+        elif hasattr(result, "deleted"):
+            deleted = int(result.deleted or 0)
+        elif isinstance(result, dict):
+            deleted = int(result.get("deleted", 0))
+        else:
+            deleted = 0
+        logger.info(
+            "delete_vectors_by_doc: removed %d vectors for doc_id=%s (namespace=%s)",
+            deleted,
+            doc_id,
+            namespace or "<default>",
+        )
+        return deleted
+    except Exception as exc:
+        logger.warning(
+            "delete_vectors_by_doc failed for doc_id=%s: %s", doc_id, exc
+        )
+        return 0
+
+
 def query_vectors(
     vector: list[float],
     top_k: int,
