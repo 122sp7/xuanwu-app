@@ -912,6 +912,83 @@ const { workspace } = useWorkspaceContext(); // 在 notion/ components 裡
 - `src/modules/<context>/index.ts` — 待審查文件
 ````
 
+## File: docs/decisions/architecture/0004-occam-gap-triage-baseline-focus.md
+````markdown
+# ADR 0004 — Occam 缺口分流與基線聚焦
+
+## Status
+
+Accepted
+
+## Date
+
+2026-04-20
+
+## Context
+
+目前 `src/modules/*/subdomains/` 與 `docs/structure/domain/subdomains.md` baseline 仍有明顯落差。現況（2026-04-20）目錄快照：
+
+- notion: `block`, `collaboration`, `database`, `page`, `template`, `view`
+- notebooklm: `conversation`, `document`, `notebook`
+- ai: `chunk`, `citation`, `context`, `embedding`, `evaluation`, `generation`, `memory`, `pipeline`, `retrieval`, `tool-calling`
+- platform: `background-job`, `cache`, `file-storage`, `notification`, `platform-config`, `search`
+- billing: `entitlement`, `subscription`, `usage-metering`
+- analytics: `event-contracts`, `event-ingestion`, `event-projection`, `experimentation`, `insights`, `metrics`, `realtime-insights`
+- iam: `access-control`, `account`, `authentication`, `authorization`, `federation`, `identity`, `organization`, `security-policy`, `session`, `tenant`
+- workspace: `activity`, `api-key`, `approval`, `audit`, `feed`, `invitation`, `issue`, `lifecycle`, `membership`, `orchestration`, `quality`, `resource`, `schedule`, `settlement`, `share`, `task`, `task-formation`
+
+若直接補齊全部缺口，會產生大量空骨架與命名搬移，違反最小必要設計（Occam / YAGNI）。
+
+## Decision
+
+### 一定要做（Must-Do Baseline）
+
+以下缺口屬於「語言衝突」或「核心能力缺失」，不做會持續破壞主域邊界：
+
+| 優先級 | 主域 | 必做基線 |
+|---|---|---|
+| P0 | notebooklm | `document` → `source` 命名修正，避免與 notion 內容語言衝突 |
+| P0 | notebooklm | 建立 `synthesis` 子域，承接 RAG 合成/摘要/洞察正典責任 |
+| P0 | notion | 建立 `knowledge` 正典容器，讓 `page/block` 回到實作細節而非子域語言 |
+| P1 | ai | 建立 `safety` 子域，補上所有 AI 輸出路徑的安全護欄 |
+| P1 | platform | 建立 `audit-log` 與 `feature-flag` 子域，補齊治理與發佈控制基線 |
+
+### 現階段不重要（Defer / Not-Now）
+
+以下缺口視為可延後，不作為本輪必交：
+
+| 類別 | 主域 | 延後項目 | 理由 |
+|---|---|---|---|
+| Gap subdomain | workspace | `presence` | 無即時協作需求時屬預建風險 |
+| Gap subdomain | iam | `consent`, `secret-governance` | 尚未出現直接需求壓力 |
+| Gap subdomain | billing | `pricing`, `invoice`, `quota-policy` | 與當前核心流程無直接阻斷 |
+| 命名對齊 | analytics | `insights` ↔ `reporting`, `dashboards` | 可先 ADR 對齊語言，後續再落實目錄 |
+| 延伸能力 | platform | `support`, `content`, `workflow` 細分 | 非當前治理阻斷點 |
+
+### 禁止事項（Occam Guardrail）
+
+1. 不一次建立所有缺口子域空目錄。
+2. 不在未有實際 use case 前預建抽象層。
+3. 不把 naming fix 與大規模功能重寫綁在同一批變更。
+
+## Consequences
+
+**正面：** 先修掉最破壞邊界的缺口，快速恢復語言一致性與核心治理能力。  
+**負面：** 仍保留部分 gap subdomain 未建立，需要持續追蹤。  
+**中性：** 延後項目必須以「觸發條件」驅動，不再以目錄數量作為進度指標。
+
+## References
+
+- `docs/structure/domain/subdomains.md`
+- `docs/decisions/architecture/0001-ddd-subdomain-boundary-governance.md`
+- `docs/decisions/domain/0001-notebooklm-document-to-source-rename.md`
+- `docs/decisions/domain/0002-notion-subdomain-expansion.md`
+- `docs/decisions/domain/0003-notebooklm-synthesis-subdomain.md`
+- `docs/decisions/platform/0001-platform-audit-log-vs-workspace-audit.md`
+- `docs/decisions/platform/0002-feature-flag-subdomain.md`
+- `docs/decisions/ai/0002-ai-safety-subdomain.md`
+````
+
 ## File: docs/decisions/data/.gitkeep
 ````
 
@@ -14369,6 +14446,93 @@ import { PROMPT_KEYS } from "../../../prompts/versions";
 export const registerRetrievalPrompts = (): void =>
 ````
 
+## File: src/modules/ai/subdomains/safety/adapters/inbound/index.ts
+````typescript
+// inbound adapters for safety subdomain
+````
+
+## File: src/modules/ai/subdomains/safety/adapters/outbound/index.ts
+````typescript
+// outbound adapters for safety subdomain
+````
+
+## File: src/modules/ai/subdomains/safety/application/use-cases/SafetyUseCases.ts
+````typescript
+import type { ContentSafetyPort, ContentSafetyInput, SafetyCheckResult } from "../../domain/entities/SafetyCheckResult";
+⋮----
+export interface CheckContentSafetyResult {
+  readonly ok: boolean;
+  readonly result?: SafetyCheckResult;
+  readonly error?: string;
+}
+⋮----
+export class CheckContentSafetyUseCase
+⋮----
+constructor(private readonly safetyPort: ContentSafetyPort)
+⋮----
+async execute(input: ContentSafetyInput): Promise<CheckContentSafetyResult>
+⋮----
+export class AssertContentSafeUseCase
+⋮----
+/** Resolves normally when safe; throws when blocked or flagged. */
+async execute(input: ContentSafetyInput): Promise<SafetyCheckResult>
+````
+
+## File: src/modules/ai/subdomains/safety/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/ai/subdomains/safety/domain/entities/SafetyCheckResult.ts
+````typescript
+/**
+ * SafetyCheckResult — domain value object for AI output safety evaluation.
+ *
+ * Owned by ai/safety subdomain.
+ * ContentSafetyPort is the primary outbound port; all AI generation paths must
+ * pass output through a safety check before returning to callers.
+ */
+⋮----
+export type SafetyVerdict = "safe" | "blocked" | "flagged";
+⋮----
+export interface SafetyCategory {
+  /** e.g. "hate_speech", "self_harm", "violence", "sexual" */
+  readonly name: string;
+  readonly score: number;
+  readonly verdict: SafetyVerdict;
+}
+⋮----
+/** e.g. "hate_speech", "self_harm", "violence", "sexual" */
+⋮----
+export interface SafetyCheckResult {
+  readonly id: string;
+  readonly inputHash: string;
+  readonly overallVerdict: SafetyVerdict;
+  readonly categories: readonly SafetyCategory[];
+  readonly reason?: string;
+  readonly checkedAtISO: string;
+  readonly model?: string;
+}
+⋮----
+export interface ContentSafetyInput {
+  readonly content: string;
+  readonly context?: string;
+  readonly model?: string;
+}
+⋮----
+/** Outbound port — implemented in infrastructure layer. */
+export interface ContentSafetyPort {
+  check(input: ContentSafetyInput): Promise<SafetyCheckResult>;
+}
+⋮----
+check(input: ContentSafetyInput): Promise<SafetyCheckResult>;
+````
+
+## File: src/modules/ai/subdomains/safety/domain/index.ts
+````typescript
+
+````
+
 ## File: src/modules/ai/subdomains/tool-calling/adapters/inbound/index.ts
 ````typescript
 // tool-calling — adapters/inbound placeholder
@@ -14512,36 +14676,6 @@ listAvailable(): Promise<AiTool[]>;
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/ai/index.ts
-````typescript
-/**
- * AI Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// generation
-⋮----
-// chunk
-⋮----
-// embedding
-⋮----
-// retrieval
-⋮----
-// context
-⋮----
-// pipeline
-⋮----
-// prompt registry
-⋮----
-// citation
-⋮----
-// evaluation
-⋮----
-// memory
-⋮----
-// tool-calling
 ````
 
 ## File: src/modules/ai/README.md
@@ -17938,6 +18072,261 @@ delete(id: string): Promise<void>;
 
 ````
 
+## File: src/modules/notebooklm/subdomains/source/adapters/inbound/index.ts
+````typescript
+// inbound adapters for source subdomain (server actions live at module root adapters/inbound)
+````
+
+## File: src/modules/notebooklm/subdomains/source/adapters/outbound/memory/InMemoryIngestionSourceRepository.ts
+````typescript
+import type { IngestionSourceSnapshot, SourceStatus } from "../../../domain/entities/IngestionSource";
+import type { IngestionSourceRepository, IngestionSourceQuery } from "../../../domain/repositories/IngestionSourceRepository";
+⋮----
+export class InMemoryIngestionSourceRepository implements IngestionSourceRepository
+⋮----
+async save(snapshot: IngestionSourceSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<IngestionSourceSnapshot | null>
+⋮----
+async findByNotebookId(notebookId: string): Promise<IngestionSourceSnapshot[]>
+⋮----
+async query(params: IngestionSourceQuery): Promise<IngestionSourceSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notebooklm/subdomains/source/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/source/adapters/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/source/application/use-cases/IngestionSourceUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { IngestionSource, type RegisterIngestionSourceInput } from "../../domain/entities/IngestionSource";
+import type { IngestionSourceRepository, IngestionSourceQuery } from "../../domain/repositories/IngestionSourceRepository";
+⋮----
+export class RegisterIngestionSourceUseCase
+⋮----
+constructor(private readonly repo: IngestionSourceRepository)
+⋮----
+async execute(input: RegisterIngestionSourceInput): Promise<CommandResult>
+⋮----
+export class ArchiveIngestionSourceUseCase
+⋮----
+async execute(sourceId: string): Promise<CommandResult>
+⋮----
+export class QueryIngestionSourcesUseCase
+⋮----
+async execute(params: IngestionSourceQuery)
+````
+
+## File: src/modules/notebooklm/subdomains/source/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts
+````typescript
+/**
+ * IngestionSource — canonical ubiquitous-language term for a workspace-scoped
+ * ingested document in the notebooklm bounded context.
+ *
+ * "Source" is the strategic name per docs/structure/domain/ubiquitous-language.md.
+ * The legacy "document" subdomain sub-folder is kept for backward compatibility
+ * with existing Firestore adapters and server actions; new code should reference
+ * IngestionSource instead.
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type SourceStatus = "active" | "processing" | "archived" | "deleted";
+export type SourceClassification = "image" | "manifest" | "record" | "other";
+⋮----
+export interface IngestionSourceSnapshot {
+  readonly id: string;
+  readonly notebookId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification: SourceClassification;
+  readonly tags: readonly string[];
+  readonly status: SourceStatus;
+  readonly storageUrl?: string;
+  /** External origin URI (e.g. GCS path, URL) */
+  readonly originUri?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+  readonly deletedAtISO?: string;
+}
+⋮----
+/** External origin URI (e.g. GCS path, URL) */
+⋮----
+export interface RegisterIngestionSourceInput {
+  readonly notebookId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification?: SourceClassification;
+  readonly tags?: string[];
+  readonly storageUrl?: string;
+  readonly originUri?: string;
+}
+⋮----
+export class IngestionSource
+⋮----
+private constructor(private _props: IngestionSourceSnapshot)
+⋮----
+static register(input: RegisterIngestionSourceInput): IngestionSource
+⋮----
+static reconstitute(snapshot: IngestionSourceSnapshot): IngestionSource
+⋮----
+markReady(): void
+⋮----
+archive(): void
+⋮----
+get id(): string
+get name(): string
+get status(): SourceStatus
+get workspaceId(): string
+get notebookId(): string | undefined
+⋮----
+getSnapshot(): Readonly<IngestionSourceSnapshot>
+⋮----
+pullDomainEvents()
+````
+
+## File: src/modules/notebooklm/subdomains/source/domain/repositories/IngestionSourceRepository.ts
+````typescript
+import type { IngestionSourceSnapshot, SourceStatus } from "../entities/IngestionSource";
+⋮----
+export interface IngestionSourceQuery {
+  readonly notebookId?: string;
+  readonly workspaceId?: string;
+  readonly accountId?: string;
+  readonly status?: SourceStatus;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+⋮----
+export interface IngestionSourceRepository {
+  save(snapshot: IngestionSourceSnapshot): Promise<void>;
+  findById(id: string): Promise<IngestionSourceSnapshot | null>;
+  findByNotebookId(notebookId: string): Promise<IngestionSourceSnapshot[]>;
+  query(params: IngestionSourceQuery): Promise<IngestionSourceSnapshot[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(snapshot: IngestionSourceSnapshot): Promise<void>;
+findById(id: string): Promise<IngestionSourceSnapshot | null>;
+findByNotebookId(notebookId: string): Promise<IngestionSourceSnapshot[]>;
+query(params: IngestionSourceQuery): Promise<IngestionSourceSnapshot[]>;
+delete(id: string): Promise<void>;
+````
+
+## File: src/modules/notebooklm/subdomains/source/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/adapters/inbound/index.ts
+````typescript
+// inbound adapters for synthesis subdomain
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/adapters/outbound/index.ts
+````typescript
+// outbound adapters for synthesis subdomain (Genkit implementation lives in infrastructure/ai/)
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/application/use-cases/RunSynthesisUseCase.ts
+````typescript
+import { v4 as uuid } from "uuid";
+import type { SynthesisPort } from "../../domain/ports/SynthesisPort";
+import type { SynthesisInput, SynthesisResultSnapshot } from "../../domain/entities/SynthesisResult";
+⋮----
+export interface RunSynthesisResult {
+  readonly ok: boolean;
+  readonly result?: SynthesisResultSnapshot;
+  readonly error?: string;
+}
+⋮----
+export class RunSynthesisUseCase
+⋮----
+constructor(private readonly synthesisPort: SynthesisPort)
+⋮----
+async execute(input: SynthesisInput): Promise<RunSynthesisResult>
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/domain/entities/SynthesisResult.ts
+````typescript
+/**
+ * SynthesisResult — value object produced by a RAG synthesis operation.
+ *
+ * Owned by notebooklm/synthesis subdomain.
+ * The synthesis port (SynthesisPort) is the primary contract for calling AI.
+ * The Genkit flow (infrastructure/ai/synthesis.flow.ts) implements the port.
+ */
+⋮----
+export interface SynthesisCitation {
+  readonly index: number;
+  /** Raw citation identifier returned by the synthesis flow. */
+  readonly ref: string;
+}
+⋮----
+/** Raw citation identifier returned by the synthesis flow. */
+⋮----
+export interface SynthesisResultSnapshot {
+  readonly id: string;
+  readonly notebookId?: string;
+  readonly question: string;
+  readonly answer: string;
+  readonly citations: readonly SynthesisCitation[];
+  readonly model?: string;
+  readonly completedAtISO: string;
+}
+⋮----
+export interface SynthesisInput {
+  readonly notebookId?: string;
+  readonly question: string;
+  readonly contextChunks: readonly string[];
+  readonly maxCitations?: number;
+  readonly model?: string;
+}
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/domain/ports/SynthesisPort.ts
+````typescript
+import type { SynthesisInput, SynthesisResultSnapshot } from "../entities/SynthesisResult";
+⋮----
+/** Outbound port — implemented by infrastructure/ai/synthesis.flow adapter. */
+export interface SynthesisPort {
+  synthesize(input: SynthesisInput): Promise<SynthesisResultSnapshot>;
+}
+⋮----
+synthesize(input: SynthesisInput): Promise<SynthesisResultSnapshot>;
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/domain/index.ts
+````typescript
+
+````
+
 ## File: src/modules/notebooklm/AGENTS.md
 ````markdown
 # NotebookLM Module — Agent Guide
@@ -17999,22 +18388,6 @@ delete(id: string): Promise<void>;
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notebooklm/index.ts
-````typescript
-/**
- * Notebooklm Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// document
-⋮----
-// notebook
-⋮----
-// conversation
-⋮----
-// orchestration — source processing workflow
 ````
 
 ## File: src/modules/notebooklm/README.md
@@ -18784,6 +19157,173 @@ delete(id: string): Promise<void>;
 
 ````
 
+## File: src/modules/notion/subdomains/knowledge/adapters/inbound/index.ts
+````typescript
+// inbound adapters for knowledge subdomain
+````
+
+## File: src/modules/notion/subdomains/knowledge/adapters/outbound/memory/InMemoryKnowledgeArtifactRepository.ts
+````typescript
+import type { KnowledgeArtifactSnapshot, KnowledgeArtifactStatus, KnowledgeArtifactType } from "../../../domain/entities/KnowledgeArtifact";
+import type { KnowledgeArtifactRepository, KnowledgeArtifactQuery } from "../../../domain/repositories/KnowledgeArtifactRepository";
+⋮----
+export class InMemoryKnowledgeArtifactRepository implements KnowledgeArtifactRepository
+⋮----
+async save(snapshot: KnowledgeArtifactSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<KnowledgeArtifactSnapshot | null>
+⋮----
+async query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/knowledge/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/knowledge/adapters/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/knowledge/application/use-cases/KnowledgeArtifactUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { KnowledgeArtifact, type CreateKnowledgeArtifactInput } from "../../domain/entities/KnowledgeArtifact";
+import type { KnowledgeArtifactRepository, KnowledgeArtifactQuery } from "../../domain/repositories/KnowledgeArtifactRepository";
+⋮----
+export class CreateKnowledgeArtifactUseCase
+⋮----
+constructor(private readonly repo: KnowledgeArtifactRepository)
+⋮----
+async execute(input: CreateKnowledgeArtifactInput): Promise<CommandResult>
+⋮----
+export class PublishKnowledgeArtifactUseCase
+⋮----
+async execute(artifactId: string): Promise<CommandResult>
+⋮----
+export class ArchiveKnowledgeArtifactUseCase
+⋮----
+export class QueryKnowledgeArtifactsUseCase
+⋮----
+async execute(params: KnowledgeArtifactQuery)
+````
+
+## File: src/modules/notion/subdomains/knowledge/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/notion/subdomains/knowledge/domain/entities/KnowledgeArtifact.ts
+````typescript
+/**
+ * KnowledgeArtifact — canonical ubiquitous-language aggregate for the notion
+ * bounded context.
+ *
+ * A KnowledgeArtifact is the top-level knowledge unit authored, versioned, and
+ * published within a workspace. It acts as the canonical container; subordinate
+ * building blocks (Page, Block) represent implementation details.
+ *
+ * "KnowledgeArtifact" is the strategic term per
+ * docs/structure/domain/ubiquitous-language.md.
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type KnowledgeArtifactStatus = "draft" | "published" | "archived";
+export type KnowledgeArtifactType = "article" | "wiki" | "guide" | "reference" | "other";
+⋮----
+export interface KnowledgeArtifactSnapshot {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly organizationId: string;
+  readonly title: string;
+  readonly type: KnowledgeArtifactType;
+  readonly status: KnowledgeArtifactStatus;
+  readonly authorId: string;
+  /** Root page ID linking this artifact to the page subdomain. */
+  readonly rootPageId?: string;
+  readonly tags: readonly string[];
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+  readonly publishedAtISO?: string;
+  readonly archivedAtISO?: string;
+}
+⋮----
+/** Root page ID linking this artifact to the page subdomain. */
+⋮----
+export interface CreateKnowledgeArtifactInput {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly organizationId: string;
+  readonly title: string;
+  readonly type?: KnowledgeArtifactType;
+  readonly authorId: string;
+  readonly tags?: string[];
+}
+⋮----
+export class KnowledgeArtifact
+⋮----
+private constructor(private _props: KnowledgeArtifactSnapshot)
+⋮----
+static create(input: CreateKnowledgeArtifactInput): KnowledgeArtifact
+⋮----
+static reconstitute(snapshot: KnowledgeArtifactSnapshot): KnowledgeArtifact
+⋮----
+publish(): void
+⋮----
+archive(): void
+⋮----
+linkRootPage(pageId: string): void
+⋮----
+rename(title: string): void
+⋮----
+get id(): string
+get title(): string
+get status(): KnowledgeArtifactStatus
+get workspaceId(): string
+get authorId(): string
+get type(): KnowledgeArtifactType
+⋮----
+getSnapshot(): Readonly<KnowledgeArtifactSnapshot>
+⋮----
+pullDomainEvents()
+````
+
+## File: src/modules/notion/subdomains/knowledge/domain/repositories/KnowledgeArtifactRepository.ts
+````typescript
+import type { KnowledgeArtifactSnapshot, KnowledgeArtifactStatus, KnowledgeArtifactType } from "../entities/KnowledgeArtifact";
+⋮----
+export interface KnowledgeArtifactQuery {
+  readonly workspaceId?: string;
+  readonly accountId?: string;
+  readonly status?: KnowledgeArtifactStatus;
+  readonly type?: KnowledgeArtifactType;
+  readonly authorId?: string;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+⋮----
+export interface KnowledgeArtifactRepository {
+  save(snapshot: KnowledgeArtifactSnapshot): Promise<void>;
+  findById(id: string): Promise<KnowledgeArtifactSnapshot | null>;
+  query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(snapshot: KnowledgeArtifactSnapshot): Promise<void>;
+findById(id: string): Promise<KnowledgeArtifactSnapshot | null>;
+query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>;
+delete(id: string): Promise<void>;
+````
+
+## File: src/modules/notion/subdomains/knowledge/domain/index.ts
+````typescript
+
+````
+
 ## File: src/modules/notion/subdomains/page/adapters/inbound/index.ts
 ````typescript
 // page — inbound adapters placeholder
@@ -19204,26 +19744,6 @@ delete(id: string): Promise<void>;
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/notion/index.ts
-````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
 ````
 
 ## File: src/modules/notion/README.md
@@ -20624,6 +21144,150 @@ export interface PlatformScopeProps {
 
 ````
 
+## File: src/modules/platform/subdomains/audit-log/adapters/inbound/index.ts
+````typescript
+// inbound adapters for audit-log subdomain
+````
+
+## File: src/modules/platform/subdomains/audit-log/adapters/outbound/memory/InMemoryAuditLogRepository.ts
+````typescript
+import type { AuditLogEntrySnapshot, AuditAction } from "../../../domain/entities/AuditLogEntry";
+import type { AuditLogRepository, AuditLogQuery } from "../../../domain/repositories/AuditLogRepository";
+⋮----
+export class InMemoryAuditLogRepository implements AuditLogRepository
+⋮----
+async append(snapshot: AuditLogEntrySnapshot): Promise<void>
+⋮----
+async query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>
+````
+
+## File: src/modules/platform/subdomains/audit-log/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/platform/subdomains/audit-log/adapters/index.ts
+````typescript
+
+````
+
+## File: src/modules/platform/subdomains/audit-log/application/use-cases/AuditLogUseCases.ts
+````typescript
+import { AuditLogEntry, type RecordAuditEntryInput } from "../../domain/entities/AuditLogEntry";
+import type { AuditLogRepository, AuditLogQuery } from "../../domain/repositories/AuditLogRepository";
+import type { AuditLogEntrySnapshot } from "../../domain/entities/AuditLogEntry";
+⋮----
+export class RecordAuditEntryUseCase
+⋮----
+constructor(private readonly repo: AuditLogRepository)
+⋮----
+async execute(input: RecordAuditEntryInput): Promise<AuditLogEntrySnapshot>
+⋮----
+export class QueryAuditLogUseCase
+⋮----
+async execute(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>
+````
+
+## File: src/modules/platform/subdomains/audit-log/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/platform/subdomains/audit-log/domain/entities/AuditLogEntry.ts
+````typescript
+/**
+ * AuditLogEntry — immutable record of a significant platform action.
+ *
+ * Owned by platform/audit-log subdomain.
+ * Entries are append-only; no mutations are permitted after creation.
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type AuditAction =
+  | "create"
+  | "update"
+  | "delete"
+  | "archive"
+  | "publish"
+  | "invite"
+  | "access"
+  | "export"
+  | string;
+⋮----
+export interface AuditLogEntrySnapshot {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly actorId: string;
+  readonly action: AuditAction;
+  /** e.g. "workspace", "knowledge_artifact", "member" */
+  readonly resourceType: string;
+  readonly resourceId: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly occurredAtISO: string;
+}
+⋮----
+/** e.g. "workspace", "knowledge_artifact", "member" */
+⋮----
+export interface RecordAuditEntryInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly actorId: string;
+  readonly action: AuditAction;
+  readonly resourceType: string;
+  readonly resourceId: string;
+  readonly metadata?: Record<string, unknown>;
+}
+⋮----
+export class AuditLogEntry
+⋮----
+private constructor(private readonly _props: AuditLogEntrySnapshot)
+⋮----
+static record(input: RecordAuditEntryInput): AuditLogEntry
+⋮----
+static reconstitute(snapshot: AuditLogEntrySnapshot): AuditLogEntry
+⋮----
+get id(): string
+get actorId(): string
+get action(): AuditAction
+get resourceType(): string
+get resourceId(): string
+get occurredAtISO(): string
+⋮----
+getSnapshot(): Readonly<AuditLogEntrySnapshot>
+````
+
+## File: src/modules/platform/subdomains/audit-log/domain/repositories/AuditLogRepository.ts
+````typescript
+import type { AuditLogEntrySnapshot, AuditAction } from "../entities/AuditLogEntry";
+⋮----
+export interface AuditLogQuery {
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly actorId?: string;
+  readonly action?: AuditAction;
+  readonly resourceType?: string;
+  readonly resourceId?: string;
+  readonly fromISO?: string;
+  readonly toISO?: string;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+⋮----
+export interface AuditLogRepository {
+  append(snapshot: AuditLogEntrySnapshot): Promise<void>;
+  query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>;
+}
+⋮----
+append(snapshot: AuditLogEntrySnapshot): Promise<void>;
+query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>;
+````
+
+## File: src/modules/platform/subdomains/audit-log/domain/index.ts
+````typescript
+
+````
+
 ## File: src/modules/platform/subdomains/background-job/adapters/inbound/index.ts
 ````typescript
 
@@ -20960,6 +21624,166 @@ delete(key: string): Promise<void>;
 ````
 
 ## File: src/modules/platform/subdomains/cache/domain/index.ts
+````typescript
+
+````
+
+## File: src/modules/platform/subdomains/feature-flag/adapters/inbound/index.ts
+````typescript
+// inbound adapters for feature-flag subdomain
+````
+
+## File: src/modules/platform/subdomains/feature-flag/adapters/outbound/memory/InMemoryFeatureFlagRepository.ts
+````typescript
+import type { FeatureFlagSnapshot, FlagScope } from "../../../domain/entities/FeatureFlag";
+import type { FeatureFlagRepository, FeatureFlagQuery } from "../../../domain/repositories/FeatureFlagRepository";
+⋮----
+export class InMemoryFeatureFlagRepository implements FeatureFlagRepository
+⋮----
+async save(snapshot: FeatureFlagSnapshot): Promise<void>
+⋮----
+async findByKey(key: string): Promise<FeatureFlagSnapshot | null>
+⋮----
+async query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/platform/subdomains/feature-flag/adapters/outbound/index.ts
+````typescript
+
+````
+
+## File: src/modules/platform/subdomains/feature-flag/adapters/index.ts
+````typescript
+
+````
+
+## File: src/modules/platform/subdomains/feature-flag/application/use-cases/FeatureFlagUseCases.ts
+````typescript
+import { commandSuccess, commandFailureFrom, type CommandResult } from "../../../../../shared";
+import { FeatureFlag, type CreateFeatureFlagInput } from "../../domain/entities/FeatureFlag";
+import type { FeatureFlagRepository, FeatureFlagQuery } from "../../domain/repositories/FeatureFlagRepository";
+⋮----
+export class CreateFeatureFlagUseCase
+⋮----
+constructor(private readonly repo: FeatureFlagRepository)
+⋮----
+async execute(input: CreateFeatureFlagInput): Promise<CommandResult>
+⋮----
+export class ToggleFeatureFlagUseCase
+⋮----
+async execute(key: string, enabled: boolean): Promise<CommandResult>
+⋮----
+export class QueryFeatureFlagsUseCase
+⋮----
+async execute(params: FeatureFlagQuery)
+⋮----
+export class ResolveFeatureFlagUseCase
+⋮----
+/** Returns true when the flag is enabled; false when not found or disabled. */
+async execute(key: string, hashValue = 0): Promise<boolean>
+````
+
+## File: src/modules/platform/subdomains/feature-flag/application/index.ts
+````typescript
+
+````
+
+## File: src/modules/platform/subdomains/feature-flag/domain/entities/FeatureFlag.ts
+````typescript
+/**
+ * FeatureFlag — domain entity for controlled feature release.
+ *
+ * Owned by platform/feature-flag subdomain.
+ * Flags gate features per organization, workspace, or actor, enabling
+ * incremental rollout without a code deploy.
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type FlagScope = "global" | "organization" | "workspace" | "actor";
+⋮----
+export interface FeatureFlagSnapshot {
+  readonly id: string;
+  readonly key: string;
+  readonly enabled: boolean;
+  readonly scope: FlagScope;
+  /** Fraction 0–100; only evaluated when enabled=true and scope needs rollout. */
+  readonly rolloutPercentage: number;
+  readonly description?: string;
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly actorId?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+/** Fraction 0–100; only evaluated when enabled=true and scope needs rollout. */
+⋮----
+export interface CreateFeatureFlagInput {
+  readonly key: string;
+  readonly enabled?: boolean;
+  readonly scope?: FlagScope;
+  readonly rolloutPercentage?: number;
+  readonly description?: string;
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly actorId?: string;
+}
+⋮----
+export class FeatureFlag
+⋮----
+private constructor(private _props: FeatureFlagSnapshot)
+⋮----
+static create(input: CreateFeatureFlagInput): FeatureFlag
+⋮----
+static reconstitute(snapshot: FeatureFlagSnapshot): FeatureFlag
+⋮----
+enable(): void
+⋮----
+disable(): void
+⋮----
+setRollout(percentage: number): void
+⋮----
+/** Returns true when the flag is enabled and the given hash falls within rollout. */
+isEnabledFor(hashValue: number): boolean
+⋮----
+get id(): string
+get key(): string
+get enabled(): boolean
+get rolloutPercentage(): number
+get scope(): FlagScope
+⋮----
+getSnapshot(): Readonly<FeatureFlagSnapshot>
+````
+
+## File: src/modules/platform/subdomains/feature-flag/domain/repositories/FeatureFlagRepository.ts
+````typescript
+import type { FeatureFlagSnapshot, FlagScope } from "../entities/FeatureFlag";
+⋮----
+export interface FeatureFlagQuery {
+  readonly key?: string;
+  readonly scope?: FlagScope;
+  readonly organizationId?: string;
+  readonly workspaceId?: string;
+  readonly actorId?: string;
+  readonly enabledOnly?: boolean;
+}
+⋮----
+export interface FeatureFlagRepository {
+  save(snapshot: FeatureFlagSnapshot): Promise<void>;
+  findByKey(key: string): Promise<FeatureFlagSnapshot | null>;
+  query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>;
+  delete(id: string): Promise<void>;
+}
+⋮----
+save(snapshot: FeatureFlagSnapshot): Promise<void>;
+findByKey(key: string): Promise<FeatureFlagSnapshot | null>;
+query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>;
+delete(id: string): Promise<void>;
+````
+
+## File: src/modules/platform/subdomains/feature-flag/domain/index.ts
 ````typescript
 
 ````
@@ -21709,14 +22533,6 @@ listItems(): readonly SearchItem[];
 - [README.md](README.md) — 模組目錄結構
 - [src/modules/README.md](../README.md) — 模組層總覽
 - [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
-````
-
-## File: src/modules/platform/index.ts
-````typescript
-/**
- * Platform Module — public API surface.
- * All cross-module consumers must import from here only.
- */
 ````
 
 ## File: src/modules/platform/README.md
@@ -31543,4 +32359,90 @@ import tailwindcssAnimate from 'tailwindcss-animate';
     "functions"
   ]
 }
+````
+
+## File: src/modules/ai/index.ts
+````typescript
+/**
+ * AI Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// generation
+⋮----
+// chunk
+⋮----
+// embedding
+⋮----
+// retrieval
+⋮----
+// context
+⋮----
+// safety (content safety policy)
+⋮----
+// pipeline
+⋮----
+// prompt registry
+⋮----
+// citation
+⋮----
+// evaluation
+⋮----
+// memory
+⋮----
+// tool-calling
+````
+
+## File: src/modules/notebooklm/index.ts
+````typescript
+/**
+ * Notebooklm Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// document
+⋮----
+// notebook
+⋮----
+// conversation
+⋮----
+// source (canonical ubiquitous-language term for ingested document)
+⋮----
+// synthesis (RAG answer generation)
+⋮----
+// orchestration — source processing workflow
+````
+
+## File: src/modules/notion/index.ts
+````typescript
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// knowledge (canonical KnowledgeArtifact aggregate)
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
+````
+
+## File: src/modules/platform/index.ts
+````typescript
+/**
+ * Platform Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+// audit-log (platform governance)
+⋮----
+// feature-flag (incremental rollout governance)
 ````

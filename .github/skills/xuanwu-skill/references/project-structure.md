@@ -17,6 +17,7 @@ docs/
       0001-ddd-subdomain-boundary-governance.md (70 lines)
       0002-cross-runtime-nextjs-fn-bridge.md (71 lines)
       0003-module-public-api-surface.md (77 lines)
+      0004-occam-gap-triage-baseline-focus.md (73 lines)
     data/
       .gitkeep (0 lines)
       0001-firestore-subdomain-collection-boundaries.md (101 lines)
@@ -462,6 +463,20 @@ src/
             index.ts (2 lines)
           prompts/
             query-expansion.prompt.ts (6 lines)
+        safety/
+          adapters/
+            inbound/
+              index.ts (1 lines)
+            outbound/
+              index.ts (1 lines)
+          application/
+            use-cases/
+              SafetyUseCases.ts (18 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              SafetyCheckResult.ts (41 lines)
+            index.ts (0 lines)
         tool-calling/
           adapters/
             inbound/
@@ -478,7 +493,7 @@ src/
               AiTool.ts (27 lines)
             index.ts (2 lines)
       AGENTS.md (76 lines)
-      index.ts (26 lines)
+      index.ts (28 lines)
       README.md (111 lines)
     analytics/
       orchestration/
@@ -812,8 +827,43 @@ src/
             repositories/
               NotebookRepository.ts (15 lines)
             index.ts (0 lines)
+        source/
+          adapters/
+            inbound/
+              index.ts (1 lines)
+            outbound/
+              memory/
+                InMemoryIngestionSourceRepository.ts (14 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            use-cases/
+              IngestionSourceUseCases.ts (17 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              IngestionSource.ts (71 lines)
+            repositories/
+              IngestionSourceRepository.ts (24 lines)
+            index.ts (0 lines)
+        synthesis/
+          adapters/
+            inbound/
+              index.ts (1 lines)
+            outbound/
+              index.ts (1 lines)
+          application/
+            use-cases/
+              RunSynthesisUseCase.ts (15 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              SynthesisResult.ts (33 lines)
+            ports/
+              SynthesisPort.ts (8 lines)
+            index.ts (0 lines)
       AGENTS.md (59 lines)
-      index.ts (12 lines)
+      index.ts (16 lines)
       README.md (70 lines)
     notion/
       adapters/
@@ -895,6 +945,25 @@ src/
             repositories/
               DatabaseRepository.ts (15 lines)
             index.ts (0 lines)
+        knowledge/
+          adapters/
+            inbound/
+              index.ts (1 lines)
+            outbound/
+              memory/
+                InMemoryKnowledgeArtifactRepository.ts (12 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            use-cases/
+              KnowledgeArtifactUseCases.ts (19 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              KnowledgeArtifact.ts (72 lines)
+            repositories/
+              KnowledgeArtifactRepository.ts (23 lines)
+            index.ts (0 lines)
         page/
           adapters/
             inbound/
@@ -947,7 +1016,7 @@ src/
               View.ts (41 lines)
             index.ts (2 lines)
       AGENTS.md (62 lines)
-      index.ts (16 lines)
+      index.ts (18 lines)
       README.md (60 lines)
     platform/
       adapters/
@@ -992,6 +1061,25 @@ src/
           index.ts (5 lines)
         index.ts (0 lines)
       subdomains/
+        audit-log/
+          adapters/
+            inbound/
+              index.ts (1 lines)
+            outbound/
+              memory/
+                InMemoryAuditLogRepository.ts (8 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            use-cases/
+              AuditLogUseCases.ts (13 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              AuditLogEntry.ts (60 lines)
+            repositories/
+              AuditLogRepository.ts (22 lines)
+            index.ts (0 lines)
         background-job/
           adapters/
             inbound/
@@ -1033,6 +1121,25 @@ src/
               CacheEntry.ts (7 lines)
             repositories/
               CacheRepository.ts (11 lines)
+            index.ts (0 lines)
+        feature-flag/
+          adapters/
+            inbound/
+              index.ts (1 lines)
+            outbound/
+              memory/
+                InMemoryFeatureFlagRepository.ts (12 lines)
+              index.ts (0 lines)
+            index.ts (0 lines)
+          application/
+            use-cases/
+              FeatureFlagUseCases.ts (22 lines)
+            index.ts (0 lines)
+          domain/
+            entities/
+              FeatureFlag.ts (63 lines)
+            repositories/
+              FeatureFlagRepository.ts (22 lines)
             index.ts (0 lines)
         file-storage/
           adapters/
@@ -1114,7 +1221,7 @@ src/
           domain/
             index.ts (14 lines)
       AGENTS.md (58 lines)
-      index.ts (4 lines)
+      index.ts (8 lines)
       README.md (84 lines)
     shared/
       index.ts (107 lines)
