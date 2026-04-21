@@ -13,7 +13,7 @@
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
-import { Button, createGoogleViewerEmbedUrl, getFirebaseFunctions, httpsCallable } from "@packages";
+import { Button, createGoogleViewerEmbedUrl } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -33,6 +33,7 @@ import {
 import {
   queryDocuments,
   uploadDocumentToStorage,
+  getDocumentDownloadUrl,
 } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
@@ -56,21 +57,6 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tiff",
   "image/tif",
 ]);
-
-/**
- * Convert a Firebase Storage relative path to a gs:// URI required by the
- * document_preview_signed_url callable.
- *
- * storageUrl is stored as a relative path (e.g. "uploads/accountId/…/file.pdf").
- * The callable expects "gs://bucket/path".
- */
-function toGsUri(storagePath: string): string {
-  if (storagePath.startsWith("gs://")) return storagePath;
-  const bucket =
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ??
-    "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-  return `gs://${bucket}/${storagePath}`;
-}
 
 // ── Per-document action state ─────────────────────────────────────────────────
 
@@ -163,30 +149,13 @@ export function NotebooklmSourcesSection({
     setPreviewError(null);
     setPreviewLoading(true);
     try {
-      // Call the callable directly from the browser so the Firebase Functions
-      // SDK automatically attaches the current user's ID token.
-      // A server action cannot forward the client's Firebase auth token, which
-      // would cause UNAUTHENTICATED errors on the callable side.
-      const functions = getFirebaseFunctions();
-      const getSignedUrl = httpsCallable<
-        {
-          account_id: string;
-          workspace_id: string;
-          gcs_uri: string;
-          expires_in_seconds: number;
-        },
-        { preview_url: string; expires_at_iso: string }
-      >(functions, "document_preview_signed_url");
-
-      const result = await getSignedUrl({
-        account_id: accountId,
-        workspace_id: workspaceId,
-        // storageUrl is a relative path; callable requires gs://bucket/path format.
-        gcs_uri: toGsUri(doc.storageUrl),
-        expires_in_seconds: 300,
-      });
-
-      setPreviewUrl(result.data.preview_url);
+      // Use Firebase Storage getDownloadURL() directly on the client.
+      // Storage rules allow read for authenticated users, so the Firebase JS SDK
+      // fetches a token-based download URL without any IAM signing.  The resulting
+      // URL is publicly accessible (token embedded in the URL) and works with
+      // Google Docs Viewer — no Cloud Function round-trip required.
+      const url = await getDocumentDownloadUrl(doc.storageUrl);
+      setPreviewUrl(url);
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : "無法取得預覽連結");
     } finally {

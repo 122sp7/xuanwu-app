@@ -256,7 +256,7 @@ fn/
         parse_document.py (53 lines)
         rag_query_handler.py (23 lines)
         rag_reindex_handler.py (42 lines)
-        source_preview_signed_url.py (44 lines)
+        source_preview_signed_url.py (51 lines)
         storage.py (100 lines)
       schemas/
         __init__.py (0 lines)
@@ -733,7 +733,256 @@ src/
       index.ts (10 lines)
       README.md (57 lines)
     iam/
+      adapters/
+        inbound/
+          react/
+            AuthContext.tsx (67 lines)
+            IamSessionProvider.tsx (9 lines)
+            index.ts (8 lines)
+            PublicLandingView.tsx (28 lines)
+        outbound/
+          firebase-composition.ts (169 lines)
+          FirebaseAccountQueryRepository.ts (92 lines)
+          FirebaseAuthIdentityRepository.ts (52 lines)
+      orchestration/
+        index.ts (3 lines)
+      shared/
+        errors/
+          index.ts (15 lines)
+        events/
+          index.ts (1 lines)
+        types/
+          index.ts (1 lines)
+        index.ts (0 lines)
+      subdomains/
+        access-control/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryAccessPolicyRepository.ts (20 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              AccessControlDTO.ts (12 lines)
+            use-cases/
+              AccessControlUseCases.ts (47 lines)
+            index.ts (0 lines)
+          domain/
+            aggregates/
+              AccessPolicy.ts (53 lines)
+            events/
+              AccessPolicyDomainEvent.ts (36 lines)
+            repositories/
+              AccessPolicyRepository.ts (23 lines)
+            value-objects/
+              PolicyEffect.ts (3 lines)
+              ResourceRef.ts (9 lines)
+              SubjectRef.ts (8 lines)
+            index.ts (0 lines)
+        account/
+          adapters/
+            inbound/
+              http/
+                AccountController.ts (31 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreAccountRepository.ts (50 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              AccountDTO.ts (0 lines)
+            ports/
+              outbound/
+                AccountRepositoryPort.ts (12 lines)
+            use-cases/
+              AccountPolicyUseCases.ts (29 lines)
+              AccountUseCases.ts (69 lines)
+            index.ts (5 lines)
+          domain/
+            entities/
+              Account.ts (87 lines)
+              AccountPolicy.ts (38 lines)
+              AccountProfile.ts (17 lines)
+            events/
+              AccountDomainEvent.ts (78 lines)
+            ports/
+              TokenRefreshPort.ts (13 lines)
+            repositories/
+              AccountPolicyRepository.ts (17 lines)
+              AccountQueryRepository.ts (71 lines)
+              AccountRepository.ts (55 lines)
+            value-objects/
+              AccountId.ts (5 lines)
+              AccountStatus.ts (7 lines)
+              AccountType.ts (5 lines)
+              index.ts (0 lines)
+              WalletAmount.ts (5 lines)
+            index.ts (9 lines)
+        authentication/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              AuthenticationUseCases.ts (11 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (27 lines)
+        authorization/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              AuthorizationUseCases.ts (17 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (17 lines)
+        federation/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              FederationUseCases.ts (15 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (22 lines)
+        identity/
+          adapters/
+            inbound/
+              http/
+                IdentityController.ts (21 lines)
+              index.ts (0 lines)
+            outbound/
+              firestore/
+                FirestoreIdentityRepository.ts (35 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              IdentityDTO.ts (0 lines)
+            use-cases/
+              IdentityUseCases.ts (25 lines)
+              TokenRefreshUseCases.ts (9 lines)
+            index.ts (3 lines)
+          domain/
+            entities/
+              Identity.ts (20 lines)
+              TokenRefreshSignal.ts (11 lines)
+              UserIdentity.ts (59 lines)
+            events/
+              IdentityDomainEvent.ts (64 lines)
+            repositories/
+              IdentityRepository.ts (19 lines)
+              TokenRefreshRepository.ts (9 lines)
+            value-objects/
+              DisplayName.ts (5 lines)
+              Email.ts (7 lines)
+              IdentityStatus.ts (5 lines)
+              index.ts (0 lines)
+              UserId.ts (7 lines)
+            index.ts (9 lines)
+        organization/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              firestore/
+                FirestoreOrganizationRepository.ts (159 lines)
+              memory/
+                InMemoryOrganizationRepository.ts (48 lines)
+              index.ts (2 lines)
+            index.ts (1 lines)
+          application/
+            dto/
+              OrganizationDTO.ts (0 lines)
+            use-cases/
+              OrganizationLifecycleUseCases.ts (27 lines)
+              OrganizationMemberUseCases.ts (28 lines)
+              OrganizationTeamUseCases.ts (22 lines)
+            index.ts (0 lines)
+          domain/
+            aggregates/
+              Organization.ts (72 lines)
+              OrganizationTeam.ts (40 lines)
+            entities/
+              Organization.ts (111 lines)
+            events/
+              OrganizationDomainEvent.ts (56 lines)
+              OrganizationTeamDomainEvent.ts (15 lines)
+            repositories/
+              OrganizationRepository.ts (57 lines)
+              OrgPolicyRepository.ts (17 lines)
+            value-objects/
+              MemberRole.ts (7 lines)
+              OrganizationId.ts (5 lines)
+              OrganizationStatus.ts (5 lines)
+              TeamId.ts (5 lines)
+              TeamType.ts (3 lines)
+            index.ts (0 lines)
+        security-policy/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemorySecurityPolicyRepository.ts (7 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              SecurityPolicyUseCases.ts (14 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (69 lines)
+        session/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemorySessionRepository.ts (11 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              SessionUseCases.ts (20 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (63 lines)
+        tenant/
+          adapters/
+            inbound/
+              index.ts (2 lines)
+            outbound/
+              memory/
+                InMemoryTenantRepository.ts (7 lines)
+              index.ts (0 lines)
+            index.ts (1 lines)
+          application/
+            use-cases/
+              TenantUseCases.ts (12 lines)
+            index.ts (0 lines)
+          domain/
+            index.ts (60 lines)
+      AGENTS.md (62 lines)
       index.ts (97 lines)
+      README.md (83 lines)
     notebooklm/
       adapters/
         inbound/
@@ -742,9 +991,9 @@ src/
             NotebooklmAiChatSection.tsx (25 lines)
             NotebooklmNotebookSection.tsx (18 lines)
             NotebooklmResearchSection.tsx (28 lines)
-            NotebooklmSourcesSection.tsx (150 lines)
+            NotebooklmSourcesSection.tsx (141 lines)
           server-actions/
-            document-actions.ts (81 lines)
+            document-actions.ts (82 lines)
             notebook-actions.ts (27 lines)
             source-processing-actions.ts (43 lines)
         outbound/
