@@ -33,6 +33,8 @@ import {
   queryDocuments,
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
+  initSourceDocumentInFirestore,
+  toGcsUri,
 } from "../../../adapters/outbound/firebase-composition";
 
 interface NotebooklmSourcesSectionProps {
@@ -151,9 +153,22 @@ export function NotebooklmSourcesSection({
     startUpload(async () => {
       try {
         const path = await uploadDocumentToStorage(file, accountId, workspaceId);
+        const gcsUri = toGcsUri(path);
+        const docId = deriveDocIdFromStoragePath(path);
+        // Write initial Firestore record so the document survives page reload
+        // (fn no longer auto-triggers on workspaces/ path; we own the initial write).
+        await initSourceDocumentInFirestore({
+          docId,
+          gcsUri,
+          filename: file.name,
+          sizeBytes: file.size,
+          mimeType: file.type || "application/octet-stream",
+          accountId,
+          workspaceId,
+        });
         const pending = createPendingSourceSnapshot({
           file,
-          storagePath: path,
+          storagePath: gcsUri,
           workspaceId,
           accountId,
         });
