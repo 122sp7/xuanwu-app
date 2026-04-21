@@ -31,7 +31,7 @@ class FirestoreAuthorizationGateway:
         db = fb_firestore.client()
         snap = db.collection("workspaces").document(workspace_id).get()
         if not snap.exists:
-            raise ValueError("workspace not found")
+            raise AuthorizationError("workspace not found")
 
         data = snap.to_dict() or {}
         bound_account_id = str(data.get("accountId", "")).strip()
