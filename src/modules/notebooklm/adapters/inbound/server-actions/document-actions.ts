@@ -194,9 +194,3 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void> {
   );
 }
 
-// NOTE: document_preview_signed_url Cloud Function is kept for future use but
-// is no longer called for preview.  getDocumentDownloadUrl() in
-// firebase-composition.ts (client-side, uses Firebase getDownloadURL()) is the
-// preferred approach: storage.rules grants read to authenticated users, and the
-// token-based download URL returned by Firebase is publicly accessible and
-// therefore works with Google Docs Viewer — no IAM signing required.

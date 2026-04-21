@@ -12,7 +12,6 @@ import pytest
 from interface.schemas.parse_document import ParseDocumentRequest
 from interface.schemas.rag_query import RagQueryRequest
 from interface.schemas.rag_reindex import RagReindexRequest
-from interface.schemas.source_preview import SourcePreviewSignedUrlRequest
 
 
 # ── ParseDocumentRequest ──────────────────────────────────────────────────────
@@ -216,57 +215,3 @@ class TestRagReindexRequest:
         }
         schema = RagReindexRequest.from_raw(raw)
         assert schema.page_count == 10
-
-
-# ── SourcePreviewSignedUrlRequest ──────────────────────────────────────────────
-
-class TestSourcePreviewSignedUrlRequest:
-    def test_fromRaw_WithValidInput_ReturnsSchema(self) -> None:
-        schema = SourcePreviewSignedUrlRequest.from_raw(
-            uid="user-1",
-            raw={
-                "account_id": "acct",
-                "workspace_id": "ws",
-                "gcs_uri": "gs://bucket/uploads/acct/ws/file.pdf",
-                "expires_in_seconds": 180,
-            },
-        )
-        assert schema.uid == "user-1"
-        assert schema.account_id == "acct"
-        assert schema.workspace_id == "ws"
-        assert schema.gcs_uri == "gs://bucket/uploads/acct/ws/file.pdf"
-        assert schema.expires_in_seconds == 180
-
-    def test_fromRaw_EmptyUid_RaisesValueError(self) -> None:
-        with pytest.raises(ValueError, match="登入"):
-            SourcePreviewSignedUrlRequest.from_raw(
-                uid="",
-                raw={
-                    "account_id": "acct",
-                    "workspace_id": "ws",
-                    "gcs_uri": "gs://bucket/uploads/acct/ws/file.pdf",
-                },
-            )
-
-    def test_fromRaw_InvalidGcsUri_RaisesValueError(self) -> None:
-        with pytest.raises(ValueError, match="gcs_uri"):
-            SourcePreviewSignedUrlRequest.from_raw(
-                uid="user-1",
-                raw={
-                    "account_id": "acct",
-                    "workspace_id": "ws",
-                    "gcs_uri": "/uploads/acct/ws/file.pdf",
-                },
-            )
-
-    def test_fromRaw_ExpiryOutOfRange_RaisesValueError(self) -> None:
-        with pytest.raises(ValueError, match="60 到 900"):
-            SourcePreviewSignedUrlRequest.from_raw(
-                uid="user-1",
-                raw={
-                    "account_id": "acct",
-                    "workspace_id": "ws",
-                    "gcs_uri": "gs://bucket/uploads/acct/ws/file.pdf",
-                    "expires_in_seconds": 30,
-                },
-            )
