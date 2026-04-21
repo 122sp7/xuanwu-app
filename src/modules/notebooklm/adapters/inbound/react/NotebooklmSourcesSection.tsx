@@ -92,8 +92,15 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tif",
 ]);
 
+// Keep sourceText safely below Firestore's 1 MiB document limit while preserving
+// enough dense PO context (e.g. AP8 3RDTW + 小計 sequences) for task extraction.
 const SOURCE_TEXT_MAX_CHARS = 80_000;
 
+/**
+ * Normalize parser artifacts written by fn parse_document:
+ * - layout / ocr / genkit: prefer top-level text, then chunk.text
+ * - form: fallback to entity key/value lines when plain text is unavailable
+ */
 function extractTextFromArtifactPayload(payload: unknown): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
   const record = payload as Record<string, unknown>;
@@ -138,7 +145,11 @@ async function loadSourceTextFromArtifactUri(uri: string): Promise<string | unde
     const response = await fetch(artifactUrl);
     if (!response.ok) return undefined;
     return trimSourceText(extractTextFromArtifactPayload(await response.json()));
-  } catch {
+  } catch (error) {
+    console.warn("[notebooklm.sources] unable to load parser artifact", {
+      uri,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return undefined;
   }
 }
@@ -406,6 +417,8 @@ export function NotebooklmSourcesSection({
   const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
+      // Page prefers layout text first because task extraction expects dense
+      // full-document sequences (3RDTW / 小計) preserved by layout output.
       const sourceUri = doc.parsedLayoutJsonGcsUri ?? doc.parsedOcrJsonGcsUri ?? doc.parsedGenkitJsonGcsUri;
       const sourceText = sourceUri ? await loadSourceTextFromArtifactUri(sourceUri) : undefined;
       const result = await createWorkspaceKnowledgePage({
@@ -431,6 +444,8 @@ export function NotebooklmSourcesSection({
   const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
+      // Database prefers form output first to retain structured entity fields;
+      // fallback to layout text when form parser output is not available.
       const sourceUri = doc.parsedFormJsonGcsUri ?? doc.parsedLayoutJsonGcsUri;
       const sourceText = sourceUri ? await loadSourceTextFromArtifactUri(sourceUri) : undefined;
       const result = await createWorkspaceKnowledgeDatabase({
