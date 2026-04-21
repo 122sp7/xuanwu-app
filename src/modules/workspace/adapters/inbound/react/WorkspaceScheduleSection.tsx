@@ -4,7 +4,17 @@
  * WorkspaceScheduleSection — workspace.schedule tab — workspace demand planning.
  */
 
-import { Badge, Button, Input, Textarea } from "@packages";
+import {
+  Badge,
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@packages";
 import { CalendarRange, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClientScheduleUseCases } from "../../outbound/firebase-composition";
@@ -121,16 +131,16 @@ export function WorkspaceScheduleSection({
           value={scheduledAtLocal}
           onChange={(event) => setScheduledAtLocal(event.target.value)}
         />
-        <select
-          value={priority}
-          onChange={(event) => setPriority(event.target.value as DemandPriority)}
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          aria-label="排程優先度"
-        >
-          <option value="low">低</option>
-          <option value="medium">中</option>
-          <option value="high">高</option>
-        </select>
+        <Select value={priority} onValueChange={(value) => setPriority(value as DemandPriority)}>
+          <SelectTrigger aria-label="排程優先度">
+            <SelectValue placeholder="選擇優先度" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">低</SelectItem>
+            <SelectItem value="medium">中</SelectItem>
+            <SelectItem value="high">高</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="hidden sm:block" />
         <div className="sm:col-span-2">
           <Textarea
