@@ -1,5 +1,29 @@
 # integration-firebase — Agent Rules
 
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `auth.ts`
+- `client.ts`
+- `firestore.ts`
+- `functions.ts`
+- `index.ts`
+- `storage.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/integration-firebase/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
+
 此套件是 **Firebase Client SDK 的唯一封裝層**。所有與 Firebase 服務的互動必須透過這個套件提供的介面，不得在 `src/modules/` 或 `src/app/` 中直接 import Firebase SDK。
 
 ---

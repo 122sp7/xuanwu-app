@@ -1,5 +1,24 @@
 # infra/state
 
+<!-- nested-index:start -->
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Pair Contract
+
+- `README.md` 保留最短概覽與實際目錄索引。
+- `AGENTS.md` 保留 routing 與放置決策。
+<!-- nested-index:end -->
+
+
 本地狀態管理原語。封裝 **Zustand 5** 與 **XState 5**，供 `src/modules/*/interfaces/stores/` 與 `src/modules/*/application/machines/` 使用。
 
 ## 套件結構

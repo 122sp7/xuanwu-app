@@ -1,4 +1,23 @@
-﻿# ui-vis — Agent Rules
+# ui-vis — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/ui-vis/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
 
 此套件是 **圖形（Graph）、網絡（Network）與時間軸（Timeline）視覺化能力的唯一授權來源**，透過 vis.js 系列提供互動式節點邊緣圖與事件時間軸。
 

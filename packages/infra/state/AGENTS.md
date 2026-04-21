@@ -1,4 +1,23 @@
-﻿# infra/state — Agent Rules
+# infra/state — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/infra/state/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
 
 此套件提供 **本地狀態管理原語**：Zustand store factory 與 XState machine helpers。
 所有工具均為本地原語，**不連接外部服務**。

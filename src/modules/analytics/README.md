@@ -1,64 +1,30 @@
-﻿# Analytics Module
+# Analytics Module
 
-## 子域清單
+`src/modules/analytics/` 是 分析能力模組；承接事件、指標、洞察與實驗相關實作。
 
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `event-contracts` | 🔨 骨架建立，實作進行中 | 事件契約定義 |
-| `event-ingestion` | 🔨 骨架建立，實作進行中 | 事件接收 / 攝取 |
-| `event-projection` | 🔨 骨架建立，實作進行中 | 事件投影（讀模型）|
-| `experimentation` | 🔨 骨架建立，實作進行中 | A/B 測試與功能實驗管理 |
-| `insights` | 🔨 骨架建立，實作進行中 | 洞察報表 |
-| `metrics` | 🔨 骨架建立，實作進行中 | 指標計算 |
-| `realtime-insights` | 🔨 骨架建立，實作進行中 | 即時洞察 |
+## Navigation Index
 
----
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
 
-## 預期目錄結構
+## Directory Index（actual directories）
 
-```
-src/modules/analytics/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-  shared/
-    events/index.ts             ← Published Language Events
-    types/index.ts
-  subdomains/
-    event-projection/
-      domain/
-      application/
-      adapters/outbound/
-    metrics/
-    event-ingestion/
-    event-contracts/
-    experimentation/
-    insights/
-    realtime-insights/
-```
+- `subdomains/event-contracts/`
+- `subdomains/event-ingestion/`
+- `subdomains/event-projection/`
+- `subdomains/experimentation/`
+- `subdomains/insights/`
+- `subdomains/metrics/`
+- `subdomains/realtime-insights/`
 
----
+## Pair Contract
 
-## 依賴方向
+- `README.md` 維護 `src/modules/analytics/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
 
-```
-adapters/inbound → application → domain ← adapters/outbound
-```
+## Read Next
 
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `domain/` 中 import Firebase SDK、React | 破壞 domain 純度 |
-| 在 barrel 使用 `export *` | 破壞 tree-shaking |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)

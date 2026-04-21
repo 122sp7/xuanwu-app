@@ -1,4 +1,22 @@
-﻿# ui-markdown — Agent Rules
+# ui-markdown — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+
+## Package / Directory Index
+
+- `index.tsx`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/ui-markdown/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
 
 此套件提供 **Markdown 渲染組件**，將 Markdown 字串轉換為格式化 HTML 輸出。
 

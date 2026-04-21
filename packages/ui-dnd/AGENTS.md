@@ -1,4 +1,23 @@
-﻿# ui-dnd — Agent Rules
+# ui-dnd — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/ui-dnd/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
 
 此套件是 **拖放（Drag-and-Drop）能力的唯一授權來源**，透過 Atlassian Pragmatic DnD 提供效能優化的拖放原語。
 

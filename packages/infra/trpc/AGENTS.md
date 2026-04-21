@@ -1,4 +1,23 @@
-﻿# infra/trpc — Agent Rules
+# infra/trpc — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/infra/trpc/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
 
 此套件提供 **tRPC 客戶端設定與 React Provider**。
 注意：tRPC 連接的是**本系統自有伺服器**，不是第三方服務，故歸類為 `infra`。

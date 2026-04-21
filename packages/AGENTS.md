@@ -1,115 +1,37 @@
-﻿# packages — Agent Rules
+# packages — Agent Rules
 
-此目錄是所有 **外部 SDK 與共享能力的唯一封裝層**。修改或新增任何套件前，先確認責任歸屬。
+## Immediate Index
 
----
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Infra subgroup: [infra/AGENTS.md](infra/AGENTS.md)
 
-## Route Here（放這裡）
+## Package Index
 
-### 🧱 infra/* — 基礎設施原語層
+### infra
+- `infra/` —  ([AGENTS.md](infra/AGENTS.md) / [README.md](infra/README.md))
 
-| 類型 | 正確套件 |
-|---|---|
-| client-side 狀態原語（非業務） | `infra/client-state/` → `@infra/client-state` |
-| 日期解析、格式化與比較 | `infra/date/` → `@infra/date` |
-| headless 表單狀態管理 | `infra/form/` → `@infra/form` |
-| HTTP 工具（fetch wrapper、retry） | `infra/http/` → `@infra/http` |
-| Server-state query / mutation 原語 | `infra/query/` → `@infra/query` |
-| 序列化 / 反序列化工具 | `infra/serialization/` → `@infra/serialization` |
-| 本地狀態管理原語（Zustand store factory、XState machine helpers） | `infra/state/` → `@infra/state` |
-| Headless 表格狀態管理 | `infra/table/` → `@infra/table` |
-| tRPC 客戶端設定與 Provider（連接自己的 server，非第三方服務） | `infra/trpc/` → `@infra/trpc` |
-| UUID 生成（domain 層 id 的唯一來源） | `infra/uuid/` → `@infra/uuid` |
-| Zod 共用 schema 片段、brand helper | `infra/zod/` → `@infra/zod` |
+### integration
+- `integration-ai/` — AI 服務整合封裝；SDK 細節應留在這裡。 ([AGENTS.md](integration-ai/AGENTS.md) / [README.md](integration-ai/README.md))
+- `integration-firebase/` — Firebase Client SDK 封裝；modules/app 不直接 import Firebase SDK。 ([AGENTS.md](integration-firebase/AGENTS.md) / [README.md](integration-firebase/README.md))
+- `integration-queue/` — 佇列與訊息發布整合封裝。 ([AGENTS.md](integration-queue/AGENTS.md) / [README.md](integration-queue/README.md))
 
-### 🔌 integration-* — 外部服務整合層
+### ui
+- `ui-components/` — 共享自訂 UI 元件層。 ([AGENTS.md](ui-components/AGENTS.md) / [README.md](ui-components/README.md))
+- `ui-dnd/` — 拖放能力封裝；消費端需以 client component 使用。 ([AGENTS.md](ui-dnd/AGENTS.md) / [README.md](ui-dnd/README.md))
+- `ui-editor/` — 富文本編輯器封裝。 ([AGENTS.md](ui-editor/AGENTS.md) / [README.md](ui-editor/README.md))
+- `ui-markdown/` — Markdown 渲染封裝。 ([AGENTS.md](ui-markdown/AGENTS.md) / [README.md](ui-markdown/README.md))
+- `ui-shadcn/` — shadcn/ui 官方輸出目錄；`ui/` 仍由 CLI 管理。 ([AGENTS.md](ui-shadcn/AGENTS.md) / [README.md](ui-shadcn/README.md))
+- `ui-vis/` — vis.js family 圖形 / 時間軸封裝；以實際匯出為準。 ([AGENTS.md](ui-vis/AGENTS.md) / [README.md](ui-vis/README.md))
+- `ui-visualization/` — Recharts 視覺化封裝。 ([AGENTS.md](ui-visualization/AGENTS.md) / [README.md](ui-visualization/README.md))
 
-| 類型 | 正確套件 |
-|---|---|
-| AI 服務整合（Genkit 封裝、Google AI、OpenAI） | `integration-ai/` → `@integration-ai` |
-| Firebase 整合（App 初始化、Firestore、Auth、Storage、Functions、Realtime） | `integration-firebase/` → `@integration-firebase` |
-| 訊息佇列整合（QStash、Cloud Tasks） | `integration-queue/` → `@integration-queue` |
+## Routing Rules
 
-### 🎨 ui-* — UI 元件層
+- 外部 SDK 封裝與共享 UI / infra 原語放在 `packages/`。
+- 業務規則仍回到 `src/modules/<context>/`。
+- 子套件清單以實際目錄為準，不再手動維護易漂移的省略表。
 
-| 類型 | 正確套件 |
-|---|---|
-| 業務無關自訂 UI 元件（wrap、design-system 擴充） | `ui-components/` → `@ui-components` |
-| 富文本編輯器（TipTap 封裝） | `ui-editor/` → `@ui-editor` |
-| Markdown 渲染元件 | `ui-markdown/` → `@ui-markdown` |
-| 官方 shadcn/ui 組件（`npx shadcn add`） | `ui-shadcn/` → `@ui-shadcn`（CLI 管理，禁止手動修改） |
-| 數據視覺化元件（圖表、圖形） | `ui-visualization/` → `@ui-visualization` |
+## Drift Guard
 
-## Route Elsewhere（不放這裡）
-
-| 類型 | 正確位置 |
-|---|---|
-| 業務邏輯（use case、domain rule） | `src/modules/<context>/domain/` 或 `application/` |
-| Repository 實作 | `src/modules/<context>/adapters/outbound/` |
-| 頁面組合與路由 | `src/app/` |
-| 模組業務 UI pattern | `src/modules/<context>/interfaces/` |
-
----
-
-## 嚴禁
-
-```ts
-// ❌ 在任何 packages/ 套件中 import modules
-import { something } from '@/modules/...'
-
-// ❌ 在 src/modules/ 直接 import 第三方 library
-import { getFirestore } from 'firebase/firestore'
-
-// ❌ 直接修改 ui-shadcn/ui/ 的官方組件
-// ui/button.tsx ← 禁止手動編輯
-
-// ✅ 自訂組件放 ui-custom/
-// ui-custom/AppButton.tsx ← 正確位置
-```
-
-- 不得在套件層加入業務判斷邏輯
-- 每個套件的 `index.ts` 是唯一公開入口
-- 不得洩漏第三方 SDK 型別至消費端（能 wrap 就 wrap）
-
-## 公開匯出規則
-
-- 所有子套件需維持各自 `index.ts` 作為公開入口
-- `packages/index.ts` 必須具名匯出所有套件（`infra-*`、`integration-*`、`ui-*`）
-- 新增套件時，需同步更新本檔、`packages/README.md`、`packages/index.ts`
-
-## Context7 文件對齊規則
-
-- 涉及下列套件時，先以 Context7 查核官方文件再實作：`infra/state`、`infra/trpc`、`infra/uuid`、`infra/zod`、`integration-ai`、`integration-firebase`、`integration-queue`、`ui-markdown`、`ui-shadcn`。
-- 基線文件清單與實作準則以 `packages/README.md` 的「Context7 官方文件基線（repomix:packages）」為準。
-- 若升級相依版本造成 API 差異，需先更新基線文件再改程式碼。
-
----
-
-## 每個套件都有自己的 AGENTS.md
-
-進入任何套件子目錄前，先讀該目錄的 `AGENTS.md`：
-
-**infra/***
-- [infra/client-state/AGENTS.md](./infra/client-state/AGENTS.md)
-- [infra/date/AGENTS.md](./infra/date/AGENTS.md)
-- [infra/form/AGENTS.md](./infra/form/AGENTS.md)
-- [infra/http/AGENTS.md](./infra/http/AGENTS.md)
-- [infra/query/AGENTS.md](./infra/query/AGENTS.md)
-- [infra/serialization/AGENTS.md](./infra/serialization/AGENTS.md)
-- [infra/state/AGENTS.md](./infra/state/AGENTS.md)
-- [infra/table/AGENTS.md](./infra/table/AGENTS.md)
-- [infra/trpc/AGENTS.md](./infra/trpc/AGENTS.md)
-- [infra/uuid/AGENTS.md](./infra/uuid/AGENTS.md)
-- [infra/zod/AGENTS.md](./infra/zod/AGENTS.md)
-
-**integration-***
-- [integration-ai/AGENTS.md](./integration-ai/AGENTS.md)
-- [integration-firebase/AGENTS.md](./integration-firebase/AGENTS.md)
-- [integration-queue/AGENTS.md](./integration-queue/AGENTS.md)
-
-**ui-***
-- [ui-components/AGENTS.md](./ui-components/AGENTS.md)
-- [ui-editor/AGENTS.md](./ui-editor/AGENTS.md)
-- [ui-markdown/AGENTS.md](./ui-markdown/AGENTS.md)
-- [ui-shadcn/AGENTS.md](./ui-shadcn/AGENTS.md)
-- [ui-visualization/AGENTS.md](./ui-visualization/AGENTS.md)
+- `AGENTS.md` 管 nested index 與放置決策。
+- `README.md` 管 packages 層總覽。

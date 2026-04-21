@@ -1,84 +1,31 @@
-﻿# Platform Module
+# Platform Module
 
-> **account / organization 子域已遷入 `src/modules/iam/`**。在 `src/modules/platform/` 中**不得**重建這些子域。
+`src/modules/platform/` 是 平台橫切能力模組；account / organization 已遷入 iam。
 
-## 子域清單
+## Navigation Index
 
-| 子域 | 狀態 | 說明 |
-|---|---|---|
-| `background-job` | ✅ 完成 | 背景工作排程（BackgroundJob / JobDocument / JobChunk）|
-| `cache` | ✅ 完成 | 鍵值快取、TTL 設定 |
-| `file-storage` | ✅ 完成 | 上傳、下載、檔案生命週期 |
-| `notification` | ✅ 完成 | 通知發送 |
-| `platform-config` | ✅ 完成 | 平台設定 |
-| `search` | ✅ 完成 | 跨域搜尋 |
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent: [../README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
 
-**已遷移（不在 platform）：**
+## Directory Index（actual directories）
 
-| 子域 | 遷移目標 |
-|---|---|
-| `account` | `src/modules/iam/subdomains/account/` |
-| `organization` | `src/modules/iam/subdomains/organization/` |
+- `subdomains/audit-log/`
+- `subdomains/background-job/`
+- `subdomains/cache/`
+- `subdomains/feature-flag/`
+- `subdomains/file-storage/`
+- `subdomains/notification/`
+- `subdomains/platform-config/`
+- `subdomains/search/`
 
----
+## Pair Contract
 
-## 目錄結構
+- `README.md` 維護 `src/modules/platform/` 的最短概覽與實際目錄索引。
+- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
+- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
 
-```
-src/modules/platform/
-  index.ts
-  README.md
-  AGENTS.md
-  orchestration/
-    PlatformFacade.ts
-  shared/
-    domain/index.ts
-    events/index.ts             ← Platform Published Language Events
-    types/index.ts
-  subdomains/
-    notification/
-      domain/
-      application/
-      adapters/outbound/
-    background-job/
-      domain/                   ← BackgroundJob / JobDocument / JobChunk
-      application/
-      adapters/outbound/
-    cache/
-    file-storage/
-    platform-config/
-    search/
-```
+## Read Next
 
----
-
-## 依賴方向
-
-Platform 是 T1 operational support，依賴方向固定：
-
-```
-iam     → platform
-billing → platform (entitlement governance)
-platform → workspace
-(platform 也被 notion, notebooklm 以 Service API 形式消費)
-```
-
-Platform 不可依賴下游模組（workspace、notion、notebooklm、analytics）。
-
----
-
-## 衝突防護
-
-| 禁止行為 | 原因 |
-|---|---|
-| 在 `src/modules/platform/` 重建 account / org 子域 | 已遷入 iam |
-| 使用 `Ingestion*` 命名 | 已語意化為 BackgroundJob / JobDocument / JobChunk |
-| platform 依賴 workspace / notion / notebooklm | 違反上游依賴方向 |
-
----
-
-## 文件網絡
-
-- [AGENTS.md](AGENTS.md) — Agent / Copilot 使用規則
-- [src/modules/README.md](../README.md) — 模組層總覽
-- [docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md) — 主域所有權地圖
+- [../AGENTS.md](../AGENTS.md)
+- [../../../docs/README.md](../../../docs/README.md)

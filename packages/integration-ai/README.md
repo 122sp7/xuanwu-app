@@ -1,5 +1,25 @@
 # integration-ai
 
+<!-- nested-index:start -->
+## Navigation Index
+
+- Pair: [AGENTS.md](AGENTS.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `genkit.ts`
+- `index.ts`
+
+## Pair Contract
+
+- `README.md` 保留最短概覽與實際目錄索引。
+- `AGENTS.md` 保留 routing 與放置決策。
+<!-- nested-index:end -->
+
+
 AI 服務整合層：Genkit singleton、flow 執行合約、共用 AI 型別。
 
 ## 套件結構
