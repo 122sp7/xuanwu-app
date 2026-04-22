@@ -1,44 +1,69 @@
-# Notion Module — Agent Guide
+# notion Agent Rules
 
-## Purpose
+## ROLE
 
-`src/modules/notion/` 是 KnowledgeArtifact 模組；Page / Block / Database 等可寫內容由此所有。
+- The agent MUST treat notion as the owner of canonical writable knowledge content and its structure.
+- The agent MUST keep notion focused on knowledge authoring, structure, and collaboration, not notebooklm reasoning UX or shared AI mechanism ownership.
 
-## Immediate Index
+## DOMAIN BOUNDARIES
 
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
+- The agent MUST keep block, collaboration, database, knowledge, page, template, and view inside notion.
+- The agent MUST expose cross-module capabilities through [index.ts](index.ts).
+- The agent MUST keep shared AI mechanism ownership in ai and notebook reasoning UX in notebooklm.
 
-## Subdomain Index（actual directories）
+## TOOL USAGE
 
-- `subdomains/block/`
-- `subdomains/collaboration/`
-- `subdomains/database/`
-- `subdomains/knowledge/`
-- `subdomains/page/`
-- `subdomains/template/`
-- `subdomains/view/`
+- The agent MUST validate subdomain path references before edits.
+- The agent MUST keep notion terminology aligned with strategic docs.
+- The agent MUST scope edits to notion-owned docs and capabilities.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Select the owning notion subdomain.
+	4. Apply bounded changes.
+	5. Validate links and terminology consistency.
+
+## DATA CONTRACT
+
+- The agent MUST keep knowledge, page, block, template, and collaboration wording precise.
+- The agent MUST keep subdomain indexes synchronized with actual directories.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move notebooklm reasoning ownership into notion.
+- The agent MUST NOT move generic AI capability ownership into notion.
+
+## ERROR HANDLING
+
+- The agent MUST report stale links, missing docs, or ownership ambiguity.
+- The agent MUST stop and ask for direction if notion and notebooklm boundaries blur.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS focused on routing and constraints.
+- The agent MUST keep README focused on overview and navigation.
+
+## SECURITY
+
+- The agent MUST preserve content ownership and publication wording.
+- The agent MUST avoid unsafe content-handling shortcuts in docs.
 
 ## Route Here When
 
-- 需要在 `src/modules/notion/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+- You update notion knowledge, page, block, database, or collaboration behavior or docs.
+- You need the notion module boundary or subdomain routing contract.
 
 ## Route Elsewhere When
 
-- RAG UX / conversation flow → `src/modules/notebooklm/`
-- AI mechanism → `src/modules/ai/`
-- 跨模組 API → `src/modules/notion/index.ts`
+- Notebook reasoning UX concerns: [../notebooklm/AGENTS.md](../notebooklm/AGENTS.md)
+- Shared AI mechanism concerns: [../ai/AGENTS.md](../ai/AGENTS.md)
 
-## Drift Guard
+## Quick Links
 
-- `AGENTS.md` 擁有 `src/modules/notion/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+- Pair: [README.md](README.md)
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)

@@ -1,27 +1,49 @@
-# NotebookLM Module
+# notebooklm
 
-`src/modules/notebooklm/` 是 NotebookLM 使用者體驗模組；實際子域以目錄結構為準。
+## PURPOSE
 
-## Navigation Index
+notebooklm 模組負責 notebook-based reasoning UX、conversation flow、source 管理與 synthesis 語言。
+它承接推理與衍生輸出體驗，不擁有通用 AI mechanism 或可寫知識正典。
 
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
+## GETTING STARTED
 
-## Directory Index（actual directories）
+先閱讀：
 
-- `subdomains/conversation/`
-- `subdomains/notebook/`
-- `subdomains/source/`
-- `subdomains/synthesis/`
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../../../docs/README.md](../../../docs/README.md)
 
-## Pair Contract
+## ARCHITECTURE
 
-- `README.md` 維護 `src/modules/notebooklm/` 的最短概覽與實際目錄索引。
-- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
-- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+notebooklm 由 conversation、notebook、source、synthesis 等子域組成。
+跨模組整合應透過 [index.ts](index.ts) 消費公開能力。
 
-## Read Next
+## PROJECT STRUCTURE
 
-- [../AGENTS.md](../AGENTS.md)
-- [../../../docs/README.md](../../../docs/README.md)
+- [subdomains/conversation](subdomains/conversation)
+- [subdomains/notebook](subdomains/notebook)
+- [subdomains/source](subdomains/source)
+- [subdomains/synthesis](subdomains/synthesis)
+
+## DEVELOPMENT RULES
+
+- MUST keep notebooklm as reasoning UX owner.
+- MUST expose cross-module capability via [index.ts](index.ts).
+- MUST keep notebook, source, and synthesis terminology explicit.
+- MUST avoid mixing ai mechanism or notion canonical ownership into notebooklm.
+
+## AI INTEGRATION
+
+notebooklm 直接消費 ai 模組提供的 shared capability，並產出 notebook-specific synthesis experience。
+任何整合都應尊重 ai 與 notion 的邊界，不直接耦合內部模型。
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent modules index: [../README.md](../README.md)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內定位 notebooklm 的四個主子域。
+- 可在 3 分鐘內判斷變更屬於 conversation、notebook、source 或 synthesis。
