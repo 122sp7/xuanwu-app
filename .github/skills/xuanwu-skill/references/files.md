@@ -1,128 +1,5 @@
 # Files
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-#use skill serena-mcp
-#use skill repomix
-#use skill context7
-#use skill xuanwu-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-markdown-skill
-#use skill occams-razor
-#use skill alistair-cockburn
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
-
-## Session Contract
-
-### Mandatory Skills (Load Every Session, No Exceptions)
-
-These three skills **must be loaded at the start of every conversation** before any other action:
-
-| Order | Skill | Purpose |
-|---|---|---|
-| 1 | `serena-mcp` | Project memory, symbol index, onboarding state |
-| 2 | `repomix` | Repo structure exploration, pattern search, skill refresh |
-| 3 | `context7` | Library/framework API verification gate |
-
-- If Serena is unavailable, bootstrap it first (`uvx --from git+https://github.com/oraios/serena serena start-mcp-server`), activate `xuanwu-app`, then proceed.
-- Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
-- If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
-- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
-
-## Mandatory Compliance Rules
-
-These rules are **non-negotiable** and apply to every task, file, and decision. Any violation requires an immediate stop and explicit report before proceeding.
-
-1. **AI Operational Scope**: Without explicit authorization, do not create files, add modules, modify interface definitions, or make any changes beyond the scope of the current task description.
-2. **Bounded Context**: Every concept belongs to exactly one Context. When referencing a same-named concept across Contexts, an explicit mapping layer must be established. Sharing types or objects directly is not permitted.
-3. **Ubiquitous Language Governance**: All naming must derive from the defined Domain glossary. When encountering a name not in the glossary, halt implementation and report it. Self-naming is not permitted.
-4. **Contract / Schema**: All data entering the system must pass through a defined Schema validation. Accessing raw input outside the validation layer is not permitted. Assuming input is valid is not permitted.
-5. **Breaking Change Policy**: When modifying any externally exposed Schema, interface, or event structure, a new version must be added and the old version retained. Direct overwriting is not permitted.
-6. **Aggregate Design**: All modifications to an Aggregate's internal state must be executed through that Aggregate's own methods. Directly modifying an Aggregate's properties or child objects from outside is not permitted.
-7. **State Model / FSM**: Every state transition must exist in the defined list of legal transitions. Transition paths that are not defined must throw an error. Silent ignoring or self-inferred transitions are not permitted.
-8. **Consistency / Transaction Strategy**: Operations spanning Aggregates or Contexts must not be wrapped in a single transaction. A defined saga or outbox pattern must be used. Designing ad-hoc synchronous coupling solutions is not permitted.
-9. **Event Ordering / Causality Model**: All event handlers must implement idempotency. Assuming events arrive in send order is not permitted. Sequence must be determined using a causality token or version number.
-10. **Failure Strategy**: Every external call must define a failure handling path (retry / compensate / dead-letter). Silently swallowing exceptions is not permitted. Assuming external services always succeed is not permitted.
-11. **Authorization / Security**: Every operation must verify that the caller holds the required permission before execution. Relying on call order or upstream validation as implicit authorization is not permitted.
-12. **Hexagonal Architecture**: The Domain layer must not import any types from Infrastructure, Frameworks, or external services. All external dependencies must be accessed through defined Port interfaces.
-13. **Dependency Rule Enforcement**: Dependencies may only flow inward (Infrastructure → Application → Domain). Reverse dependencies are forbidden. Direct imports between Contexts at the same layer are forbidden.
-14. **Testability / Specification**: Every Domain behavior must have corresponding automated test coverage. Implementing logic structures that cannot be verified by the existing test framework is not permitted.
-15. **Observability**: All cross-layer calls, state changes, and errors must produce structured, traceable records. Replacing structured events with print statements or log strings is not permitted.
-16. **ADR / Design Rationale**: When multiple implementation options are technically viable, do not choose independently. Halt, list the options and their differences, and wait for a human decision before proceeding.
-17. **Minimum Necessary Design / YAGNI**: Do not create abstractions, interfaces, or extension points for future possibilities. Every new structure must correspond to a requirement that explicitly exists in the current task.
-18. **Single Responsibility / No Redundancy**: Every concept must be defined exactly once in exactly one layer. When the same semantic is found expressed in multiple places, report the conflict. Allowing both to coexist is not permitted.
-19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
-20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
-
-> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
-
-## Read Order
-
-1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
-
-## Instruction Series (Phase 1)
-
-- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
-- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
-- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
-- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
-- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
-
-## Module Layer Routing（src-only）
-
-本 repo 已全面改為 `src/modules/` 單一模組層：
-
-| 路徑 | 職責 | 撰寫時機 |
-|---|---|---|
-| `src/modules/<context>/` | 主域模組實作層（Hexagonal DDD） | 修改邊界規則、domain model、跨模組 API、use case 與 adapters |
-
-- 不確定放在哪一層 → 讀 `src/modules/<context>/AGENTS.md` 的 **Route Here / Route Elsewhere** 段落。
-- 新實作一律以 `src/modules/template` 骨架為基線。
-- 阅讀 strategic boundary / published language → `src/modules/<context>/index.ts` 與 `src/modules/<context>/AGENTS.md`。
-
-## Operating Rules
-
-> Dependency direction, domain purity, cross-module boundary, and planning discipline are governed by **Mandatory Compliance Rules 12–13, 16–17**. Items below are repo-specific structural decisions.
-
-- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
-
-## Governance Rules
-
-- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
-- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
-- Use [skills/xuanwu-skill/SKILL.md](skills/xuanwu-skill/SKILL.md) and [skills/xuanwu-markdown-skill/SKILL.md](skills/xuanwu-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
-- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
-
-## Terminology
-
-> Governed by **Mandatory Compliance Rule 3**. Authority: [docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
-
-## DDD Strategic Rules (Phase 1)
-
-- Use [instructions/subdomain-rules.instructions.md](./instructions/subdomain-rules.instructions.md) for subdomain design rules.
-- Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
-- Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
-- Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
-````
-
 ## File: docs/decisions/adr/.gitkeep
 ````
 
@@ -18083,6 +17960,188 @@ const handleSynthesize = () =>
 href=
 ````
 
+## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
+````typescript
+/**
+ * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
+ *
+ * Manual Document AI pipeline controls:
+ *   ① 上傳文件  — upload to Firebase Storage only
+ *   ② 解析文件  — manually trigger Layout/Form/OCR/Genkit-AI via callable
+ *   ③ RAG 索引  — manually trigger RAG reindex via callable
+ *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
+ *   ⑤ 建立資料庫 — create Notion Database named after document (for Form Parser entities)
+ *
+ * Artifact display: page count, layout chunks, form entities, RAG vector count.
+ */
+⋮----
+import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
+import {
+  Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
+  Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
+  Layers, Braces, BarChart2, CheckCircle2,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState, useTransition } from "react";
+⋮----
+import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
+import {
+  queryDocuments,
+  uploadDocumentToStorage,
+  getDocumentDownloadUrl,
+  initSourceDocumentInFirestore,
+  toGcsUri,
+  callParseDocument,
+  callReindexDocument,
+} from "../../../adapters/outbound/firebase-composition";
+import {
+  createWorkspaceKnowledgeDatabase,
+  createWorkspaceKnowledgePage,
+} from "@/src/modules/notion";
+⋮----
+interface NotebooklmSourcesSectionProps {
+  workspaceId: string;
+  accountId: string;
+}
+⋮----
+function deriveDocIdFromStoragePath(storagePath: string): string
+⋮----
+function createPendingSourceSnapshot(input: {
+  file: File;
+  storagePath: string;
+  workspaceId: string;
+  accountId: string;
+}): IngestionSourceSnapshot
+⋮----
+// Upload is done; show "已就緒" until a parse callable is explicitly triggered.
+// fn's parse_document callable will set status back to "processing" when it starts.
+⋮----
+/** MIME types renderable via Google Doc Viewer */
+⋮----
+// Keep sourceText safely below Firestore's 1 MiB document limit. 80k chars is
+// ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
+// ample headroom for the rest of the page/database snapshot fields.
+⋮----
+/**
+ * Normalize parser artifacts written by fn parse_document:
+ * - layout / ocr / genkit: prefer top-level text, then chunk.text
+ * - form: fallback to entity key/value lines when plain text is unavailable
+ */
+function extractTextFromArtifactPayload(payload: unknown): string | undefined
+⋮----
+function trimSourceText(text: string | undefined): string | undefined
+⋮----
+async function loadSourceTextFromArtifactUri(uri: string): Promise<string | undefined>
+⋮----
+// ── Per-document action state ─────────────────────────────────────────────────
+⋮----
+type DocActionStatus = "idle" | "running" | "done" | "error";
+⋮----
+interface DocActionState {
+  parseLayout: DocActionStatus;
+  parseForm: DocActionStatus;
+  parseOcr: DocActionStatus;
+  parseGenkit: DocActionStatus;
+  index: DocActionStatus;
+  reindex: DocActionStatus;
+  page: DocActionStatus;
+  database: DocActionStatus;
+  message?: string;
+  pageHref?: string;
+  databaseHref?: string;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+// Preview state
+⋮----
+// Per-document expanded / action state
+⋮----
+// JSON viewer modal state
+⋮----
+const load = () =>
+⋮----
+// Auto-load on mount so sources are visible without a manual click.
+useEffect(() => { load(); }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+⋮----
+// Write initial Firestore record so the document survives page reload
+// (fn no longer auto-triggers on workspaces/ path; we own the initial write).
+⋮----
+const handlePreview = async (doc: IngestionSourceSnapshot) =>
+⋮----
+// Use Firebase Storage getDownloadURL() directly on the client.
+// Storage rules allow read for authenticated users, so the Firebase JS SDK
+// fetches a token-based download URL without any IAM signing.  The resulting
+// URL is publicly accessible (token embedded in the URL) and works with
+// Google Docs Viewer — no Cloud Function round-trip required.
+⋮----
+const closePreview = () =>
+⋮----
+// ── Per-document action helpers ─────────────────────────────────────────────
+⋮----
+const setDocAction = (docId: string, patch: Partial<DocActionState>) =>
+⋮----
+const handleParseLayout = async (doc: IngestionSourceSnapshot) =>
+⋮----
+const handleParseForm = async (doc: IngestionSourceSnapshot) =>
+⋮----
+const handleParseOcr = async (doc: IngestionSourceSnapshot) =>
+⋮----
+const handleParseGenkit = async (doc: IngestionSourceSnapshot) =>
+⋮----
+const handleIndex = async (doc: IngestionSourceSnapshot) =>
+⋮----
+const handleReindex = async (doc: IngestionSourceSnapshot) =>
+⋮----
+const handleCreatePage = async (doc: IngestionSourceSnapshot) =>
+⋮----
+// Page prefers layout text first because task extraction expects dense
+// full-document sequences (3RDTW / 小計) preserved by layout output.
+⋮----
+const handleCreateDatabase = async (doc: IngestionSourceSnapshot) =>
+⋮----
+// Database prefers form output first to retain structured entity fields;
+// fallback to layout text when form parser output is not available.
+⋮----
+// ── Render helpers ───────────────────────────────────────────────────────────
+⋮----
+{/* Header */}
+⋮----
+{/* Hidden file input */}
+⋮----
+{/* Processing chain banner */}
+⋮----
+{/* Document list */}
+⋮----
+{/* Document header row */}
+⋮----
+{/* Toggle actions panel */}
+⋮----
+{/* Meta row */}
+⋮----
+{/* Expandable actions panel */}
+⋮----
+{/* Section: Document AI parse */}
+⋮----
+onClick=
+⋮----
+{/* Section: RAG index — uses Layout Parser output */}
+⋮----
+{/* Section: Generate downstream artifacts */}
+⋮----
+{/* Action status message */}
+⋮----
+{/* Downstream CTAs when documents are ready */}
+⋮----
+{/* JSON viewer modal — parsed output summary */}
+⋮----
+<Button size="sm" variant="ghost" onClick=
+⋮----
+src=
+````
+
 ## File: src/modules/notebooklm/adapters/inbound/server-actions/document-actions.ts
 ````typescript
 /**
@@ -20112,6 +20171,44 @@ delete(id: string): Promise<void>;
 // TODO: export server actions / route handlers
 ````
 
+## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+````typescript
+/**
+ * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ *
+ * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a DatabaseSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): DatabaseSnapshot
+⋮----
+export class FirestoreDatabaseRepository implements DatabaseRepository
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
 ## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
 ````typescript
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
@@ -20161,6 +20258,73 @@ async execute(databaseId: string, property: DatabaseProperty): Promise<CommandRe
 ## File: src/modules/notion/subdomains/database/application/index.ts
 ````typescript
 
+````
+
+## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
+````typescript
+/**
+ * Database — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
+ * Represents a structured collection of pages with typed properties (Notion-style database).
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type PropertyType = "text" | "number" | "select" | "multi_select" | "date" | "checkbox" | "url" | "email" | "file" | "relation";
+⋮----
+export interface DatabaseProperty {
+  readonly id: string;
+  readonly name: string;
+  readonly type: PropertyType;
+  readonly options?: string[];
+}
+⋮----
+export type DatabaseStatus = "active" | "archived";
+⋮----
+export interface DatabaseSnapshot {
+  readonly id: string;
+  readonly parentPageId: string | null;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly properties: DatabaseProperty[];
+  readonly status: DatabaseStatus;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateDatabaseInput {
+  readonly parentPageId?: string | null;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly properties?: DatabaseProperty[];
+  readonly createdByUserId: string;
+}
+⋮----
+export class Database
+⋮----
+private constructor(private _props: DatabaseSnapshot)
+⋮----
+private static createDefaultProperty(): DatabaseProperty
+⋮----
+static create(input: CreateDatabaseInput): Database
+⋮----
+static reconstitute(snapshot: DatabaseSnapshot): Database
+⋮----
+addProperty(property: DatabaseProperty): void
+⋮----
+get id(): string
+get title(): string
+get parentPageId(): string | null
+get properties(): DatabaseProperty[]
+⋮----
+getSnapshot(): Readonly<DatabaseSnapshot>
 ````
 
 ## File: src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts
@@ -20360,6 +20524,48 @@ delete(id: string): Promise<void>;
 // TODO: export server actions / route handlers
 ````
 
+## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
+````typescript
+/**
+ * FirestorePageRepository — Firestore adapter for the page subdomain.
+ *
+ * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a PageSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/page/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): PageSnapshot
+⋮----
+export class FirestorePageRepository implements PageRepository
+⋮----
+async save(snapshot: PageSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<PageSnapshot | null>
+⋮----
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+⋮----
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+// Build equality constraints — no composite index required for equality-only filters.
+⋮----
+async delete(id: string): Promise<void>
+````
+
 ## File: src/modules/notion/subdomains/page/adapters/outbound/memory/InMemoryPageRepository.ts
 ````typescript
 import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
@@ -20419,6 +20625,80 @@ async execute(params: PageQuery)
 ## File: src/modules/notion/subdomains/page/application/index.ts
 ````typescript
 
+````
+
+## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
+````typescript
+/**
+ * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type PageStatus = "active" | "archived";
+⋮----
+export interface PageSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly summary?: string;
+  readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: PageStatus;
+  readonly ownerId?: string;
+  readonly iconUrl?: string;
+  readonly coverUrl?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly summary?: string;
+  readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly parentPageId?: string | null;
+  readonly createdByUserId: string;
+  readonly order?: number;
+}
+⋮----
+function slugify(title: string): string
+⋮----
+export class Page
+⋮----
+private constructor(private _props: PageSnapshot)
+⋮----
+static create(input: CreatePageInput): Page
+⋮----
+static reconstitute(snapshot: PageSnapshot): Page
+⋮----
+rename(title: string): void
+⋮----
+appendBlock(blockId: string): void
+⋮----
+archive(): void
+⋮----
+get id(): string
+get title(): string
+get summary(): string | undefined
+get sourceLabel(): string | undefined
+get slug(): string
+get status(): PageStatus
+get blockIds(): readonly string[]
+get parentPageId(): string | null
+⋮----
+getSnapshot(): Readonly<PageSnapshot>
+⋮----
+pullDomainEvents()
 ````
 
 ## File: src/modules/notion/subdomains/page/domain/repositories/PageRepository.ts
@@ -20692,6 +20972,67 @@ delete(id: string): Promise<void>;
 
 - [../../../docs/README.md](../../../docs/README.md)
 - [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+````
+
+## File: src/modules/notion/index.ts
+````typescript
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
+import type { PageSnapshot } from "./subdomains/page/domain";
+import type { CommandResult } from "../shared";
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// knowledge (canonical KnowledgeArtifact aggregate)
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
+⋮----
+export async function listWorkspaceKnowledgePages(params: {
+  accountId: string;
+  workspaceId: string;
+}): Promise<ReadonlyArray<PageSnapshot>>
+⋮----
+export async function listWorkspaceKnowledgeDatabases(
+  workspaceId: string,
+): Promise<ReadonlyArray<DatabaseSnapshot>>
+⋮----
+export async function createWorkspaceKnowledgePage(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  summary?: string;
+  sourceLabel?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function createWorkspaceKnowledgeDatabase(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  description?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function addWorkspaceKnowledgeDatabaseProperty(
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<CommandResult>
 ````
 
 ## File: src/modules/notion/README.md
@@ -26667,6 +27008,78 @@ function resolveNextStatus(invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROL
 const handleCreateInvoice = () =>
 ⋮----
 const handleTransition = (invoice: InvoiceSnapshot, eventType: "ADVANCE" | "ROLLBACK") =>
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
+````typescript
+/**
+ * WorkspaceTaskFormationSection — workspace.task-formation tab.
+ *
+ * Task formation keeps only source references in URL/query state, then resolves
+ * concrete page/database context through the notion public boundary before
+ * sending the source to the extractor.
+ *
+ * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
+ * model" boundary behind this handoff.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import {
+  ListPlus,
+  ArrowRight,
+  FileText,
+  LayoutGrid,
+  BookOpen,
+  Upload,
+  ChevronRight,
+  Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
+⋮----
+import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
+import {
+  listWorkspaceKnowledgeDatabases,
+  listWorkspaceKnowledgePages,
+} from "@/src/modules/notion";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
+⋮----
+interface WorkspaceTaskFormationSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+type SelectedSourceKind = "page" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
+⋮----
+type ConcreteSource = {
+  readonly id: string;
+  readonly kind: Exclude<SelectedSourceKind, null>;
+  readonly title: string;
+  readonly description: string;
+  readonly sourceText?: string;
+};
+⋮----
+function buildPageSource(page: PageSnapshot): ConcreteSource
+⋮----
+function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
+⋮----
+function toggleCandidate(i: number)
+⋮----
+function handleSelectSource(nextSource: SelectedSourceKind)
+⋮----
+function handleExtract()
+⋮----
+function handleConfirm()
+⋮----
+function handleReset()
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceTasksSection.tsx
@@ -32887,540 +33300,4 @@ import tailwindcssAnimate from 'tailwindcss-animate';
     "functions"
   ]
 }
-````
-
-## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
-````typescript
-/**
- * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
- *
- * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a DatabaseSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/database/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi, z } from "@packages";
-import type { DatabaseSnapshot } from "../../../domain/entities/Database";
-import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
-⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
-⋮----
-function toSnapshot(raw: unknown): DatabaseSnapshot
-⋮----
-export class FirestoreDatabaseRepository implements DatabaseRepository
-⋮----
-async save(snapshot: DatabaseSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<DatabaseSnapshot | null>
-⋮----
-async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
-⋮----
-async delete(id: string): Promise<void>
-````
-
-## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
-````typescript
-/**
- * Database — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
- * Represents a structured collection of pages with typed properties (Notion-style database).
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type PropertyType = "text" | "number" | "select" | "multi_select" | "date" | "checkbox" | "url" | "email" | "file" | "relation";
-⋮----
-export interface DatabaseProperty {
-  readonly id: string;
-  readonly name: string;
-  readonly type: PropertyType;
-  readonly options?: string[];
-}
-⋮----
-export type DatabaseStatus = "active" | "archived";
-⋮----
-export interface DatabaseSnapshot {
-  readonly id: string;
-  readonly parentPageId: string | null;
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly sourceDocumentId?: string;
-  readonly sourceText?: string;
-  readonly properties: DatabaseProperty[];
-  readonly status: DatabaseStatus;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreateDatabaseInput {
-  readonly parentPageId?: string | null;
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly sourceDocumentId?: string;
-  readonly sourceText?: string;
-  readonly properties?: DatabaseProperty[];
-  readonly createdByUserId: string;
-}
-⋮----
-export class Database
-⋮----
-private constructor(private _props: DatabaseSnapshot)
-⋮----
-private static createDefaultProperty(): DatabaseProperty
-⋮----
-static create(input: CreateDatabaseInput): Database
-⋮----
-static reconstitute(snapshot: DatabaseSnapshot): Database
-⋮----
-addProperty(property: DatabaseProperty): void
-⋮----
-get id(): string
-get title(): string
-get parentPageId(): string | null
-get properties(): DatabaseProperty[]
-⋮----
-getSnapshot(): Readonly<DatabaseSnapshot>
-````
-
-## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
-````typescript
-/**
- * FirestorePageRepository — Firestore adapter for the page subdomain.
- *
- * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a PageSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/page/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi, z } from "@packages";
-import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
-⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
-⋮----
-function toSnapshot(raw: unknown): PageSnapshot
-⋮----
-export class FirestorePageRepository implements PageRepository
-⋮----
-async save(snapshot: PageSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<PageSnapshot | null>
-⋮----
-async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
-⋮----
-async findChildren(parentPageId: string): Promise<PageSnapshot[]>
-⋮----
-async query(params: PageQuery): Promise<PageSnapshot[]>
-⋮----
-// Build equality constraints — no composite index required for equality-only filters.
-⋮----
-async delete(id: string): Promise<void>
-````
-
-## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
-````typescript
-/**
- * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type PageStatus = "active" | "archived";
-⋮----
-export interface PageSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly summary?: string;
-  readonly sourceLabel?: string;
-  readonly sourceDocumentId?: string;
-  readonly sourceText?: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: PageStatus;
-  readonly ownerId?: string;
-  readonly iconUrl?: string;
-  readonly coverUrl?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly summary?: string;
-  readonly sourceLabel?: string;
-  readonly sourceDocumentId?: string;
-  readonly sourceText?: string;
-  readonly parentPageId?: string | null;
-  readonly createdByUserId: string;
-  readonly order?: number;
-}
-⋮----
-function slugify(title: string): string
-⋮----
-export class Page
-⋮----
-private constructor(private _props: PageSnapshot)
-⋮----
-static create(input: CreatePageInput): Page
-⋮----
-static reconstitute(snapshot: PageSnapshot): Page
-⋮----
-rename(title: string): void
-⋮----
-appendBlock(blockId: string): void
-⋮----
-archive(): void
-⋮----
-get id(): string
-get title(): string
-get summary(): string | undefined
-get sourceLabel(): string | undefined
-get slug(): string
-get status(): PageStatus
-get blockIds(): readonly string[]
-get parentPageId(): string | null
-⋮----
-getSnapshot(): Readonly<PageSnapshot>
-⋮----
-pullDomainEvents()
-````
-
-## File: src/modules/notion/index.ts
-````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
-import type { PageSnapshot } from "./subdomains/page/domain";
-import type { CommandResult } from "../shared";
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// knowledge (canonical KnowledgeArtifact aggregate)
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-⋮----
-export async function listWorkspaceKnowledgePages(params: {
-  accountId: string;
-  workspaceId: string;
-}): Promise<ReadonlyArray<PageSnapshot>>
-⋮----
-export async function listWorkspaceKnowledgeDatabases(
-  workspaceId: string,
-): Promise<ReadonlyArray<DatabaseSnapshot>>
-⋮----
-export async function createWorkspaceKnowledgePage(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  summary?: string;
-  sourceLabel?: string;
-  sourceDocumentId?: string;
-  sourceText?: string;
-  createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-export async function createWorkspaceKnowledgeDatabase(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  description?: string;
-  sourceDocumentId?: string;
-  sourceText?: string;
-  createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-export async function addWorkspaceKnowledgeDatabaseProperty(
-  databaseId: string,
-  property: DatabaseProperty,
-): Promise<CommandResult>
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
-````typescript
-/**
- * WorkspaceTaskFormationSection — workspace.task-formation tab.
- *
- * Task formation keeps only source references in URL/query state, then resolves
- * concrete page/database context through the notion public boundary before
- * sending the source to the extractor.
- *
- * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
- * model" boundary behind this handoff.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import {
-  ListPlus,
-  ArrowRight,
-  FileText,
-  LayoutGrid,
-  BookOpen,
-  Upload,
-  ChevronRight,
-  Info,
-  Check,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
-⋮----
-import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
-import {
-  listWorkspaceKnowledgeDatabases,
-  listWorkspaceKnowledgePages,
-} from "@/src/modules/notion";
-import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
-import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
-⋮----
-interface WorkspaceTaskFormationSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
-}
-⋮----
-type SelectedSourceKind = "page" | "database" | "research" | null;
-type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
-⋮----
-type ConcreteSource = {
-  readonly id: string;
-  readonly kind: Exclude<SelectedSourceKind, null>;
-  readonly title: string;
-  readonly description: string;
-  readonly sourceText?: string;
-};
-⋮----
-function buildPageSource(page: PageSnapshot): ConcreteSource
-⋮----
-function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
-⋮----
-function toggleCandidate(i: number)
-⋮----
-function handleSelectSource(nextSource: SelectedSourceKind)
-⋮----
-function handleExtract()
-⋮----
-function handleConfirm()
-⋮----
-function handleReset()
-````
-
-## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx
-````typescript
-/**
- * NotebooklmSourcesSection — notebooklm.sources tab — document source list + upload.
- *
- * Manual Document AI pipeline controls:
- *   ① 上傳文件  — upload to Firebase Storage only
- *   ② 解析文件  — manually trigger Layout/Form/OCR/Genkit-AI via callable
- *   ③ RAG 索引  — manually trigger RAG reindex via callable
- *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
- *   ⑤ 建立資料庫 — create Notion Database named after document (for Form Parser entities)
- *
- * Artifact display: page count, layout chunks, form entities, RAG vector count.
- */
-⋮----
-import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
-import {
-  Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
-  Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
-  Layers, Braces, BarChart2, CheckCircle2,
-} from "lucide-react";
-import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
-⋮----
-import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
-import {
-  queryDocuments,
-  uploadDocumentToStorage,
-  getDocumentDownloadUrl,
-  initSourceDocumentInFirestore,
-  toGcsUri,
-  callParseDocument,
-  callReindexDocument,
-} from "../../../adapters/outbound/firebase-composition";
-import {
-  createWorkspaceKnowledgeDatabase,
-  createWorkspaceKnowledgePage,
-} from "@/src/modules/notion";
-⋮----
-interface NotebooklmSourcesSectionProps {
-  workspaceId: string;
-  accountId: string;
-}
-⋮----
-function deriveDocIdFromStoragePath(storagePath: string): string
-⋮----
-function createPendingSourceSnapshot(input: {
-  file: File;
-  storagePath: string;
-  workspaceId: string;
-  accountId: string;
-}): IngestionSourceSnapshot
-⋮----
-// Upload is done; show "已就緒" until a parse callable is explicitly triggered.
-// fn's parse_document callable will set status back to "processing" when it starts.
-⋮----
-/** MIME types renderable via Google Doc Viewer */
-⋮----
-// Keep sourceText safely below Firestore's 1 MiB document limit. 80k chars is
-// ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
-// ample headroom for the rest of the page/database snapshot fields.
-⋮----
-/**
- * Normalize parser artifacts written by fn parse_document:
- * - layout / ocr / genkit: prefer top-level text, then chunk.text
- * - form: fallback to entity key/value lines when plain text is unavailable
- */
-function extractTextFromArtifactPayload(payload: unknown): string | undefined
-⋮----
-function trimSourceText(text: string | undefined): string | undefined
-⋮----
-async function loadSourceTextFromArtifactUri(uri: string): Promise<string | undefined>
-⋮----
-// ── Per-document action state ─────────────────────────────────────────────────
-⋮----
-type DocActionStatus = "idle" | "running" | "done" | "error";
-⋮----
-interface DocActionState {
-  parseLayout: DocActionStatus;
-  parseForm: DocActionStatus;
-  parseOcr: DocActionStatus;
-  parseGenkit: DocActionStatus;
-  index: DocActionStatus;
-  reindex: DocActionStatus;
-  page: DocActionStatus;
-  database: DocActionStatus;
-  message?: string;
-  pageHref?: string;
-  databaseHref?: string;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-// Preview state
-⋮----
-// Per-document expanded / action state
-⋮----
-// JSON viewer modal state
-⋮----
-const load = () =>
-⋮----
-// Auto-load on mount so sources are visible without a manual click.
-useEffect(() => { load(); }, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
-⋮----
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-⋮----
-// Write initial Firestore record so the document survives page reload
-// (fn no longer auto-triggers on workspaces/ path; we own the initial write).
-⋮----
-const handlePreview = async (doc: IngestionSourceSnapshot) =>
-⋮----
-// Use Firebase Storage getDownloadURL() directly on the client.
-// Storage rules allow read for authenticated users, so the Firebase JS SDK
-// fetches a token-based download URL without any IAM signing.  The resulting
-// URL is publicly accessible (token embedded in the URL) and works with
-// Google Docs Viewer — no Cloud Function round-trip required.
-⋮----
-const closePreview = () =>
-⋮----
-// ── Per-document action helpers ─────────────────────────────────────────────
-⋮----
-const setDocAction = (docId: string, patch: Partial<DocActionState>) =>
-⋮----
-const handleParseLayout = async (doc: IngestionSourceSnapshot) =>
-⋮----
-const handleParseForm = async (doc: IngestionSourceSnapshot) =>
-⋮----
-const handleParseOcr = async (doc: IngestionSourceSnapshot) =>
-⋮----
-const handleParseGenkit = async (doc: IngestionSourceSnapshot) =>
-⋮----
-const handleIndex = async (doc: IngestionSourceSnapshot) =>
-⋮----
-const handleReindex = async (doc: IngestionSourceSnapshot) =>
-⋮----
-const handleCreatePage = async (doc: IngestionSourceSnapshot) =>
-⋮----
-// Page prefers layout text first because task extraction expects dense
-// full-document sequences (3RDTW / 小計) preserved by layout output.
-⋮----
-const handleCreateDatabase = async (doc: IngestionSourceSnapshot) =>
-⋮----
-// Database prefers form output first to retain structured entity fields;
-// fallback to layout text when form parser output is not available.
-⋮----
-// ── Render helpers ───────────────────────────────────────────────────────────
-⋮----
-{/* Header */}
-⋮----
-{/* Hidden file input */}
-⋮----
-{/* Processing chain banner */}
-⋮----
-{/* Document list */}
-⋮----
-{/* Document header row */}
-⋮----
-{/* Toggle actions panel */}
-⋮----
-{/* Meta row */}
-⋮----
-{/* Expandable actions panel */}
-⋮----
-{/* Section: Document AI parse */}
-⋮----
-onClick=
-⋮----
-{/* Section: RAG index — uses Layout Parser output */}
-⋮----
-{/* Section: Generate downstream artifacts */}
-⋮----
-{/* Action status message */}
-⋮----
-{/* Downstream CTAs when documents are ready */}
-⋮----
-{/* JSON viewer modal — parsed output summary */}
-⋮----
-<Button size="sm" variant="ghost" onClick=
-⋮----
-src=
 ````

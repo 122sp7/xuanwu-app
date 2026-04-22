@@ -35,7 +35,6 @@
     }
   },
   "include": [
-    ".github/copilot-instructions.md",
     "docs/**",
     "src/app/**",
     "src/modules/ai/**",

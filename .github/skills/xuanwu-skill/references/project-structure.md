@@ -1,8 +1,6 @@
 # Directory Structure
 
 ```
-.github/
-  copilot-instructions.md (119 lines)
 docs/
   decisions/
     adr/
