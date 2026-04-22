@@ -1,31 +1,53 @@
-# Platform Module
+# platform
 
-`src/modules/platform/` 是 平台橫切能力模組；account / organization 已遷入 iam。
+## PURPOSE
 
-## Navigation Index
+platform 模組負責共享 operational service 與平台橫切能力，例如 audit-log、notification、search 與 background-job。
+它不再擁有 account 或 organization 的正典所有權。
 
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
+## GETTING STARTED
 
-## Directory Index（actual directories）
+先閱讀：
 
-- `subdomains/audit-log/`
-- `subdomains/background-job/`
-- `subdomains/cache/`
-- `subdomains/feature-flag/`
-- `subdomains/file-storage/`
-- `subdomains/notification/`
-- `subdomains/platform-config/`
-- `subdomains/search/`
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../../../docs/README.md](../../../docs/README.md)
 
-## Pair Contract
+## ARCHITECTURE
 
-- `README.md` 維護 `src/modules/platform/` 的最短概覽與實際目錄索引。
-- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
-- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+platform 由 audit-log、background-job、cache、feature-flag、file-storage、notification、platform-config、search 等子域組成。
+跨模組整合應透過 [index.ts](index.ts) 消費公開能力。
 
-## Read Next
+## PROJECT STRUCTURE
 
-- [../AGENTS.md](../AGENTS.md)
-- [../../../docs/README.md](../../../docs/README.md)
+- [subdomains/audit-log](subdomains/audit-log)
+- [subdomains/background-job](subdomains/background-job)
+- [subdomains/cache](subdomains/cache)
+- [subdomains/feature-flag](subdomains/feature-flag)
+- [subdomains/file-storage](subdomains/file-storage)
+- [subdomains/notification](subdomains/notification)
+- [subdomains/platform-config](subdomains/platform-config)
+- [subdomains/search](subdomains/search)
+
+## DEVELOPMENT RULES
+
+- MUST keep platform as operational service owner.
+- MUST expose cross-module capability via [index.ts](index.ts).
+- MUST keep operational terminology explicit.
+- MUST avoid mixing IAM or workspace ownership into platform.
+
+## AI INTEGRATION
+
+platform 可向 AI 或其他模組提供通知、搜尋、檔案與背景作業等共享能力。
+任何 AI 整合都應透過公開邊界消費，不直接依賴 platform 內部模型。
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent modules index: [../README.md](../README.md)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內理解 platform 的 operational service 範圍。
+- 可在 3 分鐘內判斷變更屬於 notification、search、file-storage 或 background-job。

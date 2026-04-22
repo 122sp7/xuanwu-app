@@ -1,39 +1,77 @@
-﻿# docs — Agent Guide
+﻿# docs Agent Rules
 
-## Purpose
+## ROLE
 
-`docs/` 是 Xuanwu App 的**架構文件集**，記錄 8 個主域的 DDD 戰略設計、Bounded Context 邊界、Context Map 方向與 ADR 決策日誌。
+- The agent MUST treat docs as the strategic authority for terminology, ownership, and context relationships.
+- The agent MUST use docs to resolve architectural ambiguity before changing code.
+- The agent MUST keep this file focused on routing and governance behavior.
 
-> **重要：** `docs/**/*` 是所有邊界問題、術語命名與 context map 的戰略權威。遇到邊界模糊時，先讀 `docs/`，再看程式碼。
+## DOMAIN BOUNDARIES
 
-## Reading Order（架構決策）
+- The agent MUST separate strategic docs from runtime implementation docs.
+- The agent MUST NOT redefine bounded-context ownership outside the owning strategic documents.
+- The agent MUST NOT treat .github behavior instructions as strategic architecture authority.
+- The agent MUST route module implementation decisions back to src runtime docs only after strategic alignment.
 
-1. `docs/README.md` — 文件索引與路由規則
-2. `docs/structure/system/architecture-overview.md` — 全域架構與主域關係
-3. `docs/structure/domain/bounded-contexts.md` — 主域與子域所有權
-4. `docs/structure/domain/ubiquitous-language.md` — 戰略術語權威
-5. `docs/structure/system/context-map.md` — 主域間關係方向
-6. `docs/decisions/README.md` — ADR 決策日誌
+## TOOL USAGE
 
-## Context Folders
+- The agent MUST verify every referenced doc path exists before adding links.
+- The agent MUST use minimal edits and avoid duplicating large architecture blocks across files.
+- The agent MUST synchronize command references with [05-tooling/commands-reference.md](05-tooling/commands-reference.md).
 
-`docs/structure/contexts/<context>/` 各有：
-- `README.md` — 主域用途、Upstream/Downstream、Baseline Subdomains
-- `AGENTS.md` — Agent 路由規則、保護邊界的 Guardrails
-- `subdomains.md`、`bounded-context.md`、`ubiquitous-language.md`、`context-map.md`（選擇性）
+## EXECUTION FLOW
 
-## Governance Rules
+- The agent MUST follow this order:
+	1. Read [README.md](README.md).
+	2. Read strategic system docs in [01-architecture/system](01-architecture/system).
+	3. Read strategic domain docs in [01-architecture/domain](01-architecture/domain).
+	4. Read owning context docs in [01-architecture/contexts](01-architecture/contexts).
+	5. Apply or update docs and report any conflicts.
 
-- 不得在 `docs/` 外複製架構決策內容（指向，不複製）。
-- ADR 只記錄有持續影響的架構決策；不把每個實作細節都升格為 ADR。
-- `docs/structure/contexts/<context>/` 的術語命名衝突，以 `docs/structure/domain/ubiquitous-language.md` 為準。
-- 不得把 `.github/instructions/` 的行為規則寫成 `docs/` 的策略文件。
+## DATA CONTRACT
 
-## 文件網絡
+- The agent MUST keep links relative to the docs root.
+- The agent MUST use consistent naming and path display across context links.
+- The agent MUST keep ADR references valid and explicit.
 
-- [README.md](README.md) — 文件索引
-- [bounded-contexts.md](structure/domain/bounded-contexts.md) — 主域所有權地圖
-- [subdomains.md](structure/domain/subdomains.md) — 子域清單
-- [context-map.md](structure/system/context-map.md) — 主域關係方向
-- [ubiquitous-language.md](structure/domain/ubiquitous-language.md) — 戰略術語
-- decisions/README.md — ADR 索引
+## CONSTRAINTS
+
+- The agent MUST NOT duplicate strategic definitions in runtime readmes.
+- The agent MUST NOT add undocumented terms when a canonical term already exists.
+- The agent MUST NOT leave unresolved ownership conflicts undocumented.
+
+## ERROR HANDLING
+
+- The agent MUST fail fast on missing authority documents.
+- The agent MUST flag broken or stale links immediately.
+- The agent MUST stop and request direction when two authority docs conflict and no ADR resolves it.
+
+## CONSISTENCY
+
+- The agent MUST keep docs/README as the human entry point.
+- The agent MUST keep docs/AGENTS as routing and governance constraints.
+- The agent MUST keep context docs aligned with domain/system authority docs.
+
+## SECURITY
+
+- The agent MUST NOT include secrets or sensitive operational details in docs.
+- The agent MUST keep security guidance aligned with principle-of-least-privilege language.
+
+## Route Here When
+
+- You need strategic clarification for bounded-context ownership or terminology.
+- You need authoritative context-map and integration direction.
+
+## Route Elsewhere When
+
+- Runtime composition and implementation work: [../src/AGENTS.md](../src/AGENTS.md)
+- Repository-level routing decisions: [../AGENTS.md](../AGENTS.md)
+
+## Quick Links
+
+- Entry: [README.md](README.md)
+- System authority: [01-architecture/system/architecture-overview.md](01-architecture/system/architecture-overview.md)
+- Domain authority: [01-architecture/domain/bounded-contexts.md](01-architecture/domain/bounded-contexts.md)
+- Terminology authority: [01-architecture/domain/ubiquitous-language.md](01-architecture/domain/ubiquitous-language.md)
+- Context map: [01-architecture/system/context-map.md](01-architecture/system/context-map.md)
+- ADR index: [02-decisions/README.md](02-decisions/README.md)

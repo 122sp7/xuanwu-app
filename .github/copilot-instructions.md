@@ -33,7 +33,7 @@ These three skills **must be loaded at the start of every conversation** before 
 - Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
 - If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
 - Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
+- Run the matching validation from [docs/05-tooling/commands-reference.md](../docs/05-tooling/commands-reference.md) before closing non-trivial changes.
 
 ## Mandatory Compliance Rules
 
@@ -60,16 +60,16 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
 20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
 
-> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
+> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/02-decisions/`. See `docs/01-architecture/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
 
 ## Read Order
 
 1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
+2. Use [docs/01-architecture/domain/ubiquitous-language.md](../docs/01-architecture/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/01-architecture/domain/subdomains.md](../docs/01-architecture/domain/subdomains.md) and [docs/01-architecture/domain/bounded-contexts.md](../docs/01-architecture/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/01-architecture/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/01-architecture/domain/bounded-context-subdomain-template.md](../docs/01-architecture/domain/bounded-context-subdomain-template.md) and [docs/01-architecture/system/project-delivery-milestones.md](../docs/01-architecture/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [docs/05-tooling/commands-reference.md](../docs/05-tooling/commands-reference.md) for build, lint, test, and deployment validation.
 
 ## Instruction Series (Phase 1)
 
@@ -117,3 +117,39 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 - Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
 - Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
 - Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+
+## Priority Rule Intake (P0-P4)
+
+The following intake records which proposed rules are adopted, scoped, or discarded to avoid conflicts with existing authority documents.
+
+### Adopted (No Conflict)
+
+1. Boundary data flow is fixed to entry -> DTO/command -> use case -> domain -> repository/port adapter.
+2. Entry points (Function/Server Action/Route Handler) are entry-only and must not contain business rules.
+3. Domain must not depend on external SDKs, data sources, or outer layers.
+4. Use cases must not return infrastructure-native types (for example Firestore snapshots).
+5. Repositories are data access abstractions only and must not carry business decisions.
+6. Cross-bounded-context access must use module API boundaries or events.
+7. Composition Root owns dependency wiring; use case/domain layers must not instantiate concrete infrastructure implementations.
+8. One function should map to one primary use-case intent; command and query concerns remain separated.
+9. Input validation must complete before entering the use case; domain validation remains invariant-focused.
+10. Error ownership is split: domain throws business errors, use case normalizes internal error shape, entry layer maps response format.
+11. Long-running side effects should prefer event-driven handlers over synchronous coupling.
+12. Schema must be explicit and typed; avoid dynamic production fields without a declared contract.
+13. Naming must reflect business intent and align function/use-case naming.
+14. Query design must avoid N+1 patterns and favor index-first access paths.
+15. Security baseline is mandatory: input sanitization, least privilege, controlled signed URL issuance, and no sensitive-data leakage.
+
+### Adopted With Scope (Conflict Avoidance)
+
+1. Transaction atomicity applies within a defined aggregate/transaction boundary; cross-aggregate or cross-context workflows must use saga/outbox/eventual consistency.
+2. Authorization must be explicit in each use-case execution path, but policy enforcement may be delegated to dedicated authorization services invoked by the use case.
+3. Use cases should be independently executable and should not form ad-hoc call chains; composition-level orchestration is allowed through orchestrators/application services.
+4. Idempotency is mandatory for retryable/async/public write paths; idempotency keys are required where duplicate delivery is realistic.
+5. DTOs should be reusable when semantics are stable; one-off DTOs are allowed for bounded, single-intent endpoints to avoid over-abstraction.
+
+### Discarded (Would Harm Current Governance)
+
+1. "Use case must always own authorization logic implementation" is discarded in favor of explicit authorization orchestration with policy delegation.
+2. "All write use cases must always require idempotency key" is discarded as a blanket rule; only retry-prone paths enforce hard idempotency-key requirements.
+3. "Use case mutual calls are absolutely forbidden" is discarded as absolute wording; structured orchestrator/application-service composition remains allowed.

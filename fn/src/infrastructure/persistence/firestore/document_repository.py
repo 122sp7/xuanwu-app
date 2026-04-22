@@ -217,6 +217,7 @@ def update_parsed_form(
     ref = _document_ref(doc_id, account_id)
 
     ref.update({
+        "status": "completed",
         "account_id": account_id,
         "parsed.form_json_gcs_uri": form_json_gcs_uri,
         "parsed.form_parsed_at": datetime.now(UTC),
@@ -224,7 +225,7 @@ def update_parsed_form(
         "parsed.form_entity_count": entity_count,
     })
     logger.info(
-        "Firestore: update_parsed_form %s (scope=%s) → %d entities",
+        "Firestore: update_parsed_form %s (scope=%s) → status=completed, %d entities",
         doc_id,
         account_id,
         entity_count,

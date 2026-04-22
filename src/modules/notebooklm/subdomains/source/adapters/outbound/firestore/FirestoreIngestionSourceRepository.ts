@@ -125,6 +125,11 @@ function fromFirestore(
     ragVectorCount: raw.rag?.vector_count,
     ragStatus: raw.rag?.status,
     errorMessage: raw.error?.message,
+    // timing / model fields
+    parsedAt: raw.parsed?.parsed_at?.toDate?.()?.toISOString(),
+    extractionMs: raw.parsed?.extraction_ms,
+    embeddingModel: raw.rag?.embedding_model,
+    ragIndexedAt: raw.rag?.indexed_at?.toDate?.()?.toISOString(),
   };
 }
 

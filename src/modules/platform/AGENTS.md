@@ -1,44 +1,69 @@
-# Platform Module — Agent Guide
+# platform Agent Rules
 
-## Purpose
+## ROLE
 
-`src/modules/platform/` 是 平台橫切能力模組；account / organization 已遷入 iam。
+- The agent MUST treat platform as the owner of shared operational services and cross-cutting runtime support.
+- The agent MUST keep platform focused on operational capability, not IAM or workspace business ownership.
 
-## Immediate Index
+## DOMAIN BOUNDARIES
 
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
+- The agent MUST keep audit-log, background-job, cache, feature-flag, file-storage, notification, platform-config, and search inside platform.
+- The agent MUST expose cross-module capabilities through [index.ts](index.ts).
+- The agent MUST keep account and organization ownership in iam.
 
-## Subdomain Index（actual directories）
+## TOOL USAGE
 
-- `subdomains/audit-log/`
-- `subdomains/background-job/`
-- `subdomains/cache/`
-- `subdomains/feature-flag/`
-- `subdomains/file-storage/`
-- `subdomains/notification/`
-- `subdomains/platform-config/`
-- `subdomains/search/`
+- The agent MUST validate subdomain path references before edits.
+- The agent MUST keep operational terminology aligned with strategic docs.
+- The agent MUST scope edits to platform-owned docs and capabilities.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Select the owning platform subdomain.
+	4. Apply bounded changes.
+	5. Validate links and terminology consistency.
+
+## DATA CONTRACT
+
+- The agent MUST keep operational service naming explicit and stable.
+- The agent MUST keep subdomain indexes synchronized with actual directories.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move identity, account, organization, or collaboration ownership into platform.
+- The agent MUST NOT bypass public module boundaries for cross-context collaboration.
+
+## ERROR HANDLING
+
+- The agent MUST report stale links, missing docs, or ownership ambiguity.
+- The agent MUST stop and ask for direction if capability ownership becomes unclear.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS focused on routing and constraints.
+- The agent MUST keep README focused on overview and navigation.
+
+## SECURITY
+
+- The agent MUST preserve secure wording for storage, notifications, and audit surfaces.
+- The agent MUST avoid unsafe operational shortcuts in docs.
 
 ## Route Here When
 
-- 需要在 `src/modules/platform/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+- You update platform operational services or their docs.
+- You need the platform module boundary or subdomain routing contract.
 
 ## Route Elsewhere When
 
-- account / organization → `src/modules/iam/`
-- 跨模組 API → `src/modules/platform/index.ts`
+- Identity and organization concerns: [../iam/AGENTS.md](../iam/AGENTS.md)
+- Workspace collaboration concerns: [../workspace/AGENTS.md](../workspace/AGENTS.md)
 
-## Drift Guard
+## Quick Links
 
-- `AGENTS.md` 擁有 `src/modules/platform/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+- Pair: [README.md](README.md)
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)

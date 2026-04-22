@@ -1,10 +1,12 @@
-import type { CreateUserAccountUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { UpdateUserProfileUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { UpdateAccountProfileUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { CreditWalletUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { DebitWalletUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { AssignAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
-import type { RevokeAccountRoleUseCase } from "../../../application/use-cases/AccountUseCases";
+import type {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  UpdateAccountProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "../../../application/use-cases/AccountUseCases";
 
 /** HTTP inbound adapter stub — translates HTTP requests into application use-case calls. */
 export class AccountController {

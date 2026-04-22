@@ -9,7 +9,7 @@
  */
 
 import { Button, Input } from "@packages";
-import { FileText, Plus, ListPlus, Pencil, Archive } from "lucide-react";
+import { FileText, Plus, ListPlus, Pencil, Archive, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
@@ -48,6 +48,7 @@ export function NotionPagesSection({
   const [newSourceLabel, setNewSourceLabel] = useState("");
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
+  const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const reloadPages = async () => {
@@ -203,14 +204,38 @@ export function NotionPagesSection({
                           <span className="text-xs text-muted-foreground">{page.status}</span>
                         </div>
                         {page.summary ? (
-                          <p className="line-clamp-2 text-xs text-muted-foreground">{page.summary}</p>
+                          <p className="max-h-32 overflow-y-auto text-xs text-muted-foreground whitespace-pre-wrap">{page.summary}</p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
                             尚未提供摘要，任務形成會先使用標題與頁面脈絡。
                           </p>
                         )}
+                        {page.sourceText && (
+                          <div>
+                            <button
+                              type="button"
+                              className="flex items-center gap-0.5 text-[11px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+                              onClick={() => setExpandedSourceId(expandedSourceId === page.id ? null : page.id)}
+                            >
+                              {expandedSourceId === page.id ? (
+                                <><ChevronUp className="size-3" />收合全文</>
+                              ) : (
+                                <><ChevronDown className="size-3" />展開全文（{page.sourceText.length.toLocaleString()} 字）</>
+                              )}
+                            </button>
+                            {expandedSourceId === page.id && (
+                              <pre className="mt-1 max-h-96 overflow-y-auto rounded bg-muted/30 p-2 text-[11px] text-muted-foreground whitespace-pre-wrap break-all">
+                                {page.sourceText}
+                              </pre>
+                            )}
+                          </div>
+                        )}
                         <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                          <span>{page.blockIds.length} 個內容區塊</span>
+                          {page.sourceText ? (
+                            <span>{page.sourceText.length.toLocaleString()} 字來源文字</span>
+                          ) : page.blockIds.length > 0 ? (
+                            <span>{page.blockIds.length} 個內容區塊</span>
+                          ) : null}
                           {page.sourceLabel && <span>來源：{page.sourceLabel}</span>}
                         </div>
                       </div>

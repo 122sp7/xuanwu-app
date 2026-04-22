@@ -1,5 +1,7 @@
-import type { ResourceQuotaSnapshot } from "../entities/ResourceQuota";
-import type { ResourceKind } from "../entities/ResourceQuota";
+import type {
+  ResourceQuotaSnapshot,
+  ResourceKind,
+} from "../entities/ResourceQuota";
 
 export interface ResourceQuotaRepository {
   findById(quotaId: string): Promise<ResourceQuotaSnapshot | null>;

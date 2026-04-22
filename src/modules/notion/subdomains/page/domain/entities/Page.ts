@@ -12,6 +12,8 @@ export interface PageSnapshot {
   readonly title: string;
   readonly summary?: string;
   readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly slug: string;
   readonly parentPageId: string | null;
   readonly order: number;
@@ -31,6 +33,8 @@ export interface CreatePageInput {
   readonly title: string;
   readonly summary?: string;
   readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly parentPageId?: string | null;
   readonly createdByUserId: string;
   readonly order?: number;
@@ -58,6 +62,8 @@ export class Page {
       title: input.title,
       summary: input.summary?.trim() || undefined,
       sourceLabel: input.sourceLabel?.trim() || undefined,
+      sourceDocumentId: input.sourceDocumentId?.trim() || undefined,
+      sourceText: input.sourceText?.trim() || undefined,
       slug: slugify(input.title),
       parentPageId: input.parentPageId ?? null,
       order: input.order ?? 0,

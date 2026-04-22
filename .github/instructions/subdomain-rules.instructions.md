@@ -5,7 +5,7 @@ applyTo: 'src/modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 
 # 子域（Subdomain）設計規則
 
-> 完整邊界參考：**先查 `docs/structure/domain/subdomains.md`、`docs/structure/domain/bounded-contexts.md`、`docs/structure/domain/ubiquitous-language.md`**
+> 完整邊界參考：**先查 `docs/01-architecture/domain/subdomains.md`、`docs/01-architecture/domain/bounded-contexts.md`、`docs/01-architecture/domain/ubiquitous-language.md`**
 > 此文件只包含子域層級的**戰略設計約束**，不複製領域知識或程式碼範例。
 
 ## 核心定義

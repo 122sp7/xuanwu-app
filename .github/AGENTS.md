@@ -1,45 +1,35 @@
-# .github — Agent Guide
+# .github Agent Rules
 
-## Purpose
+## ROLE
 
-`.github/` 是 Copilot 行為治理層，定義工作規則、流程模板與工具能力路由。
+- The agent MUST treat .github as the Copilot governance surface for behavior, workflow, prompts, and skill routing.
+- The agent MUST keep .github focused on agent behavior, not strategic architecture ownership.
 
-## Start Here
+## DOMAIN BOUNDARIES
 
-- `TOOLING.md`：Tooling Documentation + AI Agent instruction 設計總入口
-- `copilot-instructions.md`：always-on 全域契約
+- The agent MUST keep behavior rules in .github and strategic truth in docs.
+- The agent MUST keep prompts, instructions, and skills separated by purpose.
 
-## Directory Map
+## TOOL USAGE
 
-| Path | Responsibility |
-|---|---|
-| `copilot-instructions.md` | 全域會話契約（精簡且穩定） |
-| `instructions/` | `applyTo` 驅動的檔案範圍規則 |
-| `prompts/` | 可重用工作流模板（plan / implement / review / test） |
-| `skills/` | 工具型能力包（Toolbooks） |
-| `agents/` | Agent profile 與 command contract（獨立維護） |
+- The agent MUST validate referenced files before documenting them.
+- The agent MUST keep governance links and routing paths current.
 
-## Governance Rules
+## EXECUTION FLOW
 
-- `.github/` 只定義「行為與流程」，不複製 `docs/` 戰略真相。
-- `copilot-instructions.md` 保持薄；細節下放到 `instructions/`。
-- 同一主題只保留一份權威，其餘入口用 router/shim 連結。
+- The agent MUST read [copilot-instructions.md](copilot-instructions.md) before broad .github edits.
+- The agent MUST update the owning surface instead of duplicating guidance.
 
-## Read Order
+## CONSTRAINTS
 
-1. `TOOLING.md`
-2. `copilot-instructions.md`
-3. `instructions/README.md`
-4. `prompts/README.md`
-5. `../docs/README.md`
+- The agent MUST NOT restate docs-owned strategy in .github.
+- The agent MUST keep `copilot-instructions.md` thin and durable.
 
 ## Route Here When
 
-- 需要新增/調整 Copilot 行為規則
-- 需要新增/調整 prompt workflow
-- 需要更新 skill/tool 操作流程
+- You update Copilot behavior rules, prompts, instructions, or skills governance.
 
 ## Route Elsewhere When
 
-- 主域邊界、術語、context map → `docs/**/*`
-- 模組內實作路由 → `src/modules/<context>/AGENTS.md`
+- Strategic architecture and terminology: [../docs/README.md](../docs/README.md)
+- Module-local routing: [../src/modules/AGENTS.md](../src/modules/AGENTS.md)

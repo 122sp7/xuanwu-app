@@ -1,6 +1,9 @@
-import { AuditLogEntry, type RecordAuditEntryInput } from "../../domain/entities/AuditLogEntry";
+import {
+  AuditLogEntry,
+  type AuditLogEntrySnapshot,
+  type RecordAuditEntryInput,
+} from "../../domain/entities/AuditLogEntry";
 import type { AuditLogRepository, AuditLogQuery } from "../../domain/repositories/AuditLogRepository";
-import type { AuditLogEntrySnapshot } from "../../domain/entities/AuditLogEntry";
 
 export class RecordAuditEntryUseCase {
   constructor(private readonly repo: AuditLogRepository) {}

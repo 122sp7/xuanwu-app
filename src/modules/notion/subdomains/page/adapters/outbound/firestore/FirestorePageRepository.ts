@@ -13,8 +13,7 @@
  * which matches the extended outbound glob.
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import { z } from "@packages";
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
 import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
 import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
 
@@ -27,6 +26,10 @@ const FirestorePageSnapshotSchema = z.object({
   accountId: z.string(),
   workspaceId: z.string().optional(),
   title: z.string(),
+  summary: z.string().optional(),
+  sourceLabel: z.string().optional(),
+  sourceDocumentId: z.string().optional(),
+  sourceText: z.string().optional(),
   slug: z.string(),
   parentPageId: z.string().nullable(),
   order: z.number(),
@@ -44,11 +47,16 @@ function toSnapshot(raw: unknown): PageSnapshot {
   return FirestorePageSnapshotSchema.parse(raw) as PageSnapshot;
 }
 
+/** Strip undefined values so Firestore setDoc() never sees an unsupported undefined field. */
+function toFirestoreDoc(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+}
+
 export class FirestorePageRepository implements PageRepository {
   async save(snapshot: PageSnapshot): Promise<void> {
     const db = getFirebaseFirestore();
     const { doc, setDoc } = firestoreApi;
-    await setDoc(doc(db, COLLECTION, snapshot.id), { ...snapshot }, { merge: true });
+    await setDoc(doc(db, COLLECTION, snapshot.id), toFirestoreDoc({ ...snapshot }), { merge: true });
   }
 
   async findById(id: string): Promise<PageSnapshot | null> {

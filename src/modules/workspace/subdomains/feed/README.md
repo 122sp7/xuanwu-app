@@ -1,64 +1,53 @@
-# feed — Workspace Feed Subdomain
+# feed
 
-每日動態貼文子域。讓工作區成員每天以 IG 風格發布文字與照片動態，未來將擴展為今日任務完成與出勤記錄的整合入口。
+## PURPOSE
 
-## 領域概念
+feed 子域提供工作區每日動態貼文能力，支援文字與圖片內容。
+它是工作區活動流入口，未來可整合任務完成與出勤記錄訊號。
 
-| 概念 | 說明 |
-|---|---|
-| `FeedPost` | 聚合根。代表一則動態（post / reply / repost）|
-| `dateKey` | ISO 日期字串 `YYYY-MM-DD`，用於 Firestore 按日期查詢 |
-| `photoUrls` | 附圖 URL 陣列（最多 9 張），指向 Storage 或外部圖片 |
-| `FeedPostType` | `post`（一般貼文）· `reply`（回覆）· `repost`（轉貼）|
+## GETTING STARTED
 
-## 狀態
+進入 feed 子域前先讀：
 
-| 層 | 狀態 |
-|---|---|
-| Domain | ✅ FeedPost 聚合根（含 photoUrls、dateKey）|
-| Application | ✅ CreateFeedPostUseCase、ListFeedPostsUseCase |
-| Outbound adapter | ✅ FirestoreFeedRepository（含按日期查詢）|
-| Inbound adapter | ✅ feed-actions.ts server actions |
-| UI | ✅ WorkspaceDailySection — 每日動態 IG 風格貼文牆 |
+1. [../task-formation/README.md](../task-formation/README.md)
+2. [../../README.md](../../README.md)
+3. [../../AGENTS.md](../../AGENTS.md)
 
-## 資料結構（Firestore）
+## ARCHITECTURE
 
-Collection: `feed_posts`
+feed 目前以貼文聚合根與查詢為核心：
 
-```
-{
-  id: string (UUID),
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  type: "post" | "reply" | "repost",
-  content: string,
-  dateKey: string,       // YYYY-MM-DD — 用於日期過濾索引
-  photoUrls: string[],   // Storage URLs，0–9 張
-  replyToPostId: string | null,
-  repostOfPostId: string | null,
-  likeCount: number,
-  replyCount: number,
-  repostCount: number,
-  viewCount: number,
-  bookmarkCount: number,
-  shareCount: number,
-  createdAtISO: string,
-  updatedAtISO: string,
-}
-```
+- domain：FeedPost 與貼文語義
+- application：建立與列表用例
+- outbound：Firestore repository
+- inbound/UI：server actions 與每日動態視圖
 
-建議 Firestore 複合索引：`(accountId, workspaceId, dateKey)` 以優化每日動態查詢。
+## PROJECT STRUCTURE
 
-## 未來擴展
+- domain：貼文模型與型別
+- application：CreateFeedPostUseCase、ListFeedPostsUseCase
+- adapters/outbound：FirestoreFeedRepository
+- adapters/inbound：feed-actions 與 UI entry
 
-- 今日任務完成統計（接入 workspace/task 子域）
-- 出勤記錄 check-in（接入 workspace/membership 子域）
-- 照片實際上傳（整合 platform FileAPI，替換 URL 輸入）
-- 點讚 / 回覆互動
+## DEVELOPMENT RULES
 
-## 邊界規則
+- MUST keep feed domain independent from Firebase SDK.
+- MUST keep cross-subdomain access through workspace module boundary.
+- MUST keep dateKey query contract stable for daily feed retrieval.
+- MUST route storage ownership-sensitive uploads through platform FileAPI.
 
-- `domain/` 不依賴任何外部框架或 Firebase SDK。
-- 跨模組消費者只能透過 `workspace/index.ts` 或 server actions 存取。
-- 照片上傳涉及所有權與 tenant 隔離時，必須走 platform FileAPI，而非直接呼叫 Storage SDK。
+## AI INTEGRATION
+
+feed 目前不擁有 AI orchestration 核心能力。
+若加入 AI 摘要或推薦能力，需透過 workspace/platform 邊界接入，避免語言污染。
+
+## DOCUMENTATION
+
+- Parent context: [../../README.md](../../README.md)
+- Parent rules: [../../AGENTS.md](../../AGENTS.md)
+- Strategic authority: [../../../../../docs/README.md](../../../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內定位 feed 的主要資料流。
+- 可在 3 分鐘內判斷修改應落在 domain/application/adapters 哪一層。

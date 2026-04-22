@@ -74,7 +74,7 @@ The following three skills are **official Repomix ecosystem skills** — load an
   - `references/summary.md`
   - `references/project-structure.md`
   - `references/files.md`
-  - `references/tech-stacks.md`（若版本與設定可用）
+  - `references/tech-stack.md`（若版本與設定可用）
 - 自動化流程優先採非互動：`--skill-output <path> --force`。
 - `--skill-generate` 不可與 `--stdout` 或 `--copy` 併用。
 - skills 名稱需維持穩定 kebab-case，避免頻繁改名造成引用漂移。
@@ -101,12 +101,10 @@ Recommended user intents:
 - `npm run repomix:skill` -> `.github/skills/xuanwu-skill`
 - `npm run repomix:notebooklm` -> `.github/skills/xuanwu-notebooklm-skill`
 - `npm run repomix:notion` -> `.github/skills/xuanwu-notion-skill`
-- `npm run repomix:platform` -> `.github/skills/xuanwu-app-platform-skill`
-- `npm run repomix:workspace` -> `.github/skills/xuanwu-app-workspace-skill`
-- `npm run repomix:workspace-workflows` -> `.github/skills/xuanwu-app-workspace-workflows-skill`
+- `npm run repomix:platform` -> `.github/skills/xuanwu-platform-skill`
+- `npm run repomix:workspace` -> `.github/skills/xuanwu-workspace-skill`
 - `npm run repomix:markdown` -> `.github/skills/xuanwu-markdown-skill`
 - `npm run repomix:explore` -> `repomix.config.json`（即時探索輸出）
-- `npm run repomix:app` -> `repomix.app.config.json`（App Router scope）
 - `npm run repomix:remote -- <repo-url-or-owner/repo>` -> 遠端倉庫探索
 - `npm run repomix:local -- <path>` -> 本地目錄探索
 

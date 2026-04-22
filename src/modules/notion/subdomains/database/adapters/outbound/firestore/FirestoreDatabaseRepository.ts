@@ -13,8 +13,7 @@
  * which matches the extended outbound glob.
  */
 
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import { z } from "@packages";
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
 import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
 
@@ -36,6 +35,8 @@ const FirestoreDatabaseSnapshotSchema = z.object({
   accountId: z.string(),
   title: z.string(),
   description: z.string().optional(),
+  sourceDocumentId: z.string().optional(),
+  sourceText: z.string().optional(),
   properties: z.array(FirestoreDatabasePropertySchema),
   status: z.enum(["active", "archived"]),
   createdByUserId: z.string(),
@@ -47,11 +48,16 @@ function toSnapshot(raw: unknown): DatabaseSnapshot {
   return FirestoreDatabaseSnapshotSchema.parse(raw) as DatabaseSnapshot;
 }
 
+/** Strip undefined values so Firestore setDoc() never sees an unsupported undefined field. */
+function toFirestoreDoc(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+}
+
 export class FirestoreDatabaseRepository implements DatabaseRepository {
   async save(snapshot: DatabaseSnapshot): Promise<void> {
     const db = getFirebaseFirestore();
     const { doc, setDoc } = firestoreApi;
-    await setDoc(doc(db, COLLECTION, snapshot.id), { ...snapshot }, { merge: true });
+    await setDoc(doc(db, COLLECTION, snapshot.id), toFirestoreDoc({ ...snapshot }), { merge: true });
   }
 
   async findById(id: string): Promise<DatabaseSnapshot | null> {

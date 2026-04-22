@@ -7,7 +7,8 @@
  * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
  */
 
-import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
+import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, getDownloadURL } from "@packages";
+import { uploadWorkspaceFile } from "@/src/modules/platform/adapters/outbound/firebase-composition";
 import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
 import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
 import {
@@ -90,26 +91,16 @@ export type { RagQueryInput, RagQueryOutput, ParseDocumentInput, ParseDocumentOu
  * Upload a document to a workspace-scoped source path.
  * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
  * Parsing / indexing are triggered manually from the Sources UI.
+ * Delegates to platform's uploadWorkspaceFile so upload logic stays in one place.
  */
 export async function uploadDocumentToStorage(
   file: File,
   accountId: string,
   workspaceId: string,
 ): Promise<string> {
-  const storage = getFirebaseStorage();
-  const uuid = crypto.randomUUID();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `workspaces/${workspaceId}/sources/${accountId}/${uuid}-${safeName}`;
-  const storageRef = ref(storage, path);
-  const metadata = {
-    customMetadata: {
-      account_id: accountId,
-      workspace_id: workspaceId,
-      filename: file.name,
-    },
-  };
-  await uploadBytes(storageRef, file, metadata);
-  return path;
+  return uploadWorkspaceFile(file, accountId, workspaceId, {
+    prefix: `workspaces/${workspaceId}/sources/${accountId}`,
+  });
 }
 
 /**

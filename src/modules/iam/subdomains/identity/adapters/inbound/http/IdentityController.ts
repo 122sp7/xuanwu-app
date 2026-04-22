@@ -1,8 +1,10 @@
-import type { SignInUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignInAnonymouslyUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { RegisterUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SendPasswordResetEmailUseCase } from "../../../application/use-cases/IdentityUseCases";
-import type { SignOutUseCase } from "../../../application/use-cases/IdentityUseCases";
+import type {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+  SignOutUseCase,
+} from "../../../application/use-cases/IdentityUseCases";
 import type { SignInCredentials, RegistrationInput } from "../../../domain/entities/Identity";
 
 /** HTTP inbound adapter stub — translates HTTP requests into identity use-case calls. */

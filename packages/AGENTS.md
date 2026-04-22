@@ -1,37 +1,42 @@
-# packages — Agent Rules
+# packages Agent Rules
 
-## Immediate Index
+## ROLE
 
-- Parent: [../AGENTS.md](../AGENTS.md)
-- Pair: [README.md](README.md)
-- Infra subgroup: [infra/AGENTS.md](infra/AGENTS.md)
+- The agent MUST treat packages as the shared package surface for infra primitives, external integrations, and reusable UI packages.
+- The agent MUST keep business ownership in src/modules rather than moving domain logic into packages.
 
-## Package Index
+## DOMAIN BOUNDARIES
 
-### infra
-- `infra/` —  ([AGENTS.md](infra/AGENTS.md) / [README.md](infra/README.md))
+- The agent MUST keep local primitives in packages/infra.
+- The agent MUST keep SDK and service wrappers in integration packages.
+- The agent MUST keep reusable presentation concerns in UI packages.
 
-### integration
-- `integration-ai/` — AI 服務整合封裝；SDK 細節應留在這裡。 ([AGENTS.md](integration-ai/AGENTS.md) / [README.md](integration-ai/README.md))
-- `integration-firebase/` — Firebase Client SDK 封裝；modules/app 不直接 import Firebase SDK。 ([AGENTS.md](integration-firebase/AGENTS.md) / [README.md](integration-firebase/README.md))
-- `integration-queue/` — 佇列與訊息發布整合封裝。 ([AGENTS.md](integration-queue/AGENTS.md) / [README.md](integration-queue/README.md))
+## TOOL USAGE
 
-### ui
-- `ui-components/` — 共享自訂 UI 元件層。 ([AGENTS.md](ui-components/AGENTS.md) / [README.md](ui-components/README.md))
-- `ui-dnd/` — 拖放能力封裝；消費端需以 client component 使用。 ([AGENTS.md](ui-dnd/AGENTS.md) / [README.md](ui-dnd/README.md))
-- `ui-editor/` — 富文本編輯器封裝。 ([AGENTS.md](ui-editor/AGENTS.md) / [README.md](ui-editor/README.md))
-- `ui-markdown/` — Markdown 渲染封裝。 ([AGENTS.md](ui-markdown/AGENTS.md) / [README.md](ui-markdown/README.md))
-- `ui-shadcn/` — shadcn/ui 官方輸出目錄；`ui/` 仍由 CLI 管理。 ([AGENTS.md](ui-shadcn/AGENTS.md) / [README.md](ui-shadcn/README.md))
-- `ui-vis/` — vis.js family 圖形 / 時間軸封裝；以實際匯出為準。 ([AGENTS.md](ui-vis/AGENTS.md) / [README.md](ui-vis/README.md))
-- `ui-visualization/` — Recharts 視覺化封裝。 ([AGENTS.md](ui-visualization/AGENTS.md) / [README.md](ui-visualization/README.md))
+- The agent MUST validate package paths and boundaries before edits.
+- The agent MUST keep package references synchronized with actual directories.
 
-## Routing Rules
+## EXECUTION FLOW
 
-- 外部 SDK 封裝與共享 UI / infra 原語放在 `packages/`。
-- 業務規則仍回到 `src/modules/<context>/`。
-- 子套件清單以實際目錄為準，不再手動維護易漂移的省略表。
+- The agent MUST read [../AGENTS.md](../AGENTS.md) first.
+- The agent MUST select the correct child package before editing leaf docs.
+- The agent MUST update [README.md](README.md) with this file when routing changes.
 
-## Drift Guard
+## DATA CONTRACT
 
-- `AGENTS.md` 管 nested index 與放置決策。
-- `README.md` 管 packages 層總覽。
+- The agent MUST keep package purpose descriptions explicit and stable.
+- The agent MUST keep index links valid and current.
+
+## CONSTRAINTS
+
+- The agent MUST NOT place business rules in packages.
+- The agent MUST NOT duplicate docs-owned strategic architecture here.
+
+## Route Here When
+
+- You update shared infra, integration, or UI package routing and governance.
+
+## Route Elsewhere When
+
+- Business capability ownership: [../src/modules/AGENTS.md](../src/modules/AGENTS.md)
+- Strategic architecture decisions: [../docs/README.md](../docs/README.md)
