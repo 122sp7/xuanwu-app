@@ -16,10 +16,10 @@ Keep detailed authority in the owning documents instead of duplicating long guid
 | Behavior rules | `.github/instructions/` | `.github/copilot-instructions.md` |
 | Skills and flows | `.github/skills/` | `.github/skills/README.md` |
 | Task prompts | `.github/prompts/` | prompt-specific frontmatter |
-| Strategic structure | `docs/structure/` | `docs/README.md` |
-| ADRs | `docs/decisions/` | `docs/decisions/README.md` |
-| Examples | `docs/examples/` | owning example README/AGENTS |
-| Tooling references | `docs/tooling/` | `docs/tooling/commands-reference.md` |
+| Strategic structure | `docs/01-architecture/` | `docs/README.md` |
+| ADRs | `docs/02-decisions/` | `docs/02-decisions/README.md` |
+| Examples | `docs/04-examples/` | owning example README/AGENTS |
+| Tooling references | `docs/05-tooling/` | `docs/05-tooling/commands-reference.md` |
 
 ## Naming Rules
 

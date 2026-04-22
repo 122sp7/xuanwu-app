@@ -17,15 +17,15 @@
 
 - The agent MUST verify every referenced doc path exists before adding links.
 - The agent MUST use minimal edits and avoid duplicating large architecture blocks across files.
-- The agent MUST synchronize command references with [tooling/commands-reference.md](tooling/commands-reference.md).
+- The agent MUST synchronize command references with [05-tooling/commands-reference.md](05-tooling/commands-reference.md).
 
 ## EXECUTION FLOW
 
 - The agent MUST follow this order:
 	1. Read [README.md](README.md).
-	2. Read strategic system docs in [structure/system](structure/system).
-	3. Read strategic domain docs in [structure/domain](structure/domain).
-	4. Read owning context docs in [structure/contexts](structure/contexts).
+	2. Read strategic system docs in [01-architecture/system](01-architecture/system).
+	3. Read strategic domain docs in [01-architecture/domain](01-architecture/domain).
+	4. Read owning context docs in [01-architecture/contexts](01-architecture/contexts).
 	5. Apply or update docs and report any conflicts.
 
 ## DATA CONTRACT
@@ -70,8 +70,8 @@
 ## Quick Links
 
 - Entry: [README.md](README.md)
-- System authority: [structure/system/architecture-overview.md](structure/system/architecture-overview.md)
-- Domain authority: [structure/domain/bounded-contexts.md](structure/domain/bounded-contexts.md)
-- Terminology authority: [structure/domain/ubiquitous-language.md](structure/domain/ubiquitous-language.md)
-- Context map: [structure/system/context-map.md](structure/system/context-map.md)
-- ADR index: [decisions/README.md](decisions/README.md)
+- System authority: [01-architecture/system/architecture-overview.md](01-architecture/system/architecture-overview.md)
+- Domain authority: [01-architecture/domain/bounded-contexts.md](01-architecture/domain/bounded-contexts.md)
+- Terminology authority: [01-architecture/domain/ubiquitous-language.md](01-architecture/domain/ubiquitous-language.md)
+- Context map: [01-architecture/system/context-map.md](01-architecture/system/context-map.md)
+- ADR index: [02-decisions/README.md](02-decisions/README.md)

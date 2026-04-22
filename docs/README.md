@@ -9,11 +9,11 @@
 
 閱讀與決策建議順序：
 
-1. [structure/system/architecture-overview.md](./structure/system/architecture-overview.md)
-2. [structure/domain/bounded-contexts.md](./structure/domain/bounded-contexts.md)
-3. [structure/domain/ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
-4. [structure/system/context-map.md](./structure/system/context-map.md)
-5. [decisions/README.md](./decisions/README.md)
+1. [01-architecture/system/architecture-overview.md](./01-architecture/system/architecture-overview.md)
+2. [01-architecture/domain/bounded-contexts.md](./01-architecture/domain/bounded-contexts.md)
+3. [01-architecture/domain/ubiquitous-language.md](./01-architecture/domain/ubiquitous-language.md)
+4. [01-architecture/system/context-map.md](./01-architecture/system/context-map.md)
+5. [02-decisions/README.md](./02-decisions/README.md)
 
 ## ARCHITECTURE
 
@@ -28,22 +28,22 @@
 
 ## PROJECT STRUCTURE
 
-- [structure/system](./structure/system)（[AGENTS.md](./structure/system/AGENTS.md)、[README.md](./structure/system/README.md)）：全域架構、整合規範、context map、strategic patterns、delivery milestones
-- [structure/domain](./structure/domain)（[AGENTS.md](./structure/domain/AGENTS.md)、[README.md](./structure/domain/README.md)）：主域、子域、術語與模板、DDD 戰略設計
-- [structure/contexts](./structure/contexts)：各 context 本地文件（8 個 bounded context）
-- [decisions](./decisions)：ADR 與決策索引
-- [examples](./examples)：功能與端到端示例
+- [01-architecture/system](./01-architecture/system)（[AGENTS.md](./01-architecture/AGENTS.md)、[README.md](./01-architecture/system/README.md)）：全域架構、整合規範、context map、strategic patterns、delivery milestones
+- [01-architecture/domain](./01-architecture/domain)（[AGENTS.md](./01-architecture/AGENTS.md)、[README.md](./01-architecture/domain/README.md)）：主域、子域、術語與模板、DDD 戰略設計
+- [01-architecture/contexts](./01-architecture/contexts)：各 context 本地文件（8 個 bounded context）
+- [02-decisions](./02-decisions)：ADR 與決策索引
+- [04-examples](./04-examples)：功能與端到端示例
 
 Context readme 快速入口：
 
-- [structure/contexts/ai/README.md](./structure/contexts/ai/README.md)
-- [structure/contexts/analytics/README.md](./structure/contexts/analytics/README.md)
-- [structure/contexts/billing/README.md](./structure/contexts/billing/README.md)
-- [structure/contexts/iam/README.md](./structure/contexts/iam/README.md)
-- [structure/contexts/platform/README.md](./structure/contexts/platform/README.md)
-- [structure/contexts/workspace/README.md](./structure/contexts/workspace/README.md)
-- [structure/contexts/notion/README.md](./structure/contexts/notion/README.md)
-- [structure/contexts/notebooklm/README.md](./structure/contexts/notebooklm/README.md)
+- [structure/contexts/ai/README.md](./01-architecture/contexts/ai/README.md)
+- [structure/contexts/analytics/README.md](./01-architecture/contexts/analytics/README.md)
+- [structure/contexts/billing/README.md](./01-architecture/contexts/billing/README.md)
+- [structure/contexts/iam/README.md](./01-architecture/contexts/iam/README.md)
+- [structure/contexts/platform/README.md](./01-architecture/contexts/platform/README.md)
+- [structure/contexts/workspace/README.md](./01-architecture/contexts/workspace/README.md)
+- [structure/contexts/notion/README.md](./01-architecture/contexts/notion/README.md)
+- [structure/contexts/notebooklm/README.md](./01-architecture/contexts/notebooklm/README.md)
 
 ## DEVELOPMENT RULES
 
@@ -67,24 +67,23 @@ AI 代理在實作前必須先定位：
 
 權威地圖：
 
-- [structure/system/architecture-overview.md](./structure/system/architecture-overview.md)
-- [structure/domain/subdomains.md](./structure/domain/subdomains.md)
-- [structure/domain/bounded-contexts.md](./structure/domain/bounded-contexts.md)
-- [structure/system/context-map.md](./structure/system/context-map.md)
-- [structure/domain/ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
-- [structure/system/integration-guidelines.md](./structure/system/integration-guidelines.md)
-- [structure/system/strategic-patterns.md](./structure/system/strategic-patterns.md)
-- [structure/system/hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)
-- [structure/domain/bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md)
-- [structure/system/project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)
-- [decisions/README.md](./decisions/README.md)
-- [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
+- [01-architecture/system/architecture-overview.md](./01-architecture/system/architecture-overview.md)
+- [01-architecture/domain/subdomains.md](./01-architecture/domain/subdomains.md)
+- [01-architecture/domain/bounded-contexts.md](./01-architecture/domain/bounded-contexts.md)
+- [01-architecture/system/context-map.md](./01-architecture/system/context-map.md)
+- [01-architecture/domain/ubiquitous-language.md](./01-architecture/domain/ubiquitous-language.md)
+- [01-architecture/system/integration-guidelines.md](./01-architecture/system/integration-guidelines.md)
+- [01-architecture/system/strategic-patterns.md](./01-architecture/system/strategic-patterns.md)
+- [01-architecture/system/hard-rules-consolidated.md](./01-architecture/system/hard-rules-consolidated.md)
+- [01-architecture/domain/bounded-context-subdomain-template.md](./01-architecture/domain/bounded-context-subdomain-template.md)
+- [01-architecture/system/project-delivery-milestones.md](./01-architecture/system/project-delivery-milestones.md)
+- [02-decisions/README.md](./02-decisions/README.md)
 
 聚焦實作流：
 
-- [structure/system/source-to-task-flow.md](./structure/system/source-to-task-flow.md)
-- [examples/modules/feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
-- [examples/end-to-end/deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
+- [01-architecture/system/source-to-task-flow.md](./01-architecture/system/source-to-task-flow.md)
+- [04-examples/modules/feature/notebooklm-source-processing-task-flow.md](./04-examples/modules/feature/notebooklm-source-processing-task-flow.md)
+- [04-examples/end-to-end/deliveries/upload-parse-to-task-flow.md](./04-examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
 
 ## USABILITY
 

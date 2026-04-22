@@ -14,7 +14,7 @@ applyTo: '{docs,src/modules,packages}/**/*.{ts,tsx,js,jsx,md}'
 
 ## Ubiquitous Language Rules
 
-1. Before naming classes, interfaces, types, variables, or domain events, check `docs/structure/domain/ubiquitous-language.md` and context-local glossary docs.
+1. Before naming classes, interfaces, types, variables, or domain events, check `docs/01-architecture/domain/ubiquitous-language.md` and context-local glossary docs.
 2. Do not replace canonical terms with synonyms once defined.
 3. Domain events must use past-tense naming.
 4. Bounded-context names must align with `src/modules/<context>/` folder names.

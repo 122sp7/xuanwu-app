@@ -33,7 +33,7 @@ These three skills **must be loaded at the start of every conversation** before 
 - Do not answer architecture, API, or implementation questions until all three mandatory skills are loaded.
 - If confidence in any library API, framework, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
 - Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
-- Run the matching validation from [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) before closing non-trivial changes.
+- Run the matching validation from [docs/05-tooling/commands-reference.md](../docs/05-tooling/commands-reference.md) before closing non-trivial changes.
 
 ## Mandatory Compliance Rules
 
@@ -60,16 +60,16 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 19. **Design Activation Rules**: Do not preemptively apply architectural patterns that have not been triggered by current complexity. Every introduced pattern must be traceable to a concrete, already-existing problem.
 20. **Lint / Policy as Code**: All implementations violating the above rules must be interceptable by static analysis tooling before commit. Implementing architectural constraints that cannot be verified by tooling is not permitted.
 
-> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/decisions/`. See `docs/structure/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
+> **Rule 20 Static Coverage Summary** — `eslint.config.mjs` enforces: Rules 2/6-7/13/49 (cross-module boundary via `no-restricted-imports`), Rule 12 (integration pkg isolation), Rule 6/23 (domain purity via `functional/no-let`). Rules 3/4/5/7/8/9/10/11/14/15/16/17/18/19 rely on Code Review + Firestore Security Rules + `docs/02-decisions/`. See `docs/01-architecture/system/hard-rules-consolidated.md` §Mapping to 20 Mandatory Compliance Rules for the full mapping.
 
 ## Read Order
 
 1. Start with [docs/README.md](../docs/README.md).
-2. Use [docs/structure/domain/ubiquitous-language.md](../docs/structure/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
-3. Use [docs/structure/domain/subdomains.md](../docs/structure/domain/subdomains.md) and [docs/structure/domain/bounded-contexts.md](../docs/structure/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
-4. Use `docs/structure/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
-5. Use [docs/structure/domain/bounded-context-subdomain-template.md](../docs/structure/domain/bounded-context-subdomain-template.md) and [docs/structure/system/project-delivery-milestones.md](../docs/structure/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
-6. Use [docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md) for build, lint, test, and deployment validation.
+2. Use [docs/01-architecture/domain/ubiquitous-language.md](../docs/01-architecture/domain/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/01-architecture/domain/subdomains.md](../docs/01-architecture/domain/subdomains.md) and [docs/01-architecture/domain/bounded-contexts.md](../docs/01-architecture/domain/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/01-architecture/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/01-architecture/domain/bounded-context-subdomain-template.md](../docs/01-architecture/domain/bounded-context-subdomain-template.md) and [docs/01-architecture/system/project-delivery-milestones.md](../docs/01-architecture/system/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [docs/05-tooling/commands-reference.md](../docs/05-tooling/commands-reference.md) for build, lint, test, and deployment validation.
 
 ## Instruction Series (Phase 1)
 
