@@ -2009,67 +2009,6 @@ export async function queryDatabasesAction(rawInput: unknown)
 export async function createDatabaseAction(rawInput: unknown)
 ````
 
-## File: src/modules/notion/index.ts
-````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
-import type { PageSnapshot } from "./subdomains/page/domain";
-import type { CommandResult } from "../shared";
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// knowledge (canonical KnowledgeArtifact aggregate)
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-⋮----
-export async function listWorkspaceKnowledgePages(params: {
-  accountId: string;
-  workspaceId: string;
-}): Promise<ReadonlyArray<PageSnapshot>>
-⋮----
-export async function listWorkspaceKnowledgeDatabases(
-  workspaceId: string,
-): Promise<ReadonlyArray<DatabaseSnapshot>>
-⋮----
-export async function createWorkspaceKnowledgePage(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  summary?: string;
-  sourceLabel?: string;
-  sourceDocumentId?: string;
-  sourceText?: string;
-  createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-export async function createWorkspaceKnowledgeDatabase(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  description?: string;
-  sourceDocumentId?: string;
-  sourceText?: string;
-  createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-export async function addWorkspaceKnowledgeDatabaseProperty(
-  databaseId: string,
-  property: DatabaseProperty,
-): Promise<CommandResult>
-````
-
 ## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
 ````typescript
 /**
@@ -2142,54 +2081,6 @@ get parentPageId(): string | null
 getSnapshot(): Readonly<PageSnapshot>
 ⋮----
 pullDomainEvents()
-````
-
-## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
-````typescript
-/**
- * NotionPagesSection — notion.pages tab — workspace knowledge pages.
- *
- * This surface is intentionally "Notion-like" rather than a full Notion API
- * clone. Pages carry lightweight workspace knowledge context that can be
- * forwarded into workspace.task-formation as a concrete source reference.
- */
-⋮----
-import { Button, Input } from "@packages";
-import { FileText, Plus, ListPlus, Pencil, Archive } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
-⋮----
-import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
-import {
-  queryPages,
-  createPage,
-  renamePage,
-  archivePage,
-} from "../../../adapters/outbound/firebase-composition";
-⋮----
-interface NotionPagesSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId: string;
-}
-⋮----
-function taskFormationHref(accountId: string, workspaceId: string, pageId: string)
-⋮----
-const reloadPages = async () =>
-⋮----
-const load = () =>
-⋮----
-}, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
-⋮----
-const handleCreate = () =>
-⋮----
-const handleStartRename = (page: PageSnapshot) =>
-⋮----
-const handleRename = (pageId: string) =>
-⋮----
-const handleArchive = (pageId: string) =>
-⋮----
-href=
 ````
 
 ## File: src/modules/notion/adapters/outbound/firebase-composition.ts
@@ -2272,6 +2163,68 @@ export async function addDatabaseProperty(
 ): Promise<CommandResult>
 ````
 
+## File: src/modules/notion/index.ts
+````typescript
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
+import type { PageSnapshot } from "./subdomains/page/domain";
+import type { CommandResult } from "../shared";
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// knowledge (canonical KnowledgeArtifact aggregate)
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
+⋮----
+export async function listWorkspaceKnowledgePages(params: {
+  accountId: string;
+  workspaceId: string;
+}): Promise<ReadonlyArray<PageSnapshot>>
+⋮----
+export async function listWorkspaceKnowledgeDatabases(
+  workspaceId: string,
+): Promise<ReadonlyArray<DatabaseSnapshot>>
+⋮----
+export async function createWorkspaceKnowledgePage(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  summary?: string;
+  sourceLabel?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function createWorkspaceKnowledgeDatabase(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  description?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  properties?: DatabaseProperty[];
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function addWorkspaceKnowledgeDatabaseProperty(
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<CommandResult>
+````
+
 ## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
 ````typescript
 /**
@@ -2337,6 +2290,54 @@ get parentPageId(): string | null
 get properties(): DatabaseProperty[]
 ⋮----
 getSnapshot(): Readonly<DatabaseSnapshot>
+````
+
+## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
+````typescript
+/**
+ * NotionPagesSection — notion.pages tab — workspace knowledge pages.
+ *
+ * This surface is intentionally "Notion-like" rather than a full Notion API
+ * clone. Pages carry lightweight workspace knowledge context that can be
+ * forwarded into workspace.task-formation as a concrete source reference.
+ */
+⋮----
+import { Button, Input } from "@packages";
+import { FileText, Plus, ListPlus, Pencil, Archive } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
+⋮----
+import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
+import {
+  queryPages,
+  createPage,
+  renamePage,
+  archivePage,
+} from "../../../adapters/outbound/firebase-composition";
+⋮----
+interface NotionPagesSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId: string;
+}
+⋮----
+function taskFormationHref(accountId: string, workspaceId: string, pageId: string)
+⋮----
+const reloadPages = async () =>
+⋮----
+const load = () =>
+⋮----
+}, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleCreate = () =>
+⋮----
+const handleStartRename = (page: PageSnapshot) =>
+⋮----
+const handleRename = (pageId: string) =>
+⋮----
+const handleArchive = (pageId: string) =>
+⋮----
+href=
 ````
 
 ## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts

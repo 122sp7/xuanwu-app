@@ -20,7 +20,7 @@ src/modules/notion/adapters/inbound/server-actions/template-actions.ts (15 lines
 src/modules/notion/adapters/outbound/firebase-composition.ts (76 lines)
 src/modules/notion/adapters/outbound/notion-page-stub.ts (25 lines)
 src/modules/notion/AGENTS.md (69 lines)
-src/modules/notion/index.ts (57 lines)
+src/modules/notion/index.ts (58 lines)
 src/modules/notion/orchestration/index.ts (3 lines)
 src/modules/notion/README.md (52 lines)
 src/modules/notion/shared/errors/index.ts (1 lines)

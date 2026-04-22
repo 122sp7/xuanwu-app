@@ -16205,82 +16205,6 @@ onSelectWorkspace(workspace.id);
  */
 ````
 
-## File: src/modules/platform/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — platform module outbound composition root.
- *
- * This file is a pure composition root. It:
- *   - Assembles use-case instances against FirestoreFileStorageRepository
- *   - Provides Firebase Storage upload/download helpers
- *
- * Infrastructure logic lives in the subdomain adapter:
- *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
- *
- * ESLint: @integration-firebase/storage is allowed here — this file lives at
- * src/modules/platform/adapters/outbound/ which matches the permitted glob.
- *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
- */
-⋮----
-import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
-import {
-  CreateStoredFileUseCase,
-  GetStoredFileUseCase,
-  ListStoredFilesUseCase,
-  DeleteStoredFileUseCase,
-} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
-⋮----
-// ── Singleton ─────────────────────────────────────────────────────────────────
-⋮----
-function getFileRepo(): FirestoreFileStorageRepository
-⋮----
-// ── Factory ───────────────────────────────────────────────────────────────────
-⋮----
-export function createClientFileStorageUseCases()
-⋮----
-// ── Client-side file storage helpers ─────────────────────────────────────────
-//
-// MUST be called from client components, NOT from Server Actions.
-// The Firebase Web Client SDK requires a signed-in user in the browser context.
-// A Server Action has no active Firebase user session → Firestore Security Rules
-// block any operation (read or write) with "Missing or insufficient permissions".
-⋮----
-export async function listWorkspaceFiles(params:
-⋮----
-export async function registerUploadedFile(params: {
-  workspaceId: string;
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  url: string;
-})
-⋮----
-export async function deleteWorkspaceFile(params:
-⋮----
-// ── Storage helpers ───────────────────────────────────────────────────────────
-⋮----
-/**
- * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
- *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
- * Returns the GCS storage path (used as StoredFile.url).
- */
-export async function uploadWorkspaceFile(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
- *
- * Accepts both gs://bucket/path and relative paths like workspace-files/...
- */
-export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
-````
-
 ## File: src/modules/platform/index.ts
 ````typescript
 /**
@@ -20883,129 +20807,6 @@ notebook 子域負責 notebooklm notebook container 語言。
 - Parent: [../../README.md](../../README.md)
 ````
 
-## File: src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts
-````typescript
-/**
- * FirestoreIngestionSourceRepository — Firestore adapter for the source subdomain.
- *
- * Reads from accounts/{accountId}/documents/{docId}, which is the same collection
- * written by the fn pipeline.  TypeScript side is read-only: fn is the sole writer.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi } from "@packages";
-import type {
-  IngestionSourceSnapshot,
-  SourceStatus,
-} from "../../../domain/entities/IngestionSource";
-import type {
-  IngestionSourceRepository,
-  IngestionSourceQuery,
-} from "../../../domain/repositories/IngestionSourceRepository";
-⋮----
-// ── Firestore record shape written by fn ──────────────────────────────────────
-⋮----
-interface PyFnSourceRecord {
-  id?: string;
-  title?: string;
-  status?: string;
-  account_id?: string;
-  spaceId?: string;
-  source?: {
-    gcs_uri?: string;
-    filename?: string;
-    display_name?: string;
-    original_filename?: string;
-    size_bytes?: number;
-    uploaded_at?: { toDate?: () => Date };
-    mime_type?: string;
-  };
-  parsed?: {
-    layout_json_gcs_uri?: string;
-    form_json_gcs_uri?: string;
-    ocr_json_gcs_uri?: string;
-    genkit_json_gcs_uri?: string;
-    page_count?: number;
-    parsed_at?: { toDate?: () => Date };
-    extraction_ms?: number;
-    layout_chunk_count?: number;
-    form_entity_count?: number;
-    /** Legacy field written by storage trigger before the split. */
-    json_gcs_uri?: string;
-    chunk_count?: number;
-    entity_count?: number;
-  };
-  rag?: {
-    status?: string;
-    chunk_count?: number;
-    vector_count?: number;
-    embedding_model?: string;
-    embedding_dimensions?: number;
-    indexed_at?: { toDate?: () => Date };
-  };
-  error?: {
-    message?: string;
-    timestamp?: { toDate?: () => Date };
-  };
-  metadata?: {
-    filename?: string;
-    display_name?: string;
-    space_id?: string;
-  };
-}
-⋮----
-/** Legacy field written by storage trigger before the split. */
-⋮----
-// ── Mapping helpers ───────────────────────────────────────────────────────────
-⋮----
-function mapPyFnStatus(
-  docStatus: string | undefined,
-  ragStatus: string | undefined,
-): SourceStatus
-⋮----
-// fn sets status="completed" after a successful parse but before RAG indexing.
-⋮----
-// TS-side initial write uses status="active" (upload done, not yet parsed).
-⋮----
-function fromFirestore(
-  raw: PyFnSourceRecord,
-  docId: string,
-): IngestionSourceSnapshot
-⋮----
-// fn pipeline fields
-⋮----
-// ── Repository implementation ─────────────────────────────────────────────────
-⋮----
-export class FirestoreIngestionSourceRepository
-implements IngestionSourceRepository
-⋮----
-async save(_snapshot: IngestionSourceSnapshot): Promise<void>
-⋮----
-// Intentionally no-op: fn is the sole writer for this collection.
-// TypeScript side is read-only.
-⋮----
-async findById(_id: string): Promise<IngestionSourceSnapshot | null>
-⋮----
-// findById requires accountId context; use query() for list operations.
-⋮----
-async findByNotebookId(
-    _notebookId: string,
-): Promise<IngestionSourceSnapshot[]>
-⋮----
-// Notebook → source relationship is managed by the Notebook aggregate.
-⋮----
-async query(
-    params: IngestionSourceQuery,
-): Promise<IngestionSourceSnapshot[]>
-⋮----
-async delete(_id: string): Promise<void>
-⋮----
-// fn manages deletions; TypeScript side does not delete.
-````
-
 ## File: src/modules/notebooklm/subdomains/source/AGENTS.md
 ````markdown
 # source Subdomain Agent Rules
@@ -21028,127 +20829,6 @@ async delete(_id: string): Promise<void>
 ## Route Here When
 
 - You document notebooklm source boundaries.
-````
-
-## File: src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts
-````typescript
-/**
- * IngestionSource — canonical ubiquitous-language term for a workspace-scoped
- * ingested document in the notebooklm bounded context.
- *
- * "Source" is the strategic name per docs/structure/domain/ubiquitous-language.md.
- * The legacy "document" subdomain has been removed; all consumers now reference
- * IngestionSource and IngestionSourceSnapshot directly.
- */
-import { v4 as uuid } from "uuid";
-⋮----
-export type SourceStatus = "active" | "processing" | "archived" | "deleted";
-export type SourceClassification = "image" | "manifest" | "record" | "other";
-⋮----
-export interface IngestionSourceSnapshot {
-  readonly id: string;
-  readonly notebookId?: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly classification: SourceClassification;
-  readonly tags: readonly string[];
-  readonly status: SourceStatus;
-  readonly storageUrl?: string;
-  /** External origin URI (e.g. GCS path, URL) */
-  readonly originUri?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-  readonly deletedAtISO?: string;
-
-  // ── fn pipeline status fields ──────────────────────────────────────────────
-  /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
-  readonly parsedPageCount?: number;
-  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
-  readonly parsedLayoutChunkCount?: number;
-  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
-  readonly parsedFormEntityCount?: number;
-  /** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
-  readonly parsedLayoutJsonGcsUri?: string;
-  /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
-  readonly parsedFormJsonGcsUri?: string;
-  /** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
-  readonly parsedOcrJsonGcsUri?: string;
-  /** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
-  readonly parsedGenkitJsonGcsUri?: string;
-  /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
-  readonly ragChunkCount?: number;
-  /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
-  readonly ragVectorCount?: number;
-  /** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
-  readonly ragStatus?: string;
-  /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
-  readonly errorMessage?: string;
-}
-⋮----
-/** External origin URI (e.g. GCS path, URL) */
-⋮----
-// ── fn pipeline status fields ──────────────────────────────────────────────
-/** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
-⋮----
-/** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
-⋮----
-/** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
-⋮----
-/** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
-⋮----
-/** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
-⋮----
-/** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
-⋮----
-/** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
-⋮----
-/** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
-⋮----
-/** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
-⋮----
-/** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
-⋮----
-/** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
-⋮----
-export interface RegisterIngestionSourceInput {
-  readonly notebookId?: string;
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-  readonly classification?: SourceClassification;
-  readonly tags?: string[];
-  readonly storageUrl?: string;
-  readonly originUri?: string;
-}
-⋮----
-export class IngestionSource {
-⋮----
-private constructor(private _props: IngestionSourceSnapshot)
-⋮----
-static register(input: RegisterIngestionSourceInput): IngestionSource
-⋮----
-static reconstitute(snapshot: IngestionSourceSnapshot): IngestionSource
-⋮----
-markReady(): void
-⋮----
-archive(): void
-⋮----
-get id(): string
-get name(): string
-get status(): SourceStatus
-get workspaceId(): string
-get notebookId(): string | undefined
-⋮----
-getSnapshot(): Readonly<IngestionSourceSnapshot>
-⋮----
-pullDomainEvents()
 ````
 
 ## File: src/modules/notebooklm/subdomains/source/README.md
@@ -21698,6 +21378,85 @@ view 子域負責 notion knowledge view 語言。
 ## DOCUMENTATION
 
 - Parent: [../../README.md](../../README.md)
+````
+
+## File: src/modules/platform/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — platform module outbound composition root.
+ *
+ * This file is a pure composition root. It:
+ *   - Assembles use-case instances against FirestoreFileStorageRepository
+ *   - Provides Firebase Storage upload/download helpers
+ *
+ * Infrastructure logic lives in the subdomain adapter:
+ *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
+ *
+ * ESLint: @integration-firebase/storage is allowed here — this file lives at
+ * src/modules/platform/adapters/outbound/ which matches the permitted glob.
+ *
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ */
+⋮----
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
+import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
+import {
+  CreateStoredFileUseCase,
+  GetStoredFileUseCase,
+  ListStoredFilesUseCase,
+  DeleteStoredFileUseCase,
+} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
+⋮----
+// ── Singleton ─────────────────────────────────────────────────────────────────
+⋮----
+function getFileRepo(): FirestoreFileStorageRepository
+⋮----
+// ── Factory ───────────────────────────────────────────────────────────────────
+⋮----
+export function createClientFileStorageUseCases()
+⋮----
+// ── Client-side file storage helpers ─────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+// The Firebase Web Client SDK requires a signed-in user in the browser context.
+// A Server Action has no active Firebase user session → Firestore Security Rules
+// block any operation (read or write) with "Missing or insufficient permissions".
+⋮----
+export async function listWorkspaceFiles(params:
+⋮----
+export async function registerUploadedFile(params: {
+  workspaceId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+})
+⋮----
+export async function deleteWorkspaceFile(params:
+⋮----
+// ── Storage helpers ───────────────────────────────────────────────────────────
+⋮----
+/**
+ * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
+ *
+ * Default storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Custom prefix can be supplied as `options.prefix` to reuse this function for
+ * other workspace-scoped paths (e.g. notebooklm sources under workspaces/).
+ * Returns the GCS storage path (used as StoredFile.url).
+ */
+export async function uploadWorkspaceFile(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+  options?: { prefix?: string },
+): Promise<string>
+⋮----
+/**
+ * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspace-files/...
+ */
+export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
 ````
 
 ## File: src/modules/platform/AGENTS.md
@@ -23862,6 +23621,271 @@ export async function callParseDocument(input: ParseDocumentInput): Promise<Pars
 export async function callReindexDocument(input: ReindexDocumentInput): Promise<void>
 ````
 
+## File: src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts
+````typescript
+/**
+ * FirestoreIngestionSourceRepository — Firestore adapter for the source subdomain.
+ *
+ * Reads from accounts/{accountId}/documents/{docId}, which is the same collection
+ * written by the fn pipeline.  TypeScript side is read-only: fn is the sole writer.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi } from "@packages";
+import type {
+  IngestionSourceSnapshot,
+  SourceStatus,
+} from "../../../domain/entities/IngestionSource";
+import type {
+  IngestionSourceRepository,
+  IngestionSourceQuery,
+} from "../../../domain/repositories/IngestionSourceRepository";
+⋮----
+// ── Firestore record shape written by fn ──────────────────────────────────────
+⋮----
+interface PyFnSourceRecord {
+  id?: string;
+  title?: string;
+  status?: string;
+  account_id?: string;
+  spaceId?: string;
+  source?: {
+    gcs_uri?: string;
+    filename?: string;
+    display_name?: string;
+    original_filename?: string;
+    size_bytes?: number;
+    uploaded_at?: { toDate?: () => Date };
+    mime_type?: string;
+  };
+  parsed?: {
+    layout_json_gcs_uri?: string;
+    form_json_gcs_uri?: string;
+    ocr_json_gcs_uri?: string;
+    genkit_json_gcs_uri?: string;
+    page_count?: number;
+    parsed_at?: { toDate?: () => Date };
+    extraction_ms?: number;
+    layout_chunk_count?: number;
+    form_entity_count?: number;
+    /** Legacy field written by storage trigger before the split. */
+    json_gcs_uri?: string;
+    chunk_count?: number;
+    entity_count?: number;
+  };
+  rag?: {
+    status?: string;
+    chunk_count?: number;
+    vector_count?: number;
+    embedding_model?: string;
+    embedding_dimensions?: number;
+    indexed_at?: { toDate?: () => Date };
+  };
+  error?: {
+    message?: string;
+    timestamp?: { toDate?: () => Date };
+  };
+  metadata?: {
+    filename?: string;
+    display_name?: string;
+    space_id?: string;
+  };
+}
+⋮----
+/** Legacy field written by storage trigger before the split. */
+⋮----
+// ── Mapping helpers ───────────────────────────────────────────────────────────
+⋮----
+function mapPyFnStatus(
+  docStatus: string | undefined,
+  ragStatus: string | undefined,
+): SourceStatus
+⋮----
+// fn sets status="completed" after a successful parse but before RAG indexing.
+⋮----
+// TS-side initial write uses status="active" (upload done, not yet parsed).
+⋮----
+function fromFirestore(
+  raw: PyFnSourceRecord,
+  docId: string,
+): IngestionSourceSnapshot
+⋮----
+// fn pipeline fields
+⋮----
+// timing / model fields
+⋮----
+// ── Repository implementation ─────────────────────────────────────────────────
+⋮----
+export class FirestoreIngestionSourceRepository
+implements IngestionSourceRepository
+⋮----
+async save(_snapshot: IngestionSourceSnapshot): Promise<void>
+⋮----
+// Intentionally no-op: fn is the sole writer for this collection.
+// TypeScript side is read-only.
+⋮----
+async findById(_id: string): Promise<IngestionSourceSnapshot | null>
+⋮----
+// findById requires accountId context; use query() for list operations.
+⋮----
+async findByNotebookId(
+    _notebookId: string,
+): Promise<IngestionSourceSnapshot[]>
+⋮----
+// Notebook → source relationship is managed by the Notebook aggregate.
+⋮----
+async query(
+    params: IngestionSourceQuery,
+): Promise<IngestionSourceSnapshot[]>
+⋮----
+async delete(_id: string): Promise<void>
+⋮----
+// fn manages deletions; TypeScript side does not delete.
+````
+
+## File: src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts
+````typescript
+/**
+ * IngestionSource — canonical ubiquitous-language term for a workspace-scoped
+ * ingested document in the notebooklm bounded context.
+ *
+ * "Source" is the strategic name per docs/structure/domain/ubiquitous-language.md.
+ * The legacy "document" subdomain has been removed; all consumers now reference
+ * IngestionSource and IngestionSourceSnapshot directly.
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type SourceStatus = "active" | "processing" | "archived" | "deleted";
+export type SourceClassification = "image" | "manifest" | "record" | "other";
+⋮----
+export interface IngestionSourceSnapshot {
+  readonly id: string;
+  readonly notebookId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification: SourceClassification;
+  readonly tags: readonly string[];
+  readonly status: SourceStatus;
+  readonly storageUrl?: string;
+  /** External origin URI (e.g. GCS path, URL) */
+  readonly originUri?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+  readonly deletedAtISO?: string;
+
+  // ── fn pipeline status fields ──────────────────────────────────────────────
+  /** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
+  readonly parsedPageCount?: number;
+  /** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
+  readonly parsedLayoutChunkCount?: number;
+  /** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
+  readonly parsedFormEntityCount?: number;
+  /** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+  readonly parsedLayoutJsonGcsUri?: string;
+  /** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
+  readonly parsedFormJsonGcsUri?: string;
+  /** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
+  readonly parsedOcrJsonGcsUri?: string;
+  /** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
+  readonly parsedGenkitJsonGcsUri?: string;
+  /** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
+  readonly ragChunkCount?: number;
+  /** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
+  readonly ragVectorCount?: number;
+  /** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
+  readonly ragStatus?: string;
+  /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
+  readonly errorMessage?: string;
+
+  // ── fn pipeline timing / model fields ─────────────────────────────────────
+  /** Layout Parser 完成時間（由 fn 寫入 Firestore parsed.parsed_at）*/
+  readonly parsedAt?: string;
+  /** Layout Parser 耗時毫秒（由 fn 寫入 Firestore parsed.extraction_ms）*/
+  readonly extractionMs?: number;
+  /** RAG 嵌入模型名稱（由 fn 寫入 Firestore rag.embedding_model）*/
+  readonly embeddingModel?: string;
+  /** RAG 索引完成時間（由 fn 寫入 Firestore rag.indexed_at）*/
+  readonly ragIndexedAt?: string;
+}
+⋮----
+/** External origin URI (e.g. GCS path, URL) */
+⋮----
+// ── fn pipeline status fields ──────────────────────────────────────────────
+/** Layout Parser 解析頁數（由 fn 寫入 Firestore parsed.page_count）*/
+⋮----
+/** Layout Parser 語意分塊數（由 fn 寫入 Firestore parsed.layout_chunk_count）*/
+⋮----
+/** Form Parser 結構化欄位數（由 fn 寫入 Firestore parsed.form_entity_count）*/
+⋮----
+/** Layout Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.layout_json_gcs_uri）*/
+⋮----
+/** Form Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.form_json_gcs_uri）*/
+⋮----
+/** OCR Parser 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.ocr_json_gcs_uri）*/
+⋮----
+/** Genkit-AI 解析結果 JSON 的 GCS URI（由 fn 寫入 Firestore parsed.genkit_json_gcs_uri）*/
+⋮----
+/** RAG 索引分塊數（由 fn 寫入 Firestore rag.chunk_count）*/
+⋮----
+/** RAG 向量數（由 fn 寫入 Firestore rag.vector_count）*/
+⋮----
+/** RAG 索引狀態（由 fn 寫入 Firestore rag.status: "ready" | "error"）*/
+⋮----
+/** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
+⋮----
+// ── fn pipeline timing / model fields ─────────────────────────────────────
+/** Layout Parser 完成時間（由 fn 寫入 Firestore parsed.parsed_at）*/
+⋮----
+/** Layout Parser 耗時毫秒（由 fn 寫入 Firestore parsed.extraction_ms）*/
+⋮----
+/** RAG 嵌入模型名稱（由 fn 寫入 Firestore rag.embedding_model）*/
+⋮----
+/** RAG 索引完成時間（由 fn 寫入 Firestore rag.indexed_at）*/
+⋮----
+export interface RegisterIngestionSourceInput {
+  readonly notebookId?: string;
+  readonly workspaceId: string;
+  readonly organizationId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly classification?: SourceClassification;
+  readonly tags?: string[];
+  readonly storageUrl?: string;
+  readonly originUri?: string;
+}
+⋮----
+export class IngestionSource {
+⋮----
+private constructor(private _props: IngestionSourceSnapshot)
+⋮----
+static register(input: RegisterIngestionSourceInput): IngestionSource
+⋮----
+static reconstitute(snapshot: IngestionSourceSnapshot): IngestionSource
+⋮----
+markReady(): void
+⋮----
+archive(): void
+⋮----
+get id(): string
+get name(): string
+get status(): SourceStatus
+get workspaceId(): string
+get notebookId(): string | undefined
+⋮----
+getSnapshot(): Readonly<IngestionSourceSnapshot>
+⋮----
+pullDomainEvents()
+````
+
 ## File: src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx
 ````typescript
 /**
@@ -23907,67 +23931,6 @@ import { createClientNotionDatabaseUseCases } from "../../outbound/firebase-comp
 export async function queryDatabasesAction(rawInput: unknown)
 ⋮----
 export async function createDatabaseAction(rawInput: unknown)
-````
-
-## File: src/modules/notion/index.ts
-````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
-⋮----
-import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
-import type { PageSnapshot } from "./subdomains/page/domain";
-import type { CommandResult } from "../shared";
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// knowledge (canonical KnowledgeArtifact aggregate)
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-⋮----
-export async function listWorkspaceKnowledgePages(params: {
-  accountId: string;
-  workspaceId: string;
-}): Promise<ReadonlyArray<PageSnapshot>>
-⋮----
-export async function listWorkspaceKnowledgeDatabases(
-  workspaceId: string,
-): Promise<ReadonlyArray<DatabaseSnapshot>>
-⋮----
-export async function createWorkspaceKnowledgePage(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  summary?: string;
-  sourceLabel?: string;
-  sourceDocumentId?: string;
-  sourceText?: string;
-  createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-export async function createWorkspaceKnowledgeDatabase(input: {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  description?: string;
-  sourceDocumentId?: string;
-  sourceText?: string;
-  createdByUserId: string;
-}): Promise<CommandResult>
-⋮----
-export async function addWorkspaceKnowledgeDatabaseProperty(
-  databaseId: string,
-  property: DatabaseProperty,
-): Promise<CommandResult>
 ````
 
 ## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
@@ -24284,54 +24247,6 @@ async findByWorkspaceIds(workspaceIds: string[]): Promise<AuditEntrySnapshot[]>
 async save(): Promise<void>
 ````
 
-## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
-````typescript
-/**
- * NotionPagesSection — notion.pages tab — workspace knowledge pages.
- *
- * This surface is intentionally "Notion-like" rather than a full Notion API
- * clone. Pages carry lightweight workspace knowledge context that can be
- * forwarded into workspace.task-formation as a concrete source reference.
- */
-⋮----
-import { Button, Input } from "@packages";
-import { FileText, Plus, ListPlus, Pencil, Archive } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
-⋮----
-import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
-import {
-  queryPages,
-  createPage,
-  renamePage,
-  archivePage,
-} from "../../../adapters/outbound/firebase-composition";
-⋮----
-interface NotionPagesSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId: string;
-}
-⋮----
-function taskFormationHref(accountId: string, workspaceId: string, pageId: string)
-⋮----
-const reloadPages = async () =>
-⋮----
-const load = () =>
-⋮----
-}, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
-⋮----
-const handleCreate = () =>
-⋮----
-const handleStartRename = (page: PageSnapshot) =>
-⋮----
-const handleRename = (pageId: string) =>
-⋮----
-const handleArchive = (pageId: string) =>
-⋮----
-href=
-````
-
 ## File: src/modules/notion/adapters/outbound/firebase-composition.ts
 ````typescript
 /**
@@ -24407,6 +24322,68 @@ export async function queryDatabases(workspaceId: string)
 export async function createDatabase(input: CreateDatabaseInput)
 ⋮----
 export async function addDatabaseProperty(
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<CommandResult>
+````
+
+## File: src/modules/notion/index.ts
+````typescript
+/**
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
+import type { PageSnapshot } from "./subdomains/page/domain";
+import type { CommandResult } from "../shared";
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// knowledge (canonical KnowledgeArtifact aggregate)
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
+⋮----
+export async function listWorkspaceKnowledgePages(params: {
+  accountId: string;
+  workspaceId: string;
+}): Promise<ReadonlyArray<PageSnapshot>>
+⋮----
+export async function listWorkspaceKnowledgeDatabases(
+  workspaceId: string,
+): Promise<ReadonlyArray<DatabaseSnapshot>>
+⋮----
+export async function createWorkspaceKnowledgePage(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  summary?: string;
+  sourceLabel?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function createWorkspaceKnowledgeDatabase(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  description?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  properties?: DatabaseProperty[];
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function addWorkspaceKnowledgeDatabaseProperty(
   databaseId: string,
   property: DatabaseProperty,
 ): Promise<CommandResult>
@@ -24755,6 +24732,54 @@ async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate
 // Dynamic import — keeps Node.js-only genkit deps out of browser bundles.
 ````
 
+## File: src/modules/notion/adapters/inbound/react/NotionPagesSection.tsx
+````typescript
+/**
+ * NotionPagesSection — notion.pages tab — workspace knowledge pages.
+ *
+ * This surface is intentionally "Notion-like" rather than a full Notion API
+ * clone. Pages carry lightweight workspace knowledge context that can be
+ * forwarded into workspace.task-formation as a concrete source reference.
+ */
+⋮----
+import { Button, Input } from "@packages";
+import { FileText, Plus, ListPlus, Pencil, Archive } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
+⋮----
+import type { PageSnapshot } from "../../../subdomains/page/domain/entities/Page";
+import {
+  queryPages,
+  createPage,
+  renamePage,
+  archivePage,
+} from "../../../adapters/outbound/firebase-composition";
+⋮----
+interface NotionPagesSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId: string;
+}
+⋮----
+function taskFormationHref(accountId: string, workspaceId: string, pageId: string)
+⋮----
+const reloadPages = async () =>
+⋮----
+const load = () =>
+⋮----
+}, [workspaceId, accountId]); // eslint-disable-line react-hooks/exhaustive-deps
+⋮----
+const handleCreate = () =>
+⋮----
+const handleStartRename = (page: PageSnapshot) =>
+⋮----
+const handleRename = (pageId: string) =>
+⋮----
+const handleArchive = (pageId: string) =>
+⋮----
+href=
+````
+
 ## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
 ````typescript
 /**
@@ -25078,129 +25103,6 @@ export function createClientAuditUseCases()
 export function createClientSettlementUseCases()
 ````
 
-## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — notebooklm module outbound composition root.
- *
- * Single entry point for all Firebase operations owned by the notebooklm module.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
-import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
-import {
-  RegisterIngestionSourceUseCase,
-  ArchiveIngestionSourceUseCase,
-  QueryIngestionSourcesUseCase,
-} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
-import {
-  CreateNotebookUseCase,
-  AddDocumentToNotebookUseCase,
-  GenerateNotebookResponseUseCase,
-} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
-import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
-import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
-⋮----
-// ── Singleton repositories ────────────────────────────────────────────────────
-⋮----
-function getSourceRepo(): FirestoreIngestionSourceRepository
-⋮----
-function getNotebookRepo(): InMemoryNotebookRepository
-⋮----
-// ── RagQuery generation port bridge ──────────────────────────────────────────
-⋮----
-class RagQueryGenerationPort implements NotebookGenerationPort {
-⋮----
-constructor(
-⋮----
-async generateResponse(input: {
-    prompt: string;
-    notebookId: string;
-    model?: string;
-}): Promise<
-⋮----
-// ── Factory functions ─────────────────────────────────────────────────────────
-⋮----
-export function createClientNotebooklmSourceUseCases()
-⋮----
-export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
-⋮----
-// ── Storage upload helper ─────────────────────────────────────────────────────
-⋮----
-/**
- * Upload a document to a workspace-scoped source path.
- * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
- * Parsing / indexing are triggered manually from the Sources UI.
- */
-export async function uploadDocumentToStorage(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
- * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
- *
- * Accepts both gs://bucket/path and relative paths like workspaces/...
- */
-export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
-⋮----
-// keep firestore & firestoreApi accessible within this composition module
-⋮----
-// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
-⋮----
-/**
- * Convert a relative Storage path to a gs:// URI.
- * Already-absolute gs:// URIs are returned unchanged.
- */
-export function toGcsUri(pathOrUri: string): string
-⋮----
-// ── Client-side Firestore source initialisation ───────────────────────────────
-⋮----
-/**
- * Write an initial source-document record to Firestore so the document appears
- * in the Sources list immediately after upload — even before fn parses it.
- *
- * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
- * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
- * so calling parse later will add parsed.* fields without overwriting these.
- */
-export async function initSourceDocumentInFirestore(params: {
-  docId: string;
-  gcsUri: string;
-  filename: string;
-  sizeBytes: number;
-  mimeType: string;
-  accountId: string;
-  workspaceId: string;
-}): Promise<void>
-⋮----
-// "active" = upload done, ready to parse.
-// fn's parse_document callable will overwrite with "processing" when it starts,
-// then "completed" when done.
-⋮----
-// ── Client-side Firestore query helper ───────────────────────────────────────
-⋮----
-/**
- * queryDocuments — query ingestion sources directly from the browser.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.  A Server Action
- * has no active Firebase user session, which causes "Missing or insufficient
- * permissions" even when rules only require `isSignedIn()`.
- */
-export async function queryDocuments(params: {
-  accountId: string;
-  workspaceId?: string;
-})
-````
-
 ## File: src/modules/notion/adapters/inbound/react/NotionDatabaseSection.tsx
 ````typescript
 /**
@@ -25494,6 +25396,131 @@ async function handleCreateTeam(): Promise<void>
 {/* Log — empty state */}
 ````
 
+## File: src/modules/notebooklm/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — notebooklm module outbound composition root.
+ *
+ * Single entry point for all Firebase operations owned by the notebooklm module.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notebooklm/adapters/outbound/ which matches the permitted glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, getFirebaseStorage, ref, getDownloadURL } from "@packages";
+import { uploadWorkspaceFile } from "@/src/modules/platform/adapters/outbound/firebase-composition";
+import { FirestoreIngestionSourceRepository } from "../../subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository";
+import { InMemoryNotebookRepository } from "../../subdomains/notebook/adapters/outbound/memory/InMemoryNotebookRepository";
+import {
+  RegisterIngestionSourceUseCase,
+  ArchiveIngestionSourceUseCase,
+  QueryIngestionSourcesUseCase,
+} from "../../subdomains/source/application/use-cases/IngestionSourceUseCases";
+import {
+  CreateNotebookUseCase,
+  AddDocumentToNotebookUseCase,
+  GenerateNotebookResponseUseCase,
+} from "../../subdomains/notebook/application/use-cases/NotebookUseCases";
+import type { NotebookGenerationPort } from "../../subdomains/notebook/domain/ports/NotebookGenerationPort";
+import { callRagQuery, callParseDocument, callReindexDocument, type RagQueryInput, type RagQueryOutput, type ParseDocumentInput, type ParseDocumentOutput, type ReindexDocumentInput } from "./callable/FirebaseCallableAdapter";
+⋮----
+// ── Singleton repositories ────────────────────────────────────────────────────
+⋮----
+function getSourceRepo(): FirestoreIngestionSourceRepository
+⋮----
+function getNotebookRepo(): InMemoryNotebookRepository
+⋮----
+// ── RagQuery generation port bridge ──────────────────────────────────────────
+⋮----
+class RagQueryGenerationPort implements NotebookGenerationPort {
+⋮----
+constructor(
+⋮----
+async generateResponse(input: {
+    prompt: string;
+    notebookId: string;
+    model?: string;
+}): Promise<
+⋮----
+// ── Factory functions ─────────────────────────────────────────────────────────
+⋮----
+export function createClientNotebooklmSourceUseCases()
+⋮----
+export function createClientNotebooklmNotebookUseCases(accountId: string, workspaceId: string)
+⋮----
+// ── Storage upload helper ─────────────────────────────────────────────────────
+⋮----
+/**
+ * Upload a document to a workspace-scoped source path.
+ * Path: workspaces/{workspaceId}/sources/{accountId}/{uuid}-{filename}
+ * Parsing / indexing are triggered manually from the Sources UI.
+ * Delegates to platform's uploadWorkspaceFile so upload logic stays in one place.
+ */
+export async function uploadDocumentToStorage(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+): Promise<string>
+⋮----
+/**
+ * getDocumentDownloadUrl — resolve a Firebase Storage gs:// URI or storage path
+ * to an HTTPS download URL suitable for embedding in Google Doc Viewer.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspaces/...
+ */
+export async function getDocumentDownloadUrl(storageUrl: string): Promise<string>
+⋮----
+// keep firestore & firestoreApi accessible within this composition module
+⋮----
+// ── Storage bucket / GCS URI helpers ─────────────────────────────────────────
+⋮----
+/**
+ * Convert a relative Storage path to a gs:// URI.
+ * Already-absolute gs:// URIs are returned unchanged.
+ */
+export function toGcsUri(pathOrUri: string): string
+⋮----
+// ── Client-side Firestore source initialisation ───────────────────────────────
+⋮----
+/**
+ * Write an initial source-document record to Firestore so the document appears
+ * in the Sources list immediately after upload — even before fn parses it.
+ *
+ * The schema mirrors fn's `init_document()` so `FirestoreIngestionSourceRepository`
+ * maps it correctly.  fn's parse_document callable uses merge=True when it writes,
+ * so calling parse later will add parsed.* fields without overwriting these.
+ */
+export async function initSourceDocumentInFirestore(params: {
+  docId: string;
+  gcsUri: string;
+  filename: string;
+  sizeBytes: number;
+  mimeType: string;
+  accountId: string;
+  workspaceId: string;
+}): Promise<void>
+⋮----
+// "active" = upload done, ready to parse.
+// fn's parse_document callable will overwrite with "processing" when it starts,
+// then "completed" when done.
+⋮----
+// ── Client-side Firestore query helper ───────────────────────────────────────
+⋮----
+/**
+ * queryDocuments — query ingestion sources directly from the browser.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.  A Server Action
+ * has no active Firebase user session, which causes "Missing or insufficient
+ * permissions" even when rules only require `isSignedIn()`.
+ */
+export async function queryDocuments(params: {
+  accountId: string;
+  workspaceId?: string;
+})
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceScheduleSection.tsx
 ````typescript
 /**
@@ -25613,11 +25640,12 @@ import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
-  Layers, Braces, BarChart2, CheckCircle2,
+  Layers, Braces, BarChart2, CheckCircle2, Clock, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 ⋮----
+import type { DatabaseProperty } from "@/src/modules/notion/subdomains/database/domain/entities/Database";
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
   queryDocuments,
@@ -25656,6 +25684,12 @@ function createPendingSourceSnapshot(input: {
 // ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
 // ample headroom for the rest of the page/database snapshot fields.
 ⋮----
+// Summary / description stored in Page.summary and Database.description.
+// 5000 chars gives ~10–20 lines of meaningful context while staying within
+// Firestore field limits and keeping the downstream task-formation prompt compact.
+⋮----
+// fn writes snake_case; support both spellings so extractors are forwards-compatible.
+⋮----
 /**
  * Normalize parser artifacts written by fn parse_document:
  * - layout / ocr / genkit: prefer top-level text, then chunk.text
@@ -25666,6 +25700,14 @@ function extractTextFromArtifactPayload(payload: unknown): string | undefined
 function trimSourceText(text: string | undefined): string | undefined
 ⋮----
 async function loadSourceTextFromArtifactUri(uri: string): Promise<string | undefined>
+⋮----
+/**
+ * Fetch a form-parser artifact JSON and map unique entity.type values to
+ * DatabaseProperty definitions so the created Database starts with typed columns.
+ */
+async function entitiesToDatabaseProperties(
+  formArtifactUri: string,
+): Promise<DatabaseProperty[] | undefined>
 ⋮----
 // ── Per-document action state ─────────────────────────────────────────────────
 ⋮----
@@ -25692,6 +25734,12 @@ interface DocActionState {
 // Per-document expanded / action state
 ⋮----
 // JSON viewer modal state
+⋮----
+// Actual artifact content loaded on modal open
+⋮----
+// Fetch actual artifact JSON when modal opens
+⋮----
+}, [jsonViewer]); // eslint-disable-line react-hooks/exhaustive-deps
 ⋮----
 const load = () =>
 ⋮----
@@ -25769,7 +25817,7 @@ onClick=
 ⋮----
 {/* Downstream CTAs when documents are ready */}
 ⋮----
-{/* JSON viewer modal — parsed output summary */}
+{/* JSON viewer modal — actual parsed artifact content */}
 ⋮----
 <Button size="sm" variant="ghost" onClick=
 ⋮----

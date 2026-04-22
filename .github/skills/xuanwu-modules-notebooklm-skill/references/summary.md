@@ -42,19 +42,19 @@ This skill contains the following reference files:
 
 ## Statistics
 
-72 files | 2,196 lines
+72 files | 2,240 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 52 | 1,160 |
+| TypeScript | 52 | 1,183 |
 | Markdown | 16 | 787 |
-| TypeScript (TSX) | 4 | 249 |
+| TypeScript (TSX) | 4 | 270 |
 
 **Largest files:**
-- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (178 lines)
-- `src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts` (119 lines)
-- `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (119 lines)
-- `src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts` (117 lines)
+- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (199 lines)
+- `src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts` (136 lines)
+- `src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts` (121 lines)
+- `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (121 lines)
 - `docs/structure/contexts/notebooklm/README.md` (110 lines)
 - `src/modules/notebooklm/orchestration/ProcessSourceDocumentWorkflowUseCase.ts` (100 lines)
 - `docs/structure/contexts/notebooklm/ubiquitous-language.md` (93 lines)

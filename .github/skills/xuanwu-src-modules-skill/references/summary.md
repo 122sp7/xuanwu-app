@@ -42,23 +42,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1125 files | 21,276 lines
+1125 files | 21,324 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 913 | 13,604 |
+| TypeScript | 913 | 13,631 |
 | Markdown | 162 | 5,129 |
-| TypeScript (TSX) | 49 | 2,524 |
+| TypeScript (TSX) | 49 | 2,545 |
 | PROMPT | 1 | 19 |
 
 **Largest files:**
 - `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)
 - `src/modules/workspace/adapters/outbound/firebase-composition.ts` (202 lines)
-- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (178 lines)
+- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (199 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
 - `src/modules/iam/adapters/outbound/firebase-composition.ts` (169 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (166 lines)
 - `src/modules/iam/subdomains/organization/adapters/outbound/firestore/FirestoreOrganizationRepository.ts` (159 lines)
-- `src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts` (119 lines)
-- `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (119 lines)
-- `src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts` (117 lines)
+- `src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts` (136 lines)
+- `src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts` (121 lines)
+- `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (121 lines)

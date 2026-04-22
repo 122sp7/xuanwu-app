@@ -42,24 +42,24 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1463 files | 37,968 lines
+1462 files | 38,037 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 929 | 14,247 |
-| Markdown | 301 | 16,999 |
-| TypeScript (TSX) | 111 | 3,337 |
+| TypeScript | 929 | 14,274 |
+| Markdown | 301 | 16,998 |
+| TypeScript (TSX) | 111 | 3,358 |
 | Python | 87 | 2,266 |
-| No Extension | 18 | 18 |
-| JSON | 6 | 728 |
+| No Extension | 17 | 17 |
+| JSON | 6 | 746 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
-| RULES | 2 | 60 |
+| RULES | 2 | 65 |
 | YAML | 1 | 64 |
 | Other | 3 | 131 |
 
 **Largest files:**
-- `firestore.indexes.json` (437 lines)
+- `firestore.indexes.json` (455 lines)
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
 - `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
 - `docs/structure/domain/subdomains.md` (273 lines)

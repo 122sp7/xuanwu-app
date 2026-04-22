@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-302 files | 17,036 lines
+302 files | 17,035 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 302 | 17,036 |
+| Markdown | 302 | 17,035 |
 
 **Largest files:**
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
@@ -58,4 +58,4 @@ This skill contains the following reference files:
 - `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
 - `docs/tooling/firebase/firebase-architecture.md` (197 lines)
 - `docs/structure/domain/event-driven-design.md` (191 lines)
-- `docs/template/markdown.md` (189 lines)
+- `docs/structure/templates/markdown.md` (189 lines)

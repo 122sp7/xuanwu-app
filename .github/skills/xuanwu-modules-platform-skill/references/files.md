@@ -2605,82 +2605,6 @@ onSelectWorkspace(workspace.id);
  */
 ````
 
-## File: src/modules/platform/adapters/outbound/firebase-composition.ts
-````typescript
-/**
- * firebase-composition — platform module outbound composition root.
- *
- * This file is a pure composition root. It:
- *   - Assembles use-case instances against FirestoreFileStorageRepository
- *   - Provides Firebase Storage upload/download helpers
- *
- * Infrastructure logic lives in the subdomain adapter:
- *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
- *
- * ESLint: @integration-firebase/storage is allowed here — this file lives at
- * src/modules/platform/adapters/outbound/ which matches the permitted glob.
- *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
- */
-⋮----
-import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
-import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
-import {
-  CreateStoredFileUseCase,
-  GetStoredFileUseCase,
-  ListStoredFilesUseCase,
-  DeleteStoredFileUseCase,
-} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
-⋮----
-// ── Singleton ─────────────────────────────────────────────────────────────────
-⋮----
-function getFileRepo(): FirestoreFileStorageRepository
-⋮----
-// ── Factory ───────────────────────────────────────────────────────────────────
-⋮----
-export function createClientFileStorageUseCases()
-⋮----
-// ── Client-side file storage helpers ─────────────────────────────────────────
-//
-// MUST be called from client components, NOT from Server Actions.
-// The Firebase Web Client SDK requires a signed-in user in the browser context.
-// A Server Action has no active Firebase user session → Firestore Security Rules
-// block any operation (read or write) with "Missing or insufficient permissions".
-⋮----
-export async function listWorkspaceFiles(params:
-⋮----
-export async function registerUploadedFile(params: {
-  workspaceId: string;
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  url: string;
-})
-⋮----
-export async function deleteWorkspaceFile(params:
-⋮----
-// ── Storage helpers ───────────────────────────────────────────────────────────
-⋮----
-/**
- * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
- *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
- * Returns the GCS storage path (used as StoredFile.url).
- */
-export async function uploadWorkspaceFile(
-  file: File,
-  accountId: string,
-  workspaceId: string,
-): Promise<string>
-⋮----
-/**
- * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
- *
- * Accepts both gs://bucket/path and relative paths like workspace-files/...
- */
-export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
-````
-
 ## File: src/modules/platform/index.ts
 ````typescript
 /**
@@ -3011,6 +2935,85 @@ export interface ShellCommandCatalogItem {
 // ── AI tabs (notebooklm group) ────────────────────────────────────────────
 ⋮----
 export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
+````
+
+## File: src/modules/platform/adapters/outbound/firebase-composition.ts
+````typescript
+/**
+ * firebase-composition — platform module outbound composition root.
+ *
+ * This file is a pure composition root. It:
+ *   - Assembles use-case instances against FirestoreFileStorageRepository
+ *   - Provides Firebase Storage upload/download helpers
+ *
+ * Infrastructure logic lives in the subdomain adapter:
+ *   subdomains/file-storage/adapters/outbound/firestore/FirestoreFileStorageRepository.ts
+ *
+ * ESLint: @integration-firebase/storage is allowed here — this file lives at
+ * src/modules/platform/adapters/outbound/ which matches the permitted glob.
+ *
+ * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ */
+⋮----
+import { getFirebaseStorage, ref, uploadBytes, getDownloadURL } from "@packages";
+import { FirestoreFileStorageRepository } from "../../subdomains/file-storage/adapters/outbound";
+import {
+  CreateStoredFileUseCase,
+  GetStoredFileUseCase,
+  ListStoredFilesUseCase,
+  DeleteStoredFileUseCase,
+} from "../../subdomains/file-storage/application/use-cases/FileStorageUseCases";
+⋮----
+// ── Singleton ─────────────────────────────────────────────────────────────────
+⋮----
+function getFileRepo(): FirestoreFileStorageRepository
+⋮----
+// ── Factory ───────────────────────────────────────────────────────────────────
+⋮----
+export function createClientFileStorageUseCases()
+⋮----
+// ── Client-side file storage helpers ─────────────────────────────────────────
+//
+// MUST be called from client components, NOT from Server Actions.
+// The Firebase Web Client SDK requires a signed-in user in the browser context.
+// A Server Action has no active Firebase user session → Firestore Security Rules
+// block any operation (read or write) with "Missing or insufficient permissions".
+⋮----
+export async function listWorkspaceFiles(params:
+⋮----
+export async function registerUploadedFile(params: {
+  workspaceId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+})
+⋮----
+export async function deleteWorkspaceFile(params:
+⋮----
+// ── Storage helpers ───────────────────────────────────────────────────────────
+⋮----
+/**
+ * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
+ *
+ * Default storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Custom prefix can be supplied as `options.prefix` to reuse this function for
+ * other workspace-scoped paths (e.g. notebooklm sources under workspaces/).
+ * Returns the GCS storage path (used as StoredFile.url).
+ */
+export async function uploadWorkspaceFile(
+  file: File,
+  accountId: string,
+  workspaceId: string,
+  options?: { prefix?: string },
+): Promise<string>
+⋮----
+/**
+ * getWorkspaceFileDownloadUrl — resolve a Firebase Storage path to an HTTPS download URL.
+ *
+ * Accepts both gs://bucket/path and relative paths like workspace-files/...
+ */
+export async function getWorkspaceFileDownloadUrl(storagePath: string): Promise<string>
 ````
 
 ## File: src/modules/platform/AGENTS.md
