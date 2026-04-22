@@ -14,7 +14,7 @@
 
 import { Eye, Loader2, X } from "lucide-react";
 
-import { Button } from "@packages/ui-shadcn/ui/button";
+import { Button } from "../ui-shadcn";
 
 import { createGoogleViewerEmbedUrl } from "./index";
 
