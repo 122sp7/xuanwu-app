@@ -42,30 +42,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1463 files | 37,968 lines
+1588 files | 45,542 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 929 | 14,247 |
-| Markdown | 301 | 16,999 |
-| TypeScript (TSX) | 111 | 3,337 |
+| Markdown | 424 | 24,470 |
+| TypeScript (TSX) | 111 | 3,438 |
 | Python | 87 | 2,266 |
-| No Extension | 18 | 18 |
+| No Extension | 20 | 20 |
 | JSON | 6 | 728 |
 | Text | 3 | 108 |
 | JavaScript (ESM) | 2 | 10 |
 | RULES | 2 | 60 |
-| YAML | 1 | 64 |
-| Other | 3 | 131 |
+| EXAMPLE | 1 | 65 |
+| Other | 3 | 130 |
 
 **Largest files:**
 - `firestore.indexes.json` (437 lines)
-- `docs/structure/system/hard-rules-consolidated.md` (415 lines)
-- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
-- `docs/structure/domain/subdomains.md` (273 lines)
-- `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
-- `docs/structure/domain/ddd-strategic-design.md` (221 lines)
-- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
-- `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
-- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)
-- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (202 lines)
+- `docs/_archive/structure/system/hard-rules-consolidated.md` (415 lines)
+- `docs/01-architecture/system/hard-rules-consolidated.md` (415 lines)
+- `docs/_archive/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
+- `docs/04-examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
+- `docs/_archive/structure/domain/subdomains.md` (273 lines)
+- `docs/01-architecture/domain/subdomains.md` (273 lines)
+- `docs/_archive/tooling/genkit/genkit-flow-standards.md` (229 lines)
+- `docs/05-tooling/genkit/genkit-flow-standards.md` (229 lines)
+- `docs/_archive/structure/domain/ddd-strategic-design.md` (221 lines)

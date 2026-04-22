@@ -42,20 +42,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-302 files | 17,036 lines
+425 files | 24,507 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 302 | 17,036 |
+| Markdown | 425 | 24,507 |
 
 **Largest files:**
-- `docs/structure/system/hard-rules-consolidated.md` (415 lines)
-- `docs/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
-- `docs/structure/domain/subdomains.md` (273 lines)
-- `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
-- `docs/structure/domain/ddd-strategic-design.md` (221 lines)
-- `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
-- `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
-- `docs/tooling/firebase/firebase-architecture.md` (197 lines)
-- `docs/structure/domain/event-driven-design.md` (191 lines)
-- `docs/template/markdown.md` (189 lines)
+- `docs/_archive/structure/system/hard-rules-consolidated.md` (415 lines)
+- `docs/01-architecture/system/hard-rules-consolidated.md` (415 lines)
+- `docs/_archive/examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
+- `docs/04-examples/modules/feature/py-fn-ts-capability-bridge.md` (377 lines)
+- `docs/_archive/structure/domain/subdomains.md` (273 lines)
+- `docs/01-architecture/domain/subdomains.md` (273 lines)
+- `docs/_archive/tooling/genkit/genkit-flow-standards.md` (229 lines)
+- `docs/05-tooling/genkit/genkit-flow-standards.md` (229 lines)
+- `docs/_archive/structure/domain/ddd-strategic-design.md` (221 lines)
+- `docs/01-architecture/domain/ddd-strategic-design.md` (221 lines)

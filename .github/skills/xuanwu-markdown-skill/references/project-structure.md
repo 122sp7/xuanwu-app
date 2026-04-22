@@ -1,306 +1,619 @@
 # Directory Structure
 
 ```
-docs/AGENTS.md (77 lines)
-docs/examples/end-to-end/deliveries/AGENTS.md (33 lines)
-docs/examples/end-to-end/deliveries/README.md (10 lines)
-docs/examples/end-to-end/deliveries/upload-parse-to-task-flow.md (77 lines)
-docs/examples/modules/feature/AGENTS.md (33 lines)
-docs/examples/modules/feature/notebooklm-source-processing-task-flow.md (86 lines)
-docs/examples/modules/feature/py-fn-ts-capability-bridge.md (377 lines)
-docs/examples/modules/feature/README.md (12 lines)
-docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md (215 lines)
-docs/README.md (93 lines)
-docs/structure/contexts/_template.md (143 lines)
-docs/structure/contexts/ai/AGENTS.md (34 lines)
-docs/structure/contexts/ai/bounded-contexts.md (61 lines)
-docs/structure/contexts/ai/context-map.md (50 lines)
-docs/structure/contexts/ai/cross-runtime-contracts.md (99 lines)
-docs/structure/contexts/ai/ddd-strategic-design.md (53 lines)
-docs/structure/contexts/ai/README.md (76 lines)
-docs/structure/contexts/ai/subdomains.md (96 lines)
-docs/structure/contexts/ai/ubiquitous-language.md (49 lines)
-docs/structure/contexts/analytics/AGENTS.md (34 lines)
-docs/structure/contexts/analytics/bounded-contexts.md (11 lines)
-docs/structure/contexts/analytics/context-map.md (16 lines)
-docs/structure/contexts/analytics/README.md (27 lines)
-docs/structure/contexts/analytics/subdomains.md (20 lines)
-docs/structure/contexts/analytics/ubiquitous-language.md (15 lines)
-docs/structure/contexts/billing/AGENTS.md (34 lines)
-docs/structure/contexts/billing/bounded-contexts.md (11 lines)
-docs/structure/contexts/billing/context-map.md (14 lines)
-docs/structure/contexts/billing/README.md (27 lines)
-docs/structure/contexts/billing/subdomains.md (18 lines)
-docs/structure/contexts/billing/ubiquitous-language.md (15 lines)
-docs/structure/contexts/iam/AGENTS.md (34 lines)
-docs/structure/contexts/iam/bounded-contexts.md (12 lines)
-docs/structure/contexts/iam/context-map.md (16 lines)
-docs/structure/contexts/iam/README.md (42 lines)
-docs/structure/contexts/iam/subdomains.md (28 lines)
-docs/structure/contexts/iam/ubiquitous-language.md (17 lines)
-docs/structure/contexts/notebooklm/AGENTS.md (89 lines)
-docs/structure/contexts/notebooklm/bounded-contexts.md (76 lines)
-docs/structure/contexts/notebooklm/context-map.md (77 lines)
-docs/structure/contexts/notebooklm/README.md (110 lines)
-docs/structure/contexts/notebooklm/subdomains.md (68 lines)
-docs/structure/contexts/notebooklm/ubiquitous-language.md (93 lines)
-docs/structure/contexts/notion/AGENTS.md (109 lines)
-docs/structure/contexts/notion/bounded-contexts.md (78 lines)
-docs/structure/contexts/notion/context-map.md (78 lines)
-docs/structure/contexts/notion/README.md (117 lines)
-docs/structure/contexts/notion/subdomains.md (72 lines)
-docs/structure/contexts/notion/ubiquitous-language.md (93 lines)
-docs/structure/contexts/platform/AGENTS.md (105 lines)
-docs/structure/contexts/platform/bounded-contexts.md (93 lines)
-docs/structure/contexts/platform/context-map.md (78 lines)
-docs/structure/contexts/platform/README.md (131 lines)
-docs/structure/contexts/platform/subdomains.md (89 lines)
-docs/structure/contexts/platform/ubiquitous-language.md (140 lines)
-docs/structure/contexts/workspace/AGENTS.md (97 lines)
-docs/structure/contexts/workspace/bounded-contexts.md (91 lines)
-docs/structure/contexts/workspace/context-map.md (77 lines)
-docs/structure/contexts/workspace/README.md (126 lines)
-docs/structure/contexts/workspace/subdomains.md (80 lines)
-docs/structure/contexts/workspace/ubiquitous-language.md (119 lines)
-docs/structure/domain/AGENTS.md (64 lines)
-docs/structure/domain/bounded-context-subdomain-template.md (203 lines)
-docs/structure/domain/bounded-contexts.md (88 lines)
-docs/structure/domain/ddd-strategic-design.md (221 lines)
-docs/structure/domain/event-driven-design.md (191 lines)
-docs/structure/domain/README.md (95 lines)
-docs/structure/domain/subdomains.md (273 lines)
-docs/structure/domain/ubiquitous-language.md (166 lines)
-docs/structure/system/AGENTS.md (73 lines)
-docs/structure/system/architecture-overview.md (135 lines)
-docs/structure/system/context-map.md (121 lines)
-docs/structure/system/hard-rules-consolidated.md (415 lines)
-docs/structure/system/integration-guidelines.md (110 lines)
-docs/structure/system/module-graph.system-wide.md (134 lines)
-docs/structure/system/project-delivery-milestones.md (109 lines)
-docs/structure/system/README.md (105 lines)
-docs/structure/system/source-to-task-flow.md (100 lines)
-docs/structure/system/strategic-patterns.md (79 lines)
-docs/structure/system/ui-ux-closed-loop.md (134 lines)
-docs/template/markdown.md (189 lines)
-docs/tooling/commands-reference.md (74 lines)
-docs/tooling/firebase/firebase-architecture.md (197 lines)
-docs/tooling/genkit/genkit-flow-standards.md (229 lines)
-docs/tooling/knowledge-base-reference.md (41 lines)
-docs/tooling/nextjs/state-machine-model.md (186 lines)
-fn/AGENTS.md (96 lines)
-fn/README.md (64 lines)
-packages/AGENTS.md (42 lines)
-packages/infra/AGENTS.md (38 lines)
-packages/infra/client-state/AGENTS.md (52 lines)
-packages/infra/client-state/README.md (38 lines)
-packages/infra/date/AGENTS.md (56 lines)
-packages/infra/date/README.md (57 lines)
-packages/infra/form/AGENTS.md (78 lines)
-packages/infra/form/README.md (120 lines)
-packages/infra/http/AGENTS.md (53 lines)
-packages/infra/http/README.md (57 lines)
-packages/infra/query/AGENTS.md (56 lines)
-packages/infra/query/README.md (59 lines)
-packages/infra/README.md (52 lines)
-packages/infra/serialization/AGENTS.md (52 lines)
-packages/infra/serialization/README.md (39 lines)
-packages/infra/state/AGENTS.md (54 lines)
-packages/infra/state/README.md (94 lines)
-packages/infra/table/AGENTS.md (75 lines)
-packages/infra/table/README.md (143 lines)
-packages/infra/trpc/AGENTS.md (54 lines)
-packages/infra/trpc/README.md (55 lines)
-packages/infra/uuid/AGENTS.md (62 lines)
-packages/infra/uuid/README.md (44 lines)
-packages/infra/virtual/AGENTS.md (84 lines)
-packages/infra/virtual/README.md (137 lines)
-packages/infra/zod/AGENTS.md (53 lines)
-packages/infra/zod/README.md (76 lines)
-packages/integration-ai/AGENTS.md (65 lines)
-packages/integration-ai/README.md (89 lines)
-packages/integration-firebase/AGENTS.md (88 lines)
-packages/integration-firebase/README.md (99 lines)
-packages/integration-queue/AGENTS.md (61 lines)
-packages/integration-queue/README.md (86 lines)
-packages/README.md (51 lines)
-packages/ui-components/AGENTS.md (54 lines)
-packages/ui-components/README.md (50 lines)
-packages/ui-dnd/AGENTS.md (80 lines)
-packages/ui-dnd/README.md (169 lines)
-packages/ui-editor/AGENTS.md (61 lines)
-packages/ui-editor/README.md (84 lines)
-packages/ui-markdown/AGENTS.md (53 lines)
-packages/ui-markdown/README.md (38 lines)
-packages/ui-shadcn/AGENTS.md (92 lines)
-packages/ui-shadcn/README.md (109 lines)
-packages/ui-vis/AGENTS.md (85 lines)
-packages/ui-vis/README.md (42 lines)
-packages/ui-visualization/AGENTS.md (53 lines)
-packages/ui-visualization/README.md (105 lines)
-src/AGENTS.md (76 lines)
-src/app/AGENTS.md (74 lines)
-src/app/README.md (60 lines)
-src/modules/AGENTS.md (90 lines)
-src/modules/ai/AGENTS.md (73 lines)
-src/modules/ai/README.md (56 lines)
-src/modules/ai/subdomains/chunk/AGENTS.md (34 lines)
-src/modules/ai/subdomains/chunk/README.md (35 lines)
-src/modules/ai/subdomains/citation/AGENTS.md (34 lines)
-src/modules/ai/subdomains/citation/README.md (35 lines)
-src/modules/ai/subdomains/context/AGENTS.md (34 lines)
-src/modules/ai/subdomains/context/README.md (35 lines)
-src/modules/ai/subdomains/embedding/AGENTS.md (34 lines)
-src/modules/ai/subdomains/embedding/README.md (35 lines)
-src/modules/ai/subdomains/evaluation/AGENTS.md (34 lines)
-src/modules/ai/subdomains/evaluation/README.md (35 lines)
-src/modules/ai/subdomains/generation/AGENTS.md (34 lines)
-src/modules/ai/subdomains/generation/README.md (35 lines)
-src/modules/ai/subdomains/memory/AGENTS.md (34 lines)
-src/modules/ai/subdomains/memory/README.md (35 lines)
-src/modules/ai/subdomains/pipeline/AGENTS.md (34 lines)
-src/modules/ai/subdomains/pipeline/README.md (35 lines)
-src/modules/ai/subdomains/retrieval/AGENTS.md (34 lines)
-src/modules/ai/subdomains/retrieval/README.md (35 lines)
-src/modules/ai/subdomains/safety/AGENTS.md (34 lines)
-src/modules/ai/subdomains/safety/README.md (35 lines)
-src/modules/ai/subdomains/tool-calling/AGENTS.md (34 lines)
-src/modules/ai/subdomains/tool-calling/README.md (35 lines)
-src/modules/analytics/AGENTS.md (71 lines)
-src/modules/analytics/README.md (52 lines)
-src/modules/analytics/subdomains/event-contracts/AGENTS.md (34 lines)
-src/modules/analytics/subdomains/event-contracts/README.md (35 lines)
-src/modules/analytics/subdomains/event-ingestion/AGENTS.md (34 lines)
-src/modules/analytics/subdomains/event-ingestion/README.md (35 lines)
-src/modules/analytics/subdomains/event-projection/AGENTS.md (34 lines)
-src/modules/analytics/subdomains/event-projection/README.md (35 lines)
-src/modules/analytics/subdomains/experimentation/AGENTS.md (34 lines)
-src/modules/analytics/subdomains/experimentation/README.md (35 lines)
-src/modules/analytics/subdomains/insights/AGENTS.md (34 lines)
-src/modules/analytics/subdomains/insights/README.md (35 lines)
-src/modules/analytics/subdomains/metrics/AGENTS.md (34 lines)
-src/modules/analytics/subdomains/metrics/README.md (35 lines)
-src/modules/analytics/subdomains/realtime-insights/AGENTS.md (34 lines)
-src/modules/analytics/subdomains/realtime-insights/README.md (35 lines)
-src/modules/billing/AGENTS.md (72 lines)
-src/modules/billing/README.md (48 lines)
-src/modules/billing/subdomains/entitlement/AGENTS.md (38 lines)
-src/modules/billing/subdomains/entitlement/README.md (35 lines)
-src/modules/billing/subdomains/subscription/AGENTS.md (38 lines)
-src/modules/billing/subdomains/subscription/README.md (35 lines)
-src/modules/billing/subdomains/usage-metering/AGENTS.md (38 lines)
-src/modules/billing/subdomains/usage-metering/README.md (35 lines)
-src/modules/iam/AGENTS.md (72 lines)
-src/modules/iam/README.md (55 lines)
-src/modules/iam/subdomains/access-control/AGENTS.md (38 lines)
-src/modules/iam/subdomains/access-control/README.md (35 lines)
-src/modules/iam/subdomains/account/AGENTS.md (38 lines)
-src/modules/iam/subdomains/account/README.md (35 lines)
-src/modules/iam/subdomains/authentication/AGENTS.md (38 lines)
-src/modules/iam/subdomains/authentication/README.md (35 lines)
-src/modules/iam/subdomains/authorization/AGENTS.md (38 lines)
-src/modules/iam/subdomains/authorization/README.md (35 lines)
-src/modules/iam/subdomains/federation/AGENTS.md (38 lines)
-src/modules/iam/subdomains/federation/README.md (35 lines)
-src/modules/iam/subdomains/identity/AGENTS.md (38 lines)
-src/modules/iam/subdomains/identity/README.md (35 lines)
-src/modules/iam/subdomains/organization/AGENTS.md (38 lines)
-src/modules/iam/subdomains/organization/README.md (35 lines)
-src/modules/iam/subdomains/security-policy/AGENTS.md (38 lines)
-src/modules/iam/subdomains/security-policy/README.md (35 lines)
-src/modules/iam/subdomains/session/AGENTS.md (38 lines)
-src/modules/iam/subdomains/session/README.md (35 lines)
-src/modules/iam/subdomains/tenant/AGENTS.md (38 lines)
-src/modules/iam/subdomains/tenant/README.md (35 lines)
-src/modules/notebooklm/AGENTS.md (69 lines)
-src/modules/notebooklm/README.md (49 lines)
-src/modules/notebooklm/subdomains/conversation/AGENTS.md (20 lines)
-src/modules/notebooklm/subdomains/conversation/README.md (19 lines)
-src/modules/notebooklm/subdomains/notebook/AGENTS.md (20 lines)
-src/modules/notebooklm/subdomains/notebook/README.md (19 lines)
-src/modules/notebooklm/subdomains/source/AGENTS.md (20 lines)
-src/modules/notebooklm/subdomains/source/README.md (19 lines)
-src/modules/notebooklm/subdomains/synthesis/AGENTS.md (20 lines)
-src/modules/notebooklm/subdomains/synthesis/README.md (19 lines)
-src/modules/notion/AGENTS.md (69 lines)
-src/modules/notion/README.md (52 lines)
-src/modules/notion/subdomains/block/AGENTS.md (20 lines)
-src/modules/notion/subdomains/block/README.md (19 lines)
-src/modules/notion/subdomains/collaboration/AGENTS.md (20 lines)
-src/modules/notion/subdomains/collaboration/README.md (19 lines)
-src/modules/notion/subdomains/database/AGENTS.md (20 lines)
-src/modules/notion/subdomains/database/README.md (19 lines)
-src/modules/notion/subdomains/knowledge/AGENTS.md (20 lines)
-src/modules/notion/subdomains/knowledge/README.md (19 lines)
-src/modules/notion/subdomains/page/AGENTS.md (20 lines)
-src/modules/notion/subdomains/page/README.md (19 lines)
-src/modules/notion/subdomains/template/AGENTS.md (20 lines)
-src/modules/notion/subdomains/template/README.md (19 lines)
-src/modules/notion/subdomains/view/AGENTS.md (20 lines)
-src/modules/notion/subdomains/view/README.md (19 lines)
-src/modules/platform/AGENTS.md (69 lines)
-src/modules/platform/README.md (53 lines)
-src/modules/platform/subdomains/audit-log/AGENTS.md (20 lines)
-src/modules/platform/subdomains/audit-log/README.md (19 lines)
-src/modules/platform/subdomains/background-job/AGENTS.md (20 lines)
-src/modules/platform/subdomains/background-job/README.md (19 lines)
-src/modules/platform/subdomains/cache/AGENTS.md (20 lines)
-src/modules/platform/subdomains/cache/README.md (19 lines)
-src/modules/platform/subdomains/feature-flag/AGENTS.md (20 lines)
-src/modules/platform/subdomains/feature-flag/README.md (19 lines)
-src/modules/platform/subdomains/file-storage/AGENTS.md (20 lines)
-src/modules/platform/subdomains/file-storage/README.md (19 lines)
-src/modules/platform/subdomains/notification/AGENTS.md (20 lines)
-src/modules/platform/subdomains/notification/README.md (19 lines)
-src/modules/platform/subdomains/platform-config/AGENTS.md (20 lines)
-src/modules/platform/subdomains/platform-config/README.md (19 lines)
-src/modules/platform/subdomains/search/AGENTS.md (20 lines)
-src/modules/platform/subdomains/search/README.md (19 lines)
-src/modules/README.md (68 lines)
-src/modules/template/AGENTS.md (72 lines)
-src/modules/template/README.md (51 lines)
-src/modules/template/subdomains/document/AGENTS.md (20 lines)
-src/modules/template/subdomains/document/README.md (19 lines)
-src/modules/template/subdomains/generation/AGENTS.md (20 lines)
-src/modules/template/subdomains/generation/README.md (19 lines)
-src/modules/template/subdomains/ingestion/AGENTS.md (20 lines)
-src/modules/template/subdomains/ingestion/README.md (19 lines)
-src/modules/template/subdomains/workflow/AGENTS.md (20 lines)
-src/modules/template/subdomains/workflow/README.md (19 lines)
-src/modules/workspace/AGENTS.md (69 lines)
-src/modules/workspace/README.md (62 lines)
-src/modules/workspace/subdomains/activity/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/activity/README.md (19 lines)
-src/modules/workspace/subdomains/api-key/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/api-key/README.md (19 lines)
-src/modules/workspace/subdomains/approval/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/approval/README.md (19 lines)
-src/modules/workspace/subdomains/audit/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/audit/README.md (19 lines)
-src/modules/workspace/subdomains/feed/AGENTS.md (0 lines)
-src/modules/workspace/subdomains/feed/README.md (53 lines)
-src/modules/workspace/subdomains/invitation/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/invitation/README.md (19 lines)
-src/modules/workspace/subdomains/issue/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/issue/README.md (19 lines)
-src/modules/workspace/subdomains/lifecycle/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/lifecycle/README.md (19 lines)
-src/modules/workspace/subdomains/membership/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/membership/README.md (19 lines)
-src/modules/workspace/subdomains/orchestration/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/orchestration/README.md (19 lines)
-src/modules/workspace/subdomains/quality/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/quality/README.md (19 lines)
-src/modules/workspace/subdomains/resource/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/resource/README.md (19 lines)
-src/modules/workspace/subdomains/schedule/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/schedule/README.md (19 lines)
-src/modules/workspace/subdomains/settlement/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/settlement/README.md (19 lines)
-src/modules/workspace/subdomains/share/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/share/README.md (19 lines)
-src/modules/workspace/subdomains/task-formation/AGENTS.md (74 lines)
-src/modules/workspace/subdomains/task-formation/README.md (56 lines)
-src/modules/workspace/subdomains/task/AGENTS.md (20 lines)
-src/modules/workspace/subdomains/task/README.md (19 lines)
-src/README.md (60 lines)
+docs/
+  _archive/
+    decisions/
+      adr/
+        README.md (1 lines)
+      ai/
+        README.md (1 lines)
+      architecture/
+        README.md (1 lines)
+      data/
+        README.md (1 lines)
+      domain/
+        README.md (1 lines)
+      meta/
+        README.md (1 lines)
+      platform/
+        README.md (1 lines)
+      README.md (1 lines)
+    examples/
+      ai/
+        README.md (1 lines)
+      architecture/
+        README.md (1 lines)
+      data/
+        README.md (1 lines)
+      domain/
+        README.md (1 lines)
+      end-to-end/
+        deliveries/
+          AGENTS.md (33 lines)
+          README.md (10 lines)
+          upload-parse-to-task-flow.md (77 lines)
+        README.md (1 lines)
+      modules/
+        feature/
+          AGENTS.md (33 lines)
+          notebooklm-source-processing-task-flow.md (86 lines)
+          py-fn-ts-capability-bridge.md (377 lines)
+          README.md (12 lines)
+          workspace-nav-notion-notebooklm-implementation-guide.md (215 lines)
+        README.md (1 lines)
+      README.md (1 lines)
+    structure/
+      ai/
+        README.md (1 lines)
+      contexts/
+        ai/
+          AGENTS.md (34 lines)
+          bounded-contexts.md (61 lines)
+          context-map.md (50 lines)
+          cross-runtime-contracts.md (99 lines)
+          ddd-strategic-design.md (53 lines)
+          README.md (76 lines)
+          subdomains.md (96 lines)
+          ubiquitous-language.md (49 lines)
+        analytics/
+          AGENTS.md (34 lines)
+          bounded-contexts.md (11 lines)
+          context-map.md (16 lines)
+          README.md (27 lines)
+          subdomains.md (20 lines)
+          ubiquitous-language.md (15 lines)
+        billing/
+          AGENTS.md (34 lines)
+          bounded-contexts.md (11 lines)
+          context-map.md (14 lines)
+          README.md (27 lines)
+          subdomains.md (18 lines)
+          ubiquitous-language.md (15 lines)
+        iam/
+          AGENTS.md (34 lines)
+          bounded-contexts.md (12 lines)
+          context-map.md (16 lines)
+          README.md (42 lines)
+          subdomains.md (28 lines)
+          ubiquitous-language.md (17 lines)
+        notebooklm/
+          AGENTS.md (89 lines)
+          bounded-contexts.md (76 lines)
+          context-map.md (77 lines)
+          README.md (110 lines)
+          subdomains.md (68 lines)
+          ubiquitous-language.md (93 lines)
+        notion/
+          AGENTS.md (109 lines)
+          bounded-contexts.md (78 lines)
+          context-map.md (78 lines)
+          README.md (117 lines)
+          subdomains.md (72 lines)
+          ubiquitous-language.md (93 lines)
+        platform/
+          AGENTS.md (105 lines)
+          bounded-contexts.md (93 lines)
+          context-map.md (78 lines)
+          README.md (131 lines)
+          subdomains.md (89 lines)
+          ubiquitous-language.md (140 lines)
+        workspace/
+          AGENTS.md (97 lines)
+          bounded-contexts.md (91 lines)
+          context-map.md (77 lines)
+          README.md (126 lines)
+          subdomains.md (80 lines)
+          ubiquitous-language.md (119 lines)
+        _template.md (143 lines)
+        README.md (1 lines)
+      data/
+        README.md (1 lines)
+      domain/
+        AGENTS.md (64 lines)
+        bounded-context-subdomain-template.md (203 lines)
+        bounded-contexts.md (88 lines)
+        ddd-strategic-design.md (221 lines)
+        event-driven-design.md (191 lines)
+        README.md (95 lines)
+        subdomains.md (273 lines)
+        ubiquitous-language.md (166 lines)
+      modules/
+        README.md (1 lines)
+      system/
+        AGENTS.md (73 lines)
+        architecture-overview.md (135 lines)
+        context-map.md (121 lines)
+        hard-rules-consolidated.md (415 lines)
+        integration-guidelines.md (110 lines)
+        module-graph.system-wide.md (134 lines)
+        project-delivery-milestones.md (109 lines)
+        README.md (105 lines)
+        source-to-task-flow.md (100 lines)
+        strategic-patterns.md (79 lines)
+        ui-ux-closed-loop.md (134 lines)
+      templates/
+        markdown.md (189 lines)
+        README.md (1 lines)
+      README.md (1 lines)
+    tooling/
+      ci-cd/
+        README.md (1 lines)
+      cli/
+        README.md (1 lines)
+      firebase/
+        firebase-architecture.md (197 lines)
+        README.md (1 lines)
+      firestore/
+        README.md (1 lines)
+      genkit/
+        genkit-flow-standards.md (229 lines)
+        README.md (1 lines)
+      nextjs/
+        README.md (1 lines)
+        state-machine-model.md (186 lines)
+      commands-reference.md (73 lines)
+      knowledge-base-reference.md (41 lines)
+      README.md (1 lines)
+    README.md (1 lines)
+  .refactor-tmp/
+    README.md (1 lines)
+  01-architecture/
+    contexts/
+      ai/
+        bounded-contexts.md (61 lines)
+        context-map.md (50 lines)
+        cross-runtime-contracts.md (99 lines)
+        ddd-strategic-design.md (53 lines)
+        README.md (76 lines)
+        subdomains.md (96 lines)
+        ubiquitous-language.md (49 lines)
+      analytics/
+        bounded-contexts.md (11 lines)
+        context-map.md (16 lines)
+        README.md (27 lines)
+        subdomains.md (20 lines)
+        ubiquitous-language.md (15 lines)
+      billing/
+        bounded-contexts.md (11 lines)
+        context-map.md (14 lines)
+        README.md (27 lines)
+        subdomains.md (18 lines)
+        ubiquitous-language.md (15 lines)
+      iam/
+        bounded-contexts.md (12 lines)
+        context-map.md (16 lines)
+        README.md (42 lines)
+        subdomains.md (28 lines)
+        ubiquitous-language.md (17 lines)
+      notebooklm/
+        bounded-contexts.md (76 lines)
+        context-map.md (77 lines)
+        README.md (110 lines)
+        subdomains.md (68 lines)
+        ubiquitous-language.md (93 lines)
+      notion/
+        bounded-contexts.md (78 lines)
+        context-map.md (78 lines)
+        README.md (117 lines)
+        subdomains.md (72 lines)
+        ubiquitous-language.md (93 lines)
+      platform/
+        bounded-contexts.md (93 lines)
+        context-map.md (78 lines)
+        README.md (131 lines)
+        subdomains.md (89 lines)
+        ubiquitous-language.md (140 lines)
+      workspace/
+        bounded-contexts.md (91 lines)
+        context-map.md (77 lines)
+        README.md (126 lines)
+        subdomains.md (80 lines)
+        ubiquitous-language.md (119 lines)
+      _template.md (143 lines)
+      README.md (1 lines)
+    domain/
+      bounded-context-subdomain-template.md (203 lines)
+      bounded-contexts.md (88 lines)
+      context-map.template.md (3 lines)
+      ddd-strategic-design.md (221 lines)
+      event-driven-design.md (191 lines)
+      README.md (95 lines)
+      subdomains.md (273 lines)
+      ubiquitous-language.md (166 lines)
+    system/
+      architecture-overview.md (135 lines)
+      context-map.md (121 lines)
+      hard-rules-consolidated.md (415 lines)
+      integration-guidelines.md (110 lines)
+      module-graph.system-wide.md (134 lines)
+      project-delivery-milestones.md (109 lines)
+      README.md (105 lines)
+      source-to-task-flow.md (100 lines)
+      strategic-patterns.md (79 lines)
+      ui-ux-closed-loop.md (134 lines)
+    AGENTS.md (163 lines)
+    README.md (1 lines)
+  02-decisions/
+    adr/
+      README.md (1 lines)
+    README.md (1 lines)
+  03-domains/
+    core/
+      README.md (1 lines)
+    experimental/
+      README.md (1 lines)
+    supporting/
+      README.md (1 lines)
+    README.md (1 lines)
+  04-examples/
+    ai/
+      README.md (1 lines)
+    end-to-end/
+      deliveries/
+        README.md (10 lines)
+        upload-parse-to-task-flow.md (77 lines)
+      README.md (1 lines)
+    modules/
+      feature/
+        notebooklm-source-processing-task-flow.md (86 lines)
+        py-fn-ts-capability-bridge.md (377 lines)
+        README.md (12 lines)
+        workspace-nav-notion-notebooklm-implementation-guide.md (215 lines)
+      README.md (1 lines)
+    AGENTS.md (86 lines)
+    README.md (1 lines)
+  05-tooling/
+    ci-cd/
+      README.md (1 lines)
+    firebase/
+      firebase-architecture.md (197 lines)
+      README.md (1 lines)
+    genkit/
+      genkit-flow-standards.md (229 lines)
+      README.md (1 lines)
+    nextjs/
+      README.md (1 lines)
+      state-machine-model.md (186 lines)
+    commands-reference.md (73 lines)
+    knowledge-base-reference.md (41 lines)
+    README.md (1 lines)
+  99-templates/
+    markdown.md (189 lines)
+    README.md (1 lines)
+  AGENTS.md (77 lines)
+  README.md (92 lines)
+fn/
+  AGENTS.md (96 lines)
+  README.md (64 lines)
+packages/
+  infra/
+    client-state/
+      AGENTS.md (52 lines)
+      README.md (38 lines)
+    date/
+      AGENTS.md (56 lines)
+      README.md (57 lines)
+    form/
+      AGENTS.md (78 lines)
+      README.md (120 lines)
+    http/
+      AGENTS.md (53 lines)
+      README.md (57 lines)
+    query/
+      AGENTS.md (56 lines)
+      README.md (59 lines)
+    serialization/
+      AGENTS.md (52 lines)
+      README.md (39 lines)
+    state/
+      AGENTS.md (54 lines)
+      README.md (94 lines)
+    table/
+      AGENTS.md (75 lines)
+      README.md (143 lines)
+    trpc/
+      AGENTS.md (54 lines)
+      README.md (55 lines)
+    uuid/
+      AGENTS.md (62 lines)
+      README.md (44 lines)
+    virtual/
+      AGENTS.md (84 lines)
+      README.md (137 lines)
+    zod/
+      AGENTS.md (53 lines)
+      README.md (76 lines)
+    AGENTS.md (38 lines)
+    README.md (52 lines)
+  integration-ai/
+    AGENTS.md (65 lines)
+    README.md (89 lines)
+  integration-firebase/
+    AGENTS.md (88 lines)
+    README.md (99 lines)
+  integration-queue/
+    AGENTS.md (61 lines)
+    README.md (86 lines)
+  ui-components/
+    AGENTS.md (54 lines)
+    README.md (50 lines)
+  ui-dnd/
+    AGENTS.md (80 lines)
+    README.md (169 lines)
+  ui-editor/
+    AGENTS.md (61 lines)
+    README.md (84 lines)
+  ui-markdown/
+    AGENTS.md (53 lines)
+    README.md (38 lines)
+  ui-shadcn/
+    AGENTS.md (92 lines)
+    README.md (109 lines)
+  ui-vis/
+    AGENTS.md (85 lines)
+    README.md (42 lines)
+  ui-visualization/
+    AGENTS.md (53 lines)
+    README.md (105 lines)
+  AGENTS.md (42 lines)
+  README.md (51 lines)
+src/
+  app/
+    AGENTS.md (74 lines)
+    README.md (60 lines)
+  modules/
+    ai/
+      subdomains/
+        chunk/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        citation/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        context/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        embedding/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        evaluation/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        generation/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        memory/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        pipeline/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        retrieval/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        safety/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        tool-calling/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+      AGENTS.md (73 lines)
+      README.md (56 lines)
+    analytics/
+      subdomains/
+        event-contracts/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        event-ingestion/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        event-projection/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        experimentation/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        insights/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        metrics/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+        realtime-insights/
+          AGENTS.md (34 lines)
+          README.md (35 lines)
+      AGENTS.md (71 lines)
+      README.md (52 lines)
+    billing/
+      subdomains/
+        entitlement/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        subscription/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        usage-metering/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+      AGENTS.md (72 lines)
+      README.md (48 lines)
+    iam/
+      subdomains/
+        access-control/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        account/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        authentication/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        authorization/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        federation/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        identity/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        organization/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        security-policy/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        session/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+        tenant/
+          AGENTS.md (38 lines)
+          README.md (35 lines)
+      AGENTS.md (72 lines)
+      README.md (55 lines)
+    notebooklm/
+      subdomains/
+        conversation/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        notebook/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        source/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        synthesis/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+      AGENTS.md (69 lines)
+      README.md (49 lines)
+    notion/
+      subdomains/
+        block/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        collaboration/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        database/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        knowledge/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        page/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        template/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        view/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+      AGENTS.md (69 lines)
+      README.md (52 lines)
+    platform/
+      subdomains/
+        audit-log/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        background-job/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        cache/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        feature-flag/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        file-storage/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        notification/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        platform-config/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        search/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+      AGENTS.md (69 lines)
+      README.md (53 lines)
+    template/
+      subdomains/
+        document/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        generation/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        ingestion/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        workflow/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+      AGENTS.md (72 lines)
+      README.md (51 lines)
+    workspace/
+      subdomains/
+        activity/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        api-key/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        approval/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        audit/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        feed/
+          AGENTS.md (0 lines)
+          README.md (53 lines)
+        invitation/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        issue/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        lifecycle/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        membership/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        orchestration/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        quality/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        resource/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        schedule/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        settlement/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        share/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        task/
+          AGENTS.md (20 lines)
+          README.md (19 lines)
+        task-formation/
+          AGENTS.md (74 lines)
+          README.md (56 lines)
+      AGENTS.md (69 lines)
+      README.md (62 lines)
+    AGENTS.md (90 lines)
+    README.md (68 lines)
+  AGENTS.md (76 lines)
+  README.md (60 lines)
 ```
