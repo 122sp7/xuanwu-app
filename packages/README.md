@@ -1,30 +1,51 @@
 # packages
 
-`packages/` 是共享 infra primitive、外部整合封裝與 UI package 的目錄。這份索引只維護實際子套件清單。
+## PURPOSE
 
-## Navigation Index
+packages 目錄承接共享 infra primitive、外部整合封裝與可重用 UI package。
+它提供跨模組共用能力，但不承接業務語言所有權。
 
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../AGENTS.md](../AGENTS.md)
-- Infra subgroup: [infra/README.md](infra/README.md) / [infra/AGENTS.md](infra/AGENTS.md)
+## GETTING STARTED
 
-## Package Index（actual directories）
+先閱讀：
 
-| Package | Overview | Agent entry | Public boundary |
-|---|---|---|---|
-| `infra/` | [README.md](infra/README.md) | [AGENTS.md](infra/AGENTS.md) | — |
-| `integration-ai/` | [README.md](integration-ai/README.md) | [AGENTS.md](integration-ai/AGENTS.md) | [index.ts](integration-ai/index.ts) |
-| `integration-firebase/` | [README.md](integration-firebase/README.md) | [AGENTS.md](integration-firebase/AGENTS.md) | [index.ts](integration-firebase/index.ts) |
-| `integration-queue/` | [README.md](integration-queue/README.md) | [AGENTS.md](integration-queue/AGENTS.md) | [index.ts](integration-queue/index.ts) |
-| `ui-components/` | [README.md](ui-components/README.md) | [AGENTS.md](ui-components/AGENTS.md) | [index.ts](ui-components/index.ts) |
-| `ui-dnd/` | [README.md](ui-dnd/README.md) | [AGENTS.md](ui-dnd/AGENTS.md) | [index.ts](ui-dnd/index.ts) |
-| `ui-editor/` | [README.md](ui-editor/README.md) | [AGENTS.md](ui-editor/AGENTS.md) | [index.ts](ui-editor/index.ts) |
-| `ui-markdown/` | [README.md](ui-markdown/README.md) | [AGENTS.md](ui-markdown/AGENTS.md) | — |
-| `ui-shadcn/` | [README.md](ui-shadcn/README.md) | [AGENTS.md](ui-shadcn/AGENTS.md) | [index.ts](ui-shadcn/index.ts) |
-| `ui-vis/` | [README.md](ui-vis/README.md) | [AGENTS.md](ui-vis/AGENTS.md) | [index.ts](ui-vis/index.ts) |
-| `ui-visualization/` | [README.md](ui-visualization/README.md) | [AGENTS.md](ui-visualization/AGENTS.md) | — |
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../docs/README.md](../docs/README.md)
 
-## Pair Contract
+## ARCHITECTURE
 
-- `README.md` 維護 packages 層的實際索引。
-- `AGENTS.md` 維護 routing / placement 決策。
+packages 由 infra、integration-* 與 ui-* 三類共享套件構成。
+業務規則仍應留在 src/modules，packages 只提供共用技術能力。
+
+## PROJECT STRUCTURE
+
+- [infra](infra)
+- [integration-ai](integration-ai)
+- [integration-firebase](integration-firebase)
+- [integration-queue](integration-queue)
+- [ui-components](ui-components)
+- [ui-dnd](ui-dnd)
+- [ui-editor](ui-editor)
+- [ui-markdown](ui-markdown)
+- [ui-shadcn](ui-shadcn)
+- [ui-vis](ui-vis)
+- [ui-visualization](ui-visualization)
+
+## DEVELOPMENT RULES
+
+- MUST keep shared technical capability in packages.
+- MUST keep business ownership in src/modules.
+- MUST keep package boundaries explicit and stable.
+- MUST avoid duplicating strategic docs here.
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Infra subgroup: [infra/README.md](infra/README.md)
+- Strategic authority: [../docs/README.md](../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內判斷共享能力應放在 infra、integration 或 ui 套件。
+- 可在 3 分鐘內定位適合的 package 子樹。

@@ -1,30 +1,52 @@
 # packages/infra
 
-`packages/infra/` 是本 repo 的本地 infra primitive 集合。這份文件只維護實際子套件索引。
+## PURPOSE
 
-## Navigation Index
+packages/infra 提供 repo 內共用的本地 infra primitive，例如 state、query、http、serialization 與 zod helpers。
+它只承接技術原語，不承接外部服務整合或業務規則。
 
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
+## GETTING STARTED
 
-## Subpackage Index（actual directories）
+先閱讀：
 
-| Package | Overview | Agent entry | Public boundary |
-|---|---|---|---|
-| `client-state/` | [README.md](client-state/README.md) | [AGENTS.md](client-state/AGENTS.md) | [index.ts](client-state/index.ts) |
-| `date/` | [README.md](date/README.md) | [AGENTS.md](date/AGENTS.md) | [index.ts](date/index.ts) |
-| `form/` | [README.md](form/README.md) | [AGENTS.md](form/AGENTS.md) | [index.ts](form/index.ts) |
-| `http/` | [README.md](http/README.md) | [AGENTS.md](http/AGENTS.md) | [index.ts](http/index.ts) |
-| `query/` | [README.md](query/README.md) | [AGENTS.md](query/AGENTS.md) | [index.ts](query/index.ts) |
-| `serialization/` | [README.md](serialization/README.md) | [AGENTS.md](serialization/AGENTS.md) | [index.ts](serialization/index.ts) |
-| `state/` | [README.md](state/README.md) | [AGENTS.md](state/AGENTS.md) | [index.ts](state/index.ts) |
-| `table/` | [README.md](table/README.md) | [AGENTS.md](table/AGENTS.md) | [index.ts](table/index.ts) |
-| `trpc/` | [README.md](trpc/README.md) | [AGENTS.md](trpc/AGENTS.md) | [index.ts](trpc/index.ts) |
-| `uuid/` | [README.md](uuid/README.md) | [AGENTS.md](uuid/AGENTS.md) | [index.ts](uuid/index.ts) |
-| `virtual/` | [README.md](virtual/README.md) | [AGENTS.md](virtual/AGENTS.md) | [index.ts](virtual/index.ts) |
-| `zod/` | [README.md](zod/README.md) | [AGENTS.md](zod/AGENTS.md) | [index.ts](zod/index.ts) |
+1. [AGENTS.md](AGENTS.md)
+2. [../README.md](../README.md)
+3. [../../docs/README.md](../../docs/README.md)
 
-## Pair Contract
+## ARCHITECTURE
 
-- `README.md` 維護 infra 子套件實際索引。
-- `AGENTS.md` 維護放置與 routing 規則。
+packages/infra 由多個本地 primitive 子套件構成，供 modules 與其他 packages 重用。
+外部 SDK 或服務封裝應留在 integration packages，而不是 infra。
+
+## PROJECT STRUCTURE
+
+- [client-state](client-state)
+- [date](date)
+- [form](form)
+- [http](http)
+- [query](query)
+- [serialization](serialization)
+- [state](state)
+- [table](table)
+- [trpc](trpc)
+- [uuid](uuid)
+- [virtual](virtual)
+- [zod](zod)
+
+## DEVELOPMENT RULES
+
+- MUST keep only local technical primitives in packages/infra.
+- MUST route external integrations to integration packages.
+- MUST keep package purposes explicit and stable.
+- MUST avoid business ownership here.
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent package index: [../README.md](../README.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內判斷某個共享技術能力是否應落在 infra。
+- 可在 3 分鐘內定位對應 primitive 子套件。
