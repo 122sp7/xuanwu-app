@@ -77,7 +77,9 @@ function mapPyFnStatus(
   ragStatus: string | undefined,
 ): SourceStatus {
   if (docStatus === "processing") return "processing";
-  if (docStatus === "error") return "archived";
+  // fn writes status="error" via record_error(); surface it as a first-class state
+  // instead of silently mapping to "archived" (which means intentionally removed).
+  if (docStatus === "error") return "error";
   if (ragStatus === "ready") return "active";
   // fn sets status="completed" after a successful parse but before RAG indexing.
   if (docStatus === "completed") return "active";

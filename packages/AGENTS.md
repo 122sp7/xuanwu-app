@@ -40,3 +40,17 @@
 
 - Business capability ownership: [../src/modules/AGENTS.md](../src/modules/AGENTS.md)
 - Strategic architecture decisions: [../docs/README.md](../docs/README.md)
+
+## Quick Links
+
+| Package | Purpose |
+|---|---|
+| `integration-firebase` | Firebase Web SDK wrapper |
+| `integration-google` | Google Docs Viewer URL + MIME type whitelist |
+| `integration-queue` | QStash / in-memory queue client |
+| `ui-components` | PageSection, EmptyState and other shared UI primitives |
+| `ui-editor` | RichTextEditor, ReadOnlyEditor |
+| `ui-markdown` | MarkdownRenderer |
+| `ui-shadcn` | shadcn/ui component re-exports + cn/ThemeProvider |
+| `infra` | Local infra primitives (uuid, etc.) |
+| `shared-types` | Shared TypeScript types (CommandResult, etc.) |

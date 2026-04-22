@@ -221,11 +221,16 @@ export {
   type QueuePublisher,
 } from "./integration-queue";
 
+// ─── integration-google ──────────────────────────────────────────────────────
+export {
+  createGoogleViewerEmbedUrl,
+  GOOGLE_VIEWER_PREVIEWABLE_TYPES,
+} from "./integration-google";
+
 // ─── ui-components ────────────────────────────────────────────────────────────
 export {
   PageSection,
   EmptyState,
-  createGoogleViewerEmbedUrl,
   type PageSectionProps,
   type EmptyStateProps,
 } from "./ui-components";

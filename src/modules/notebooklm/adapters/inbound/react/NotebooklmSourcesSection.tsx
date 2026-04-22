@@ -6,23 +6,22 @@
  * Manual Document AI pipeline controls:
  *   ① 上傳文件  — upload to Firebase Storage only
  *   ② 解析文件  — manually trigger Layout/Form/OCR/Genkit-AI via callable
- *   ③ RAG 索引  — manually trigger RAG reindex via callable
+ *   ③ RAG 索引  — manually trigger RAG reindex via callable (idempotent)
  *   ④ 建立知識頁 — create Notion Knowledge Page from parsed document
  *   ⑤ 建立資料庫 — create Notion Database named after document (for Form Parser entities)
  *
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
-import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
+import { Button, GOOGLE_VIEWER_PREVIEWABLE_TYPES } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
-  Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
+  Eye, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
   Layers, Braces, BarChart2, CheckCircle2, Clock, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import type { DatabaseProperty } from "@/src/modules/notion/subdomains/database/domain/entities/Database";
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
   queryDocuments,
@@ -37,6 +36,13 @@ import {
   createWorkspaceKnowledgeDatabase,
   createWorkspaceKnowledgePage,
 } from "@/src/modules/notion";
+import {
+  ARTIFACT_SNIPPET_MAX_CHARS,
+  loadSourceTextFromArtifactUri,
+  entitiesToDatabaseProperties,
+} from "./artifact-helpers";
+import { GoogleDocViewerModal } from "./GoogleDocViewerModal";
+import { JsonArtifactViewerModal, type ArtifactType } from "./JsonArtifactViewerModal";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -46,6 +52,7 @@ interface NotebooklmSourcesSectionProps {
 const STATUS_LABELS: Record<string, string> = {
   active: "已就緒",
   processing: "處理中",
+  error: "解析失敗",
   archived: "已封存",
   deleted: "已刪除",
 };
@@ -83,127 +90,6 @@ function createPendingSourceSnapshot(input: {
   };
 }
 
-/** MIME types renderable via Google Doc Viewer */
-const PREVIEWABLE_TYPES = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/tiff",
-  "image/tif",
-]);
-
-// Keep sourceText safely below Firestore's 1 MiB document limit. 80k chars is
-// ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
-// ample headroom for the rest of the page/database snapshot fields.
-const SOURCE_TEXT_MAX_CHARS = 80_000;
-// Summary / description stored in Page.summary and Database.description.
-// 5000 chars gives ~10–20 lines of meaningful context while staying within
-// Firestore field limits and keeping the downstream task-formation prompt compact.
-const ARTIFACT_SNIPPET_MAX_CHARS = 5_000;
-
-const ArtifactPayloadSchema = z.object({
-  text: z.string().optional(),
-  chunks: z.array(z.object({ text: z.string().optional() })).optional(),
-  entities: z.array(z.object({
-    type: z.string().optional(),
-    // fn writes snake_case; support both spellings so extractors are forwards-compatible.
-    mentionText: z.string().optional(),
-    mention_text: z.string().optional(),
-    normalizedValue: z.string().optional(),
-    normalized_value: z.string().optional(),
-  })).optional(),
-});
-
-/**
- * Normalize parser artifacts written by fn parse_document:
- * - layout / ocr / genkit: prefer top-level text, then chunk.text
- * - form: fallback to entity key/value lines when plain text is unavailable
- */
-function extractTextFromArtifactPayload(payload: unknown): string | undefined {
-  const parsed = ArtifactPayloadSchema.safeParse(payload);
-  if (!parsed.success) return undefined;
-  const record = parsed.data;
-  const text = record.text?.trim() ?? "";
-  if (text.length > 0) return text;
-
-  const chunkText = (record.chunks ?? [])
-    .map((chunk) => chunk.text?.trim() ?? "")
-    .filter((value) => value.length > 0)
-    .join("\n");
-  if (chunkText.length > 0) return chunkText;
-
-  const entityText = (record.entities ?? [])
-    .map((entity) => {
-      const key = entity.type ?? "";
-      const mention = entity.mentionText ?? entity.mention_text ?? "";
-      if (key && mention) return `${key}: ${mention}`;
-      return mention || key;
-    })
-    .filter((value) => value.length > 0)
-    .join("\n");
-  return entityText || undefined;
-}
-
-function trimSourceText(text: string | undefined): string | undefined {
-  const normalized = text?.trim();
-  if (!normalized) return undefined;
-  return normalized.slice(0, SOURCE_TEXT_MAX_CHARS);
-}
-
-async function loadSourceTextFromArtifactUri(uri: string): Promise<string | undefined> {
-  try {
-    const artifactUrl = await getDocumentDownloadUrl(uri);
-    const response = await fetch(artifactUrl);
-    if (!response.ok) return undefined;
-    return trimSourceText(extractTextFromArtifactPayload(await response.json()));
-  } catch {
-    return undefined;
-  }
-}
-
-/** Heuristically infer a DatabaseProperty type from a sample mention_text value. */
-function inferPropertyType(mentionText: string): "text" | "number" | "date" {
-  const v = mentionText.trim();
-  // Date patterns: YYYY.MM.DD, YYYY-MM-DD, YYYY/MM/DD
-  if (/^\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}$/.test(v)) return "date";
-  // Number patterns: integers, decimals, comma-separated thousands (e.g. 1,134,000)
-  if (/^-?[\d,]+(\.\d+)?$/.test(v.replace(/,/g, ""))) return "number";
-  return "text";
-}
-
-/**
- * Fetch a form-parser artifact JSON and map unique entity.type values to
- * DatabaseProperty definitions so the created Database starts with typed columns.
- * Type is inferred from the first mention_text value for each property.
- */
-async function entitiesToDatabaseProperties(
-  formArtifactUri: string,
-): Promise<DatabaseProperty[] | undefined> {
-  try {
-    const artifactUrl = await getDocumentDownloadUrl(formArtifactUri);
-    const response = await fetch(artifactUrl);
-    if (!response.ok) return undefined;
-    const payload = await response.json() as unknown;
-    const parsed = ArtifactPayloadSchema.safeParse(payload);
-    if (!parsed.success) return undefined;
-    const entities = parsed.data.entities ?? [];
-    const seen = new Set<string>();
-    const properties: DatabaseProperty[] = [];
-    for (const entity of entities) {
-      const name = (entity.type ?? "").trim();
-      if (name && !seen.has(name.toLowerCase())) {
-        seen.add(name.toLowerCase());
-        const mention = (entity.mentionText ?? entity.mention_text ?? "").trim();
-        properties.push({ id: crypto.randomUUID(), name, type: mention ? inferPropertyType(mention) : "text" });
-      }
-    }
-    return properties.length > 0 ? properties : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 // ── Per-document action state ─────────────────────────────────────────────────
 
 type DocActionStatus = "idle" | "running" | "done" | "error";
@@ -213,8 +99,9 @@ interface DocActionState {
   parseForm: DocActionStatus;
   parseOcr: DocActionStatus;
   parseGenkit: DocActionStatus;
-  index: DocActionStatus;
-  reindex: DocActionStatus;
+  /** Single shared state for both "建立 RAG 索引" and "重建 RAG 索引" buttons.
+   *  Both are idempotent calls to the same fn rag_reindex_document callable. */
+  ragIndex: DocActionStatus;
   page: DocActionStatus;
   database: DocActionStatus;
   message?: string;
@@ -246,41 +133,7 @@ export function NotebooklmSourcesSection({
   const [actionState, setActionState] = useState<Record<string, DocActionState>>({});
 
   // JSON viewer modal state
-  const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
-  // Actual artifact content loaded on modal open
-  const [jsonArtifactContent, setJsonArtifactContent] = useState<string | null>(null);
-  const [jsonArtifactLoading, setJsonArtifactLoading] = useState(false);
-
-  // Fetch actual artifact JSON when modal opens
-  useEffect(() => {
-    if (!jsonViewer) {
-      setJsonArtifactContent(null);
-      return;
-    }
-    const { doc: jDoc, type } = jsonViewer;
-    const uri =
-      type === "layout" ? jDoc.parsedLayoutJsonGcsUri :
-      type === "form" ? jDoc.parsedFormJsonGcsUri :
-      type === "ocr" ? jDoc.parsedOcrJsonGcsUri :
-      jDoc.parsedGenkitJsonGcsUri;
-    if (!uri) {
-      setJsonArtifactContent(null);
-      return;
-    }
-    setJsonArtifactLoading(true);
-    setJsonArtifactContent(null);
-    getDocumentDownloadUrl(uri)
-      .then((url) => fetch(url))
-      .then(async (resp) => {
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const raw = await resp.json() as unknown;
-        setJsonArtifactContent(JSON.stringify(raw, null, 2));
-      })
-      .catch((err: unknown) => {
-        setJsonArtifactContent(`// 無法載入產出物\n// ${err instanceof Error ? err.message : String(err)}`);
-      })
-      .finally(() => { setJsonArtifactLoading(false); });
-  }, [jsonViewer]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: ArtifactType } | null>(null);
 
   const load = () => {
     startRefresh(async () => {
@@ -366,7 +219,7 @@ export function NotebooklmSourcesSection({
     setActionState((prev) => {
       const current: DocActionState = prev[docId] ?? {
         parseLayout: "idle", parseForm: "idle", parseOcr: "idle", parseGenkit: "idle",
-        index: "idle", reindex: "idle", page: "idle", database: "idle",
+        ragIndex: "idle", page: "idle", database: "idle",
       };
       return { ...prev, [docId]: { ...current, ...patch } };
     });
@@ -464,37 +317,27 @@ export function NotebooklmSourcesSection({
     }
   };
 
-  const handleIndex = async (doc: IngestionSourceSnapshot) => {
+  /**
+   * handleRagIndex — build or rebuild the RAG vector index for a document.
+   *
+   * Both "建立 RAG 索引" (first-time) and "重建 RAG 索引" (re-run) call the same
+   * fn rag_reindex_document callable, which is fully idempotent.  A single shared
+   * ragIndex state key avoids button state confusion when either one completes.
+   */
+  const handleRagIndex = async (doc: IngestionSourceSnapshot) => {
     if (!doc.id) return;
     if (!doc.parsedLayoutJsonGcsUri) {
-      setDocAction(doc.id, { index: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
+      setDocAction(doc.id, { ragIndex: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
       return;
     }
-    setDocAction(doc.id, { index: "running", message: undefined });
+    setDocAction(doc.id, { ragIndex: "running", message: undefined });
     try {
       await callReindexDocument({ account_id: accountId, doc_id: doc.id, json_gcs_uri: doc.parsedLayoutJsonGcsUri });
-      setDocAction(doc.id, { index: "done", message: "RAG 索引建立完成（使用 Layout Parser 產出物）" });
+      setDocAction(doc.id, { ragIndex: "done", message: "RAG 索引完成（使用 Layout Parser 產出物）" });
       const result = await queryDocuments({ accountId, workspaceId });
       setDocuments(Array.isArray(result) ? result : []);
     } catch (err) {
-      setDocAction(doc.id, { index: "error", message: err instanceof Error ? err.message : "建立索引失敗" });
-    }
-  };
-
-  const handleReindex = async (doc: IngestionSourceSnapshot) => {
-    if (!doc.id) return;
-    if (!doc.parsedLayoutJsonGcsUri) {
-      setDocAction(doc.id, { reindex: "error", message: "文件尚未完成 Layout Parser 解析，請先執行「解析文件(Layout Parser)」" });
-      return;
-    }
-    setDocAction(doc.id, { reindex: "running", message: undefined });
-    try {
-      await callReindexDocument({ account_id: accountId, doc_id: doc.id, json_gcs_uri: doc.parsedLayoutJsonGcsUri });
-      setDocAction(doc.id, { reindex: "done", message: "RAG 重建索引完成（使用 Layout Parser 產出物）" });
-      const result = await queryDocuments({ accountId, workspaceId });
-      setDocuments(Array.isArray(result) ? result : []);
-    } catch (err) {
-      setDocAction(doc.id, { reindex: "error", message: err instanceof Error ? err.message : "重建索引失敗" });
+      setDocAction(doc.id, { ragIndex: "error", message: err instanceof Error ? err.message : "RAG 索引失敗" });
     }
   };
 
@@ -644,7 +487,7 @@ export function NotebooklmSourcesSection({
             const anyRunning = state && (
               state.parseLayout === "running" || state.parseForm === "running" ||
               state.parseOcr === "running" || state.parseGenkit === "running" ||
-              state.index === "running" || state.reindex === "running" ||
+              state.ragIndex === "running" ||
               state.page === "running" || state.database === "running"
             );
 
@@ -654,7 +497,7 @@ export function NotebooklmSourcesSection({
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="font-medium truncate max-w-[200px]">{doc.name}</span>
                   <div className="flex items-center gap-2 shrink-0">
-                    {doc.storageUrl && PREVIEWABLE_TYPES.has(doc.mimeType) && (
+                    {doc.storageUrl && GOOGLE_VIEWER_PREVIEWABLE_TYPES.has(doc.mimeType) && (
                       <Button
                         size="sm" variant="ghost" className="h-6 px-2 text-xs"
                         onClick={() => void handlePreview(doc)}
@@ -669,13 +512,13 @@ export function NotebooklmSourcesSection({
                           ? "bg-green-500/10 text-green-600"
                           : doc.status === "processing"
                             ? "bg-yellow-500/10 text-yellow-600"
-                            : doc.status === "archived"
+                            : doc.status === "error"
                               ? "bg-red-500/10 text-red-600"
                               : "bg-muted text-muted-foreground"
                       }`}
-                      title={doc.status === "archived" && doc.errorMessage ? doc.errorMessage : undefined}
+                      title={doc.status === "error" && doc.errorMessage ? doc.errorMessage : undefined}
                     >
-                      {doc.status === "archived" ? "解析失敗" : (STATUS_LABELS[doc.status] ?? doc.status)}
+                      {STATUS_LABELS[doc.status] ?? doc.status}
                     </span>
                     {/* Toggle actions panel */}
                     <Button
@@ -748,7 +591,7 @@ export function NotebooklmSourcesSection({
                       索引：{new Date(doc.ragIndexedAt).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
-                  {doc.errorMessage && doc.status === "archived" && (
+                  {doc.errorMessage && doc.status === "error" && (
                     <span className="text-red-500/80 truncate max-w-xs" title={doc.errorMessage}>
                       ⚠ {doc.errorMessage}
                     </span>
@@ -861,7 +704,7 @@ export function NotebooklmSourcesSection({
                       </div>
                     </div>
 
-                    {/* Section: RAG index — uses Layout Parser output */}
+                    {/* Section: RAG index — uses Layout Parser output, idempotent */}
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         RAG 索引
@@ -870,13 +713,13 @@ export function NotebooklmSourcesSection({
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-                          disabled={state?.index === "running" || !!anyRunning}
-                          onClick={() => void handleIndex(doc)}
+                          disabled={state?.ragIndex === "running" || !!anyRunning}
+                          onClick={() => void handleRagIndex(doc)}
                           title={doc.parsedLayoutJsonGcsUri ? "建立 RAG 向量索引" : "須先完成 Layout Parser 解析"}
                         >
-                          {state?.index === "running" ? (
+                          {state?.ragIndex === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
-                          ) : state?.index === "done" ? (
+                          ) : state?.ragIndex === "done" ? (
                             <CheckCircle2 className="size-3 text-purple-600" />
                           ) : (
                             <RefreshCw className="size-3 text-purple-600" />
@@ -885,13 +728,13 @@ export function NotebooklmSourcesSection({
                         </Button>
                         <Button
                           size="sm" variant="outline" className="h-7 text-xs gap-1.5"
-                          disabled={state?.reindex === "running" || !!anyRunning}
-                          onClick={() => void handleReindex(doc)}
-                          title={doc.parsedLayoutJsonGcsUri ? "重建 RAG 向量索引" : "須先完成 Layout Parser 解析"}
+                          disabled={state?.ragIndex === "running" || !!anyRunning}
+                          onClick={() => void handleRagIndex(doc)}
+                          title={doc.parsedLayoutJsonGcsUri ? "重建 RAG 向量索引（idempotent）" : "須先完成 Layout Parser 解析"}
                         >
-                          {state?.reindex === "running" ? (
+                          {state?.ragIndex === "running" ? (
                             <Loader2 className="size-3 animate-spin" />
-                          ) : state?.reindex === "done" ? (
+                          ) : state?.ragIndex === "done" ? (
                             <CheckCircle2 className="size-3 text-orange-600" />
                           ) : (
                             <RefreshCw className="size-3 text-orange-600" />
@@ -959,8 +802,9 @@ export function NotebooklmSourcesSection({
                     {/* Action status message */}
                     {state?.message && (
                       <p className={`text-xs px-2 py-1 rounded ${
-                        (state.parseLayout === "error" || state.parseForm === "error" || state.index === "error" || state.reindex === "error" || state.page === "error" || state.database === "error")
-                          || state.parseOcr === "error" || state.parseGenkit === "error"
+                        state.parseLayout === "error" || state.parseForm === "error" ||
+                        state.parseOcr === "error" || state.parseGenkit === "error" ||
+                        state.ragIndex === "error" || state.page === "error" || state.database === "error"
                           ? "bg-destructive/10 text-destructive"
                           : "bg-muted text-muted-foreground"
                       }`}>
@@ -1004,101 +848,25 @@ export function NotebooklmSourcesSection({
       )}
 
       {/* JSON viewer modal — actual parsed artifact content */}
-      {jsonViewer && (() => {
-        const { doc: jDoc, type } = jsonViewer;
-        const title =
-          type === "layout"
-            ? "Layout Parser 產出物"
-            : type === "form"
-              ? "Form Parser 產出物"
-              : type === "ocr"
-                ? "Document OCR 產出物"
-                : "Genkit-AI 產出物";
-        return (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setJsonViewer(null); }}
-            onKeyDown={(e) => { if (e.key === "Escape") setJsonViewer(null); }}
-          >
-            <div className="relative flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
-              <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="size-4 text-green-600" />
-                  <span className="text-sm font-medium">{title}</span>
-                  <span className="text-xs text-muted-foreground truncate max-w-xs">{jDoc.name}</span>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => setJsonViewer(null)} className="h-7 w-7 p-0">
-                  <X className="size-4" />
-                </Button>
-              </div>
-              <div className="flex-1 overflow-auto p-4">
-                {jsonArtifactLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="size-4 animate-spin" />
-                    載入產出物…
-                  </div>
-                ) : jsonArtifactContent ? (
-                  <pre className="text-xs text-foreground whitespace-pre-wrap break-all font-mono">
-                    {jsonArtifactContent}
-                  </pre>
-                ) : (
-                  <p className="text-xs text-muted-foreground">（產出物 URI 不存在，請先執行對應解析。）</p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {jsonViewer && (
+        <JsonArtifactViewerModal
+          doc={jsonViewer.doc}
+          type={jsonViewer.type}
+          onClose={() => setJsonViewer(null)}
+        />
+      )}
 
       {/* PDF / image preview overlay — Google Doc Viewer */}
       {previewDoc && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={`預覽：${previewDoc.name}`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) closePreview(); }}
-          onKeyDown={(e) => { if (e.key === "Escape") closePreview(); }}
-        >
-          <div className="relative flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
-            <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
-              <div className="flex items-center gap-2">
-                <Eye className="size-4 text-primary" />
-                <span className="text-sm font-medium truncate max-w-xs">{previewDoc.name}</span>
-                <span className="text-xs text-muted-foreground">{previewDoc.mimeType}</span>
-              </div>
-              <Button size="sm" variant="ghost" onClick={closePreview} className="h-7 w-7 p-0">
-                <X className="size-4" />
-              </Button>
-            </div>
-            <div className="relative flex-1 overflow-hidden">
-              {previewLoading && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="size-8 animate-spin text-muted-foreground" />
-                </div>
-              )}
-              {previewError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
-                  <p className="text-sm text-destructive">{previewError}</p>
-                  <Button size="sm" variant="outline" onClick={() => void handlePreview(previewDoc)}>
-                    重試
-                  </Button>
-                </div>
-              )}
-              {previewUrl && (
-                <iframe
-                  src={createGoogleViewerEmbedUrl(previewUrl)}
-                  className="h-full w-full border-0"
-                  title={`預覽：${previewDoc.name}`}
-                  sandbox="allow-scripts allow-same-origin allow-popups"
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        <GoogleDocViewerModal
+          name={previewDoc.name}
+          mimeType={previewDoc.mimeType}
+          url={previewUrl}
+          loading={previewLoading}
+          error={previewError}
+          onClose={closePreview}
+          onRetry={() => void handlePreview(previewDoc)}
+        />
       )}
     </div>
   ) as React.ReactElement;
