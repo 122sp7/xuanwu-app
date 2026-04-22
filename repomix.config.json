@@ -47,7 +47,7 @@
     "src/modules/template/**",
     "src/modules/workspace/**",
     "src/modules/iam/**",
-    "src/packages/**",
+    "packages/**",
     "fn/**",
     "AGENTS.md",
     "CLAUDE.md",
