@@ -10,7 +10,9 @@
 
 - `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
 - `npm run lint:markdown` — Run repo-wide Markdown linting (`.markdownlint-cli2.jsonc`)
+- `npm run lint:markdown:fix` — Run Markdown linting with automatic fixes where supported
 - `npm run test` — Run Vitest unit tests
+- `npm run test:watch` — Run Vitest in watch mode for iterative local development
 - TypeScript type-checking is included in `npm run build`
 
 ## Firebase Deployment
@@ -21,7 +23,7 @@
 - `npm run deploy:storage:rules` — Deploy Storage security rules only
 - `npm run deploy:rules` — Deploy Firestore rules + Storage rules
 - `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions` — Deploy the `fn` Cloud Functions target
 - `npm run deploy:functions:fn` — Deploy the `fn` Cloud Functions target
 - `npm run deploy:functions:all` — Deploy all Cloud Functions
 
@@ -29,21 +31,23 @@
 
 - `npm run repomix:all` — Generate all configured repomix skills in sequence
 - `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:ai` — Generate the AI-focused skill (`xuanwu-ai-skill`)
-- `npm run repomix:analytics` — Generate the analytics-focused skill (`xuanwu-analytics-skill`)
-- `npm run repomix:billing` — Generate the billing-focused skill (`xuanwu-billing-skill`)
-- `npm run repomix:iam` — Generate the IAM-focused skill (`xuanwu-iam-skill`)
-- `npm run repomix:platform` — Generate the platform-focused skill (`xuanwu-platform-skill`)
-- `npm run repomix:src` — Generate the src-focused skill (`xuanwu-src-skill`)
+- `npm run repomix:src-app` — Generate the src/app-focused skill (`xuanwu-src-app-skill`)
+- `npm run repomix:src-modules` — Generate the src/modules-focused skill (`xuanwu-src-modules-skill`)
+- `npm run repomix:modules-ai` — Generate the AI modules-focused skill (`xuanwu-modules-ai-skill`)
+- `npm run repomix:modules-analytics` — Generate the analytics modules-focused skill (`xuanwu-modules-analytics-skill`)
+- `npm run repomix:modules-billing` — Generate the billing modules-focused skill (`xuanwu-modules-billing-skill`)
+- `npm run repomix:modules-iam` — Generate the IAM modules-focused skill (`xuanwu-modules-iam-skill`)
+- `npm run repomix:modules-platform` — Generate the platform modules-focused skill (`xuanwu-modules-platform-skill`)
+- `npm run repomix:modules-src` — Generate the src aggregate modules skill (`xuanwu-modules-src-skill`)
+- `npm run repomix:modules-notebooklm` — Generate the notebooklm modules-focused skill (`xuanwu-modules-notebooklm-skill`)
+- `npm run repomix:modules-notion` — Generate the notion modules-focused skill (`xuanwu-modules-notion-skill`)
+- `npm run repomix:modules-workspace` — Generate the workspace modules-focused skill (`xuanwu-modules-workspace-skill`)
 - `npm run repomix:fn` — Generate the Cloud Functions-focused skill (`xuanwu-fn-skill`)
 - `npm run repomix:packages` — Generate the packages-focused skill (`xuanwu-packages-skill`)
 - `npm run repomix:markdown` — Generate the markdown-only skill (`xuanwu-markdown-skill`)
-- `npm run repomix:notebooklm` — Generate the notebooklm-focused skill (`xuanwu-notebooklm-skill`)
-- `npm run repomix:notion` — Generate the notion-focused skill (`xuanwu-notion-skill`)
-- `npm run repomix:workspace` — Generate the workspace-focused skill (`xuanwu-workspace-skill`)
 - `npm run repomix:explore` — Run repomix with `repomix.config.json` for direct exploration output
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
+- `npm run repomix:remote` — Run repomix against a remote GitHub repository
+- `npm run repomix:local` — Run repomix against a local directory
 
 ## Key Configuration Files
 
