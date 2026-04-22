@@ -1,6 +1,6 @@
 ﻿# Ubiquitous Language
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
+> 本文件已依 `src/modules/` 實際程式碼校正，反映現況實作。
 
 ## Strategic Terms
 
@@ -23,14 +23,14 @@
 
 | Domain | Key Terms |
 |---|---|
-| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy, Account, AccountProfile, Organization |
-| billing | Subscription, Entitlement, BillingEvent, Referral |
-| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline |
-| analytics | Metric, Report, Dashboard, Projection |
-| platform | NotificationRoute, AuditLog |
-| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
-| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+| iam | Actor, Identity, Tenant, AccessDecision, SecurityPolicy, Account, AccountProfile, Organization, Session, Authentication, Authorization, Federation |
+| billing | Subscription, Entitlement, UsageMetering |
+| ai | AICapability, ModelPolicy, SafetyGuardrail, PromptPipeline, Embedding, Retrieval, Synthesis |
+| analytics | Metric, Report, Dashboard, Projection, EventIngestion |
+| platform | NotificationRoute, AuditLog, FeatureFlag, FileStorage, Cache |
+| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail, Approval, Schedule, Invitation, Lifecycle, Resource |
+| notion | KnowledgePage, Block, KnowledgeDatabase, View, Collaboration, Template |
+| notebooklm | Notebook, Source, Synthesis, Conversation |
 
 ## Route Composition Terms
 
@@ -98,7 +98,7 @@
 
 - 不用 User 混指 Actor 與 Membership。
 - 不用 Plan 混指 Subscription 與 Entitlement。
-- 不用 Wiki 混指 KnowledgeArtifact。
+- 不用 Wiki 混指 KnowledgePage（notion 的正典知識容器以 `page` + `block` 實作）。
 - 不用 Chat 混指 Conversation。
 - 不用 Search 混指 Retrieval。
 - 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
@@ -112,6 +112,8 @@
 - 不用 `AccountType = "personal"` 取代 `AccountType = "user"`。
 - 不用 `/{accountId}/workspace/{workspaceId}` 當成新的 canonical workspace URL。
 - 不用 `/{accountId}/organization/*` 當成新的 canonical governance route。
+- workspace 子域目錄名稱：`approval`（非 `approve`）、`schedule`（非 `scheduling`）、`share`（非 `sharing`）。
+- notion 子域目錄名稱：`template`（非 `templates`）、`page`（承接 `authoring` 語意）、`view`（database 多視圖 facet）。
 
 ## Naming Anti-Patterns
 

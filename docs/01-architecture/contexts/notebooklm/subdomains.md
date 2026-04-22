@@ -2,15 +2,20 @@
 
 本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Baseline Subdomains
+## Implemented Subdomains（程式碼已存在 — `src/modules/notebooklm/subdomains/`）
 
 | Subdomain | Responsibility |
 |---|---|
 | conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
 | notebook | Notebook 組合與管理 |
 | source | 來源文件追蹤、引用與 ingestion 編排 |
 | synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback |
+
+## Planned Subdomains（尚未實作，保留戰略意圖）
+
+| Subdomain | Why Needed |
+|---|---|
+| note | 輕量筆記與知識連結 |
 | conversation-versioning | 對話版本與快照策略 |
 
 ## Future Split Triggers

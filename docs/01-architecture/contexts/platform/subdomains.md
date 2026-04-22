@@ -1,7 +1,5 @@
 ﻿# Platform
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
 ## Migrated Subdomains（已遷出 platform）
 
 | Subdomain | 遷入位置 |
@@ -11,21 +9,28 @@
 | organization | `iam/subdomains/organization/` |
 | team | `iam/subdomains/organization/` |
 
-## Baseline Subdomains
+## Implemented Subdomains（程式碼已存在 — `src/modules/platform/subdomains/`）
 
 | Subdomain | Responsibility |
 |---|---|
-| platform-config | 平台設定輪廓與配置管理 |
+| audit-log | 永久日誌軌跡與不可否認證據 |
+| background-job | 背景任務提交、排程與監控 |
+| cache | 跨域快取策略與快取層管理 |
 | feature-flag | 功能開關策略與發佈節點 |
+| file-storage | 檔案儲存邊界、路徑策略與存取控管 |
+| notification | 通知路由、偏好與投遞 |
+| platform-config | 平台設定輪廓與配置管理 |
+| search | 跨域搜尋路由與查詢協調 |
+
+## Planned Subdomains（尚未實作，保留戰略意圖）
+
+| Subdomain | Why Needed |
+|---|---|
 | onboarding | 新主體初始設定與引導流程 |
 | compliance | 資料保留、日誌與法規執行 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
 | content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久日誌軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
 

@@ -1,40 +1,44 @@
 # Subdomains
 
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
+> 本文件以 `src/modules/` 實際目錄為基線，分為「已實作」與「計劃中」兩欄，取代原先的「Baseline / Gap」框架。
+> 詳細每域說明見各 `docs/01-architecture/contexts/<context>/subdomains.md`。
 
 ## Main Domain Inventory
 
-| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
+| Main Domain | Implemented Subdomains（程式碼已存在） | Planned Subdomains（尚未實作） |
 |---|---|---|
-| iam | identity, access-control, tenant, security-policy, **account, organization** | session, consent, secret-governance |
-| billing | billing, subscription, entitlement, referral | pricing, invoice, quota-policy |
-| ai | generation, orchestration, distillation, retrieval, memory, context, safety, tool-calling, reasoning, conversation, evaluation, tracing | provider-routing, model-policy |
-| analytics | reporting, metrics, dashboards, telemetry-projection | experimentation, decision-support |
-| platform | platform-config, feature-flag, onboarding, compliance, integration, workflow, notification, background-job, content, search, audit-log, observability, support | consent, secret-management |
-| workspace | audit, feed, scheduling, approve, issue, orchestration, quality, settlement, task, task-formation | lifecycle, membership, sharing, presence |
-| notion | knowledge, authoring, collaboration, database, knowledge-engagement, attachments, automation, external-knowledge-sync, notes, templates, knowledge-versioning, taxonomy, relations, publishing | — |
-| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | —（Future Split Triggers；參見 notebooklm/subdomains.md） |
+| iam | identity, access-control, authentication, authorization, federation, tenant, security-policy, session, account, organization | consent, secret-governance |
+| billing | entitlement, subscription, usage-metering | billing, referral, pricing, invoice, quota-policy |
+| ai | chunk, citation, context, embedding, evaluation, generation, memory, pipeline, retrieval, safety, tool-calling | orchestration, distillation, reasoning, conversation, tracing, provider-routing, model-policy |
+| analytics | event-contracts, event-ingestion, event-projection, experimentation, insights, metrics, realtime-insights | reporting, dashboards, decision-support |
+| platform | audit-log, background-job, cache, feature-flag, file-storage, notification, platform-config, search | onboarding, compliance, integration, workflow, content, observability, support, secret-management |
+| workspace | activity, api-key, approval, audit, feed, invitation, issue, lifecycle, membership, orchestration, quality, resource, schedule, settlement, share, task, task-formation | presence |
+| notion | block, collaboration, database, knowledge, page, template, view | knowledge-engagement, attachments, automation, external-knowledge-sync, notes, knowledge-versioning, taxonomy, relations, publishing |
+| notebooklm | conversation, notebook, source, synthesis | note, conversation-versioning |
 
 ## Detailed Subdomain Catalog
 
 ### iam
 
-#### Baseline Subdomains
+#### Implemented Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
 | identity | 已驗證主體與身份信號治理 |
-| access-control | 主體現在能做什麼的授權判定 |
+| access-control | 主體現在能做什麼的授權判定（policy 執行） |
+| authentication | sign-in、registration、credential recovery、provider bootstrap |
+| authorization | 高層政策編排與決策語意 |
+| federation | 外部 identity provider 連結、SSO 與信任委派 |
 | tenant | 多租戶隔離與 tenant-scoped 規則治理 |
 | security-policy | 安全規則定義、版本化與發佈 |
+| session | session、token 與 identity lifecycle（原 gap，現已實作） |
 | account | 帳號聚合根與帳號生命週期（從 platform 遷入） |
 | organization | 組織、成員與角色邊界（從 platform 遷入） |
 
-#### Recommended Gap Subdomains
+#### Planned Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| session | session、token 與 identity lifecycle 收斂 |
 | consent | 同意與資料使用授權治理收斂 |
 | secret-governance | secret 與 credential access policy 收斂 |
 
@@ -103,96 +107,108 @@
 
 ### workspace
 
-#### Baseline Subdomains
+#### Implemented Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| audit | 工作區操作日誌與證據追蹤 |
+| activity | 工作區活動流水帳與事件記錄 |
+| api-key | API 金鑰生命週期與範圍治理 |
+| approval | 任務驗收與問題單覆核審批流程（舊名 `approve`） |
+| audit | 工作區操作日誌與不可否認證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| approve | 任務驗收與問題單覆核審批流程 |
+| invitation | 工作區邀請流程與邀請令牌管理 |
 | issue | 問題單生命週期與追蹤管理 |
+| lifecycle | 工作區容器建立、封存與復原的生命週期語言（原 gap，現已實作） |
+| membership | 工作區參與關係（角色、加入、移除）與 identity 邊界切分（原 gap，現已實作） |
 | orchestration | 知識頁面→任務物化批次作業編排 |
 | quality | 任務 QA 審查與質檢流程 |
+| resource | 工作區資源綁定與容量管理 |
+| schedule | 工作區排程、時序與提醒協調（舊名 `scheduling`） |
 | settlement | 請款發票生命週期與財務對帳 |
+| share | 對外共享與可見性規則（舊名 `sharing`，原 gap，現已實作） |
 | task | 任務建立、指派與狀態轉換 |
 | task-formation | AI 輔助任務候選抽取與批次匯入 |
 
-#### Recommended Gap Subdomains
+#### Planned Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| lifecycle | 將工作區容器生命週期獨立為正典邊界（建立、封存、復原） |
-| membership | 將工作區參與關係從平台身份治理切開（角色、加入、移除） |
-| sharing | 將共享範圍與可見性規則收斂到單一上下文（對內/對外分享） |
 | presence | 將即時協作存在感、共同編輯訊號收斂為本地語言 |
 
 ### platform
 
-#### Baseline Subdomains
+#### Implemented Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| platform-config | 平台設定輪廓與配置管理 |
+| audit-log | 永久日誌軌跡與不可否認證據 |
+| background-job | 背景任務提交、排程與監控 |
+| cache | 跨域快取策略與快取層管理 |
 | feature-flag | 功能開關策略與發佈節點 |
+| file-storage | 檔案儲存邊界、路徑策略與存取控管 |
+| notification | 通知路由、偏好與投遞 |
+| platform-config | 平台設定輪廓與配置管理 |
+| search | 跨域搜尋路由與查詢協調 |
+
+> **遷出子域：** `account` / `account-profile` → `iam/subdomains/account/`；`organization` / `team` → `iam/subdomains/organization/`
+
+#### Planned Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
 | onboarding | 新主體初始設定與引導流程 |
 | compliance | 資料保留、日誌與法規執行 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
 | content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久日誌軌跡與不可否認證據 |
 | observability | 健康量測、追蹤與告警 |
 | support | 客服工單、支援知識與處理流程 |
-
-> **遷出子域：** `account` / `account-profile` → `iam/subdomains/account/`；`organization` / `team` → `iam/subdomains/organization/`
-
-#### Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| consent | 將同意與資料使用授權從 compliance 中切開 |
 | secret-management | 將憑證、token、rotation 從 integration 中切開 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 |
 
 ### notion
 
-#### Baseline Subdomains
+#### Implemented Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
+| block | 頁面內容區塊（段落、標題、媒體等）的結構與操作 |
 | collaboration | 協作留言、細粒度權限與版本快照 |
 | database | 結構化資料多視圖管理（原名 `knowledge-database`，已重命名）|
+| knowledge | 頁面的高層語義容器（知識庫入口） |
+| page | 知識庫文章建立、驗證、分類與版本（`authoring` 整合於此） |
+| template | 頁面範本管理與套用（程式碼目錄名為 `template`，非 `templates`） |
+| view | Database 多視圖能力（table、board、calendar 等） |
+
+#### Planned Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
 | knowledge-engagement | 知識使用行為量測 |
 | attachments | 附件與媒體關聯儲存 |
 | automation | 知識事件觸發自動化動作 |
 | external-knowledge-sync | 知識與外部系統雙向整合 |
 | notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
 | knowledge-versioning | 全域版本快照策略管理 |
 | taxonomy | 分類法與語義組織的正典邊界 |
 | relations | 內容之間關聯與 backlink 的正典邊界 |
 | publishing | 正式發布與對外交付的正典邊界 |
 
-#### Recommended Gap Subdomains
-
-無剩餘已驗證 gap subdomain（taxonomy / relations / publishing 已升為 baseline）。
-
 ### notebooklm
 
-#### Baseline Subdomains
+#### Implemented Subdomains
 
 | Subdomain | 功能註解 |
 |---|---|
 | conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
 | notebook | Notebook 組合與管理 |
 | source | 來源文件追蹤與引用 |
 | synthesis | RAG 合成、摘要與洞察生成 |
+
+#### Planned Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| note | 輕量筆記與知識連結 |
 | conversation-versioning | 對話版本與快照策略 |
 
 #### Future Split Triggers（非獨立 Gap Subdomain）

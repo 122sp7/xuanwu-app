@@ -2,20 +2,20 @@
 
 ## Strategic Bounded Context Model
 
-系統目前以八個主域 / bounded context 構成。子域完整清單（baseline + recommended gap）見 [subdomains.md](./subdomains.md)。
+系統目前以八個主域 / bounded context 構成。子域完整清單（已實作 + 計劃中）見 [subdomains.md](./subdomains.md)。
 
 ## Main Domain Map
 
-| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
+| Main Domain | Strategic Role | Implemented Subdomains（已實作） | Planned Subdomains（計劃中） |
 |---|---|---|---|
-| iam | 身份與存取治理 | identity、access-control、tenant、security-policy、**account、organization** | session、consent、secret-governance |
-| billing | 商業與權益治理 | billing、subscription、entitlement、referral | pricing、invoice、quota-policy |
-| ai | 共享 AI capability | generation、orchestration、distillation、retrieval、memory、context、safety、tool-calling、reasoning、conversation、evaluation、tracing | provider-routing、model-policy |
-| analytics | 分析與 read model 下游 | reporting、metrics、dashboards、telemetry-projection | experimentation、decision-support |
-| platform | 平台營運支撐 | notification、search、audit-log、observability、platform-config、feature-flag、onboarding | consent、secret-management、operational-catalog |
-| workspace | 協作容器與 scope | audit、feed、scheduling、approve、issue、orchestration、quality、settlement、task、task-formation | lifecycle、membership、sharing、presence |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning、taxonomy、relations、publishing | — |
-| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | —（Future Split Triggers；參見 notebooklm/subdomains.md） |
+| iam | 身份與存取治理 | identity, access-control, authentication, authorization, federation, tenant, security-policy, session, account, organization | consent, secret-governance |
+| billing | 商業與權益治理 | entitlement, subscription, usage-metering | billing, referral, pricing, invoice, quota-policy |
+| ai | 共享 AI capability | chunk, citation, context, embedding, evaluation, generation, memory, pipeline, retrieval, safety, tool-calling | orchestration, distillation, reasoning, conversation, tracing, provider-routing, model-policy |
+| analytics | 分析與 read model 下游 | event-contracts, event-ingestion, event-projection, experimentation, insights, metrics, realtime-insights | reporting, dashboards, decision-support |
+| platform | 平台營運支撐 | audit-log, background-job, cache, feature-flag, file-storage, notification, platform-config, search | onboarding, compliance, integration, workflow, content, observability, support, secret-management |
+| workspace | 協作容器與 scope | activity, api-key, approval, audit, feed, invitation, issue, lifecycle, membership, orchestration, quality, resource, schedule, settlement, share, task, task-formation | presence |
+| notion | 正典知識內容 | block, collaboration, database, knowledge, page, template, view | knowledge-engagement, attachments, automation, external-knowledge-sync, notes, knowledge-versioning, taxonomy, relations, publishing |
+| notebooklm | 對話與推理 | conversation, notebook, source, synthesis | note, conversation-versioning |
 
 ## Ownership Rules
 
