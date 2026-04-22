@@ -10,6 +10,8 @@ describe("Page", () => {
       title: "施工摘要",
       summary: "整理上傳文件後的任務摘要",
       sourceLabel: "來源文件 / 2026-04-21",
+      sourceDocumentId: "doc-1",
+      sourceText: "10 3RDTW5BD1 ... 小計618,530 （一）SCADA站內工程",
       createdByUserId: "user-1",
     });
 
@@ -17,6 +19,8 @@ describe("Page", () => {
       title: "施工摘要",
       summary: "整理上傳文件後的任務摘要",
       sourceLabel: "來源文件 / 2026-04-21",
+      sourceDocumentId: "doc-1",
+      sourceText: "10 3RDTW5BD1 ... 小計618,530 （一）SCADA站內工程",
     });
   });
 });

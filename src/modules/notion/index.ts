@@ -67,6 +67,50 @@ export async function listWorkspaceKnowledgeDatabases(
   return queryDatabases(workspaceId);
 }
 
+export async function createWorkspaceKnowledgePage(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  summary?: string;
+  sourceLabel?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult> {
+  const { createPage } = await import("./adapters/outbound/firebase-composition");
+  return createPage({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: input.title,
+    summary: input.summary,
+    sourceLabel: input.sourceLabel,
+    sourceDocumentId: input.sourceDocumentId,
+    sourceText: input.sourceText,
+    createdByUserId: input.createdByUserId,
+  });
+}
+
+export async function createWorkspaceKnowledgeDatabase(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  description?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult> {
+  const { createDatabase } = await import("./adapters/outbound/firebase-composition");
+  return createDatabase({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: input.title,
+    description: input.description,
+    sourceDocumentId: input.sourceDocumentId,
+    sourceText: input.sourceText,
+    createdByUserId: input.createdByUserId,
+  });
+}
+
 export async function addWorkspaceKnowledgeDatabaseProperty(
   databaseId: string,
   property: DatabaseProperty,

@@ -101,5 +101,5 @@
 ## Configuration Files
 
 - eslint.config.mjs
-- tsconfig.json
 - package.json
+- tsconfig.json

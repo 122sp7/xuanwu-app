@@ -35,6 +35,8 @@ const FirestoreDatabaseSnapshotSchema = z.object({
   accountId: z.string(),
   title: z.string(),
   description: z.string().optional(),
+  sourceDocumentId: z.string().optional(),
+  sourceText: z.string().optional(),
   properties: z.array(FirestoreDatabasePropertySchema),
   status: z.enum(["active", "archived"]),
   createdByUserId: z.string(),

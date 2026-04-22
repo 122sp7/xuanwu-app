@@ -13,7 +13,7 @@
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 
-import { Button, createGoogleViewerEmbedUrl } from "@packages";
+import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -24,10 +24,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  createPageFromDocumentAction,
-  createDatabaseFromDocumentAction,
-} from "../server-actions/document-actions";
-import {
   queryDocuments,
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
@@ -36,6 +32,10 @@ import {
   callParseDocument,
   callReindexDocument,
 } from "../../../adapters/outbound/firebase-composition";
+import {
+  createWorkspaceKnowledgeDatabase,
+  createWorkspaceKnowledgePage,
+} from "@/src/modules/notion";
 
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -91,6 +91,68 @@ const PREVIEWABLE_TYPES = new Set([
   "image/tiff",
   "image/tif",
 ]);
+
+// Keep sourceText safely below Firestore's 1 MiB document limit. 80k chars is
+// ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
+// ample headroom for the rest of the page/database snapshot fields.
+const SOURCE_TEXT_MAX_CHARS = 80_000;
+const ARTIFACT_SNIPPET_MAX_CHARS = 300;
+
+const ArtifactPayloadSchema = z.object({
+  text: z.string().optional(),
+  chunks: z.array(z.object({ text: z.string().optional() })).optional(),
+  entities: z.array(z.object({
+    type: z.string().optional(),
+    mentionText: z.string().optional(),
+  })).optional(),
+});
+
+/**
+ * Normalize parser artifacts written by fn parse_document:
+ * - layout / ocr / genkit: prefer top-level text, then chunk.text
+ * - form: fallback to entity key/value lines when plain text is unavailable
+ */
+function extractTextFromArtifactPayload(payload: unknown): string | undefined {
+  const parsed = ArtifactPayloadSchema.safeParse(payload);
+  if (!parsed.success) return undefined;
+  const record = parsed.data;
+  const text = record.text?.trim() ?? "";
+  if (text.length > 0) return text;
+
+  const chunkText = (record.chunks ?? [])
+    .map((chunk) => chunk.text?.trim() ?? "")
+    .filter((value) => value.length > 0)
+    .join("\n");
+  if (chunkText.length > 0) return chunkText;
+
+  const entityText = (record.entities ?? [])
+    .map((entity) => {
+      const key = entity.type ?? "";
+      const mention = entity.mentionText ?? "";
+      if (key && mention) return `${key}: ${mention}`;
+      return mention || key;
+    })
+    .filter((value) => value.length > 0)
+    .join("\n");
+  return entityText || undefined;
+}
+
+function trimSourceText(text: string | undefined): string | undefined {
+  const normalized = text?.trim();
+  if (!normalized) return undefined;
+  return normalized.slice(0, SOURCE_TEXT_MAX_CHARS);
+}
+
+async function loadSourceTextFromArtifactUri(uri: string): Promise<string | undefined> {
+  try {
+    const artifactUrl = await getDocumentDownloadUrl(uri);
+    const response = await fetch(artifactUrl);
+    if (!response.ok) return undefined;
+    return trimSourceText(extractTextFromArtifactPayload(await response.json()));
+  } catch {
+    return undefined;
+  }
+}
 
 // ── Per-document action state ─────────────────────────────────────────────────
 
@@ -355,14 +417,25 @@ export function NotebooklmSourcesSection({
   const handleCreatePage = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { page: "running", message: undefined });
     try {
-      const result = await createPageFromDocumentAction({
+      // Page prefers layout text first because task extraction expects dense
+      // full-document sequences (3RDTW / 小計) preserved by layout output.
+      const sourceUri = doc.parsedLayoutJsonGcsUri ?? doc.parsedOcrJsonGcsUri ?? doc.parsedGenkitJsonGcsUri;
+      const sourceText = sourceUri ? await loadSourceTextFromArtifactUri(sourceUri) : undefined;
+      const result = await createWorkspaceKnowledgePage({
         accountId,
         workspaceId,
-        documentId: doc.id,
-        documentTitle: doc.name,
+        title: doc.name,
+        summary: sourceText?.slice(0, ARTIFACT_SNIPPET_MAX_CHARS),
+        sourceLabel: `來源文件：${doc.name}`,
+        sourceDocumentId: doc.id,
+        sourceText,
+        createdByUserId: accountId,
       });
-      const href = result?.pageHref;
-      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: href ?? undefined });
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+      const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
+      setDocAction(doc.id, { page: "done", message: "知識頁已建立", pageHref: `${base}?tab=Pages` });
     } catch (err) {
       setDocAction(doc.id, { page: "error", message: err instanceof Error ? err.message : "建立頁面失敗" });
     }
@@ -371,11 +444,22 @@ export function NotebooklmSourcesSection({
   const handleCreateDatabase = async (doc: IngestionSourceSnapshot) => {
     setDocAction(doc.id, { database: "running", message: undefined });
     try {
-      await createDatabaseFromDocumentAction({
+      // Database prefers form output first to retain structured entity fields;
+      // fallback to layout text when form parser output is not available.
+      const sourceUri = doc.parsedFormJsonGcsUri ?? doc.parsedLayoutJsonGcsUri;
+      const sourceText = sourceUri ? await loadSourceTextFromArtifactUri(sourceUri) : undefined;
+      const result = await createWorkspaceKnowledgeDatabase({
         accountId,
         workspaceId,
-        documentTitle: doc.name,
+        title: doc.name,
+        description: sourceText?.slice(0, ARTIFACT_SNIPPET_MAX_CHARS),
+        sourceDocumentId: doc.id,
+        sourceText,
+        createdByUserId: accountId,
       });
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
       const base = `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`;
       setDocAction(doc.id, { database: "done", message: "資料庫已建立", databaseHref: `${base}?tab=Database` });
     } catch (err) {

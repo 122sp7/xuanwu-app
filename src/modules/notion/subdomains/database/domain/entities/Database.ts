@@ -22,6 +22,8 @@ export interface DatabaseSnapshot {
   readonly accountId: string;
   readonly title: string;
   readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly properties: DatabaseProperty[];
   readonly status: DatabaseStatus;
   readonly createdByUserId: string;
@@ -35,6 +37,8 @@ export interface CreateDatabaseInput {
   readonly accountId: string;
   readonly title: string;
   readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
   readonly properties?: DatabaseProperty[];
   readonly createdByUserId: string;
 }
@@ -62,6 +66,8 @@ export class Database {
       accountId: input.accountId,
       title: input.title,
       description: input.description,
+      sourceDocumentId: input.sourceDocumentId?.trim() || undefined,
+      sourceText: input.sourceText?.trim() || undefined,
       properties,
       status: "active",
       createdByUserId: input.createdByUserId,

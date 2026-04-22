@@ -8,6 +8,8 @@ describe("Database", () => {
       workspaceId: "workspace-1",
       accountId: "account-1",
       title: "需求資料庫",
+      sourceDocumentId: "doc-1",
+      sourceText: "20 3RDTW5BD1 ... 小計134,015 （一）SCADA站內工程",
       createdByUserId: "user-1",
     });
 
@@ -17,6 +19,8 @@ describe("Database", () => {
       type: "text",
     });
     expect(database.getSnapshot().parentPageId).toBeNull();
+    expect(database.getSnapshot().sourceDocumentId).toBe("doc-1");
+    expect(database.getSnapshot().sourceText).toContain("3RDTW5BD1");
   });
 
   it("rejects duplicate property names even when ids differ", () => {

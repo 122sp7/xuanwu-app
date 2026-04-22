@@ -63,6 +63,7 @@ const PIPELINE_STAGES = [
 ] as const;
 
 function buildPageSource(page: PageSnapshot): ConcreteSource {
+  const persistedSourceText = page.sourceText?.trim();
   const parts = [
     `頁面標題：${page.title}`,
     page.summary ? `摘要：${page.summary}` : undefined,
@@ -75,11 +76,14 @@ function buildPageSource(page: PageSnapshot): ConcreteSource {
     kind: "page",
     title: page.title,
     description: page.summary ?? "尚未提供摘要，將以頁面標題與來源脈絡作為任務形成輸入。",
-    sourceText: parts.join("\n"),
+    sourceText: persistedSourceText && persistedSourceText.length > 0
+      ? persistedSourceText
+      : parts.join("\n"),
   };
 }
 
 function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource {
+  const persistedSourceText = database.sourceText?.trim();
   const parentPage = database.parentPageId
     ? pages.find((page) => page.id === database.parentPageId)
     : null;
@@ -95,7 +99,9 @@ function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<Pa
     kind: "database",
     title: database.title,
     description: database.description ?? `共有 ${database.properties.length} 個欄位可供任務形成使用。`,
-    sourceText: parts.join("\n"),
+    sourceText: persistedSourceText && persistedSourceText.length > 0
+      ? persistedSourceText
+      : parts.join("\n"),
   };
 }
 
