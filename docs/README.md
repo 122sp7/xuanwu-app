@@ -1,156 +1,93 @@
 ﻿# Docs
 
-## Purpose
+## PURPOSE
 
-這份文件集提供八個主域 / bounded context 的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
+本文件集是 Xuanwu App 的戰略權威入口，定義 bounded context 所有權、術語與 context map 方向。
+它的核心目標是讓邊界決策可追溯、可對齊，並避免實作層把戰略語言污染。
 
-## Architecture Baseline
+## GETTING STARTED
 
-本文件網的架構權威基線是：
+閱讀與決策建議順序：
 
-- Hexagonal Architecture（Ports and Adapters）+ Domain-Driven Design（DDD）
-- semantic-first 的 business-language-aligned domain modeling
-- Firebase Serverless Backend Architecture：Authentication、Firestore、Cloud Functions、Hosting
-- Genkit AI Orchestration Layer：AI Flows、Tool Calling、Prompt Pipelines
-- Frontend State Management Layer：Zustand for client state、XState for finite-state workflows
-- Schema Validation Layer：Zod for runtime type safety and domain validation
+1. [structure/system/architecture-overview.md](./structure/system/architecture-overview.md)
+2. [structure/domain/bounded-contexts.md](./structure/domain/bounded-contexts.md)
+3. [structure/domain/ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
+4. [structure/system/context-map.md](./structure/system/context-map.md)
+5. [decisions/README.md](./decisions/README.md)
 
-若任務涉及模組分層、runtime 邊界、AI orchestration、frontend state、validation 或 shell route contract，先以 [architecture-overview.md](./structure/system/architecture-overview.md) 為全域敘事權威，再落到對應 context 文件。
+## ARCHITECTURE
 
-## Single Source Of Truth Map
+文件網架構基線：
 
-| Document | Role |
-|---|---|
-| [architecture-overview.md](./structure/system/architecture-overview.md) | 全域架構敘事總覽 |
-| [subdomains.md](./structure/domain/subdomains.md) | 八主域與子域總清單 |
-| [bounded-contexts.md](./structure/domain/bounded-contexts.md) | 主域與子域所有權地圖 |
-| [context-map.md](./structure/system/context-map.md) | 主域間關係圖與方向 |
-| [ubiquitous-language.md](./structure/domain/ubiquitous-language.md) | 戰略詞彙表 |
-| [integration-guidelines.md](./structure/system/integration-guidelines.md) | 主域整合規則 |
-| [strategic-patterns.md](./structure/system/strategic-patterns.md) | 採用與禁用的戰略模式 |
-| [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md) | 全域硬性守則與 design smell 防線 |
-| [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
-| [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md) | 從零到交付的專案里程碑 |
-| decisions/README.md | ADR 索引與決策日誌 |
-| decisions/SMELL-INDEX.md | Design Smell taxonomy 與對應決策索引 |
-| [contexts/_template.md](./structure/contexts/_template.md) | 新主域或新 context 文件樣板 |
+- Hexagonal Architecture + DDD
+- semantic-first domain language
+- Firebase serverless runtime split with fn worker pipeline
+- Genkit orchestration and prompt/tool contracts
+- Frontend state split with Zustand and XState
+- Runtime validation contracts with Zod
 
-## Context Folders
+## PROJECT STRUCTURE
 
-- [contexts/ai/README.md](./structure/contexts/ai/README.md)
-- [contexts/analytics/README.md](./structure/contexts/analytics/README.md)
-- [contexts/billing/README.md](./structure/contexts/billing/README.md)
-- [contexts/iam/README.md](./structure/contexts/iam/README.md)
-- [contexts/platform/README.md](./structure/contexts/platform/README.md)
-- [contexts/workspace/README.md](./structure/contexts/workspace/README.md)
-- [contexts/notion/README.md](./structure/contexts/notion/README.md)
-- [contexts/notebooklm/README.md](./structure/contexts/notebooklm/README.md)
+- [structure/system](./structure/system)：全域架構、整合規範、context map
+- [structure/domain](./structure/domain)：主域、子域、術語與模板
+- [structure/contexts](./structure/contexts)：各 context 本地文件
+- [decisions](./decisions)：ADR 與決策索引
+- [examples](./examples)：功能與端到端示例
 
-## Focused Implementation Docs
+Context readme 快速入口：
+
+- [structure/contexts/ai/README.md](./structure/contexts/ai/README.md)
+- [structure/contexts/analytics/README.md](./structure/contexts/analytics/README.md)
+- [structure/contexts/billing/README.md](./structure/contexts/billing/README.md)
+- [structure/contexts/iam/README.md](./structure/contexts/iam/README.md)
+- [structure/contexts/platform/README.md](./structure/contexts/platform/README.md)
+- [structure/contexts/workspace/README.md](./structure/contexts/workspace/README.md)
+- [structure/contexts/notion/README.md](./structure/contexts/notion/README.md)
+- [structure/contexts/notebooklm/README.md](./structure/contexts/notebooklm/README.md)
+
+## DEVELOPMENT RULES
+
+- MUST resolve ownership in docs before implementation changes.
+- MUST treat docs as strategic authority and runtime files as implementation authority.
+- MUST keep cross-context language aligned with published language rules.
+- MUST route unresolved conflicts through ADR or explicit conflict notes.
+
+## AI INTEGRATION
+
+AI 代理在實作前必須先定位：
+
+1. Owning context
+2. Published language
+3. Dependency direction
+4. Integration pattern (API boundary or event contract)
+
+不得在未完成上述對齊前直接生成跨域程式碼。
+
+## DOCUMENTATION
+
+權威地圖：
+
+- [structure/system/architecture-overview.md](./structure/system/architecture-overview.md)
+- [structure/domain/subdomains.md](./structure/domain/subdomains.md)
+- [structure/domain/bounded-contexts.md](./structure/domain/bounded-contexts.md)
+- [structure/system/context-map.md](./structure/system/context-map.md)
+- [structure/domain/ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
+- [structure/system/integration-guidelines.md](./structure/system/integration-guidelines.md)
+- [structure/system/strategic-patterns.md](./structure/system/strategic-patterns.md)
+- [structure/system/hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)
+- [structure/domain/bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md)
+- [structure/system/project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)
+- [decisions/README.md](./decisions/README.md)
+- [decisions/SMELL-INDEX.md](./decisions/SMELL-INDEX.md)
+
+聚焦實作流：
 
 - [structure/system/source-to-task-flow.md](./structure/system/source-to-task-flow.md)
-- [feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
-- [deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
-- decisions/0012-source-to-task-orchestration.md
+- [examples/modules/feature/notebooklm-source-processing-task-flow.md](./examples/modules/feature/notebooklm-source-processing-task-flow.md)
+- [examples/end-to-end/deliveries/upload-parse-to-task-flow.md](./examples/end-to-end/deliveries/upload-parse-to-task-flow.md)
 
-## Route Contract Authority
+## USABILITY
 
-- shell composition 與 canonical account / workspace URL 以 [architecture-overview.md](./structure/system/architecture-overview.md) 為全域權威。
-- account scope、`AccountType = "user" | "organization"` 的字串契約，以及 flattened governance route 以 [contexts/platform/README.md](./structure/contexts/platform/README.md) 與 [contexts/platform/ubiquitous-language.md](./structure/contexts/platform/ubiquitous-language.md) 為權威。
-- workspace scope 與 canonical workspace detail route 以 [contexts/workspace/README.md](./structure/contexts/workspace/README.md) 與 [contexts/workspace/ubiquitous-language.md](./structure/contexts/workspace/ubiquitous-language.md) 為權威。
-- `/{accountId}/workspace/{workspaceId}` 與 `/{accountId}/organization/*` 只作為 legacy redirect surface，不是新文件或新 UI 應引用的 canonical contract。
-
-## Document Network
-
-- [architecture-overview.md](./structure/system/architecture-overview.md)
-- [bounded-contexts.md](./structure/domain/bounded-contexts.md)
-- [context-map.md](./structure/system/context-map.md)
-- [integration-guidelines.md](./structure/system/integration-guidelines.md)
-- [strategic-patterns.md](./structure/system/strategic-patterns.md)
-- [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)
-- [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)
-- [subdomains.md](./structure/domain/subdomains.md)
-- [ubiquitous-language.md](./structure/domain/ubiquitous-language.md)
-- decisions/README.md
-- decisions/SMELL-INDEX.md
-- [contexts/_template.md](./structure/contexts/_template.md)
-
-## Module Layer Map（src 結構）
-
-目前以 `src/modules/` 作為唯一模組實作層：
-
-| 路徑 | 角色 | 結構特徵 | 使用時機 |
-|---|---|---|---|
-| `src/modules/<context>/` | 主域模組實作（現況） | 以 `subdomains/` 為核心，搭配 `adapters/`、`shared/`、`orchestration/` 與 `index.ts` 公開匯出 | 撰寫與維護所有 use case、adapter、domain entity 與跨子域編排 |
-
-## Top-Level Directory Structure
-
-Repo 根目錄的三個運行時層：
-
-| 目錄 | 角色 |
-|---|---|
-| `src/` | Next.js App Router + 所有主域模組實作（`src/app/`、`src/modules/`） |
-| `packages/` | 共用套件（`infra/*`、`integration-*`、`ui-*`），以 alias 形式被 `src/modules/` 引用 |
-| `fn/` | Python Cloud Functions：ingestion、parse、chunk、embed、background worker |
-
-- `packages/` 以 `@infra/*`、`@integration-*`、`@ui-*` alias 被 TypeScript 引用。
-- `fn/` 與 Next.js 的互動只透過 QStash 訊息、Firestore trigger 或事件契約；不共用程式碼。
-
-### 路由規則
-
-- 讀取主域邊界與任務路由 → `src/modules/<context>/AGENTS.md`
-- 撰寫新實作程式碼 → `src/modules/<context>/`，以 `src/modules/template` 為骨架基線
-- 跨主域協作只透過目標主域的公開匯出（`src/modules/<context>/index.ts`）
-
-### 嚴禁混淆
-
-- 不得將已淘汰的 `modules/` 路徑當成現行實作位置。
-- 生成程式碼時，目標路徑一律以 `src/modules/` 為準。
-
-## Conflict Resolution Rules
-
-- ADR 與戰略敘事衝突時，以 ADR 為準。
-- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
-- 子域所有權衝突時，以 [bounded-contexts.md](./structure/domain/bounded-contexts.md) 與 [subdomains.md](./structure/domain/subdomains.md) 為準。
-- 關係方向衝突時，以 [context-map.md](./structure/system/context-map.md) 為準。
-- 若 root `docs/` 與 `src/modules/*` 的術語命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
-
-## Global Anti-Pattern Rules
-
-- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
-- 不把其他主域的內部模型當成自己的正典語言。
-- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
-- 不把 gap subdomains 描述成已驗證現況。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
-- 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./structure/domain/bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./structure/system/project-delivery-milestones.md)。
-- 若任務涉及 design smell、架構異味、boundary leakage、cyclic dependency 或 API surface 過胖，先讀 [hard-rules-consolidated.md](./structure/system/hard-rules-consolidated.md)、decisions/SMELL-INDEX.md 與對應編號 smell ADR。
-- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
-- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	ADR["ADR"] --> Strategy["Strategic docs"]
-	Strategy --> Context["Context docs"]
-	Context --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Question["Coding question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Read strategic docs"]
-	Strategy --> Context["Read owning context docs"]
-	Context --> Code["Generate boundary-safe code"]
-```
-
-## Constraints
-
-- 本文件集是 Context7-only 的 architecture-first 版本。
-- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
+- 新加入開發者可在 5 分鐘內用本頁讀到正確決策入口與 context 文件。
+- 開發者可在 3 分鐘內定位某個功能的 owning context 與命名權威。
+- 本頁只做入口與路由，不承載實作細節，避免維護漂移。
