@@ -233,6 +233,45 @@ onClick=
 onOrganizationCreated=
 ````
 
+## File: src/modules/platform/adapters/inbound/react/shell/CreateOrganizationDialog.tsx
+````typescript
+/**
+ * CreateOrganizationDialog — platform inbound adapter (React).
+ *
+ * Dialog for creating a new organisation.
+ * Uses CreateOrganizationUseCase via the iam Firebase composition root.
+ *
+ * On success, the new organisation document is written to Firestore with the
+ * creator listed in `ownerId` and `memberIds`.  The existing
+ * `subscribeToAccountsForUser` query picks it up automatically, so the
+ * AccountSwitcher refreshes without an explicit refetch.
+ */
+⋮----
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@packages";
+import { useState, useMemo } from "react";
+import { Building2, Loader2 } from "lucide-react";
+⋮----
+import { createClientOrganizationUseCases } from "../../../../../iam/adapters/outbound/firebase-composition";
+import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";
+import type { AccountEntity } from "../AppContext";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate?: (href: string) => void;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+onOpenChange(nextOpen);
+````
+
 ## File: src/modules/platform/adapters/inbound/react/shell/index.ts
 ````typescript
 /**
@@ -1906,6 +1945,103 @@ flowchart LR
 - [integration-guidelines.md](../../system/integration-guidelines.md)
 ````
 
+## File: docs/structure/contexts/platform/bounded-contexts.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+platform 是 account、organization 與 operational-service 主域。依 bounded context 原則，它應把帳號與營運支撐責任封裝成清楚的上下文，而不是再作為 identity、billing、AI、analytics 的 umbrella owner。
+
+## Migrated Bounded Contexts（已遷出）
+
+| Cluster | 遷入位置 |
+|---|---|
+| Account and Organization (account, account-profile, organization, team) | `iam/subdomains/account/` + `iam/subdomains/organization/` |
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Platform Governance and Configuration | platform-config, feature-flag, onboarding, compliance |
+| Delivery and Operations | integration, workflow, notification, background-job |
+| Intelligence and Audit | content, search, audit-log, observability, support |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why Needed | Gap If Missing |
+|---|---|---|
+| secret-management | 將憑證、token、rotation 從 integration 中切開 | integration 容易承載過多敏感治理責任 |
+| consent | 將同意與偏好、資料使用授權從 compliance 中切開 | compliance 會被迫承接過細的授權決策 |
+| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 | 平台設定無統一語義層，難以治理 |
+
+## Strategic Reinforcement Focus
+
+| Subdomain | Why It Stays A Focus | Risk If Under-Specified |
+|---|---|---|
+| tenant | 收斂多租戶隔離與 tenant-scoped 規則（iam 正典，platform 必須正確消費）| organization 會被迫承載過多租戶治理語義 |
+| entitlement | 收斂有效權益與功能可用性解算（billing 正典，platform 必須正確路由）| subscription、feature-flag、policy 難以一致決策 |
+
+## Domain Invariants
+
+- actor identity 由 iam 正典擁有，platform 只消費 actor reference。
+- access decision 必須基於 iam 語言輸出，而不是由下游主域自創。
+- entitlement 必須是解算結果，不是任意 UI 標記。
+- shared AI capability 由 ai context 正典擁有；下游主域只能消費其 published language。
+- billing event 與 subscription state 必須分離。
+- secret 不應作為一般 integration payload 傳播。
+
+## Dependency Direction
+
+- platform 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
+- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
+- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
+
+## Anti-Patterns
+
+- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
+- 把 secret-management 混回 integration，使敏感治理責任失焦。
+- 讓 platform 直接持有其他主域的正典內容或推理模型。
+- 把 ai context 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
+- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
+- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Platform bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity / Organization"] --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Delivery["AI / Notification / Job / Integration"]
+	Delivery --> Audit["Audit / Observability / Analytics"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENTS.md](./AGENTS.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](../../domain/bounded-contexts.md)
+- [subdomains.md](../../domain/subdomains.md)
+````
+
 ## File: docs/structure/contexts/platform/context-map.md
 ````markdown
 # Platform
@@ -2358,45 +2494,6 @@ flowchart LR
 - [subdomains.md](./subdomains.md)
 - [bounded-contexts.md](./bounded-contexts.md)
 - [ubiquitous-language.md](../../domain/ubiquitous-language.md)
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/CreateOrganizationDialog.tsx
-````typescript
-/**
- * CreateOrganizationDialog — platform inbound adapter (React).
- *
- * Dialog for creating a new organisation.
- * Uses CreateOrganizationUseCase via the iam Firebase composition root.
- *
- * On success, the new organisation document is written to Firestore with the
- * creator listed in `ownerId` and `memberIds`.  The existing
- * `subscribeToAccountsForUser` query picks it up automatically, so the
- * AccountSwitcher refreshes without an explicit refetch.
- */
-⋮----
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@packages";
-import { useState, useMemo } from "react";
-import { Building2, Loader2 } from "lucide-react";
-⋮----
-import { createClientOrganizationUseCases } from "../../../../../iam/adapters/outbound/firebase-composition";
-import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";
-import type { AccountEntity } from "../AppContext";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate?: (href: string) => void;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-onOpenChange(nextOpen);
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
@@ -2997,103 +3094,6 @@ export interface ShellCommandCatalogItem {
 // ── AI tabs (notebooklm group) ────────────────────────────────────────────
 ⋮----
 export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
-````
-
-## File: docs/structure/contexts/platform/bounded-contexts.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-platform 是 account、organization 與 operational-service 主域。依 bounded context 原則，它應把帳號與營運支撐責任封裝成清楚的上下文，而不是再作為 identity、billing、AI、analytics 的 umbrella owner。
-
-## Migrated Bounded Contexts（已遷出）
-
-| Cluster | 遷入位置 |
-|---|---|
-| Account and Organization (account, account-profile, organization, team) | `iam/subdomains/account/` + `iam/subdomains/organization/` |
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Platform Governance and Configuration | platform-config, feature-flag, onboarding, compliance |
-| Delivery and Operations | integration, workflow, notification, background-job |
-| Intelligence and Audit | content, search, audit-log, observability, support |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why Needed | Gap If Missing |
-|---|---|---|
-| secret-management | 將憑證、token、rotation 從 integration 中切開 | integration 容易承載過多敏感治理責任 |
-| consent | 將同意與偏好、資料使用授權從 compliance 中切開 | compliance 會被迫承接過細的授權決策 |
-| operational-catalog | 將平台營運資產與配置字典收斂成單一邊界 | 平台設定無統一語義層，難以治理 |
-
-## Strategic Reinforcement Focus
-
-| Subdomain | Why It Stays A Focus | Risk If Under-Specified |
-|---|---|---|
-| tenant | 收斂多租戶隔離與 tenant-scoped 規則（iam 正典，platform 必須正確消費）| organization 會被迫承載過多租戶治理語義 |
-| entitlement | 收斂有效權益與功能可用性解算（billing 正典，platform 必須正確路由）| subscription、feature-flag、policy 難以一致決策 |
-
-## Domain Invariants
-
-- actor identity 由 iam 正典擁有，platform 只消費 actor reference。
-- access decision 必須基於 iam 語言輸出，而不是由下游主域自創。
-- entitlement 必須是解算結果，不是任意 UI 標記。
-- shared AI capability 由 ai context 正典擁有；下游主域只能消費其 published language。
-- billing event 與 subscription state 必須分離。
-- secret 不應作為一般 integration payload 傳播。
-
-## Dependency Direction
-
-- platform 子域在存在對應層時必須遵守 interfaces -> application -> domain <- infrastructure；不必為形式完整而預建所有層。
-- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
-- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
-
-## Anti-Patterns
-
-- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
-- 把 secret-management 混回 integration，使敏感治理責任失焦。
-- 讓 platform 直接持有其他主域的正典內容或推理模型。
-- 把 ai context 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
-- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
-- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Platform bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Identity["Identity / Organization"] --> Access["Access / Policy"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Delivery["AI / Notification / Job / Integration"]
-	Delivery --> Audit["Audit / Observability / Analytics"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENTS.md](./AGENTS.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](../../domain/bounded-contexts.md)
-- [subdomains.md](../../domain/subdomains.md)
 ````
 
 ## File: src/modules/platform/subdomains/audit-log/application/use-cases/AuditLogUseCases.ts

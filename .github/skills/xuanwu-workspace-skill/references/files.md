@@ -1,5 +1,37 @@
 # Files
 
+## File: src/modules/workspace/adapters/inbound/react/account-scoped-workspace.ts
+````typescript
+import type { WorkspaceEntity } from "./WorkspaceContext";
+⋮----
+interface ResolveAccountScopedWorkspaceIdInput {
+  readonly accountId: string | null;
+  readonly activeWorkspaceId: string | null;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+}
+⋮----
+export function resolveAccountScopedWorkspaceId({
+  accountId,
+  activeWorkspaceId,
+  workspaces,
+}: ResolveAccountScopedWorkspaceIdInput): string | null
+````
+
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+⋮----
+import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
+import type { WorkspaceEntity } from "./WorkspaceContext";
+⋮----
+function buildWorkspace(
+  id: string,
+  name: string,
+  accountId: string,
+  accountType: "user" | "organization" = "organization",
+): WorkspaceEntity
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/index.ts
 ````typescript
 /**
@@ -6335,38 +6367,6 @@ getSnapshot(): Readonly<TaskSnapshot>
 pullDomainEvents(): TaskDomainEventType[]
 ````
 
-## File: src/modules/workspace/adapters/inbound/react/account-scoped-workspace.ts
-````typescript
-import type { WorkspaceEntity } from "./WorkspaceContext";
-⋮----
-interface ResolveAccountScopedWorkspaceIdInput {
-  readonly accountId: string | null;
-  readonly activeWorkspaceId: string | null;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-}
-⋮----
-export function resolveAccountScopedWorkspaceId({
-  accountId,
-  activeWorkspaceId,
-  workspaces,
-}: ResolveAccountScopedWorkspaceIdInput): string | null
-````
-
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
-import type { WorkspaceEntity } from "./WorkspaceContext";
-⋮----
-function buildWorkspace(
-  id: string,
-  name: string,
-  accountId: string,
-  accountType: "user" | "organization" = "organization",
-): WorkspaceEntity
-````
-
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
 ````typescript
 import { Badge } from "@packages";
@@ -6663,6 +6663,76 @@ import { FirebaseCallableTaskCandidateExtractor } from "./FirebaseCallableTaskCa
 // Format: {item_no} 3RDTW{code} SET {price}...小計{total}（{section_numeral}）{description}
 ````
 
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
+````typescript
+/**
+ * AccountRouteDispatcher — workspace inbound adapter (React).
+ *
+ * Receives accountId + slug props from the Server Component shim and
+ * dispatches to the appropriate route screen.
+ *
+ * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
+ */
+⋮----
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+⋮----
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  useAccountRouteContext,
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  OrganizationTeamsRouteScreen,
+  OrganizationDispatcherRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationAuditRouteScreen,
+  SettingsNotificationsRouteScreen,
+} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import {
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "./workspace-ui-stubs";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
+import { useWorkspaceContext } from "./WorkspaceContext";
+import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
+⋮----
+export interface AccountRouteDispatcherProps {
+  accountId: string;
+  slug: string[];
+}
+⋮----
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
+⋮----
+function RedirectingRoute(
+⋮----
+export function AccountRouteDispatcher({
+  accountId: accountIdFromParams,
+  slug,
+}: AccountRouteDispatcherProps)
+⋮----
+// Legacy redirect: /organization/... → /<accountId>/...
+⋮----
+// Legacy redirect: /workspace/... → /<accountId>/...
+⋮----
+// Root: /<accountId>
+⋮----
+if (accountType === "organization")
+⋮----
+// Single-segment routes: /<accountId>/<segment>
+⋮----
+// Two-segment routes
+⋮----
+// Fallback
+````
+
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
 ````typescript
 /**
@@ -6755,76 +6825,6 @@ async findByWorkspaceId(workspaceId: string): Promise<AuditEntrySnapshot[]>
 async findByWorkspaceIds(workspaceIds: string[]): Promise<AuditEntrySnapshot[]>
 ⋮----
 async save(): Promise<void>
-````
-
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
-````typescript
-/**
- * AccountRouteDispatcher — workspace inbound adapter (React).
- *
- * Receives accountId + slug props from the Server Component shim and
- * dispatches to the appropriate route screen.
- *
- * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
- */
-⋮----
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
-import {
-  useAccountRouteContext,
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-  AccountDashboardRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  OrganizationTeamsRouteScreen,
-  OrganizationDispatcherRouteScreen,
-  OrganizationDailyRouteScreen,
-  OrganizationAuditRouteScreen,
-  SettingsNotificationsRouteScreen,
-} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
-import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
-import {
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "./workspace-ui-stubs";
-import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
-import { useWorkspaceContext } from "./WorkspaceContext";
-import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
-⋮----
-export interface AccountRouteDispatcherProps {
-  accountId: string;
-  slug: string[];
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-export function AccountRouteDispatcher({
-  accountId: accountIdFromParams,
-  slug,
-}: AccountRouteDispatcherProps)
-⋮----
-// Legacy redirect: /organization/... → /<accountId>/...
-⋮----
-// Legacy redirect: /workspace/... → /<accountId>/...
-⋮----
-// Root: /<accountId>
-⋮----
-if (accountType === "organization")
-⋮----
-// Single-segment routes: /<accountId>/<segment>
-⋮----
-// Two-segment routes
-⋮----
-// Fallback
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
@@ -6922,78 +6922,6 @@ export function toLocalDatetimeInputValue(date: Date): string
 const pad = (value: number): string
 ⋮----
 export function parseLocalDatetimeInput(value: string): string | null
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
-````typescript
-/**
- * WorkspaceTaskFormationSection — workspace.task-formation tab.
- *
- * Task formation keeps only source references in URL/query state, then resolves
- * concrete page/database context through the notion public boundary before
- * sending the source to the extractor.
- *
- * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
- * model" boundary behind this handoff.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import {
-  ListPlus,
-  ArrowRight,
-  FileText,
-  LayoutGrid,
-  BookOpen,
-  Upload,
-  ChevronRight,
-  Info,
-  Check,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
-⋮----
-import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
-import {
-  listWorkspaceKnowledgeDatabases,
-  listWorkspaceKnowledgePages,
-} from "@/src/modules/notion";
-import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
-import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
-⋮----
-interface WorkspaceTaskFormationSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
-}
-⋮----
-type SelectedSourceKind = "page" | "database" | "research" | null;
-type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
-⋮----
-type ConcreteSource = {
-  readonly id: string;
-  readonly kind: Exclude<SelectedSourceKind, null>;
-  readonly title: string;
-  readonly description: string;
-  readonly sourceText?: string;
-};
-⋮----
-function buildPageSource(page: PageSnapshot): ConcreteSource
-⋮----
-function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
-⋮----
-function toggleCandidate(i: number)
-⋮----
-function handleSelectSource(nextSource: SelectedSourceKind)
-⋮----
-function handleExtract()
-⋮----
-function handleConfirm()
-⋮----
-function handleReset()
 ````
 
 ## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.ts
@@ -7100,6 +7028,78 @@ export class GenkitTaskCandidateExtractor implements TaskCandidateExtractorPort 
 async extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>
 ⋮----
 // Dynamic import — keeps Node.js-only genkit deps out of browser bundles.
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
+````typescript
+/**
+ * WorkspaceTaskFormationSection — workspace.task-formation tab.
+ *
+ * Task formation keeps only source references in URL/query state, then resolves
+ * concrete page/database context through the notion public boundary before
+ * sending the source to the extractor.
+ *
+ * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
+ * model" boundary behind this handoff.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import {
+  ListPlus,
+  ArrowRight,
+  FileText,
+  LayoutGrid,
+  BookOpen,
+  Upload,
+  ChevronRight,
+  Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
+⋮----
+import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
+import {
+  listWorkspaceKnowledgeDatabases,
+  listWorkspaceKnowledgePages,
+} from "@/src/modules/notion";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
+⋮----
+interface WorkspaceTaskFormationSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+type SelectedSourceKind = "page" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
+⋮----
+type ConcreteSource = {
+  readonly id: string;
+  readonly kind: Exclude<SelectedSourceKind, null>;
+  readonly title: string;
+  readonly description: string;
+  readonly sourceText?: string;
+};
+⋮----
+function buildPageSource(page: PageSnapshot): ConcreteSource
+⋮----
+function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
+⋮----
+function toggleCandidate(i: number)
+⋮----
+function handleSelectSource(nextSource: SelectedSourceKind)
+⋮----
+function handleExtract()
+⋮----
+function handleConfirm()
+⋮----
+function handleReset()
 ````
 
 ## File: src/modules/workspace/adapters/outbound/firebase-composition.ts

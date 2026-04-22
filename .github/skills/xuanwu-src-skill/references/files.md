@@ -7169,6 +7169,45 @@ onClick=
 onOrganizationCreated=
 ````
 
+## File: src/modules/platform/adapters/inbound/react/shell/CreateOrganizationDialog.tsx
+````typescript
+/**
+ * CreateOrganizationDialog — platform inbound adapter (React).
+ *
+ * Dialog for creating a new organisation.
+ * Uses CreateOrganizationUseCase via the iam Firebase composition root.
+ *
+ * On success, the new organisation document is written to Firestore with the
+ * creator listed in `ownerId` and `memberIds`.  The existing
+ * `subscribeToAccountsForUser` query picks it up automatically, so the
+ * AccountSwitcher refreshes without an explicit refetch.
+ */
+⋮----
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@packages";
+import { useState, useMemo } from "react";
+import { Building2, Loader2 } from "lucide-react";
+⋮----
+import { createClientOrganizationUseCases } from "../../../../../iam/adapters/outbound/firebase-composition";
+import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";
+import type { AccountEntity } from "../AppContext";
+⋮----
+// ── Types ─────────────────────────────────────────────────────────────────────
+⋮----
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate?: (href: string) => void;
+}
+⋮----
+// ── Component ─────────────────────────────────────────────────────────────────
+⋮----
+async function handleSubmit(e: React.FormEvent)
+⋮----
+onOpenChange(nextOpen);
+````
+
 ## File: src/modules/platform/adapters/inbound/react/shell/index.ts
 ````typescript
 /**
@@ -10552,6 +10591,38 @@ static generate(): WorkflowId
 toString(): string
 ⋮----
 equals(other: WorkflowId): boolean
+````
+
+## File: src/modules/workspace/adapters/inbound/react/account-scoped-workspace.ts
+````typescript
+import type { WorkspaceEntity } from "./WorkspaceContext";
+⋮----
+interface ResolveAccountScopedWorkspaceIdInput {
+  readonly accountId: string | null;
+  readonly activeWorkspaceId: string | null;
+  readonly workspaces: Record<string, WorkspaceEntity>;
+}
+⋮----
+export function resolveAccountScopedWorkspaceId({
+  accountId,
+  activeWorkspaceId,
+  workspaces,
+}: ResolveAccountScopedWorkspaceIdInput): string | null
+````
+
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+⋮----
+import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
+import type { WorkspaceEntity } from "./WorkspaceContext";
+⋮----
+function buildWorkspace(
+  id: string,
+  name: string,
+  accountId: string,
+  accountType: "user" | "organization" = "organization",
+): WorkspaceEntity
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/index.ts
@@ -16853,13 +16924,6 @@ async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
 async delete(id: string): Promise<void>
 ````
 
-## File: src/modules/notion/subdomains/database/domain/entities/Database.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { Database } from "./Database";
-````
-
 ## File: src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts
 ````typescript
 import type { DatabaseSnapshot } from "../entities/Database";
@@ -17046,13 +17110,6 @@ query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
-## File: src/modules/notion/subdomains/page/domain/entities/Page.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { Page } from "./Page";
-````
-
 ## File: src/modules/notion/subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository.ts
 ````typescript
 import type { Template, TemplateCategory, TemplateScope, TemplateRepository } from "../../../domain/entities/Template";
@@ -17093,45 +17150,6 @@ async execute(workspaceId: string): Promise<Template[]>
 export class CreateTemplateUseCase {
 ⋮----
 async execute(input: CreateTemplateInput): Promise<CommandResult>
-````
-
-## File: src/modules/platform/adapters/inbound/react/shell/CreateOrganizationDialog.tsx
-````typescript
-/**
- * CreateOrganizationDialog — platform inbound adapter (React).
- *
- * Dialog for creating a new organisation.
- * Uses CreateOrganizationUseCase via the iam Firebase composition root.
- *
- * On success, the new organisation document is written to Firestore with the
- * creator listed in `ownerId` and `memberIds`.  The existing
- * `subscribeToAccountsForUser` query picks it up automatically, so the
- * AccountSwitcher refreshes without an explicit refetch.
- */
-⋮----
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@packages";
-import { useState, useMemo } from "react";
-import { Building2, Loader2 } from "lucide-react";
-⋮----
-import { createClientOrganizationUseCases } from "../../../../../iam/adapters/outbound/firebase-composition";
-import type { AuthUser } from "../../../../../iam/adapters/inbound/react/AuthContext";
-import type { AccountEntity } from "../AppContext";
-⋮----
-// ── Types ─────────────────────────────────────────────────────────────────────
-⋮----
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate?: (href: string) => void;
-}
-⋮----
-// ── Component ─────────────────────────────────────────────────────────────────
-⋮----
-async function handleSubmit(e: React.FormEvent)
-⋮----
-onOpenChange(nextOpen);
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
@@ -19046,114 +19064,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDatabaseAction } from "./database-actions";
 ````
 
-## File: src/modules/notion/index.ts
+## File: src/modules/notion/subdomains/database/domain/entities/Database.test.ts
 ````typescript
-/**
- * Notion Module — public API surface.
- * All cross-module consumers must import from here only.
- */
+import { describe, expect, it } from "vitest";
 ⋮----
-import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
-import type { PageSnapshot } from "./subdomains/page/domain";
-import type { CommandResult } from "../shared";
-⋮----
-// page
-⋮----
-// block
-⋮----
-// database
-⋮----
-// knowledge (canonical KnowledgeArtifact aggregate)
-⋮----
-// view
-⋮----
-// collaboration
-⋮----
-// template
-⋮----
-export async function listWorkspaceKnowledgePages(params: {
-  accountId: string;
-  workspaceId: string;
-}): Promise<ReadonlyArray<PageSnapshot>>
-⋮----
-export async function listWorkspaceKnowledgeDatabases(
-  workspaceId: string,
-): Promise<ReadonlyArray<DatabaseSnapshot>>
-⋮----
-export async function addWorkspaceKnowledgeDatabaseProperty(
-  databaseId: string,
-  property: DatabaseProperty,
-): Promise<CommandResult>
+import { Database } from "./Database";
 ````
 
-## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
+## File: src/modules/notion/subdomains/page/domain/entities/Page.test.ts
 ````typescript
-/**
- * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
- */
-import { v4 as uuid } from "uuid";
+import { describe, expect, it } from "vitest";
 ⋮----
-export type PageStatus = "active" | "archived";
-⋮----
-export interface PageSnapshot {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly summary?: string;
-  readonly sourceLabel?: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: PageStatus;
-  readonly ownerId?: string;
-  readonly iconUrl?: string;
-  readonly coverUrl?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-⋮----
-export interface CreatePageInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly summary?: string;
-  readonly sourceLabel?: string;
-  readonly parentPageId?: string | null;
-  readonly createdByUserId: string;
-  readonly order?: number;
-}
-⋮----
-function slugify(title: string): string
-⋮----
-export class Page {
-⋮----
-private constructor(private _props: PageSnapshot)
-⋮----
-static create(input: CreatePageInput): Page
-⋮----
-static reconstitute(snapshot: PageSnapshot): Page
-⋮----
-rename(title: string): void
-⋮----
-appendBlock(blockId: string): void
-⋮----
-archive(): void
-⋮----
-get id(): string
-get title(): string
-get summary(): string | undefined
-get sourceLabel(): string | undefined
-get slug(): string
-get status(): PageStatus
-get blockIds(): readonly string[]
-get parentPageId(): string | null
-⋮----
-getSnapshot(): Readonly<PageSnapshot>
-⋮----
-pullDomainEvents()
+import { Page } from "./Page";
 ````
 
 ## File: src/modules/platform/subdomains/audit-log/application/use-cases/AuditLogUseCases.ts
@@ -19316,38 +19238,6 @@ export function resolveShellBreadcrumbLabel(segment: string): string
 
 - [../../../docs/README.md](../../../docs/README.md)
 - [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
-````
-
-## File: src/modules/workspace/adapters/inbound/react/account-scoped-workspace.ts
-````typescript
-import type { WorkspaceEntity } from "./WorkspaceContext";
-⋮----
-interface ResolveAccountScopedWorkspaceIdInput {
-  readonly accountId: string | null;
-  readonly activeWorkspaceId: string | null;
-  readonly workspaces: Record<string, WorkspaceEntity>;
-}
-⋮----
-export function resolveAccountScopedWorkspaceId({
-  accountId,
-  activeWorkspaceId,
-  workspaces,
-}: ResolveAccountScopedWorkspaceIdInput): string | null
-````
-
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-⋮----
-import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
-import type { WorkspaceEntity } from "./WorkspaceContext";
-⋮----
-function buildWorkspace(
-  id: string,
-  name: string,
-  accountId: string,
-  accountType: "user" | "organization" = "organization",
-): WorkspaceEntity
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
@@ -19693,109 +19583,209 @@ export async function queryDatabasesAction(rawInput: unknown)
 export async function createDatabaseAction(rawInput: unknown)
 ````
 
-## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
+## File: src/modules/notion/index.ts
 ````typescript
 /**
- * Database — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
- * Represents a structured collection of pages with typed properties (Notion-style database).
+ * Notion Module — public API surface.
+ * All cross-module consumers must import from here only.
+ */
+⋮----
+import type { DatabaseProperty, DatabaseSnapshot } from "./subdomains/database/domain";
+import type { PageSnapshot } from "./subdomains/page/domain";
+import type { CommandResult } from "../shared";
+⋮----
+// page
+⋮----
+// block
+⋮----
+// database
+⋮----
+// knowledge (canonical KnowledgeArtifact aggregate)
+⋮----
+// view
+⋮----
+// collaboration
+⋮----
+// template
+⋮----
+export async function listWorkspaceKnowledgePages(params: {
+  accountId: string;
+  workspaceId: string;
+}): Promise<ReadonlyArray<PageSnapshot>>
+⋮----
+export async function listWorkspaceKnowledgeDatabases(
+  workspaceId: string,
+): Promise<ReadonlyArray<DatabaseSnapshot>>
+⋮----
+export async function createWorkspaceKnowledgePage(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  summary?: string;
+  sourceLabel?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function createWorkspaceKnowledgeDatabase(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  description?: string;
+  sourceDocumentId?: string;
+  sourceText?: string;
+  createdByUserId: string;
+}): Promise<CommandResult>
+⋮----
+export async function addWorkspaceKnowledgeDatabaseProperty(
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<CommandResult>
+````
+
+## File: src/modules/notion/subdomains/page/domain/entities/Page.ts
+````typescript
+/**
+ * Page — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
  */
 import { v4 as uuid } from "uuid";
 ⋮----
-export type PropertyType = "text" | "number" | "select" | "multi_select" | "date" | "checkbox" | "url" | "email" | "file" | "relation";
+export type PageStatus = "active" | "archived";
 ⋮----
-export interface DatabaseProperty {
+export interface PageSnapshot {
   readonly id: string;
-  readonly name: string;
-  readonly type: PropertyType;
-  readonly options?: string[];
-}
-⋮----
-export type DatabaseStatus = "active" | "archived";
-⋮----
-export interface DatabaseSnapshot {
-  readonly id: string;
-  readonly parentPageId: string | null;
-  readonly workspaceId: string;
   readonly accountId: string;
+  readonly workspaceId?: string;
   readonly title: string;
-  readonly description?: string;
-  readonly properties: DatabaseProperty[];
-  readonly status: DatabaseStatus;
+  readonly summary?: string;
+  readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: PageStatus;
+  readonly ownerId?: string;
+  readonly iconUrl?: string;
+  readonly coverUrl?: string;
   readonly createdByUserId: string;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
 }
 ⋮----
-export interface CreateDatabaseInput {
-  readonly parentPageId?: string | null;
-  readonly workspaceId: string;
+export interface CreatePageInput {
   readonly accountId: string;
+  readonly workspaceId?: string;
   readonly title: string;
-  readonly description?: string;
-  readonly properties?: DatabaseProperty[];
+  readonly summary?: string;
+  readonly sourceLabel?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly parentPageId?: string | null;
   readonly createdByUserId: string;
+  readonly order?: number;
 }
 ⋮----
-export class Database {
+function slugify(title: string): string
 ⋮----
-private constructor(private _props: DatabaseSnapshot)
+export class Page {
 ⋮----
-private static createDefaultProperty(): DatabaseProperty
+private constructor(private _props: PageSnapshot)
 ⋮----
-static create(input: CreateDatabaseInput): Database
+static create(input: CreatePageInput): Page
 ⋮----
-static reconstitute(snapshot: DatabaseSnapshot): Database
+static reconstitute(snapshot: PageSnapshot): Page
 ⋮----
-addProperty(property: DatabaseProperty): void
+rename(title: string): void
+⋮----
+appendBlock(blockId: string): void
+⋮----
+archive(): void
 ⋮----
 get id(): string
 get title(): string
+get summary(): string | undefined
+get sourceLabel(): string | undefined
+get slug(): string
+get status(): PageStatus
+get blockIds(): readonly string[]
 get parentPageId(): string | null
-get properties(): DatabaseProperty[]
 ⋮----
-getSnapshot(): Readonly<DatabaseSnapshot>
+getSnapshot(): Readonly<PageSnapshot>
+⋮----
+pullDomainEvents()
 ````
 
-## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
+## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
 ````typescript
 /**
- * FirestorePageRepository — Firestore adapter for the page subdomain.
+ * AccountRouteDispatcher — workspace inbound adapter (React).
  *
- * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a PageSnapshot directly.
+ * Receives accountId + slug props from the Server Component shim and
+ * dispatches to the appropriate route screen.
  *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/page/adapters/outbound/firestore/
- * which matches the extended outbound glob.
+ * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
  */
 ⋮----
-import { getFirebaseFirestore, firestoreApi, z } from "@packages";
-import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 ⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
+import {
+  useAccountRouteContext,
+  OrganizationMembersRouteScreen,
+  OrganizationOverviewRouteScreen,
+  OrganizationPermissionsRouteScreen,
+  AccountDashboardRouteScreen,
+  OrganizationWorkspacesRouteScreen,
+  OrganizationTeamsRouteScreen,
+  OrganizationDispatcherRouteScreen,
+  OrganizationDailyRouteScreen,
+  OrganizationAuditRouteScreen,
+  SettingsNotificationsRouteScreen,
+} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
+import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
+import {
+  WorkspaceDetailRouteScreen,
+  WorkspaceHubScreen,
+} from "./workspace-ui-stubs";
+import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
+import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
+import { useWorkspaceContext } from "./WorkspaceContext";
+import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
 ⋮----
-function toSnapshot(raw: unknown): PageSnapshot
+export interface AccountRouteDispatcherProps {
+  accountId: string;
+  slug: string[];
+}
 ⋮----
-export class FirestorePageRepository implements PageRepository {
+interface RedirectingRouteProps {
+  readonly href: string;
+  readonly message: string;
+}
 ⋮----
-async save(snapshot: PageSnapshot): Promise<void>
+function RedirectingRoute(
 ⋮----
-async findById(id: string): Promise<PageSnapshot | null>
+export function AccountRouteDispatcher({
+  accountId: accountIdFromParams,
+  slug,
+}: AccountRouteDispatcherProps)
 ⋮----
-async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+// Legacy redirect: /organization/... → /<accountId>/...
 ⋮----
-async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+// Legacy redirect: /workspace/... → /<accountId>/...
 ⋮----
-async query(params: PageQuery): Promise<PageSnapshot[]>
+// Root: /<accountId>
 ⋮----
-// Build equality constraints — no composite index required for equality-only filters.
+if (accountType === "organization")
 ⋮----
-async delete(id: string): Promise<void>
+// Single-segment routes: /<accountId>/<segment>
+⋮----
+// Two-segment routes
+⋮----
+// Fallback
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceMembersSection.tsx
@@ -20023,112 +20013,113 @@ const handleArchive = (pageId: string) =>
 href=
 ````
 
-## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+## File: src/modules/notion/subdomains/database/domain/entities/Database.ts
 ````typescript
 /**
- * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ * Database — distilled from modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
+ * Represents a structured collection of pages with typed properties (Notion-style database).
+ */
+import { v4 as uuid } from "uuid";
+⋮----
+export type PropertyType = "text" | "number" | "select" | "multi_select" | "date" | "checkbox" | "url" | "email" | "file" | "relation";
+⋮----
+export interface DatabaseProperty {
+  readonly id: string;
+  readonly name: string;
+  readonly type: PropertyType;
+  readonly options?: string[];
+}
+⋮----
+export type DatabaseStatus = "active" | "archived";
+⋮----
+export interface DatabaseSnapshot {
+  readonly id: string;
+  readonly parentPageId: string | null;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly properties: DatabaseProperty[];
+  readonly status: DatabaseStatus;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+⋮----
+export interface CreateDatabaseInput {
+  readonly parentPageId?: string | null;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly sourceDocumentId?: string;
+  readonly sourceText?: string;
+  readonly properties?: DatabaseProperty[];
+  readonly createdByUserId: string;
+}
+⋮----
+export class Database {
+⋮----
+private constructor(private _props: DatabaseSnapshot)
+⋮----
+private static createDefaultProperty(): DatabaseProperty
+⋮----
+static create(input: CreateDatabaseInput): Database
+⋮----
+static reconstitute(snapshot: DatabaseSnapshot): Database
+⋮----
+addProperty(property: DatabaseProperty): void
+⋮----
+get id(): string
+get title(): string
+get parentPageId(): string | null
+get properties(): DatabaseProperty[]
+⋮----
+getSnapshot(): Readonly<DatabaseSnapshot>
+````
+
+## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
+````typescript
+/**
+ * FirestorePageRepository — Firestore adapter for the page subdomain.
  *
- * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a DatabaseSnapshot directly.
+ * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a PageSnapshot directly.
  *
  * MUST be called from a client component, NOT from a Server Action.
  * The Firebase Web Client SDK requires a signed-in user in the browser context
  * so that Firestore Security Rules can evaluate request.auth.
  *
  * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * src/modules/notion/subdomains/page/adapters/outbound/firestore/
  * which matches the extended outbound glob.
  */
 ⋮----
 import { getFirebaseFirestore, firestoreApi, z } from "@packages";
-import type { DatabaseSnapshot } from "../../../domain/entities/Database";
-import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
 ⋮----
 // ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
 ⋮----
-function toSnapshot(raw: unknown): DatabaseSnapshot
+function toSnapshot(raw: unknown): PageSnapshot
 ⋮----
-export class FirestoreDatabaseRepository implements DatabaseRepository {
+export class FirestorePageRepository implements PageRepository {
 ⋮----
-async save(snapshot: DatabaseSnapshot): Promise<void>
+async save(snapshot: PageSnapshot): Promise<void>
 ⋮----
-async findById(id: string): Promise<DatabaseSnapshot | null>
+async findById(id: string): Promise<PageSnapshot | null>
 ⋮----
-async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
 ⋮----
-async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+// Build equality constraints — no composite index required for equality-only filters.
 ⋮----
 async delete(id: string): Promise<void>
-````
-
-## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx
-````typescript
-/**
- * AccountRouteDispatcher — workspace inbound adapter (React).
- *
- * Receives accountId + slug props from the Server Component shim and
- * dispatches to the appropriate route screen.
- *
- * Ported from: app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx
- */
-⋮----
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-⋮----
-import { useAuth } from "../../../../iam/adapters/inbound/react/AuthContext";
-import {
-  useAccountRouteContext,
-  OrganizationMembersRouteScreen,
-  OrganizationOverviewRouteScreen,
-  OrganizationPermissionsRouteScreen,
-  AccountDashboardRouteScreen,
-  OrganizationWorkspacesRouteScreen,
-  OrganizationTeamsRouteScreen,
-  OrganizationDispatcherRouteScreen,
-  OrganizationDailyRouteScreen,
-  OrganizationAuditRouteScreen,
-  SettingsNotificationsRouteScreen,
-} from "../../../../platform/adapters/inbound/react/platform-ui-stubs";
-import { useApp } from "../../../../platform/adapters/inbound/react/AppContext";
-import {
-  WorkspaceDetailRouteScreen,
-  WorkspaceHubScreen,
-} from "./workspace-ui-stubs";
-import { WorkspaceAuditSection } from "./WorkspaceAuditSection";
-import { WorkspaceAccountDailySection } from "./WorkspaceAccountDailySection";
-import { useWorkspaceContext } from "./WorkspaceContext";
-import { resolveAccountScopedWorkspaceId } from "./account-scoped-workspace";
-⋮----
-export interface AccountRouteDispatcherProps {
-  accountId: string;
-  slug: string[];
-}
-⋮----
-interface RedirectingRouteProps {
-  readonly href: string;
-  readonly message: string;
-}
-⋮----
-function RedirectingRoute(
-⋮----
-export function AccountRouteDispatcher({
-  accountId: accountIdFromParams,
-  slug,
-}: AccountRouteDispatcherProps)
-⋮----
-// Legacy redirect: /organization/... → /<accountId>/...
-⋮----
-// Legacy redirect: /workspace/... → /<accountId>/...
-⋮----
-// Root: /<accountId>
-⋮----
-if (accountType === "organization")
-⋮----
-// Single-segment routes: /<accountId>/<segment>
-⋮----
-// Two-segment routes
-⋮----
-// Fallback
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx
@@ -20226,78 +20217,6 @@ export function toLocalDatetimeInputValue(date: Date): string
 const pad = (value: number): string
 ⋮----
 export function parseLocalDatetimeInput(value: string): string | null
-````
-
-## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
-````typescript
-/**
- * WorkspaceTaskFormationSection — workspace.task-formation tab.
- *
- * Task formation keeps only source references in URL/query state, then resolves
- * concrete page/database context through the notion public boundary before
- * sending the source to the extractor.
- *
- * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
- * model" boundary behind this handoff.
- */
-⋮----
-import { Badge, Button } from "@packages";
-import {
-  ListPlus,
-  ArrowRight,
-  FileText,
-  LayoutGrid,
-  BookOpen,
-  Upload,
-  ChevronRight,
-  Info,
-  Check,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
-⋮----
-import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
-import {
-  listWorkspaceKnowledgeDatabases,
-  listWorkspaceKnowledgePages,
-} from "@/src/modules/notion";
-import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
-import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
-⋮----
-interface WorkspaceTaskFormationSectionProps {
-  workspaceId: string;
-  accountId: string;
-  currentUserId?: string;
-}
-⋮----
-type SelectedSourceKind = "page" | "database" | "research" | null;
-type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
-⋮----
-type ConcreteSource = {
-  readonly id: string;
-  readonly kind: Exclude<SelectedSourceKind, null>;
-  readonly title: string;
-  readonly description: string;
-  readonly sourceText?: string;
-};
-⋮----
-function buildPageSource(page: PageSnapshot): ConcreteSource
-⋮----
-function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
-⋮----
-function toggleCandidate(i: number)
-⋮----
-function handleSelectSource(nextSource: SelectedSourceKind)
-⋮----
-function handleExtract()
-⋮----
-function handleConfirm()
-⋮----
-function handleReset()
 ````
 
 ## File: src/modules/workspace/subdomains/lifecycle/application/use-cases/WorkspaceLifecycleUseCases.ts
@@ -20484,6 +20403,116 @@ export async function addDatabaseProperty(
   databaseId: string,
   property: DatabaseProperty,
 ): Promise<CommandResult>
+````
+
+## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+````typescript
+/**
+ * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ *
+ * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a DatabaseSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): DatabaseSnapshot
+⋮----
+export class FirestoreDatabaseRepository implements DatabaseRepository {
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
+````
+
+## File: src/modules/workspace/adapters/inbound/react/WorkspaceTaskFormationSection.tsx
+````typescript
+/**
+ * WorkspaceTaskFormationSection — workspace.task-formation tab.
+ *
+ * Task formation keeps only source references in URL/query state, then resolves
+ * concrete page/database context through the notion public boundary before
+ * sending the source to the extractor.
+ *
+ * See docs/structure/system/source-to-task-flow.md for the "Notion-like local
+ * model" boundary behind this handoff.
+ */
+⋮----
+import { Badge, Button } from "@packages";
+import {
+  ListPlus,
+  ArrowRight,
+  FileText,
+  LayoutGrid,
+  BookOpen,
+  Upload,
+  ChevronRight,
+  Info,
+  Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
+⋮----
+import type { DatabaseSnapshot, PageSnapshot } from "@/src/modules/notion";
+import {
+  listWorkspaceKnowledgeDatabases,
+  listWorkspaceKnowledgePages,
+} from "@/src/modules/notion";
+import { startExtractionAction, confirmCandidatesAction } from "@/src/modules/workspace/subdomains/task-formation/adapters/inbound/server-actions/task-formation-actions";
+import type { ExtractedTaskCandidate } from "@/src/modules/workspace/subdomains/task-formation/domain/value-objects/TaskCandidate";
+⋮----
+interface WorkspaceTaskFormationSectionProps {
+  workspaceId: string;
+  accountId: string;
+  currentUserId?: string;
+}
+⋮----
+type SelectedSourceKind = "page" | "database" | "research" | null;
+type Phase = "idle" | "extracting" | "reviewing" | "confirming" | "done" | "error";
+⋮----
+type ConcreteSource = {
+  readonly id: string;
+  readonly kind: Exclude<SelectedSourceKind, null>;
+  readonly title: string;
+  readonly description: string;
+  readonly sourceText?: string;
+};
+⋮----
+function buildPageSource(page: PageSnapshot): ConcreteSource
+⋮----
+function buildDatabaseSource(database: DatabaseSnapshot, pages: ReadonlyArray<PageSnapshot>): ConcreteSource
+⋮----
+function toggleCandidate(i: number)
+⋮----
+function handleSelectSource(nextSource: SelectedSourceKind)
+⋮----
+function handleExtract()
+⋮----
+function handleConfirm()
+⋮----
+function handleReset()
 ````
 
 ## File: src/modules/workspace/adapters/outbound/firebase-composition.ts
@@ -21255,7 +21284,7 @@ export async function reindexDocumentAction(rawInput: unknown): Promise<void>
  * Artifact display: page count, layout chunks, form entities, RAG vector count.
  */
 ⋮----
-import { Button, createGoogleViewerEmbedUrl } from "@packages";
+import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
@@ -21266,10 +21295,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 ⋮----
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
-  createPageFromDocumentAction,
-  createDatabaseFromDocumentAction,
-} from "../server-actions/document-actions";
-import {
   queryDocuments,
   uploadDocumentToStorage,
   getDocumentDownloadUrl,
@@ -21278,6 +21303,10 @@ import {
   callParseDocument,
   callReindexDocument,
 } from "../../../adapters/outbound/firebase-composition";
+import {
+  createWorkspaceKnowledgeDatabase,
+  createWorkspaceKnowledgePage,
+} from "@/src/modules/notion";
 ⋮----
 interface NotebooklmSourcesSectionProps {
   workspaceId: string;
@@ -21297,6 +21326,21 @@ function createPendingSourceSnapshot(input: {
 // fn's parse_document callable will set status back to "processing" when it starts.
 ⋮----
 /** MIME types renderable via Google Doc Viewer */
+⋮----
+// Keep sourceText safely below Firestore's 1 MiB document limit. 80k chars is
+// ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
+// ample headroom for the rest of the page/database snapshot fields.
+⋮----
+/**
+ * Normalize parser artifacts written by fn parse_document:
+ * - layout / ocr / genkit: prefer top-level text, then chunk.text
+ * - form: fallback to entity key/value lines when plain text is unavailable
+ */
+function extractTextFromArtifactPayload(payload: unknown): string | undefined
+⋮----
+function trimSourceText(text: string | undefined): string | undefined
+⋮----
+async function loadSourceTextFromArtifactUri(uri: string): Promise<string | undefined>
 ⋮----
 // ── Per-document action state ─────────────────────────────────────────────────
 ⋮----
@@ -21362,7 +21406,13 @@ const handleReindex = async (doc: IngestionSourceSnapshot) =>
 ⋮----
 const handleCreatePage = async (doc: IngestionSourceSnapshot) =>
 ⋮----
+// Page prefers layout text first because task extraction expects dense
+// full-document sequences (3RDTW / 小計) preserved by layout output.
+⋮----
 const handleCreateDatabase = async (doc: IngestionSourceSnapshot) =>
+⋮----
+// Database prefers form output first to retain structured entity fields;
+// fallback to layout text when form parser output is not available.
 ⋮----
 // ── Render helpers ───────────────────────────────────────────────────────────
 ⋮----

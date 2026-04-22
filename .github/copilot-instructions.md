@@ -117,3 +117,39 @@ These rules are **non-negotiable** and apply to every task, file, and decision. 
 - Use [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for Bounded Context design rules.
 - Use [instructions/domain-layer-rules.instructions.md](./instructions/domain-layer-rules.instructions.md) for Domain Layer design rules.
 - Use [instructions/hexagonal-rules.instructions.md](./instructions/hexagonal-rules.instructions.md) for Hexagonal Architecture and cross-cutting subdomain × hexagonal rules.
+
+## Priority Rule Intake (P0-P4)
+
+The following intake records which proposed rules are adopted, scoped, or discarded to avoid conflicts with existing authority documents.
+
+### Adopted (No Conflict)
+
+1. Boundary data flow is fixed to entry -> DTO/command -> use case -> domain -> repository/port adapter.
+2. Entry points (Function/Server Action/Route Handler) are entry-only and must not contain business rules.
+3. Domain must not depend on external SDKs, data sources, or outer layers.
+4. Use cases must not return infrastructure-native types (for example Firestore snapshots).
+5. Repositories are data access abstractions only and must not carry business decisions.
+6. Cross-bounded-context access must use module API boundaries or events.
+7. Composition Root owns dependency wiring; use case/domain layers must not instantiate concrete infrastructure implementations.
+8. One function should map to one primary use-case intent; command and query concerns remain separated.
+9. Input validation must complete before entering the use case; domain validation remains invariant-focused.
+10. Error ownership is split: domain throws business errors, use case normalizes internal error shape, entry layer maps response format.
+11. Long-running side effects should prefer event-driven handlers over synchronous coupling.
+12. Schema must be explicit and typed; avoid dynamic production fields without a declared contract.
+13. Naming must reflect business intent and align function/use-case naming.
+14. Query design must avoid N+1 patterns and favor index-first access paths.
+15. Security baseline is mandatory: input sanitization, least privilege, controlled signed URL issuance, and no sensitive-data leakage.
+
+### Adopted With Scope (Conflict Avoidance)
+
+1. Transaction atomicity applies within a defined aggregate/transaction boundary; cross-aggregate or cross-context workflows must use saga/outbox/eventual consistency.
+2. Authorization must be explicit in each use-case execution path, but policy enforcement may be delegated to dedicated authorization services invoked by the use case.
+3. Use cases should be independently executable and should not form ad-hoc call chains; composition-level orchestration is allowed through orchestrators/application services.
+4. Idempotency is mandatory for retryable/async/public write paths; idempotency keys are required where duplicate delivery is realistic.
+5. DTOs should be reusable when semantics are stable; one-off DTOs are allowed for bounded, single-intent endpoints to avoid over-abstraction.
+
+### Discarded (Would Harm Current Governance)
+
+1. "Use case must always own authorization logic implementation" is discarded in favor of explicit authorization orchestration with policy delegation.
+2. "All write use cases must always require idempotency key" is discarded as a blanket rule; only retry-prone paths enforce hard idempotency-key requirements.
+3. "Use case mutual calls are absolutely forbidden" is discarded as absolute wording; structured orchestrator/application-service composition remains allowed.

@@ -1,5 +1,70 @@
 # Files
 
+## File: docs/structure/contexts/ai/bounded-contexts.md
+````markdown
+# AI Bounded Contexts
+
+## Domain Role
+
+ai 是共享能力 bounded context。它封裝所有 AI 執行能力——從 generation、distillation 到 safety——讓下游主域穩定消費，而不需要了解 LLM provider 細節。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why Needed | Gap If Missing |
+|---|---|---|
+| provider-routing | 建立模型供應商選擇與路由治理邊界 | 供應商切換邏輯分散於 generation，難以統一管理 |
+| model-policy | 建立模型能力、版本與使用政策邊界 | 模型版本更新或限制難以集中決策 |
+
+## Domain Invariants
+
+- generation 是唯一直接呼叫 LLM provider 的子域，其他子域透過 ports 間接使用。
+- distillation 輸出的是「精煉知識片段」，不是 KnowledgeArtifact；語義屬於 ai，不屬於 notion。
+- memory 若需要長期保存內容，應優先保存 distilled knowledge，而不是無限制保留 raw content。
+- retrieval 若存在可選資料來源，應優先索引 distilled chunks 或結構化 knowledge signal。
+- evaluation 必須覆蓋 distillation，至少檢查 compression、retention 與 hallucination risk。
+- safety 的結果可以終止任何 AI 執行流程。
+- orchestration 是執行圖的主控，不直接持有業務資料。
+- tracing 只負責觀測與 debug，不得改變執行決策。
+- 所有子域的 domain 層必須框架無關。
+
+## Dependency Direction
+
+- ai 子域在存在對應層時遵守 interfaces -> application -> domain <- infrastructure。
+- 子域之間透過 ports 或 orchestration application 協調，不直接依賴彼此 domain。
+- 外部輸入只能先經 API boundary，再進入 ai 內部執行流程。
+
+## Anti-Patterns
+
+- 讓 generation 子域直接依賴 notion 或 notebooklm 的業務型別。
+- 把 distillation 當成 notebooklm synthesis 的 alias，混淆輸出語義。
+- 讓下游模組繞過 ai API 邊界，直接 import ai infrastructure。
+- 在 ai domain 層 import Genkit、Firebase 或任何 SDK。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認能力屬於哪個 cluster，再決定子域與層。
+- 跨子域協調一律交給 orchestration application，不讓子域直接相互呼叫。
+- 奧卡姆剃刀：能在現有子域加一個 port + use case 解決，就不要新建子域。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain / Ports"]
+	X["Infrastructure"] -. implements .-> D
+```
+````
+
 ## File: docs/structure/contexts/ai/context-map.md
 ````markdown
 # AI Context Map
@@ -1368,71 +1433,6 @@ flowchart LR
 - [architecture-overview.md](../../system/architecture-overview.md)
 ````
 
-## File: docs/structure/contexts/ai/bounded-contexts.md
-````markdown
-# AI Bounded Contexts
-
-## Domain Role
-
-ai 是共享能力 bounded context。它封裝所有 AI 執行能力——從 generation、distillation 到 safety——讓下游主域穩定消費，而不需要了解 LLM provider 細節。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Core Execution | generation、orchestration、distillation |
-| Knowledge Access | retrieval、memory、context |
-| Quality & Safety | safety、evaluation、tracing |
-| Extended Capability | tool-calling、reasoning、conversation |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why Needed | Gap If Missing |
-|---|---|---|
-| provider-routing | 建立模型供應商選擇與路由治理邊界 | 供應商切換邏輯分散於 generation，難以統一管理 |
-| model-policy | 建立模型能力、版本與使用政策邊界 | 模型版本更新或限制難以集中決策 |
-
-## Domain Invariants
-
-- generation 是唯一直接呼叫 LLM provider 的子域，其他子域透過 ports 間接使用。
-- distillation 輸出的是「精煉知識片段」，不是 KnowledgeArtifact；語義屬於 ai，不屬於 notion。
-- memory 若需要長期保存內容，應優先保存 distilled knowledge，而不是無限制保留 raw content。
-- retrieval 若存在可選資料來源，應優先索引 distilled chunks 或結構化 knowledge signal。
-- evaluation 必須覆蓋 distillation，至少檢查 compression、retention 與 hallucination risk。
-- safety 的結果可以終止任何 AI 執行流程。
-- orchestration 是執行圖的主控，不直接持有業務資料。
-- tracing 只負責觀測與 debug，不得改變執行決策。
-- 所有子域的 domain 層必須框架無關。
-
-## Dependency Direction
-
-- ai 子域在存在對應層時遵守 interfaces -> application -> domain <- infrastructure。
-- 子域之間透過 ports 或 orchestration application 協調，不直接依賴彼此 domain。
-- 外部輸入只能先經 API boundary，再進入 ai 內部執行流程。
-
-## Anti-Patterns
-
-- 讓 generation 子域直接依賴 notion 或 notebooklm 的業務型別。
-- 把 distillation 當成 notebooklm synthesis 的 alias，混淆輸出語義。
-- 讓下游模組繞過 ai API 邊界，直接 import ai infrastructure。
-- 在 ai domain 層 import Genkit、Firebase 或任何 SDK。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認能力屬於哪個 cluster，再決定子域與層。
-- 跨子域協調一律交給 orchestration application，不讓子域直接相互呼叫。
-- 奧卡姆剃刀：能在現有子域加一個 port + use case 解決，就不要新建子域。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain / Ports"]
-	X["Infrastructure"] -. implements .-> D
-```
-````
-
 ## File: docs/structure/contexts/ai/cross-runtime-contracts.md
 ````markdown
 # AI Context — Cross-Runtime Contracts
@@ -1534,6 +1534,186 @@ These are separate from QStash and are defined by Firestore document structure:
 | Re-index request | `fn/src/interface/handlers/rag_reindex_handler.py` | `workspaces/{wid}/reindex_requests/{rid}` |
 
 Firestore document schema for these is owned by `src/modules/platform/subdomains/file-storage/` (TypeScript) and mirrored in `fn/src/infrastructure/persistence/firestore/`.
+````
+
+## File: docs/structure/contexts/ai/README.md
+````markdown
+# AI Context
+
+## Purpose
+
+ai 是共享 AI capability 主域。它負責 generation、orchestration、distillation、retrieval、memory、safety 與 provider routing，供 notion、notebooklm 等主域穩定消費。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 共享 AI capability orchestration |
+| Upstream Dependency | iam access policy、billing entitlement |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | 提供 AI 能力，不接管內容正典或推理輸出語義 |
+
+## Baseline Subdomains
+
+- generation — 文字生成，Genkit 接縫
+- orchestration — 執行圖與工作流協調
+- distillation — 將長輸出濃縮為精煉知識片段
+- retrieval — 向量搜尋與上下文抓取
+- memory — 對話歷史與狀態保存
+- context — prompt 上下文組裝
+- safety — 安全護欄與內容保護
+- tool-calling — 外部工具調用協調
+- reasoning — 推理步驟管理
+- conversation — AI 互動輪次管理
+- evaluation — 輸出品質評估
+- tracing — AI 執行觀測與追蹤
+## Recommended Gap Subdomains
+
+- provider-routing — 模型供應商選擇與路由治理
+- model-policy — 模型能力、版本與使用政策
+## Key Relationships
+
+- 與 iam：消費 actor reference 與 access decision。
+- 與 billing：消費 entitlement signal 決定 AI 配額。
+- 與 notion：向 notion 提供 generate、summarize、distill 能力。
+- 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
+
+## Strategic Rules
+
+- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
+- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
+- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
+- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENTS.md](./AGENTS.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
+- 下游消費者只透過 `src/modules/ai/index.ts` 的公開匯出存取，不可直接依賴 ai 內部實作路徑。
+
+## Anti-Pattern Rules
+
+- 不把 notion 的 KnowledgeArtifact 或 notebooklm 的 Conversation 語義拉進 ai domain。
+- 不在 ai 內重建 identity 或 billing 邏輯。
+- 不讓下游模組直接呼叫 ai 的 infrastructure 或 subdomain internals。
+
+## Document Network
+
+- [AGENTS.md](./AGENTS.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [architecture-overview.md](../../system/architecture-overview.md)
+- [integration-guidelines.md](../../system/integration-guidelines.md)
+````
+
+## File: docs/structure/contexts/ai/subdomains.md
+````markdown
+# AI Subdomains
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
+| orchestration | 執行圖與多步驟 AI workflow 協調 |
+| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
+| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
+| memory | 對話歷史與跨輪次狀態保存 |
+| context | prompt 上下文組裝與 token 預算管理 |
+| safety | 安全護欄、有害內容過濾與合規保護 |
+| tool-calling | 外部工具調用協調與結果回注 |
+| reasoning | 推理步驟管理（chain-of-thought、反思） |
+| conversation | AI 互動輪次追蹤與歷史管理 |
+| evaluation | 輸出品質評估與回歸基準 |
+| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
+
+## Subdomain Groupings
+
+| Group | Subdomains |
+|---|---|
+| Core Execution | generation、orchestration、distillation |
+| Knowledge Access | retrieval、memory、context |
+| Quality & Safety | safety、evaluation、tracing |
+| Extended Capability | tool-calling、reasoning、conversation |
+
+## Recommended Gap Subdomains
+
+| Subdomain | 功能註解 |
+|---|---|
+| provider-routing | 模型供應商選擇與路由治理 |
+| model-policy | 模型能力、版本與使用政策 |
+
+- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
+- 其餘子域為骨架狀態，依需求逐步實作。
+
+## Distillation 說明
+
+distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
+
+- generation：輸入 prompt → 輸出文字。
+- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
+
+下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
+
+### Distilled Rules
+
+- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
+- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
+- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
+- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
+- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
+
+## Anti-Patterns
+
+- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
+- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
+- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
+- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
+
+## Copilot Generation Rules
+
+- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
+- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
+- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case (application)"]
+	UseCase --> Port["Port (domain)"]
+	Infra["Infrastructure adapter"] -. implements .-> Port
+```
+
+## Correct Subdomain Interaction
+
+```mermaid
+flowchart LR
+	Orchestration["orchestration"] --> Generation["generation"]
+	Orchestration --> Distillation["distillation"]
+	Orchestration --> Retrieval["retrieval"]
+	Context["context"] --> Orchestration
+	Memory["memory"] --> Context
+	Safety["safety"] --> Orchestration
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [subdomains.md](../../domain/subdomains.md)
 ````
 
 ## File: src/modules/ai/AGENTS.md
@@ -1817,186 +1997,6 @@ check(input: ContentSafetyInput): Promise<SafetyCheckResult>;
 ## File: src/modules/ai/subdomains/safety/domain/index.ts
 ````typescript
 
-````
-
-## File: docs/structure/contexts/ai/README.md
-````markdown
-# AI Context
-
-## Purpose
-
-ai 是共享 AI capability 主域。它負責 generation、orchestration、distillation、retrieval、memory、safety 與 provider routing，供 notion、notebooklm 等主域穩定消費。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 共享 AI capability orchestration |
-| Upstream Dependency | iam access policy、billing entitlement |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | 提供 AI 能力，不接管內容正典或推理輸出語義 |
-
-## Baseline Subdomains
-
-- generation — 文字生成，Genkit 接縫
-- orchestration — 執行圖與工作流協調
-- distillation — 將長輸出濃縮為精煉知識片段
-- retrieval — 向量搜尋與上下文抓取
-- memory — 對話歷史與狀態保存
-- context — prompt 上下文組裝
-- safety — 安全護欄與內容保護
-- tool-calling — 外部工具調用協調
-- reasoning — 推理步驟管理
-- conversation — AI 互動輪次管理
-- evaluation — 輸出品質評估
-- tracing — AI 執行觀測與追蹤
-## Recommended Gap Subdomains
-
-- provider-routing — 模型供應商選擇與路由治理
-- model-policy — 模型能力、版本與使用政策
-## Key Relationships
-
-- 與 iam：消費 actor reference 與 access decision。
-- 與 billing：消費 entitlement signal 決定 AI 配額。
-- 與 notion：向 notion 提供 generate、summarize、distill 能力。
-- 與 notebooklm：向 notebooklm 提供 generation、retrieval、distillation 能力。
-
-## Strategic Rules
-
-- Context 應先做 token budgeting、ranking 與壓縮，再把結果交給 generation 或 distillation。
-- Distillation 應被視為 knowledge compiler，而不是單純摘要工具。
-- Retrieval、memory、evaluation 都應明確接收並檢查 distillation 的輸出，而不是各自重新定義相同語義。
-- 大型蒸餾或多來源蒸餾應優先走 async pipeline，避免同步入口承擔過高成本與延遲。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENTS.md](./AGENTS.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- Genkit、LLM SDK 等 provider 細節只能停留在 infrastructure 層。
-- 下游消費者只透過 `src/modules/ai/index.ts` 的公開匯出存取，不可直接依賴 ai 內部實作路徑。
-
-## Anti-Pattern Rules
-
-- 不把 notion 的 KnowledgeArtifact 或 notebooklm 的 Conversation 語義拉進 ai domain。
-- 不在 ai 內重建 identity 或 billing 邏輯。
-- 不讓下游模組直接呼叫 ai 的 infrastructure 或 subdomain internals。
-
-## Document Network
-
-- [AGENTS.md](./AGENTS.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [architecture-overview.md](../../system/architecture-overview.md)
-- [integration-guidelines.md](../../system/integration-guidelines.md)
-````
-
-## File: docs/structure/contexts/ai/subdomains.md
-````markdown
-# AI Subdomains
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| generation | 文字生成；Genkit 接縫；`generateText`、`summarize` |
-| orchestration | 執行圖與多步驟 AI workflow 協調 |
-| distillation | 將長輸出或多來源濃縮為精煉知識片段 |
-| retrieval | 向量搜尋、相似度查詢與上下文抓取 |
-| memory | 對話歷史與跨輪次狀態保存 |
-| context | prompt 上下文組裝與 token 預算管理 |
-| safety | 安全護欄、有害內容過濾與合規保護 |
-| tool-calling | 外部工具調用協調與結果回注 |
-| reasoning | 推理步驟管理（chain-of-thought、反思） |
-| conversation | AI 互動輪次追蹤與歷史管理 |
-| evaluation | 輸出品質評估與回歸基準 |
-| tracing | AI 執行觀測、span 紀錄與成本追蹤 |
-
-## Subdomain Groupings
-
-| Group | Subdomains |
-|---|---|
-| Core Execution | generation、orchestration、distillation |
-| Knowledge Access | retrieval、memory、context |
-| Quality & Safety | safety、evaluation、tracing |
-| Extended Capability | tool-calling、reasoning、conversation |
-
-## Recommended Gap Subdomains
-
-| Subdomain | 功能註解 |
-|---|---|
-| provider-routing | 模型供應商選擇與路由治理 |
-| model-policy | 模型能力、版本與使用政策 |
-
-- generation 子域已有 Genkit 實作（`GenkitAiTextGenerationAdapter`）。
-- 其餘子域為骨架狀態，依需求逐步實作。
-
-## Distillation 說明
-
-distillation 將多段 AI 輸出或長文濃縮為精煉、可引用的知識片段，與 generation 的差異在於：
-
-- generation：輸入 prompt → 輸出文字。
-- distillation：輸入多段內容 → 輸出 overview、highlights 與其他 schema-ready knowledge fragments。
-
-下游（如 notebooklm）消費 distillation 能力，但 distillation 的輸出語義屬於 ai，不屬於 notebooklm 的推理輸出。
-
-### Distilled Rules
-
-- distillation 應被視為 knowledge compiler，而不是只做單一 summary 字串回傳。
-- memory 應優先吸收 distilled output，避免 raw content 直接放大 token 與成本。
-- retrieval 若可選擇資料來源，應優先使用 distilled chunks 或 structured knowledge signal。
-- evaluation 應把 distillation 視為正式品質對象，至少檢查 compression、retention 與 hallucination 風險。
-- 大型蒸餾流程應優先走 async pipeline，而不是把重工作壓在同步入口。
-
-## Anti-Patterns
-
-- 不把 distillation 子域當成 notebooklm 的 synthesis 子域的替代品；兩者語義不同。
-- 不把 retrieval 混成 notion 的知識查詢；ai retrieval 是通用向量能力。
-- 不把 conversation 子域等同 notebooklm 的 Conversation aggregate。
-- 不在 subdomain domain 層 import 任何 LLM SDK 或 Firebase 相關依賴。
-
-## Copilot Generation Rules
-
-- 新 AI use case 先對應到上表某個子域，再決定 port 位置與 adapter 實作。
-- 若 distillation 只是 summarize 的變體，先在 generation 子域新增 use case，確認不夠後才升至 distillation 子域。
-- 奧卡姆剃刀：子域骨架存在不代表需要立即填滿所有層；按需實作。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case (application)"]
-	UseCase --> Port["Port (domain)"]
-	Infra["Infrastructure adapter"] -. implements .-> Port
-```
-
-## Correct Subdomain Interaction
-
-```mermaid
-flowchart LR
-	Orchestration["orchestration"] --> Generation["generation"]
-	Orchestration --> Distillation["distillation"]
-	Orchestration --> Retrieval["retrieval"]
-	Context["context"] --> Orchestration
-	Memory["memory"] --> Context
-	Safety["safety"] --> Orchestration
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [subdomains.md](../../domain/subdomains.md)
 ````
 
 ## File: docs/structure/contexts/ai/ddd-strategic-design.md

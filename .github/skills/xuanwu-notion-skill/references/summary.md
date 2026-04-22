@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-88 files | 1,707 lines
+88 files | 1,736 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 76 | 957 |
+| TypeScript | 76 | 986 |
 | Markdown | 8 | 621 |
 | TypeScript (TSX) | 4 | 129 |
 
@@ -54,10 +54,10 @@ This skill contains the following reference files:
 - `docs/structure/contexts/notion/README.md` (117 lines)
 - `docs/structure/contexts/notion/AGENTS.md` (109 lines)
 - `docs/structure/contexts/notion/ubiquitous-language.md` (93 lines)
-- `docs/structure/contexts/notion/context-map.md` (78 lines)
 - `docs/structure/contexts/notion/bounded-contexts.md` (78 lines)
+- `docs/structure/contexts/notion/context-map.md` (78 lines)
 - `src/modules/notion/adapters/outbound/firebase-composition.ts` (76 lines)
 - `docs/structure/contexts/notion/subdomains.md` (72 lines)
 - `src/modules/notion/subdomains/knowledge/domain/entities/KnowledgeArtifact.ts` (72 lines)
+- `src/modules/notion/subdomains/page/domain/entities/Page.ts` (70 lines)
 - `src/modules/notion/subdomains/block/domain/entities/Block.ts` (68 lines)
-- `src/modules/notion/subdomains/page/domain/entities/Page.ts` (66 lines)

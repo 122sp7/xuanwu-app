@@ -42,16 +42,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-64 files | 1,969 lines
+64 files | 1,990 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 52 | 1,160 |
 | Markdown | 8 | 581 |
-| TypeScript (TSX) | 4 | 228 |
+| TypeScript (TSX) | 4 | 249 |
 
 **Largest files:**
-- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (157 lines)
+- `src/modules/notebooklm/adapters/inbound/react/NotebooklmSourcesSection.tsx` (178 lines)
 - `src/modules/notebooklm/subdomains/source/adapters/outbound/firestore/FirestoreIngestionSourceRepository.ts` (119 lines)
 - `src/modules/notebooklm/adapters/outbound/firebase-composition.ts` (119 lines)
 - `src/modules/notebooklm/subdomains/source/domain/entities/IngestionSource.ts` (117 lines)
