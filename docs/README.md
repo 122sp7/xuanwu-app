@@ -28,9 +28,9 @@
 
 ## PROJECT STRUCTURE
 
-- [structure/system](./structure/system)：全域架構、整合規範、context map
-- [structure/domain](./structure/domain)：主域、子域、術語與模板
-- [structure/contexts](./structure/contexts)：各 context 本地文件
+- [structure/system](./structure/system)（[AGENTS.md](./structure/system/AGENTS.md)、[README.md](./structure/system/README.md)）：全域架構、整合規範、context map、strategic patterns、delivery milestones
+- [structure/domain](./structure/domain)（[AGENTS.md](./structure/domain/AGENTS.md)、[README.md](./structure/domain/README.md)）：主域、子域、術語與模板、DDD 戰略設計
+- [structure/contexts](./structure/contexts)：各 context 本地文件（8 個 bounded context）
 - [decisions](./decisions)：ADR 與決策索引
 - [examples](./examples)：功能與端到端示例
 

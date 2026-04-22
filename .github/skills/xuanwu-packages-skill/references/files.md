@@ -3416,6 +3416,75 @@ export type WorkspaceId = typeof WorkspaceIdSchema._type
 - `z.object().passthrough()` 禁止用於生產資料路徑。
 ````
 
+## File: packages/integration-ai/AGENTS.md
+````markdown
+# integration-ai — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `genkit.ts`
+- `index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/integration-ai/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
+
+此套件是 **AI 服務整合的唯一封裝層**：Genkit、Google AI、OpenAI。
+AI 能力的 provider 設定與 flow 呼叫必須集中在此，業務層不得直接 import AI SDK。
+
+---
+
+## Route Here
+
+| 類型 | 說明 |
+|---|---|
+| Genkit flow 呼叫 | `runGenkitFlow(flowName, input)` — flow 呼叫入口 |
+| AI provider 初始化 | Google AI / OpenAI client 設定 |
+| AI 服務 API 型別 | `GenerateRequest`、`GenerateResponse` 等共用型別 |
+| Safety / policy 設定原語 | 供 `src/modules/ai/` 消費的 policy config |
+
+## Route Elsewhere
+
+| 類型 | 正確位置 |
+|---|---|
+| AI 業務邏輯（prompt 組裝、RAG 流程） | `src/modules/ai/` |
+| Notebook 推理流程 | `src/modules/notebooklm/` |
+| Genkit flow **定義**（非呼叫） | `src/modules/ai/` 或 fn/ |
+
+---
+
+## 嚴禁
+
+```ts
+// ❌ 在 modules/notebooklm 直接 import AI SDK
+import { generate } from '@genkit-ai/core'
+
+// ✅ 透過此套件或 modules/ai 邊界
+import { runGenkitFlow } from '@integration-ai'
+```
+
+- 不得在此套件加入業務 prompt 範本或 RAG 邏輯
+- 不得 import `src/modules/*`
+- 環境設定只能來自 env vars（`GOOGLE_AI_API_KEY` 等）
+
+## Alias
+
+```ts
+import { ... } from '@integration-ai'
+```
+````
+
 ## File: packages/integration-ai/README.md
 ````markdown
 # integration-ai
@@ -3715,6 +3784,71 @@ import {
   - 維持 modular import（`firebase/app`, `firebase/auth`, `firebase/firestore`, `firebase/storage`, `firebase/functions`）。
   - App 初始化維持 singleton（`getApps().length === 0 ? initializeApp(...) : getApp()`）。
   - 僅封裝 SDK 能力，不在此層加入業務規則。
+````
+
+## File: packages/integration-queue/AGENTS.md
+````markdown
+# integration-queue — Agent Rules
+
+<!-- nested-index:start -->
+## Immediate Index
+
+- Pair: [README.md](README.md)
+- Parent AGENTS: [AGENTS.md](../AGENTS.md)
+- Parent README: [README.md](../README.md)
+- Public boundary: [index.ts](index.ts)
+
+## Package / Directory Index
+
+- `index.ts`
+
+## Drift Guard
+
+- `AGENTS.md` 擁有 `packages/integration-queue/` 的 routing 與 nested index。
+- `README.md` 保留同節點的人類可讀概覽。
+<!-- nested-index:end -->
+
+
+此套件是 **訊息佇列整合的唯一封裝層**：QStash、Google Cloud Tasks。
+
+---
+
+## Route Here
+
+| 類型 | 說明 |
+|---|---|
+| QStash 訊息發布 | `publishToQueue(topic, payload)` |
+| Cloud Tasks 任務建立 | `enqueueCloudTask(queue, url, payload)` |
+| Queue 設定原語 | topic 名稱常數、delivery 設定 |
+
+## Route Elsewhere
+
+| 類型 | 正確位置 |
+|---|---|
+| 業務任務內容與邏輯 | `src/modules/<context>/application/` |
+| 背景工作處理 handler | `src/app/api/` 或 `fn/` |
+
+---
+
+## 嚴禁
+
+```ts
+// ❌ 在 domain 直接 import queue SDK
+import { Client } from '@upstash/qstash'
+
+// ✅ 透過此套件
+import { publishToQueue } from '@integration-queue'
+```
+
+- 不得在此套件包含業務 payload 建構邏輯
+- 不得 import `src/modules/*`
+- 憑證只能來自 env vars（`QSTASH_TOKEN` 等）
+
+## Alias
+
+```ts
+import { ... } from '@integration-queue'
+```
 ````
 
 ## File: packages/integration-queue/README.md
@@ -4938,251 +5072,6 @@ import { XuanwuLineChart, XuanwuBarChart, XuanwuPieChart } from '@ui-visualizati
 - `ResponsiveContainer` + percentage 寬高為標準響應式模式。
 ````
 
-## File: packages/AGENTS.md
-````markdown
-# packages — Agent Rules
-
-## Immediate Index
-
-- Parent: [../AGENTS.md](../AGENTS.md)
-- Pair: [README.md](README.md)
-- Infra subgroup: [infra/AGENTS.md](infra/AGENTS.md)
-
-## Package Index
-
-### infra
-- `infra/` —  ([AGENTS.md](infra/AGENTS.md) / [README.md](infra/README.md))
-
-### integration
-- `integration-ai/` — AI 服務整合封裝；SDK 細節應留在這裡。 ([AGENTS.md](integration-ai/AGENTS.md) / [README.md](integration-ai/README.md))
-- `integration-firebase/` — Firebase Client SDK 封裝；modules/app 不直接 import Firebase SDK。 ([AGENTS.md](integration-firebase/AGENTS.md) / [README.md](integration-firebase/README.md))
-- `integration-queue/` — 佇列與訊息發布整合封裝。 ([AGENTS.md](integration-queue/AGENTS.md) / [README.md](integration-queue/README.md))
-
-### ui
-- `ui-components/` — 共享自訂 UI 元件層。 ([AGENTS.md](ui-components/AGENTS.md) / [README.md](ui-components/README.md))
-- `ui-dnd/` — 拖放能力封裝；消費端需以 client component 使用。 ([AGENTS.md](ui-dnd/AGENTS.md) / [README.md](ui-dnd/README.md))
-- `ui-editor/` — 富文本編輯器封裝。 ([AGENTS.md](ui-editor/AGENTS.md) / [README.md](ui-editor/README.md))
-- `ui-markdown/` — Markdown 渲染封裝。 ([AGENTS.md](ui-markdown/AGENTS.md) / [README.md](ui-markdown/README.md))
-- `ui-shadcn/` — shadcn/ui 官方輸出目錄；`ui/` 仍由 CLI 管理。 ([AGENTS.md](ui-shadcn/AGENTS.md) / [README.md](ui-shadcn/README.md))
-- `ui-vis/` — vis.js family 圖形 / 時間軸封裝；以實際匯出為準。 ([AGENTS.md](ui-vis/AGENTS.md) / [README.md](ui-vis/README.md))
-- `ui-visualization/` — Recharts 視覺化封裝。 ([AGENTS.md](ui-visualization/AGENTS.md) / [README.md](ui-visualization/README.md))
-
-## Routing Rules
-
-- 外部 SDK 封裝與共享 UI / infra 原語放在 `packages/`。
-- 業務規則仍回到 `src/modules/<context>/`。
-- 子套件清單以實際目錄為準，不再手動維護易漂移的省略表。
-
-## Drift Guard
-
-- `AGENTS.md` 管 nested index 與放置決策。
-- `README.md` 管 packages 層總覽。
-````
-
-## File: packages/infra/AGENTS.md
-````markdown
-# infra — Agent Rules
-
-## Immediate Index
-
-- Parent: [../AGENTS.md](../AGENTS.md)
-- Pair: [README.md](README.md)
-
-## Subpackage Index
-
-- `client-state/` — client-side 狀態原語。 ([AGENTS.md](client-state/AGENTS.md) / [README.md](client-state/README.md))
-- `date/` — 日期與時間工具原語。 ([AGENTS.md](date/AGENTS.md) / [README.md](date/README.md))
-- `form/` — headless 表單狀態原語。 ([AGENTS.md](form/AGENTS.md) / [README.md](form/README.md))
-- `http/` — HTTP 工具原語。 ([AGENTS.md](http/AGENTS.md) / [README.md](http/README.md))
-- `query/` — server-state query 原語。 ([AGENTS.md](query/AGENTS.md) / [README.md](query/README.md))
-- `serialization/` — 序列化 / 反序列化原語。 ([AGENTS.md](serialization/AGENTS.md) / [README.md](serialization/README.md))
-- `state/` — Zustand / XState 封裝原語。 ([AGENTS.md](state/AGENTS.md) / [README.md](state/README.md))
-- `table/` — headless 表格原語。 ([AGENTS.md](table/AGENTS.md) / [README.md](table/README.md))
-- `trpc/` — tRPC client / provider 原語。 ([AGENTS.md](trpc/AGENTS.md) / [README.md](trpc/README.md))
-- `uuid/` — UUID 生成與驗證原語。 ([AGENTS.md](uuid/AGENTS.md) / [README.md](uuid/README.md))
-- `virtual/` — 長清單虛擬化原語。 ([AGENTS.md](virtual/AGENTS.md) / [README.md](virtual/README.md))
-- `zod/` — Zod schema helper 原語。 ([AGENTS.md](zod/AGENTS.md) / [README.md](zod/README.md))
-
-## Routing Rules
-
-- `packages/infra/*` 只放本地 infra primitive。
-- 需要外部服務 / credentials / network 的能力改放 `packages/integration-*`。
-- 子套件清單以實際目錄為準。
-
-## Drift Guard
-
-- `AGENTS.md` 管 routing 與 nested index。
-- `README.md` 管 infra 子套件總覽。
-````
-
-## File: packages/integration-ai/AGENTS.md
-````markdown
-# integration-ai — Agent Rules
-
-<!-- nested-index:start -->
-## Immediate Index
-
-- Pair: [README.md](README.md)
-- Parent AGENTS: [AGENTS.md](../AGENTS.md)
-- Parent README: [README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Package / Directory Index
-
-- `genkit.ts`
-- `index.ts`
-
-## Drift Guard
-
-- `AGENTS.md` 擁有 `packages/integration-ai/` 的 routing 與 nested index。
-- `README.md` 保留同節點的人類可讀概覽。
-<!-- nested-index:end -->
-
-
-此套件是 **AI 服務整合的唯一封裝層**：Genkit、Google AI、OpenAI。
-AI 能力的 provider 設定與 flow 呼叫必須集中在此，業務層不得直接 import AI SDK。
-
----
-
-## Route Here
-
-| 類型 | 說明 |
-|---|---|
-| Genkit flow 呼叫 | `runGenkitFlow(flowName, input)` — flow 呼叫入口 |
-| AI provider 初始化 | Google AI / OpenAI client 設定 |
-| AI 服務 API 型別 | `GenerateRequest`、`GenerateResponse` 等共用型別 |
-| Safety / policy 設定原語 | 供 `src/modules/ai/` 消費的 policy config |
-
-## Route Elsewhere
-
-| 類型 | 正確位置 |
-|---|---|
-| AI 業務邏輯（prompt 組裝、RAG 流程） | `src/modules/ai/` |
-| Notebook 推理流程 | `src/modules/notebooklm/` |
-| Genkit flow **定義**（非呼叫） | `src/modules/ai/` 或 fn/ |
-
----
-
-## 嚴禁
-
-```ts
-// ❌ 在 modules/notebooklm 直接 import AI SDK
-import { generate } from '@genkit-ai/core'
-
-// ✅ 透過此套件或 modules/ai 邊界
-import { runGenkitFlow } from '@integration-ai'
-```
-
-- 不得在此套件加入業務 prompt 範本或 RAG 邏輯
-- 不得 import `src/modules/*`
-- 環境設定只能來自 env vars（`GOOGLE_AI_API_KEY` 等）
-
-## Alias
-
-```ts
-import { ... } from '@integration-ai'
-```
-````
-
-## File: packages/integration-queue/AGENTS.md
-````markdown
-# integration-queue — Agent Rules
-
-<!-- nested-index:start -->
-## Immediate Index
-
-- Pair: [README.md](README.md)
-- Parent AGENTS: [AGENTS.md](../AGENTS.md)
-- Parent README: [README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Package / Directory Index
-
-- `index.ts`
-
-## Drift Guard
-
-- `AGENTS.md` 擁有 `packages/integration-queue/` 的 routing 與 nested index。
-- `README.md` 保留同節點的人類可讀概覽。
-<!-- nested-index:end -->
-
-
-此套件是 **訊息佇列整合的唯一封裝層**：QStash、Google Cloud Tasks。
-
----
-
-## Route Here
-
-| 類型 | 說明 |
-|---|---|
-| QStash 訊息發布 | `publishToQueue(topic, payload)` |
-| Cloud Tasks 任務建立 | `enqueueCloudTask(queue, url, payload)` |
-| Queue 設定原語 | topic 名稱常數、delivery 設定 |
-
-## Route Elsewhere
-
-| 類型 | 正確位置 |
-|---|---|
-| 業務任務內容與邏輯 | `src/modules/<context>/application/` |
-| 背景工作處理 handler | `src/app/api/` 或 `fn/` |
-
----
-
-## 嚴禁
-
-```ts
-// ❌ 在 domain 直接 import queue SDK
-import { Client } from '@upstash/qstash'
-
-// ✅ 透過此套件
-import { publishToQueue } from '@integration-queue'
-```
-
-- 不得在此套件包含業務 payload 建構邏輯
-- 不得 import `src/modules/*`
-- 憑證只能來自 env vars（`QSTASH_TOKEN` 等）
-
-## Alias
-
-```ts
-import { ... } from '@integration-queue'
-```
-````
-
-## File: packages/README.md
-````markdown
-# packages
-
-`packages/` 是共享 infra primitive、外部整合封裝與 UI package 的目錄。這份索引只維護實際子套件清單。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../AGENTS.md](../AGENTS.md)
-- Infra subgroup: [infra/README.md](infra/README.md) / [infra/AGENTS.md](infra/AGENTS.md)
-
-## Package Index（actual directories）
-
-| Package | Overview | Agent entry | Public boundary |
-|---|---|---|---|
-| `infra/` | [README.md](infra/README.md) | [AGENTS.md](infra/AGENTS.md) | — |
-| `integration-ai/` | [README.md](integration-ai/README.md) | [AGENTS.md](integration-ai/AGENTS.md) | [index.ts](integration-ai/index.ts) |
-| `integration-firebase/` | [README.md](integration-firebase/README.md) | [AGENTS.md](integration-firebase/AGENTS.md) | [index.ts](integration-firebase/index.ts) |
-| `integration-queue/` | [README.md](integration-queue/README.md) | [AGENTS.md](integration-queue/AGENTS.md) | [index.ts](integration-queue/index.ts) |
-| `ui-components/` | [README.md](ui-components/README.md) | [AGENTS.md](ui-components/AGENTS.md) | [index.ts](ui-components/index.ts) |
-| `ui-dnd/` | [README.md](ui-dnd/README.md) | [AGENTS.md](ui-dnd/AGENTS.md) | [index.ts](ui-dnd/index.ts) |
-| `ui-editor/` | [README.md](ui-editor/README.md) | [AGENTS.md](ui-editor/AGENTS.md) | [index.ts](ui-editor/index.ts) |
-| `ui-markdown/` | [README.md](ui-markdown/README.md) | [AGENTS.md](ui-markdown/AGENTS.md) | — |
-| `ui-shadcn/` | [README.md](ui-shadcn/README.md) | [AGENTS.md](ui-shadcn/AGENTS.md) | [index.ts](ui-shadcn/index.ts) |
-| `ui-vis/` | [README.md](ui-vis/README.md) | [AGENTS.md](ui-vis/AGENTS.md) | [index.ts](ui-vis/index.ts) |
-| `ui-visualization/` | [README.md](ui-visualization/README.md) | [AGENTS.md](ui-visualization/AGENTS.md) | — |
-
-## Pair Contract
-
-- `README.md` 維護 packages 層的實際索引。
-- `AGENTS.md` 維護 routing / placement 決策。
-````
-
 ## File: packages/ui-components/index.ts
 ````typescript
 /**
@@ -5218,6 +5107,94 @@ export const EmptyState = (
  * Typically used with short-lived signed URLs for private files.
  */
 export const createGoogleViewerEmbedUrl = (sourceUrl: string): string
+````
+
+## File: packages/AGENTS.md
+````markdown
+# packages Agent Rules
+
+## ROLE
+
+- The agent MUST treat packages as the shared package surface for infra primitives, external integrations, and reusable UI packages.
+- The agent MUST keep business ownership in src/modules rather than moving domain logic into packages.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep local primitives in packages/infra.
+- The agent MUST keep SDK and service wrappers in integration packages.
+- The agent MUST keep reusable presentation concerns in UI packages.
+
+## TOOL USAGE
+
+- The agent MUST validate package paths and boundaries before edits.
+- The agent MUST keep package references synchronized with actual directories.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../AGENTS.md](../AGENTS.md) first.
+- The agent MUST select the correct child package before editing leaf docs.
+- The agent MUST update [README.md](README.md) with this file when routing changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep package purpose descriptions explicit and stable.
+- The agent MUST keep index links valid and current.
+
+## CONSTRAINTS
+
+- The agent MUST NOT place business rules in packages.
+- The agent MUST NOT duplicate docs-owned strategic architecture here.
+
+## Route Here When
+
+- You update shared infra, integration, or UI package routing and governance.
+
+## Route Elsewhere When
+
+- Business capability ownership: [../src/modules/AGENTS.md](../src/modules/AGENTS.md)
+- Strategic architecture decisions: [../docs/README.md](../docs/README.md)
+````
+
+## File: packages/infra/AGENTS.md
+````markdown
+# infra Agent Rules
+
+## ROLE
+
+- The agent MUST treat packages/infra as the home for local infra primitives used across the repo.
+- The agent MUST keep infra focused on reusable technical primitives, not external service wrappers or business logic.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep client-state, date, form, http, query, serialization, state, table, trpc, uuid, virtual, and zod primitives inside packages/infra.
+- The agent MUST route external-service wrappers to integration packages.
+
+## TOOL USAGE
+
+- The agent MUST validate child package paths before edits.
+- The agent MUST keep subpackage references synchronized with actual directories.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../AGENTS.md](../AGENTS.md) first.
+- The agent MUST select the correct infra child before editing leaf docs.
+- The agent MUST update [README.md](README.md) with this file when routing changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep primitive package purpose descriptions explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT place service credentials, SDK wrappers, or business rules in packages/infra.
+
+## Route Here When
+
+- You update local infra primitive routing or governance.
+
+## Route Elsewhere When
+
+- External integrations: [../integration-ai/AGENTS.md](../integration-ai/AGENTS.md)
 ````
 
 ## File: packages/infra/date/AGENTS.md
@@ -5464,36 +5441,113 @@ import {
 - 業務 query function 與 query key 留在 owning module
 ````
 
+## File: packages/README.md
+````markdown
+# packages
+
+## PURPOSE
+
+packages 目錄承接共享 infra primitive、外部整合封裝與可重用 UI package。
+它提供跨模組共用能力，但不承接業務語言所有權。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../docs/README.md](../docs/README.md)
+
+## ARCHITECTURE
+
+packages 由 infra、integration-* 與 ui-* 三類共享套件構成。
+業務規則仍應留在 src/modules，packages 只提供共用技術能力。
+
+## PROJECT STRUCTURE
+
+- [infra](infra)
+- [integration-ai](integration-ai)
+- [integration-firebase](integration-firebase)
+- [integration-queue](integration-queue)
+- [ui-components](ui-components)
+- [ui-dnd](ui-dnd)
+- [ui-editor](ui-editor)
+- [ui-markdown](ui-markdown)
+- [ui-shadcn](ui-shadcn)
+- [ui-vis](ui-vis)
+- [ui-visualization](ui-visualization)
+
+## DEVELOPMENT RULES
+
+- MUST keep shared technical capability in packages.
+- MUST keep business ownership in src/modules.
+- MUST keep package boundaries explicit and stable.
+- MUST avoid duplicating strategic docs here.
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Infra subgroup: [infra/README.md](infra/README.md)
+- Strategic authority: [../docs/README.md](../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內判斷共享能力應放在 infra、integration 或 ui 套件。
+- 可在 3 分鐘內定位適合的 package 子樹。
+````
+
 ## File: packages/infra/README.md
 ````markdown
 # packages/infra
 
-`packages/infra/` 是本 repo 的本地 infra primitive 集合。這份文件只維護實際子套件索引。
+## PURPOSE
 
-## Navigation Index
+packages/infra 提供 repo 內共用的本地 infra primitive，例如 state、query、http、serialization 與 zod helpers。
+它只承接技術原語，不承接外部服務整合或業務規則。
 
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
+## GETTING STARTED
 
-## Subpackage Index（actual directories）
+先閱讀：
 
-| Package | Overview | Agent entry | Public boundary |
-|---|---|---|---|
-| `client-state/` | [README.md](client-state/README.md) | [AGENTS.md](client-state/AGENTS.md) | [index.ts](client-state/index.ts) |
-| `date/` | [README.md](date/README.md) | [AGENTS.md](date/AGENTS.md) | [index.ts](date/index.ts) |
-| `form/` | [README.md](form/README.md) | [AGENTS.md](form/AGENTS.md) | [index.ts](form/index.ts) |
-| `http/` | [README.md](http/README.md) | [AGENTS.md](http/AGENTS.md) | [index.ts](http/index.ts) |
-| `query/` | [README.md](query/README.md) | [AGENTS.md](query/AGENTS.md) | [index.ts](query/index.ts) |
-| `serialization/` | [README.md](serialization/README.md) | [AGENTS.md](serialization/AGENTS.md) | [index.ts](serialization/index.ts) |
-| `state/` | [README.md](state/README.md) | [AGENTS.md](state/AGENTS.md) | [index.ts](state/index.ts) |
-| `table/` | [README.md](table/README.md) | [AGENTS.md](table/AGENTS.md) | [index.ts](table/index.ts) |
-| `trpc/` | [README.md](trpc/README.md) | [AGENTS.md](trpc/AGENTS.md) | [index.ts](trpc/index.ts) |
-| `uuid/` | [README.md](uuid/README.md) | [AGENTS.md](uuid/AGENTS.md) | [index.ts](uuid/index.ts) |
-| `virtual/` | [README.md](virtual/README.md) | [AGENTS.md](virtual/AGENTS.md) | [index.ts](virtual/index.ts) |
-| `zod/` | [README.md](zod/README.md) | [AGENTS.md](zod/AGENTS.md) | [index.ts](zod/index.ts) |
+1. [AGENTS.md](AGENTS.md)
+2. [../README.md](../README.md)
+3. [../../docs/README.md](../../docs/README.md)
 
-## Pair Contract
+## ARCHITECTURE
 
-- `README.md` 維護 infra 子套件實際索引。
-- `AGENTS.md` 維護放置與 routing 規則。
+packages/infra 由多個本地 primitive 子套件構成，供 modules 與其他 packages 重用。
+外部 SDK 或服務封裝應留在 integration packages，而不是 infra。
+
+## PROJECT STRUCTURE
+
+- [client-state](client-state)
+- [date](date)
+- [form](form)
+- [http](http)
+- [query](query)
+- [serialization](serialization)
+- [state](state)
+- [table](table)
+- [trpc](trpc)
+- [uuid](uuid)
+- [virtual](virtual)
+- [zod](zod)
+
+## DEVELOPMENT RULES
+
+- MUST keep only local technical primitives in packages/infra.
+- MUST route external integrations to integration packages.
+- MUST keep package purposes explicit and stable.
+- MUST avoid business ownership here.
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent package index: [../README.md](../README.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內判斷某個共享技術能力是否應落在 infra。
+- 可在 3 分鐘內定位對應 primitive 子套件。
 ````

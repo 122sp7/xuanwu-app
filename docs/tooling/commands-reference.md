@@ -38,7 +38,6 @@
 - `npm run repomix:modules-billing` — Generate the billing modules-focused skill (`xuanwu-modules-billing-skill`)
 - `npm run repomix:modules-iam` — Generate the IAM modules-focused skill (`xuanwu-modules-iam-skill`)
 - `npm run repomix:modules-platform` — Generate the platform modules-focused skill (`xuanwu-modules-platform-skill`)
-- `npm run repomix:modules-src` — Generate the src aggregate modules skill (`xuanwu-modules-src-skill`)
 - `npm run repomix:modules-notebooklm` — Generate the notebooklm modules-focused skill (`xuanwu-modules-notebooklm-skill`)
 - `npm run repomix:modules-notion` — Generate the notion modules-focused skill (`xuanwu-modules-notion-skill`)
 - `npm run repomix:modules-workspace` — Generate the workspace modules-focused skill (`xuanwu-modules-workspace-skill`)

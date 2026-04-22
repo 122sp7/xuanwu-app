@@ -1,5 +1,8 @@
 ﻿# Tooling Documentation + AI Agent Instruction Design
 
+> **此文件的角色**：解釋 `.github/` 層級如何組織的「設計決策文檔」，而非「操作規則集」。
+> 它描述「為什麼這樣組織」而不是「應該做什麼」。若要了解「應該做什麼」，讀 [AGENTS.md](./AGENTS.md) 或 [copilot-instructions.md](./copilot-instructions.md)。
+
 ## Goal
 
 讓 `.github/` 文件成為「可執行路由層」：
