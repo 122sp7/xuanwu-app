@@ -231,7 +231,11 @@ export function NotionPagesSection({
                           </div>
                         )}
                         <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                          <span>{page.blockIds.length} 個內容區塊</span>
+                          {page.sourceText ? (
+                            <span>{page.sourceText.length.toLocaleString()} 字來源文字</span>
+                          ) : page.blockIds.length > 0 ? (
+                            <span>{page.blockIds.length} 個內容區塊</span>
+                          ) : null}
                           {page.sourceLabel && <span>來源：{page.sourceLabel}</span>}
                         </div>
                       </div>

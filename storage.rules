@@ -21,5 +21,14 @@ service firebase.storage {
     match /workspace-files/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
+
+    // Parsed document artifact JSON files written by the fn pipeline
+    // (Layout, Form, OCR, Genkit parsers).  Authenticated read is required
+    // so the browser can call getDownloadURL() and load artifact content
+    // for Page / Database creation.  Write is intentionally absent —
+    // only the fn Admin SDK may write to this path.
+    match /files/{allPaths=**} {
+      allow read: if request.auth != null;
+    }
   }
 }
