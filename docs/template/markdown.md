@@ -171,16 +171,16 @@
 
 ### AGENTS.md
 
-* MUST use UseCase
-* MUST NOT direct DB access
-* MUST validate input
-* MUST follow execution flow
+- MUST use UseCase
+- MUST NOT direct DB access
+- MUST validate input
+- MUST follow execution flow
 
 ### README.md
 
-* MUST run in 5 min
-* MUST explain system in 1 min
-* MUST show where to modify
+- MUST run in 5 min
+- MUST explain system in 1 min
+- MUST show where to modify
 
 ---
 
