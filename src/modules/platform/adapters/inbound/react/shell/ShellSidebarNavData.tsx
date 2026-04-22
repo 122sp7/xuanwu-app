@@ -61,6 +61,7 @@ export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.Rea
   teams: { label: SHELL_SECTION_LABELS.teams, icon: <Users className="size-3" /> },
   permissions: { label: SHELL_SECTION_LABELS.permissions, icon: <Settings2 className="size-3" /> },
   organization: { label: SHELL_SECTION_LABELS.organization, icon: <Users className="size-3" /> },
+  calendar: { label: SHELL_SECTION_LABELS.calendar, icon: <CalendarDays className="size-3" /> },
   other: { label: SHELL_SECTION_LABELS.other, icon: null },
 };
 

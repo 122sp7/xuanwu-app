@@ -11,6 +11,7 @@ export type ShellNavSection =
   | "teams"
   | "permissions"
   | "organization"
+  | "calendar"
   | "other";
 
 export interface ShellNavItem {
@@ -52,6 +53,7 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "schedule",
   "daily",
   "audit",
+  "calendar",
 ]);
 
 const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set([
@@ -65,6 +67,7 @@ const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set([
   "schedule",
   "daily",
   "audit",
+  "calendar",
 ]);
 
 const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set<string>([]);
@@ -212,6 +215,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/schedule": "帳號 · 調度台",
   "/schedule/dispatcher": "帳號 · 調度台",
   "/audit": "帳號 · 日誌",
+  "/calendar": "日曆",
   "/workspace": "工作區中心",
   "/dashboard": "儀表板",
   // Workspace tabs (query-param based, resolved via workspace:${tab} key in resolveShellPageTitle)
@@ -256,6 +260,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   schedule: "調度台",
   daily: "每日",
   audit: "日誌",
+  calendar: "日曆",
   "task-formation": "任務形成",
   tasks: "任務",
   quality: "質檢",
@@ -289,6 +294,7 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
   teams: "團隊",
   permissions: "權限",
   organization: "組織",
+  calendar: "日曆",
   other: "導覽",
 };
 
@@ -297,6 +303,7 @@ export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
 export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
   { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
   { id: "dashboard", href: "/dashboard", label: "儀表板", requiresOrganization: false, activeRoutePrefix: "/dashboard" },
+  { id: "calendar", href: "/calendar", label: "日曆", requiresOrganization: false, activeRoutePrefix: "/calendar" },
   { id: "settings", href: "/settings", label: "設定", requiresOrganization: false, activeRoutePrefix: "/settings" },
   { id: "org-members", href: "/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/members" },
   { id: "org-teams", href: "/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/teams" },
@@ -365,6 +372,7 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
 
   if (normalizedPathname.startsWith("/workspace")) return "workspace";
   if (normalizedPathname.startsWith("/dashboard")) return "dashboard";
+  if (normalizedPathname === "/calendar" || normalizedPathname.startsWith("/calendar/")) return "calendar";
   if (normalizedPathname === "/schedule" || normalizedPathname.startsWith("/schedule/")) return "schedule";
   if (normalizedPathname === "/daily" || normalizedPathname.startsWith("/daily/")) return "daily";
   if (normalizedPathname === "/audit" || normalizedPathname.startsWith("/audit/")) return "audit";

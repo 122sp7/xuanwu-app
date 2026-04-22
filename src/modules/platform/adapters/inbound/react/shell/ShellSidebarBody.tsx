@@ -20,6 +20,7 @@ import {
   sidebarSectionTitleClass,
 } from "./ShellSidebarNavData";
 import { ShellContextNavSection } from "./ShellContextNavSection";
+import { CalendarSidebarPanel } from "./CalendarSidebarPanel";
 
 interface NavItem {
   id: string;
@@ -277,6 +278,10 @@ export function DashboardSidebarBody({
             </p>
           </nav>
         </div>
+      )}
+
+      {section === "calendar" && (
+        <CalendarSidebarPanel />
       )}
 
       {section === "workspace" && (

@@ -225,6 +225,8 @@ export {
 export {
   createGoogleViewerEmbedUrl,
   GOOGLE_VIEWER_PREVIEWABLE_TYPES,
+  GoogleDocViewerModal,
+  type GoogleDocViewerModalProps,
 } from "./integration-google";
 
 // ─── ui-components ────────────────────────────────────────────────────────────

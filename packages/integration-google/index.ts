@@ -1,9 +1,13 @@
 /**
  * @module integration-google
- * Google 服務整合層：Google Docs Viewer embed URL 建構、MIME 類型白名單。
+ * Google 服務整合層：Google Docs Viewer embed URL 建構、MIME 類型白名單、
+ * GoogleDocViewerModal React 元件。
  *
  * 此套件封裝所有對外部 Google 服務的依賴。
  * UI 層透過此套件消費 Google Viewer URL 建構邏輯，不得直接組裝 Google 端點字串。
+ *
+ * googleapis / google-auth-library 的 server-side 用法透過各自模組的
+ * infrastructure adapter 使用，不在此 barrel 直接 re-export（避免 client bundle 污染）。
  */
 
 /**
@@ -29,3 +33,10 @@ export const GOOGLE_VIEWER_PREVIEWABLE_TYPES: ReadonlySet<string> = new Set([
   "image/tiff",
   "image/tif",
 ]);
+
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+// React components that are tightly coupled to the Google Docs Viewer surface.
+// These require a "use client" boundary; see GoogleDocViewerModal.tsx.
+export type { GoogleDocViewerModalProps } from "./GoogleDocViewerModal";
+export { GoogleDocViewerModal } from "./GoogleDocViewerModal";
