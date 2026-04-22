@@ -5,7 +5,7 @@ applyTo: 'src/modules/**/domain/**/*.{ts,tsx}'
 
 # 領域模型設計規範 (Domain Modeling)
 
-> 完整邊界參考：**先查 `docs/structure/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
+> 完整邊界參考：**先查 `docs/01-architecture/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 聚合根 (Aggregate Root)

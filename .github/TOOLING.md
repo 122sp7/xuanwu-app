@@ -36,7 +36,7 @@
 | module boundaries / layering | `instructions/architecture-core.instructions.md` | owning module `AGENTS.md` |
 | runtime split (Next.js vs `fn`) | `instructions/architecture-runtime.instructions.md` | context docs |
 | process/decision weight | `instructions/process-framework.instructions.md` | matching prompt |
-| docs naming/authority | `instructions/docs-authority-and-language.instructions.md` | `docs/structure/domain/ubiquitous-language.md` |
+| docs naming/authority | `instructions/docs-authority-and-language.instructions.md` | `docs/01-architecture/domain/ubiquitous-language.md` |
 | implementation workflow | `prompts/README.md` | selected `*.prompt.md` |
 
 ## Prompt Quality Contract

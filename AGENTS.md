@@ -33,7 +33,7 @@
 
 - The agent MUST keep links workspace-relative and valid.
 - The agent MUST keep directory ownership explicit when documenting architecture.
-- The agent MUST keep command references synchronized with [docs/tooling/commands-reference.md](docs/tooling/commands-reference.md).
+- The agent MUST keep command references synchronized with [docs/05-tooling/commands-reference.md](docs/05-tooling/commands-reference.md).
 
 ## CONSTRAINTS
 
@@ -50,7 +50,7 @@
 ## CONSISTENCY
 
 - The agent MUST keep AGENTS and README paired: behavior in AGENTS, overview in README.
-- The agent MUST keep naming aligned with [docs/structure/domain/ubiquitous-language.md](docs/structure/domain/ubiquitous-language.md).
+- The agent MUST keep naming aligned with [docs/01-architecture/domain/ubiquitous-language.md](docs/01-architecture/domain/ubiquitous-language.md).
 - The agent MUST keep dependency direction aligned with architecture rules.
 
 ## SECURITY
@@ -76,7 +76,7 @@
 - [packages/AGENTS.md](packages/AGENTS.md)
 - [fn/AGENTS.md](fn/AGENTS.md)
 - [docs/README.md](docs/README.md)
-- [docs/structure/system/architecture-overview.md](docs/structure/system/architecture-overview.md)
-- [docs/structure/domain/bounded-contexts.md](docs/structure/domain/bounded-contexts.md)
-- [docs/structure/domain/ubiquitous-language.md](docs/structure/domain/ubiquitous-language.md)
-- [docs/tooling/commands-reference.md](docs/tooling/commands-reference.md)
+- [docs/01-architecture/system/architecture-overview.md](docs/01-architecture/system/architecture-overview.md)
+- [docs/01-architecture/domain/bounded-contexts.md](docs/01-architecture/domain/bounded-contexts.md)
+- [docs/01-architecture/domain/ubiquitous-language.md](docs/01-architecture/domain/ubiquitous-language.md)
+- [docs/05-tooling/commands-reference.md](docs/05-tooling/commands-reference.md)

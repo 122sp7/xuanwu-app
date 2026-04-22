@@ -93,4 +93,4 @@ python -m pytest tests/ -v
 - Runtime entry: [main.py](main.py)
 - Config authority: [src/core/config.py](src/core/config.py)
 - Runtime DI: [src/app/container/runtime_dependencies.py](src/app/container/runtime_dependencies.py)
-- Cross-runtime contract reference: [../docs/structure/contexts/ai/cross-runtime-contracts.md](../docs/structure/contexts/ai/cross-runtime-contracts.md)
+- Cross-runtime contract reference: [../docs/01-architecture/contexts/ai/cross-runtime-contracts.md](../docs/01-architecture/contexts/ai/cross-runtime-contracts.md)

@@ -32,7 +32,7 @@
 
 - The agent MUST keep route and module links valid and workspace-relative.
 - The agent MUST keep ownership language aligned with bounded-context terms.
-- The agent MUST keep command guidance synchronized with [../docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md).
+- The agent MUST keep command guidance synchronized with [../docs/05-tooling/commands-reference.md](../docs/05-tooling/commands-reference.md).
 
 ## CONSTRAINTS
 
