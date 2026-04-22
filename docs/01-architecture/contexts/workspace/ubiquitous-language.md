@@ -55,7 +55,7 @@
 | Share Permission | ShareScope |
 | Workspace Log | ActivityFeed 或 AuditTrail |
 | `AccountType = "personal"` | `AccountType = "user"`，顯示語言再另寫個人帳號 |
-| `organizationId`（as workspace route param） | `accountId` |
+| `organizationId` （as workspace route param） | `accountId` |
 | `accountId`（as concrete acting user id） | `creatorUserId` / `currentUserId` |
 | Legacy workspace path `/{accountId}/workspace/{workspaceId}` | Canonical workspace path `/{accountId}/{workspaceId}` |
 

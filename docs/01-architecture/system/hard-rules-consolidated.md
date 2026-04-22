@@ -203,7 +203,7 @@ Cross-reference between `.github/copilot-instructions.md` Mandatory Rules (1-20)
 - ✅ When B needs to know about A's change: A emits event; B subscribes
 - ✅ When B needs data from A: B calls A.api (synchronous)
 - ❌ NO B reading A's Firestore collection directly
-- ✅ Events enable loose coupling; API enables strongcontract
+- ✅ Events enable loose coupling; API enables strong contract
 
 ---
 
