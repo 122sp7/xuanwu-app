@@ -162,9 +162,20 @@ async function loadSourceTextFromArtifactUri(uri: string): Promise<string | unde
   }
 }
 
+/** Heuristically infer a DatabaseProperty type from a sample mention_text value. */
+function inferPropertyType(mentionText: string): "text" | "number" | "date" {
+  const v = mentionText.trim();
+  // Date patterns: YYYY.MM.DD, YYYY-MM-DD, YYYY/MM/DD
+  if (/^\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}$/.test(v)) return "date";
+  // Number patterns: integers, decimals, comma-separated thousands (e.g. 1,134,000)
+  if (/^-?[\d,]+(\.\d+)?$/.test(v.replace(/,/g, ""))) return "number";
+  return "text";
+}
+
 /**
  * Fetch a form-parser artifact JSON and map unique entity.type values to
  * DatabaseProperty definitions so the created Database starts with typed columns.
+ * Type is inferred from the first mention_text value for each property.
  */
 async function entitiesToDatabaseProperties(
   formArtifactUri: string,
@@ -183,7 +194,8 @@ async function entitiesToDatabaseProperties(
       const name = (entity.type ?? "").trim();
       if (name && !seen.has(name.toLowerCase())) {
         seen.add(name.toLowerCase());
-        properties.push({ id: crypto.randomUUID(), name, type: "text" });
+        const mention = (entity.mentionText ?? entity.mention_text ?? "").trim();
+        properties.push({ id: crypto.randomUUID(), name, type: mention ? inferPropertyType(mention) : "text" });
       }
     }
     return properties.length > 0 ? properties : undefined;
@@ -679,6 +691,16 @@ export function NotebooklmSourcesSection({
                 {/* Meta row */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pb-1.5 text-xs text-muted-foreground">
                   <span>{doc.mimeType} · {(doc.sizeBytes / 1024).toFixed(1)} KB</span>
+                  <span className="flex items-center gap-0.5 text-slate-400" title={`上傳時間：${doc.createdAtISO}`}>
+                    <Clock className="size-3" />
+                    {new Date(doc.createdAtISO).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  {doc.ragStatus && (
+                    <span className={`flex items-center gap-0.5 ${doc.ragStatus === "ready" ? "text-purple-600" : "text-red-500"}`} title={`RAG 狀態：${doc.ragStatus}`}>
+                      <BarChart2 className="size-3" />
+                      RAG {doc.ragStatus === "ready" ? "就緒" : doc.ragStatus}
+                    </span>
+                  )}
                   {doc.parsedPageCount != null && (
                     <span className="flex items-center gap-0.5 text-sky-600">
                       <Layers className="size-3" />
