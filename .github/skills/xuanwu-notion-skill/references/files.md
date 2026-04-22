@@ -1883,48 +1883,6 @@ get properties(): DatabaseProperty[]
 getSnapshot(): Readonly<DatabaseSnapshot>
 ````
 
-## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
-````typescript
-/**
- * FirestorePageRepository — Firestore adapter for the page subdomain.
- *
- * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a PageSnapshot directly.
- *
- * MUST be called from a client component, NOT from a Server Action.
- * The Firebase Web Client SDK requires a signed-in user in the browser context
- * so that Firestore Security Rules can evaluate request.auth.
- *
- * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/page/adapters/outbound/firestore/
- * which matches the extended outbound glob.
- */
-⋮----
-import { getFirebaseFirestore, firestoreApi, z } from "@packages";
-import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
-import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
-⋮----
-// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
-⋮----
-function toSnapshot(raw: unknown): PageSnapshot
-⋮----
-export class FirestorePageRepository implements PageRepository {
-⋮----
-async save(snapshot: PageSnapshot): Promise<void>
-⋮----
-async findById(id: string): Promise<PageSnapshot | null>
-⋮----
-async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
-⋮----
-async findChildren(parentPageId: string): Promise<PageSnapshot[]>
-⋮----
-async query(params: PageQuery): Promise<PageSnapshot[]>
-⋮----
-// Build equality constraints — no composite index required for equality-only filters.
-⋮----
-async delete(id: string): Promise<void>
-````
-
 ## File: src/modules/notion/adapters/outbound/firebase-composition.ts
 ````typescript
 /**
@@ -2005,40 +1963,47 @@ export async function addDatabaseProperty(
 ): Promise<CommandResult>
 ````
 
-## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+## File: src/modules/notion/subdomains/page/adapters/outbound/firestore/FirestorePageRepository.ts
 ````typescript
 /**
- * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ * FirestorePageRepository — Firestore adapter for the page subdomain.
  *
- * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
- * Each document stores a DatabaseSnapshot directly.
+ * Collection: contentPages (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a PageSnapshot directly.
  *
  * MUST be called from a client component, NOT from a Server Action.
  * The Firebase Web Client SDK requires a signed-in user in the browser context
  * so that Firestore Security Rules can evaluate request.auth.
  *
  * ESLint: @integration-firebase is allowed here — this file lives at
- * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * src/modules/notion/subdomains/page/adapters/outbound/firestore/
  * which matches the extended outbound glob.
  */
 ⋮----
 import { getFirebaseFirestore, firestoreApi, z } from "@packages";
-import type { DatabaseSnapshot } from "../../../domain/entities/Database";
-import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+import type { PageSnapshot, PageStatus } from "../../../domain/entities/Page";
+import type { PageRepository, PageQuery } from "../../../domain/repositories/PageRepository";
 ⋮----
 // ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
 ⋮----
-function toSnapshot(raw: unknown): DatabaseSnapshot
+function toSnapshot(raw: unknown): PageSnapshot
 ⋮----
-export class FirestoreDatabaseRepository implements DatabaseRepository {
+/** Strip undefined values so Firestore setDoc() never sees an unsupported undefined field. */
+function toFirestoreDoc(obj: Record<string, unknown>): Record<string, unknown>
 ⋮----
-async save(snapshot: DatabaseSnapshot): Promise<void>
+export class FirestorePageRepository implements PageRepository {
 ⋮----
-async findById(id: string): Promise<DatabaseSnapshot | null>
+async save(snapshot: PageSnapshot): Promise<void>
 ⋮----
-async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
+async findById(id: string): Promise<PageSnapshot | null>
 ⋮----
-async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+async findBySlug(slug: string, accountId: string): Promise<PageSnapshot | null>
+⋮----
+async findChildren(parentPageId: string): Promise<PageSnapshot[]>
+⋮----
+async query(params: PageQuery): Promise<PageSnapshot[]>
+⋮----
+// Build equality constraints — no composite index required for equality-only filters.
 ⋮----
 async delete(id: string): Promise<void>
 ````
@@ -2086,4 +2051,45 @@ const handleCreate = () =>
 const updatePropertyDraft = (databaseId: string, patch: Partial<PropertyDraft>) =>
 ⋮----
 const handleAddProperty = (databaseId: string) =>
+````
+
+## File: src/modules/notion/subdomains/database/adapters/outbound/firestore/FirestoreDatabaseRepository.ts
+````typescript
+/**
+ * FirestoreDatabaseRepository — Firestore adapter for the database subdomain.
+ *
+ * Collection: knowledgeDatabases (top-level, matching firestore.indexes.json collectionGroup)
+ * Each document stores a DatabaseSnapshot directly.
+ *
+ * MUST be called from a client component, NOT from a Server Action.
+ * The Firebase Web Client SDK requires a signed-in user in the browser context
+ * so that Firestore Security Rules can evaluate request.auth.
+ *
+ * ESLint: @integration-firebase is allowed here — this file lives at
+ * src/modules/notion/subdomains/database/adapters/outbound/firestore/
+ * which matches the extended outbound glob.
+ */
+⋮----
+import { getFirebaseFirestore, firestoreApi, z } from "@packages";
+import type { DatabaseSnapshot } from "../../../domain/entities/Database";
+import type { DatabaseRepository } from "../../../domain/repositories/DatabaseRepository";
+⋮----
+// ── Level 3 Zod schema: validates Firestore output at the adapter boundary ────
+⋮----
+function toSnapshot(raw: unknown): DatabaseSnapshot
+⋮----
+/** Strip undefined values so Firestore setDoc() never sees an unsupported undefined field. */
+function toFirestoreDoc(obj: Record<string, unknown>): Record<string, unknown>
+⋮----
+export class FirestoreDatabaseRepository implements DatabaseRepository {
+⋮----
+async save(snapshot: DatabaseSnapshot): Promise<void>
+⋮----
+async findById(id: string): Promise<DatabaseSnapshot | null>
+⋮----
+async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
+⋮----
+async delete(id: string): Promise<void>
 ````

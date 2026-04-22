@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-158 files | 12,660 lines
+160 files | 12,811 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 158 | 12,660 |
+| Markdown | 160 | 12,811 |
 
 **Largest files:**
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)

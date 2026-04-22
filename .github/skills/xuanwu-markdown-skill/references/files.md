@@ -1673,6 +1673,144 @@ flowchart LR
 - 若某整合指南與 decisions/0005-anti-corruption-layer.md 衝突，以 ADR 為準。
 ````
 
+## File: docs/structure/system/module-graph.system-wide.md
+````markdown
+# System-Wide Module Graph
+
+本圖反映 0014-main-domain-resplit.md 確立的八主域重切 baseline。
+
+凡例：
+  subdomain          = Baseline subdomain（已基線化）
+  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
+  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
+
+---
+
+## Upstream → Downstream Dependency Map
+
+  Upstream     │  Downstream
+  ─────────────┼───────────────────────────────────────────────────────────
+  iam          │  billing · platform · workspace · notion · notebooklm
+  billing      │  workspace · notion · notebooklm
+  ai           │  notion · notebooklm
+  platform     │  workspace
+  workspace    │  notion · notebooklm
+  notion       │  notebooklm
+  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
+
+---
+
+## Domain + Subdomain Inventory
+
+─────────────────────────────────────────────────────────────────────────────
+T0  IAM                     BILLING                 AI
+    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
+─────────────────────────────────────────────────────────────────────────────
+
+    identity                billing                 generation
+    access-control          subscription            orchestration
+    tenant                  entitlement             distillation
+    security-policy         referral                retrieval
+    account                                          memory
+    organization                                     context
+                                                     safety
+                                                     tool-calling
+                                                     reasoning
+                                                     conversation
+                                                     evaluation
+                                                     tracing
+
+    [session]               [pricing]               [provider-routing]
+    [consent]               [invoice]               [model-policy]
+    [secret-governance]     [quota-policy]
+
+─────────────────────────────────────────────────────────────────────────────
+T1  PLATFORM
+    平台營運支撐
+─────────────────────────────────────────────────────────────────────────────
+
+    notification            audit-log
+    background-job          observability
+    content                 support
+    search                  workflow
+    platform-config         compliance
+    feature-flag            integration
+    onboarding
+
+    > account（含 account-profile）/ organization（含 team）→ 已遷入 T0 iam
+
+    [consent]               [secret-management]     [operational-catalog]
+
+─────────────────────────────────────────────────────────────────────────────
+T2  WORKSPACE
+    協作容器與工作區範疇
+─────────────────────────────────────────────────────────────────────────────
+
+    audit                   issue                   settlement
+    feed                    orchestration           task
+    scheduling              quality                 task-formation
+    approve
+
+    [lifecycle]             [membership]
+    [sharing]               [presence]
+
+─────────────────────────────────────────────────────────────────────────────
+T3  NOTION
+    正典知識內容
+─────────────────────────────────────────────────────────────────────────────
+
+    knowledge               automation
+    authoring               external-knowledge-sync
+    collaboration           notes
+    database                templates
+    knowledge-engagement     knowledge-versioning
+    attachments
+
+    taxonomy                relations               publishing
+
+─────────────────────────────────────────────────────────────────────────────
+T4  NOTEBOOKLM
+    對話與推理輸出
+─────────────────────────────────────────────────────────────────────────────
+
+    conversation            source（含 ingestion）
+    note                    synthesis（含 retrieval·grounding·evaluation）
+    notebook                conversation-versioning
+
+─────────────────────────────────────────────────────────────────────────────
+SINK  ANALYTICS
+      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
+─────────────────────────────────────────────────────────────────────────────
+
+    reporting               telemetry-projection
+    metrics
+    dashboards
+
+    [experimentation]       [decision-support]
+
+---
+
+## Ownership Rules（速查）
+
+  iam         → 身份、tenant、access decision、**account、organization**；不擁有商業、內容、推理正典
+  billing     → subscription、entitlement；不擁有身份治理或內容正典
+  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
+  platform    → operational services（notification、search、audit-log 等）；account/org 已遷入 iam
+  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
+  notion      → 正典知識內容；不擁有治理或推理流程
+  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
+  analytics   → 下游 read model sink；不反向成為上游 canonical owner
+
+---
+
+## Document Network
+
+  architecture-overview.md  — 全域架構與主域關係
+  bounded-contexts.md        — 主域與子域所有權詳目
+  context-map.md             — Upstream/Downstream published language 對照
+  ubiquitous-language.md     — 戰略術語權威
+````
+
 ## File: docs/structure/system/project-delivery-milestones.md
 ````markdown
 # Project Delivery Milestones
@@ -6479,144 +6617,6 @@ Each module enforces its own subset of these rules. Key mapping:
 - [src/modules/notebooklm/AGENTS.md](../../../src/modules/notebooklm/AGENTS.md) — NotebookLM constraints
 ````
 
-## File: docs/structure/system/module-graph.system-wide.md
-````markdown
-# System-Wide Module Graph
-
-本圖反映 0014-main-domain-resplit.md 確立的八主域重切 baseline。
-
-凡例：
-  subdomain          = Baseline subdomain（已基線化）
-  [subdomain]        = Recommended Gap subdomain（尚未基線化，待 ADR 確認）
-  T0 / T1 / … / SINK = Upstream→Downstream Tier（越小越上游）
-
----
-
-## Upstream → Downstream Dependency Map
-
-  Upstream     │  Downstream
-  ─────────────┼───────────────────────────────────────────────────────────
-  iam          │  billing · platform · workspace · notion · notebooklm
-  billing      │  workspace · notion · notebooklm
-  ai           │  notion · notebooklm
-  platform     │  workspace
-  workspace    │  notion · notebooklm
-  notion       │  notebooklm
-  (all above)  │  analytics  ← 事件 / 投影 sink，不反向寫回任何上游
-
----
-
-## Domain + Subdomain Inventory
-
-─────────────────────────────────────────────────────────────────────────────
-T0  IAM                     BILLING                 AI
-    身份與存取治理上游       商業與權益治理上游       共享 AI Capability 上游
-─────────────────────────────────────────────────────────────────────────────
-
-    identity                billing                 generation
-    access-control          subscription            orchestration
-    tenant                  entitlement             distillation
-    security-policy         referral                retrieval
-    account                                          memory
-    organization                                     context
-                                                     safety
-                                                     tool-calling
-                                                     reasoning
-                                                     conversation
-                                                     evaluation
-                                                     tracing
-
-    [session]               [pricing]               [provider-routing]
-    [consent]               [invoice]               [model-policy]
-    [secret-governance]     [quota-policy]
-
-─────────────────────────────────────────────────────────────────────────────
-T1  PLATFORM
-    平台營運支撐
-─────────────────────────────────────────────────────────────────────────────
-
-    notification            audit-log
-    background-job          observability
-    content                 support
-    search                  workflow
-    platform-config         compliance
-    feature-flag            integration
-    onboarding
-
-    > account（含 account-profile）/ organization（含 team）→ 已遷入 T0 iam
-
-    [consent]               [secret-management]     [operational-catalog]
-
-─────────────────────────────────────────────────────────────────────────────
-T2  WORKSPACE
-    協作容器與工作區範疇
-─────────────────────────────────────────────────────────────────────────────
-
-    audit                   issue                   settlement
-    feed                    orchestration           task
-    scheduling              quality                 task-formation
-    approve
-
-    [lifecycle]             [membership]
-    [sharing]               [presence]
-
-─────────────────────────────────────────────────────────────────────────────
-T3  NOTION
-    正典知識內容
-─────────────────────────────────────────────────────────────────────────────
-
-    knowledge               automation
-    authoring               external-knowledge-sync
-    collaboration           notes
-    database                templates
-    knowledge-engagement     knowledge-versioning
-    attachments
-
-    taxonomy                relations               publishing
-
-─────────────────────────────────────────────────────────────────────────────
-T4  NOTEBOOKLM
-    對話與推理輸出
-─────────────────────────────────────────────────────────────────────────────
-
-    conversation            source（含 ingestion）
-    note                    synthesis（含 retrieval·grounding·evaluation）
-    notebook                conversation-versioning
-
-─────────────────────────────────────────────────────────────────────────────
-SINK  ANALYTICS
-      Read model / 事件 sink，下游 only，不反向擁有任何上游正典
-─────────────────────────────────────────────────────────────────────────────
-
-    reporting               telemetry-projection
-    metrics
-    dashboards
-
-    [experimentation]       [decision-support]
-
----
-
-## Ownership Rules（速查）
-
-  iam         → 身份、tenant、access decision、**account、organization**；不擁有商業、內容、推理正典
-  billing     → subscription、entitlement；不擁有身份治理或內容正典
-  ai          → shared AI capability；不擁有 notion 或 notebooklm 的語言
-  platform    → operational services（notification、search、audit-log 等）；account/org 已遷入 iam
-  workspace   → 工作區範疇與 membership；不擁有平台治理或正典內容
-  notion      → 正典知識內容；不擁有治理或推理流程
-  notebooklm  → 推理流程與衍生輸出；不擁有正典知識內容
-  analytics   → 下游 read model sink；不反向成為上游 canonical owner
-
----
-
-## Document Network
-
-  architecture-overview.md  — 全域架構與主域關係
-  bounded-contexts.md        — 主域與子域所有權詳目
-  context-map.md             — Upstream/Downstream published language 對照
-  ubiquitous-language.md     — 戰略術語權威
-````
-
 ## File: docs/structure/system/source-to-task-flow.md
 ````markdown
 # Source To Task Flow Architecture
@@ -6857,6 +6857,152 @@ sequenceDiagram
 - [source-to-task-flow.md](./source-to-task-flow.md) — 技術邊界與組裝路徑
 - [context-map.md](./context-map.md) — 主域關係圖
 - [architecture-overview.md](./architecture-overview.md) — 全域架構概述
+````
+
+## File: docs/template/AGENTS.md
+````markdown
+# AGENTS.md
+
+## ROLE
+
+- The agent MUST execute only defined UseCases.
+- The agent MUST NOT perform actions outside declared tools.
+- The agent MUST treat all operations as deterministic workflows.
+
+---
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST NOT access Firestore directly.
+- The agent MUST call UseCases for all data mutations.
+- The agent MUST NOT mix Command and Query in a single execution.
+- The agent MUST NOT mutate multiple domains in one action.
+
+---
+
+## TOOL USAGE
+
+- The agent MUST call tools using strictly defined input schemas.
+- The agent MUST validate all inputs before calling a tool.
+- The agent MUST NOT infer missing required fields.
+- The agent MUST retry only idempotent tools.
+- The agent MUST NOT retry non-idempotent operations.
+
+---
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+  1. Parse intent
+  2. Map to UseCase
+  3. Validate schema
+  4. Execute tool
+  5. Return structured output
+
+- The agent MUST NOT skip any step.
+- The agent MUST stop execution if validation fails.
+
+---
+
+## DATA CONTRACT
+
+- The agent MUST produce structured JSON outputs.
+- The agent MUST NOT return free-form text when structured data is required.
+- The agent MUST conform to defined schemas (Zod or equivalent).
+
+---
+
+## CONSTRAINTS
+
+- The agent MUST NOT generate IDs (IDs are server-generated).
+- The agent MUST NOT perform hidden side effects.
+- The agent MUST NOT access external systems unless explicitly defined.
+
+---
+
+## ERROR HANDLING
+
+- The agent MUST fail fast on invalid input.
+- The agent MUST return explicit error states.
+- The agent MUST NOT silently ignore errors.
+
+---
+
+## CONSISTENCY
+
+- The agent MUST ensure referential integrity.
+- The agent MUST ensure data consistency after each action.
+
+---
+
+## SECURITY
+
+- The agent MUST respect access boundaries.
+- The agent MUST NOT bypass authentication or authorization logic.
+````
+
+## File: docs/template/README.md
+````markdown
+# README.md
+
+## PURPOSE
+
+- The project MUST clearly state its primary problem and solution.
+- The project MUST describe its core value in under 5 lines.
+
+---
+
+## GETTING STARTED
+
+- The project MUST provide runnable setup commands.
+- The setup MUST work without modification.
+- The project MUST define all required environment variables.
+
+---
+
+## ARCHITECTURE
+
+- The project MUST define high-level system components.
+- The project MUST NOT include low-level implementation details.
+- The architecture MUST be understandable within 1 minute.
+
+---
+
+## PROJECT STRUCTURE
+
+- The project MUST expose top-level directories.
+- Each directory MUST have a single clear responsibility.
+- The structure MUST reflect domain boundaries.
+
+---
+
+## DEVELOPMENT RULES
+
+- The project MUST enforce single responsibility for UseCases.
+- The project MUST separate Command and Query.
+- The project MUST prohibit direct database access from UI.
+
+---
+
+## AI INTEGRATION
+
+- The project MUST define how AI interacts with the system.
+- The project MUST restrict AI to UseCase-level operations.
+- The project MUST NOT allow direct AI-to-database access.
+
+---
+
+## DOCUMENTATION
+
+- The project MUST link to detailed documents.
+- The README MUST act as an entry point, not a full specification.
+
+---
+
+## USABILITY
+
+- A new developer MUST be able to run the project within 5 minutes.
+- A developer MUST understand where to modify code within 3 minutes.
 ````
 
 ## File: docs/tooling/firebase/firebase-architecture.md
@@ -11795,67 +11941,6 @@ flowchart LR
 - [ubiquitous-language.md](./ubiquitous-language.md)
 ````
 
-## File: docs/tooling/commands-reference.md
-````markdown
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- `npm run lint:markdown` — Run repo-wide Markdown linting (`.markdownlint-cli2.jsonc`)
-- `npm run test` — Run Vitest unit tests
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:fn` — Deploy the `fn` Cloud Functions target
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:markdown` — Generate the markdown-only skill (`xuanwu-markdown-skill`)
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `.markdownlint-cli2.jsonc` | Repo-wide Markdown lint configuration |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Python test dependencies: `python -m pip install -r fn/requirements-dev.txt`
-- Firebase CLI: `npx firebase` (no global install required)
-````
-
 ## File: packages/AGENTS.md
 ````markdown
 # packages — Agent Rules
@@ -12236,6 +12321,80 @@ Generic Domain（可外包／第三方替換）
 - [context-map.md](./context-map.md) — 與其他 context 的關係圖
 - [ubiquitous-language.md](./ubiquitous-language.md) — 通用語言詞彙表
 - [bounded-contexts.md](../../domain/bounded-contexts.md) — 全域主域所有權地圖
+````
+
+## File: docs/tooling/commands-reference.md
+````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run lint:markdown` — Run repo-wide Markdown linting (`.markdownlint-cli2.jsonc`)
+- `npm run test` — Run Vitest unit tests
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:fn` — Deploy the `fn` Cloud Functions target
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:all` — Generate all configured repomix skills in sequence
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:ai` — Generate the AI-focused skill (`xuanwu-ai-skill`)
+- `npm run repomix:analytics` — Generate the analytics-focused skill (`xuanwu-analytics-skill`)
+- `npm run repomix:billing` — Generate the billing-focused skill (`xuanwu-billing-skill`)
+- `npm run repomix:iam` — Generate the IAM-focused skill (`xuanwu-iam-skill`)
+- `npm run repomix:platform` — Generate the platform-focused skill (`xuanwu-platform-skill`)
+- `npm run repomix:src` — Generate the src-focused skill (`xuanwu-src-skill`)
+- `npm run repomix:fn` — Generate the Cloud Functions-focused skill (`xuanwu-fn-skill`)
+- `npm run repomix:packages` — Generate the packages-focused skill (`xuanwu-packages-skill`)
+- `npm run repomix:markdown` — Generate the markdown-only skill (`xuanwu-markdown-skill`)
+- `npm run repomix:notebooklm` — Generate the notebooklm-focused skill (`xuanwu-notebooklm-skill`)
+- `npm run repomix:notion` — Generate the notion-focused skill (`xuanwu-notion-skill`)
+- `npm run repomix:workspace` — Generate the workspace-focused skill (`xuanwu-workspace-skill`)
+- `npm run repomix:explore` — Run repomix with `repomix.config.json` for direct exploration output
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `.markdownlint-cli2.jsonc` | Repo-wide Markdown lint configuration |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r fn/requirements-dev.txt`
+- Firebase CLI: `npx firebase` (no global install required)
 ````
 
 ## File: packages/infra/date/AGENTS.md
