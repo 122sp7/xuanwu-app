@@ -1,46 +1,72 @@
-# IAM Module — Agent Guide
+# iam Agent Rules
 
-## Purpose
+## ROLE
 
-`src/modules/iam/` 是 Identity & Access Management 模組；account / organization 已集中於此。
+- The agent MUST treat iam as the owner of identity, access control, tenant, account, and organization governance.
+- The agent MUST keep iam focused on access and identity semantics, not workspace collaboration or billing logic.
 
-## Immediate Index
+## DOMAIN BOUNDARIES
 
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
+- The agent MUST keep account and organization ownership in iam.
+- The agent MUST keep security-policy, session, and access-control concerns inside iam.
+- The agent MUST expose cross-module identity capability through [index.ts](index.ts).
 
-## Subdomain Index（actual directories）
+## TOOL USAGE
 
-- `subdomains/access-control/`
-- `subdomains/account/`
-- `subdomains/authentication/`
-- `subdomains/authorization/`
-- `subdomains/federation/`
-- `subdomains/identity/`
-- `subdomains/organization/`
-- `subdomains/security-policy/`
-- `subdomains/session/`
-- `subdomains/tenant/`
+- The agent MUST validate subdomain path references before edits.
+- The agent MUST keep terminology aligned with strategic identity language.
+- The agent MUST scope changes to iam-owned docs and capabilities.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Select the owning iam subdomain.
+	4. Apply bounded changes.
+	5. Validate links and terminology consistency.
+
+## DATA CONTRACT
+
+- The agent MUST keep identity and access contract terms explicit.
+- The agent MUST keep subdomain indexes synchronized with actual directories.
+- The agent MUST keep accountId, actor, tenant, and organization wording precise.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move workspace membership or billing entitlement ownership into iam.
+- The agent MUST NOT bypass public module boundaries for cross-context collaboration.
+- The agent MUST NOT duplicate full strategic docs in this routing file.
+
+## ERROR HANDLING
+
+- The agent MUST report stale links, missing subdomain docs, and naming conflicts.
+- The agent MUST stop and ask for direction if ownership or published language is unclear.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS focused on routing and constraints.
+- The agent MUST keep README focused on overview and navigation.
+- The agent MUST keep naming aligned with strategic IAM terminology.
+
+## SECURITY
+
+- The agent MUST treat identity and access documentation as security-sensitive.
+- The agent MUST avoid exposing secrets, tokens, or unsafe examples.
 
 ## Route Here When
 
-- 需要在 `src/modules/iam/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+- You update identity, access-control, tenant, session, account, or organization behavior or docs.
+- You need the iam module boundary or subdomain routing contract.
 
 ## Route Elsewhere When
 
-- 工作區 Membership → `src/modules/workspace/`
-- 跨模組消費身份能力 → `src/modules/iam/index.ts`
+- Workspace collaboration scope: [../workspace/AGENTS.md](../workspace/AGENTS.md)
+- Billing entitlement and subscription concerns: [../billing/AGENTS.md](../billing/AGENTS.md)
 
-## Drift Guard
+## Quick Links
 
-- `AGENTS.md` 擁有 `src/modules/iam/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+- Pair: [README.md](README.md)
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
