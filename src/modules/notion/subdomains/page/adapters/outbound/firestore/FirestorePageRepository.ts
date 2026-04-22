@@ -47,11 +47,16 @@ function toSnapshot(raw: unknown): PageSnapshot {
   return FirestorePageSnapshotSchema.parse(raw) as PageSnapshot;
 }
 
+/** Strip undefined values so Firestore setDoc() never sees an unsupported undefined field. */
+function toFirestoreDoc(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+}
+
 export class FirestorePageRepository implements PageRepository {
   async save(snapshot: PageSnapshot): Promise<void> {
     const db = getFirebaseFirestore();
     const { doc, setDoc } = firestoreApi;
-    await setDoc(doc(db, COLLECTION, snapshot.id), { ...snapshot }, { merge: true });
+    await setDoc(doc(db, COLLECTION, snapshot.id), toFirestoreDoc({ ...snapshot }), { merge: true });
   }
 
   async findById(id: string): Promise<PageSnapshot | null> {
