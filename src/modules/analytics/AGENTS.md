@@ -1,43 +1,71 @@
-# Analytics Module — Agent Guide
+# analytics Agent Rules
 
-## Purpose
+## ROLE
 
-`src/modules/analytics/` 是 分析能力模組；承接事件、指標、洞察與實驗相關實作。
+- The agent MUST treat analytics as the read-model and insights capability module.
+- The agent MUST keep analytics focused on event ingestion, projection, and reporting outputs.
 
-## Immediate Index
+## DOMAIN BOUNDARIES
 
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
+- The agent MUST keep analytics downstream from source domains.
+- The agent MUST NOT place upstream business write ownership in analytics.
+- The agent MUST expose integration through [index.ts](index.ts) and event contracts.
 
-## Subdomain Index（actual directories）
+## TOOL USAGE
 
-- `subdomains/event-contracts/`
-- `subdomains/event-ingestion/`
-- `subdomains/event-projection/`
-- `subdomains/experimentation/`
-- `subdomains/insights/`
-- `subdomains/metrics/`
-- `subdomains/realtime-insights/`
+- The agent MUST validate subdomain path references before updates.
+- The agent MUST keep metric/projection contract changes explicit.
+- The agent MUST keep edits scoped to analytics ownership.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Select owning analytics subdomain.
+	4. Apply bounded changes.
+	5. Validate links and boundaries.
+
+## DATA CONTRACT
+
+- The agent MUST keep event and projection contract naming stable.
+- The agent MUST keep subdomain index synchronized with actual directories.
+- The agent MUST keep links relative and valid.
+
+## CONSTRAINTS
+
+- The agent MUST NOT mutate upstream domain ownership from analytics.
+- The agent MUST NOT bypass event-contract boundaries.
+- The agent MUST NOT duplicate strategic authority text in this routing file.
+
+## ERROR HANDLING
+
+- The agent MUST report stale links or missing subdomain docs.
+- The agent MUST stop on ownership conflicts and request direction.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS as routing/rules and README as overview.
+- The agent MUST keep analytics terminology aligned with strategic docs.
+
+## SECURITY
+
+- The agent MUST avoid exposing sensitive event payload examples.
+- The agent MUST preserve tenant/account scope in analytics contracts.
 
 ## Route Here When
 
-- 需要在 `src/modules/analytics/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+- You update event ingestion/projection/metrics/insights capabilities.
+- You change analytics module contracts or subdomain implementation placement.
 
 ## Route Elsewhere When
 
-- UI 路由與頁面組合 → `src/app/`
-- 跨模組消費 → `src/modules/analytics/index.ts`
+- Route composition and UI rendering: [../../app/AGENTS.md](../../app/AGENTS.md)
+- Upstream business ownership: owning module AGENTS under [../](../)
 
-## Drift Guard
+## Quick Links
 
-- `AGENTS.md` 擁有 `src/modules/analytics/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
