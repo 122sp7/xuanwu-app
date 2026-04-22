@@ -52,9 +52,4 @@ export const EmptyState = ({ title, description }: EmptyStateProps) =>
       : null,
   );
 
-/**
- * Build Google Viewer embed URL from an HTTPS-accessible source URL.
- * Typically used with short-lived signed URLs for private files.
- */
-export const createGoogleViewerEmbedUrl = (sourceUrl: string): string =>
-  `https://docs.google.com/viewer?url=${encodeURIComponent(sourceUrl)}&embedded=true`;
+

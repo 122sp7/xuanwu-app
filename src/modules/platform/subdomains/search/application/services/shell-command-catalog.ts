@@ -21,6 +21,7 @@ const SHELL_COMMAND_CATALOG_ITEMS: readonly ShellCommandCatalogItem[] = [
   // ── Account-level routes ──────────────────────────────────────────────────
   { href: "/workspace",              label: "工作區中心",        group: "導覽" },
   { href: "/dashboard",              label: "儀表板",            group: "導覽" },
+  { href: "/calendar",               label: "日曆",              group: "導覽" },
   { href: "/organization",           label: "組織治理",          group: "導覽" },
   { href: "/members",                label: "組織 · 成員",       group: "導覽" },
   { href: "/teams",                  label: "組織 · 團隊",       group: "導覽" },

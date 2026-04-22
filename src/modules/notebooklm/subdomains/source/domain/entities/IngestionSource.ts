@@ -8,7 +8,7 @@
  */
 import { v4 as uuid } from "uuid";
 
-export type SourceStatus = "active" | "processing" | "archived" | "deleted";
+export type SourceStatus = "active" | "processing" | "archived" | "deleted" | "error";
 export type SourceClassification = "image" | "manifest" | "record" | "other";
 
 export interface IngestionSourceSnapshot {
