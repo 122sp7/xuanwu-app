@@ -42,22 +42,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-279 files | 6,284 lines
+310 files | 6,048 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 248 | 4,057 |
+| Markdown | 42 | 898 |
 | TypeScript (TSX) | 20 | 1,093 |
-| Markdown | 11 | 1,134 |
 
 **Largest files:**
-- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
 - `src/modules/workspace/adapters/outbound/firebase-composition.ts` (202 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-nav-model.ts` (174 lines)
 - `src/modules/workspace/adapters/inbound/react/workspace-shell-interop.tsx` (166 lines)
-- `src/modules/workspace/subdomains/task-formation/AGENTS.md` (166 lines)
 - `docs/structure/contexts/workspace/README.md` (126 lines)
 - `docs/structure/contexts/workspace/ubiquitous-language.md` (119 lines)
 - `src/modules/workspace/adapters/inbound/react/WorkspaceIssuesSection.tsx` (113 lines)
 - `docs/structure/contexts/workspace/AGENTS.md` (97 lines)
 - `docs/structure/contexts/workspace/bounded-contexts.md` (91 lines)
+- `src/modules/workspace/adapters/inbound/react/WorkspaceDailySection.tsx` (89 lines)
+- `src/modules/workspace/adapters/inbound/react/workspace-route-screens.tsx` (84 lines)

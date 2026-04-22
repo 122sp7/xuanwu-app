@@ -42,21 +42,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-71 files | 684 lines
+85 files | 1,217 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 63 | 457 |
-| Markdown | 8 | 227 |
+| Markdown | 22 | 760 |
 
 **Largest files:**
+- `src/modules/analytics/AGENTS.md` (71 lines)
 - `docs/structure/contexts/analytics/AGENTS.md` (65 lines)
+- `src/modules/analytics/README.md` (52 lines)
 - `src/modules/analytics/subdomains/metrics/domain/entities/Metric.ts` (43 lines)
-- `src/modules/analytics/AGENTS.md` (43 lines)
-- `src/modules/analytics/subdomains/event-contracts/domain/entities/AnalyticsEvent.ts` (33 lines)
-- `src/modules/analytics/README.md` (30 lines)
-- `docs/structure/contexts/analytics/README.md` (27 lines)
-- `src/modules/analytics/subdomains/experimentation/domain/entities/Experiment.ts` (26 lines)
-- `src/modules/analytics/subdomains/realtime-insights/domain/entities/RealtimeMetric.ts` (26 lines)
-- `src/modules/analytics/subdomains/event-contracts/domain/repositories/AnalyticsEventRepository.ts` (25 lines)
-- `src/modules/analytics/subdomains/metrics/domain/repositories/MetricRepository.ts` (25 lines)
+- `src/modules/analytics/subdomains/event-contracts/README.md` (35 lines)
+- `src/modules/analytics/subdomains/event-ingestion/README.md` (35 lines)
+- `src/modules/analytics/subdomains/event-projection/README.md` (35 lines)
+- `src/modules/analytics/subdomains/experimentation/README.md` (35 lines)
+- `src/modules/analytics/subdomains/insights/README.md` (35 lines)
+- `src/modules/analytics/subdomains/metrics/README.md` (35 lines)

@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-111 files | 1,612 lines
+133 files | 2,418 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 100 | 934 |
-| Markdown | 10 | 659 |
+| Markdown | 32 | 1,465 |
 | PROMPT | 1 | 19 |
 
 **Largest files:**
@@ -56,8 +56,8 @@ This skill contains the following reference files:
 - `docs/structure/contexts/ai/AGENTS.md` (93 lines)
 - `src/modules/ai/subdomains/generation/domain/ports/GenerationPorts.ts` (83 lines)
 - `docs/structure/contexts/ai/README.md` (76 lines)
+- `src/modules/ai/AGENTS.md` (73 lines)
 - `docs/structure/contexts/ai/bounded-contexts.md` (61 lines)
+- `src/modules/ai/README.md` (56 lines)
 - `docs/structure/contexts/ai/ddd-strategic-design.md` (53 lines)
 - `docs/structure/contexts/ai/context-map.md` (50 lines)
-- `docs/structure/contexts/ai/ubiquitous-language.md` (49 lines)
-- `src/modules/ai/subdomains/chunk/domain/entities/Chunk.ts` (49 lines)

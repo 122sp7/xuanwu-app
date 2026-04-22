@@ -42,13 +42,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-118 files | 2,949 lines
+134 files | 2,965 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 92 | 1,292 |
+| Markdown | 24 | 727 |
 | TypeScript (TSX) | 18 | 946 |
-| Markdown | 8 | 711 |
 
 **Largest files:**
 - `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)

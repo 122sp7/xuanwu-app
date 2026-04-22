@@ -12536,74 +12536,6 @@ save(post: FeedPostSnapshot): Promise<void>;
 incrementCounter(accountId: string, postId: string, field: "likeCount" | "replyCount" | "repostCount" | "viewCount" | "bookmarkCount" | "shareCount", delta: number): Promise<void>;
 ````
 
-## File: src/modules/workspace/subdomains/feed/README.md
-````markdown
-# feed — Workspace Feed Subdomain
-
-每日動態貼文子域。讓工作區成員每天以 IG 風格發布文字與照片動態，未來將擴展為今日任務完成與出勤記錄的整合入口。
-
-## 領域概念
-
-| 概念 | 說明 |
-|---|---|
-| `FeedPost` | 聚合根。代表一則動態（post / reply / repost）|
-| `dateKey` | ISO 日期字串 `YYYY-MM-DD`，用於 Firestore 按日期查詢 |
-| `photoUrls` | 附圖 URL 陣列（最多 9 張），指向 Storage 或外部圖片 |
-| `FeedPostType` | `post`（一般貼文）· `reply`（回覆）· `repost`（轉貼）|
-
-## 狀態
-
-| 層 | 狀態 |
-|---|---|
-| Domain | ✅ FeedPost 聚合根（含 photoUrls、dateKey）|
-| Application | ✅ CreateFeedPostUseCase、ListFeedPostsUseCase |
-| Outbound adapter | ✅ FirestoreFeedRepository（含按日期查詢）|
-| Inbound adapter | ✅ feed-actions.ts server actions |
-| UI | ✅ WorkspaceDailySection — 每日動態 IG 風格貼文牆 |
-
-## 資料結構（Firestore）
-
-Collection: `feed_posts`
-
-```
-{
-  id: string (UUID),
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  type: "post" | "reply" | "repost",
-  content: string,
-  dateKey: string,       // YYYY-MM-DD — 用於日期過濾索引
-  photoUrls: string[],   // Storage URLs，0–9 張
-  replyToPostId: string | null,
-  repostOfPostId: string | null,
-  likeCount: number,
-  replyCount: number,
-  repostCount: number,
-  viewCount: number,
-  bookmarkCount: number,
-  shareCount: number,
-  createdAtISO: string,
-  updatedAtISO: string,
-}
-```
-
-建議 Firestore 複合索引：`(accountId, workspaceId, dateKey)` 以優化每日動態查詢。
-
-## 未來擴展
-
-- 今日任務完成統計（接入 workspace/task 子域）
-- 出勤記錄 check-in（接入 workspace/membership 子域）
-- 照片實際上傳（整合 platform FileAPI，替換 URL 輸入）
-- 點讚 / 回覆互動
-
-## 邊界規則
-
-- `domain/` 不依賴任何外部框架或 Firebase SDK。
-- 跨模組消費者只能透過 `workspace/index.ts` 或 server actions 存取。
-- 照片上傳涉及所有權與 tenant 隔離時，必須走 platform FileAPI，而非直接呼叫 Storage SDK。
-````
-
 ## File: src/modules/workspace/subdomains/invitation/adapters/inbound/index.ts
 ````typescript
 
@@ -14597,176 +14529,6 @@ async markFailed(jobId: string, errorCode: string, errorMessage: string): Promis
 
 ````
 
-## File: src/modules/workspace/subdomains/task-formation/AGENTS.md
-````markdown
-# task-formation — Agent Guide
-
-## Purpose
-
-`task-formation` 子域負責「從 Notion 知識頁面 AI 提取任務候選，使用者確認後批次建立 Task」的完整流程。
-
----
-
-## Route Here When
-
-- 實作 AI 提取任務候選的流程（`ExtractTaskCandidatesUseCase`）
-- 實作使用者審閱 / 確認候選任務的 UI（`TaskFormationPanel`）
-- 修改 `TaskFormationJob` aggregate 行為或生命週期狀態轉換
-- 撰寫 Genkit extraction flow（`adapters/outbound/genkit/`）
-- 修改 `TaskFormationJobRepository` port 定義
-- 建立 task-formation Server Actions
-
-## Route Elsewhere When
-
-| 需求 | 正確路徑 |
-|---|---|
-| 建立 Task 實體本身 | `src/modules/workspace/subdomains/task/` |
-| 知識頁面內容讀取 | `src/modules/notion/index.ts` |
-| AI model 選擇 / 安全護欄 | `src/modules/ai/index.ts`（透過 platform 路由）|
-| 檔案上傳 / 權限檢查 | `src/modules/platform/index.ts` |
-| 任務看板 / issue 追蹤 | `src/modules/workspace/subdomains/task/` 或 `issue/` |
-
----
-
-## Boundary Rules
-
-1. `domain/` 禁止匯入：React、Firebase SDK、Genkit、`uuid`（用 `@infra/uuid`）
-2. `TaskFormationJob` 是唯一 Aggregate Root；狀態轉換只能透過 behavior method
-3. AI extraction 結果（`candidates`）必須持久化進 Firestore Job document，不可只存在記憶體
-4. 跨到 `task` 子域建立 Task 必須透過 `task` 子域的 use case 邊界，不可直接寫 Firestore
-5. `adapters/inbound/` 只呼叫 `application/use-cases/`；不得直接呼叫 domain 實作或 repository
-6. Genkit flow 放在 `adapters/outbound/genkit/`；use case 透過 port interface 呼叫，不直接 import flow
-
----
-
-## ❌ / ✅ 設計範例
-
-### ❌ 禁止這樣做
-
-```typescript
-// ❌ inbound adapter 直接呼叫 repository
-const repo = new FirestoreTaskFormationJobRepository(db);
-const job = await repo.findById(jobId);
-
-// ❌ use case 直接 import Genkit
-import { extractTaskCandidatesFlow } from '@genkit-ai/...';
-
-// ❌ aggregate 不儲存 candidates，只存計數
-class TaskFormationJob {
-  markCompleted(input: { succeededItems: number }): void { /* 候選清單丟失 */ }
-}
-
-// ❌ candidates 只存 React state，不持久化
-const [candidates, setCandidates] = useState<ExtractedTaskCandidate[]>([]);
-```
-
-### ✅ 應該這樣做
-
-```typescript
-// ✅ use case 透過 port 呼叫 AI（domain/ports/TaskCandidateExtractorPort.ts）
-class ExtractTaskCandidatesUseCase {
-  constructor(
-    private readonly jobRepo: TaskFormationJobRepository,
-    private readonly aiExtractor: TaskCandidateExtractorPort,
-  ) {}
-}
-
-// ✅ aggregate 儲存候選清單並發出 domain event
-class TaskFormationJob {
-  setCandidates(candidates: ExtractedTaskCandidate[]): void {
-    this._props = { ...this._props, candidates, status: 'succeeded' };
-    this._domainEvents.push({
-      type: 'workspace.task-formation.candidates-extracted',
-      eventId: generateId(),
-      occurredAt: new Date().toISOString(),
-      payload: { jobId: this._props.id, candidateCount: candidates.length },
-    });
-  }
-}
-
-// ✅ 跨子域透過 use case 邊界建立 Task
-class ConfirmCandidatesUseCase {
-  constructor(
-    private readonly jobRepo: TaskFormationJobRepository,
-    private readonly createTask: CreateTaskUseCase,   // task 子域 use case
-  ) {}
-}
-```
-
----
-
-## 技術選型（Context7 驗證）
-
-| 關注點 | 技術 | 版本 / 模式 |
-|---|---|---|
-| AI 提取 | Genkit `ai.defineFlow` | Zod `outputSchema` + `z.coerce.number()` for AI numeric strings |
-| UI 狀態 | XState v5 `setup()` | `fromPromise<Output, Input>` 雙泛型；machine 放在 `application/machines/` |
-| 入口層 | Next.js `useActionState` | `safeParse` + 早期 structured error 回傳 |
-| 驗證 | Zod v4 | `z.object()` + `z.iso.datetime()` + `z.coerce.number()` |
-| ID 生成 | `@infra/uuid` | 禁止在 domain 層直接 import `uuid` |
-
----
-
-## 狀態機設計（UI 層）
-
-```
-idle ──START──→ extracting ──onDone──→ reviewing ──CONFIRM──→ confirming ──onDone──→ done
-               ──onError──→ failed               ──onError──→ reviewing（保留選擇）
-reviewing ──CANCEL──→ idle
-failed ──RETRY──→ idle
-```
-
-XState v5 `setup()` 必填欄位：
-
-```typescript
-setup({
-  types: {
-    context: {} as TaskFormationContext,
-    events: {} as TaskFormationEvent,
-    input: {} as { workspaceId: string },  // ← input 型別聲明不可省略
-  },
-  actors: { /* fromPromise actors */ },
-})
-```
-
----
-
-## Domain Events（discriminant 格式）
-
-| Event type | 狀態 | 觸發時機 |
-|---|---|---|
-| `workspace.task-formation.job-created` | ✅ 已實作 | `CreateTaskFormationJobUseCase` 成功 |
-| `workspace.task-formation.candidates-extracted` | ⚠️ 待補 | `setCandidates()` 呼叫後 |
-| `workspace.task-formation.candidates-confirmed` | ⚠️ 待補 | `ConfirmCandidatesUseCase` 完成 |
-| `workspace.task-formation.job-failed` | ⚠️ 待補 | `markFailed()` 呼叫後 |
-
-Event discriminant 格式：`<module>.<subdomain>.<action>`（全 kebab-case）
-
----
-
-## 現況差距快覽
-
-| 項目 | 現況 | 目標 |
-|---|---|---|
-| Aggregate 存 candidates | ❌ 只有計數欄位 | ✅ `candidates: ExtractedTaskCandidate[]` + `setCandidates()` |
-| `TaskCandidateExtractorPort` | ❌ 不存在 | ✅ `domain/ports/` 新建 |
-| AI 提取流程 | ❌ 不存在 | ✅ Genkit flow via port |
-| 確認流程 | ❌ 不存在 | ✅ `ConfirmCandidatesUseCase` |
-| UI 狀態機 | ❌ 不存在 | ✅ XState v5 machine |
-| Server Actions | ❌ inbound 空白 | ✅ `startExtraction` + `confirmCandidates` |
-
----
-
-## 嚴禁事項
-
-- ❌ 在 `domain/` 或 `application/` 直接 import `defineFlow`、`generate`、Firebase SDK
-- ❌ candidates 只存在 React state，不寫回 Firestore Job doc
-- ❌ 確認後直接呼叫 `task` 子域 repository（必須走 use case 邊界）
-- ❌ `TaskFormationJob` 只存計數，不存候選清單本體
-- ❌ `application/machines/` 內的 machine 直接 import Firebase SDK 或 Genkit
-- ❌ 在 inbound server action 直接呼叫 Genkit `ai.generate()`
-````
-
 ## File: src/modules/workspace/subdomains/task-formation/application/dto/TaskFormationDTO.ts
 ````typescript
 import { z } from "zod";
@@ -15032,230 +14794,6 @@ export interface ExtractedTaskCandidate {
 export type TaskFormationJobStatus = "queued" | "running" | "partially_succeeded" | "succeeded" | "failed" | "cancelled";
 ````
 
-## File: src/modules/workspace/subdomains/task-formation/README.md
-````markdown
-# task-formation 子域
-
-> 狀態：骨架建立，實作進行中（2026-04-18）
-
-## 職責
-
-從 Notion 知識頁面（`KnowledgeArtifact`）中，透過 AI 提取任務候選（`ExtractedTaskCandidate[]`），讓使用者審閱確認後，批次建立正式 `Task` 實體。
-
-**這個子域擁有的：**
-
-- `TaskFormationJob` aggregate（任務形成工作的生命週期）
-- AI 提取結果的暫存與狀態（`candidates` 欄位）
-- 使用者確認後的批次 Task 建立觸發
-
-**這個子域不擁有的：**
-
-- `KnowledgeArtifact`（屬於 `notion` context）
-- `Task` 實體建立（觸發 `task` 子域的 `CreateTaskUseCase`）
-- AI provider / model policy（屬於 `ai` context，由 `platform` 路由）
-
----
-
-## 完整設計流程
-
-```
-用戶在 Notion 頁面選取 → 觸發 Server Action
-        ↓
-CreateTaskFormationJobUseCase  → Firestore（status: queued）
-        ↓
-ExtractTaskCandidatesUseCase   → TaskCandidateExtractorPort（Genkit Flow）
-        ↓ (async, 更新 Job status: queued → running → succeeded/failed)
-AI 提取 ExtractedTaskCandidate[]  → setCandidates() 存入 Job.candidates
-        ↓
-UI（TaskFormationPanel）        → XState machine（reviewing state）
-        ↓ 使用者勾選 / 編輯候選任務
-ConfirmCandidatesUseCase        → 呼叫 task.CreateTaskUseCase × N
-        ↓
-CompleteTaskFormationJobUseCase → Firestore（status: succeeded）
-```
-
----
-
-## 生命週期狀態
-
-```
-queued → running → succeeded
-                 → partially_succeeded
-                 → failed
-queued → cancelled
-```
-
----
-
-## 現況檔案樹
-
-```
-task-formation/
-├── README.md                         ← 本文件
-├── AGENTS.md                          ← 開發守則
-├── domain/
-│   ├── index.ts
-│   ├── entities/
-│   │   └── TaskFormationJob.ts       ← Aggregate Root（⚠️ 需補 candidates 欄位）
-│   ├── value-objects/
-│   │   ├── TaskFormationJobStatus.ts ← ✅ queued/running/succeeded/partially_succeeded/failed/cancelled
-│   │   └── TaskCandidate.ts         ← ✅ ExtractedTaskCandidate 型別定義
-│   ├── repositories/
-│   │   └── TaskFormationJobRepository.ts  ← ✅ Port 定義
-│   └── events/
-│       └── TaskFormationDomainEvent.ts    ← ⚠️ 僅 job-created，需補後續事件
-├── application/
-│   ├── index.ts
-│   ├── dto/
-│   │   └── TaskFormationDTO.ts           ← ✅ CreateTaskFormationJobSchema（Zod）
-│   └── use-cases/
-│       └── TaskFormationUseCases.ts      ← ⚠️ 僅 Create + Complete，缺 Extract + Confirm
-├── adapters/
-│   ├── index.ts
-│   ├── inbound/
-│   │   └── index.ts                      ← ❌ 空白（export {}）
-│   │   ├── server-actions/               ← 待建：startExtraction + confirmCandidates
-│   │   └── react/                        ← 待建：TaskFormationPanel（XState）
-│   └── outbound/
-│       ├── firestore/
-│       │   └── FirestoreTaskFormationJobRepository.ts  ← ✅
-│       └── genkit/                       ← ❌ 待建：extract-candidates.flow.ts
-```
-
----
-
-## 關鍵缺口（P0）
-
-| # | 缺口 | 位置 |
-|---|---|---|
-| 1 | `TaskFormationJob` aggregate 不存 candidates | `domain/entities/TaskFormationJob.ts` |
-| 2 | 無 AI 提取 Port 定義 | `domain/ports/TaskCandidateExtractorPort.ts`（待建）|
-| 3 | 無 `candidates-extracted` domain event | `domain/events/TaskFormationDomainEvent.ts` |
-| 4 | 無 `ExtractTaskCandidatesUseCase` | `application/use-cases/TaskFormationUseCases.ts` |
-| 5 | 無 Genkit extraction flow adapter | `adapters/outbound/genkit/extract-candidates.flow.ts` |
-| 6 | 無 `ConfirmCandidatesUseCase` | `application/use-cases/TaskFormationUseCases.ts` |
-| 7 | inbound adapter 完全空白 | `adapters/inbound/` |
-
----
-
-## 關鍵設計決策
-
-### AI 提取：Genkit `defineFlow` + Zod `outputSchema`
-
-```typescript
-// adapters/outbound/genkit/extract-candidates.flow.ts
-export const extractTaskCandidatesFlow = ai.defineFlow(
-  {
-    name: 'task-formation.extractCandidates',
-    inputSchema: z.object({
-      pageContent: z.string(),
-      workspaceContext: z.string(),
-    }),
-    outputSchema: z.object({
-      candidates: z.array(TaskCandidateSchema),
-    }),
-  },
-  async ({ pageContent }) => { /* ... */ }
-);
-```
-
-- 使用 `z.coerce.number()` 處理 AI 輸出 `confidence` 為字串的情況
-- `outputSchema` 與 `generate output.schema` 雙重保護
-- AI 結果在進入 use case 前必須通過 Zod `.parse()` 驗證
-
-### UI 狀態：XState v5 `setup()` + `fromPromise`
-
-```typescript
-// application/machines/task-formation.machine.ts
-export const taskFormationMachine = setup({
-  types: {
-    context: {} as {
-      jobId: string | null;
-      candidates: ExtractedTaskCandidate[];
-      selectedIds: Set<number>;
-      errorMessage: string | null;
-    },
-    events: {} as
-      | { type: 'START'; pageIds: string[] }
-      | { type: 'CANDIDATE_TOGGLED'; idx: number }
-      | { type: 'CONFIRM_SELECTION' }
-      | { type: 'CANCEL' },
-    input: {} as { workspaceId: string },
-  },
-  actors: {
-    extractCandidates: fromPromise<ExtractResult, ExtractInput>(
-      async ({ input }) => { /* Server Action */ }
-    ),
-    confirmCandidates: fromPromise<ConfirmResult, ConfirmInput>(
-      async ({ input }) => { /* Server Action */ }
-    ),
-  },
-}).createMachine({
-  /* idle → extracting → reviewing → confirming → done */
-});
-```
-
-狀態轉換：
-
-```
-idle ──START──→ extracting ──onDone──→ reviewing ──CONFIRM──→ confirming ──onDone──→ done
-               ──onError──→ failed               ──onError──→ reviewing（保留選擇）
-reviewing ──CANCEL──→ idle
-```
-
-### Inbound：Next.js Server Actions + `useActionState`
-
-```typescript
-// adapters/inbound/server-actions/task-formation-actions.ts
-'use server';
-export async function startExtractionAction(
-  prevState: ExtractionActionState,
-  formData: FormData,
-): Promise<ExtractionActionState> {
-  const validated = StartExtractionSchema.safeParse({ ... });
-  if (!validated.success) return { errors: validated.error.flatten().fieldErrors };
-  // ...
-}
-```
-
----
-
-## Domain Events（discriminant 格式）
-
-| Event type | 觸發時機 |
-|---|---|
-| `workspace.task-formation.job-created` | ✅ `CreateTaskFormationJobUseCase` 成功 |
-| `workspace.task-formation.candidates-extracted` | ⚠️ 待補：AI 提取完成，candidates 已存入 Job |
-| `workspace.task-formation.candidates-confirmed` | ⚠️ 待補：使用者確認選擇，Task 建立觸發 |
-| `workspace.task-formation.job-failed` | ⚠️ 待補：任何不可回復錯誤 |
-
----
-
-## 跨模組依賴
-
-| 依賴方向 | 目標模組 | 用途 | 邊界 |
-|---|---|---|---|
-| 消費 `notion` | `src/modules/notion/index.ts` | 取得 KnowledgeArtifact 頁面內容 | published language token |
-| 消費 `ai`（透過 platform） | `src/modules/platform/index.ts` | Genkit generation flow routing | Service API boundary |
-| 觸發 `task` | `src/modules/workspace/subdomains/task/application/` | ConfirmCandidates 後批次建立 Task | use case 邊界 |
-
----
-
-## 下一步待實作
-
-| 優先 | 工作 | 位置 |
-|---|---|---|
-| P0 | 補 `TaskFormationJob.candidates` 欄位 + `setCandidates()` 方法 | `domain/entities/TaskFormationJob.ts` |
-| P0 | 補 `TaskCandidateExtractorPort` 介面 | `domain/ports/TaskCandidateExtractorPort.ts`（新建）|
-| P0 | 補 `candidates-extracted` / `candidates-confirmed` / `job-failed` domain events | `domain/events/TaskFormationDomainEvent.ts` |
-| P1 | 建 `ExtractTaskCandidatesUseCase` | `application/use-cases/TaskFormationUseCases.ts` |
-| P1 | 建 Genkit `extract-candidates.flow.ts` adapter | `adapters/outbound/genkit/` |
-| P2 | 建 `ConfirmCandidatesUseCase` | `application/use-cases/TaskFormationUseCases.ts` |
-| P2 | 建 XState `task-formation.machine.ts` | `application/machines/` |
-| P3 | 建 Server Actions（start + confirm） | `adapters/inbound/server-actions/` |
-| P3 | 建 `TaskFormationPanel` UI（XState `useMachine`） | `adapters/inbound/react/` |
-````
-
 ## File: src/modules/workspace/subdomains/task/adapters/index.ts
 ````typescript
 // task — adapters aggregate
@@ -15451,127 +14989,6 @@ export function nextTaskStatus(current: TaskStatus): TaskStatus | null
 export function isTerminalTaskStatus(status: TaskStatus): boolean
 ````
 
-## File: src/AGENTS.md
-````markdown
-# src — Agent Guide
-
-## Immediate Index
-
-- Parent: [AGENTS.md](../AGENTS.md)
-- Pair: [README.md](README.md)
-- Route layer: [app/AGENTS.md](app/AGENTS.md)
-- Module layer: [modules/AGENTS.md](modules/AGENTS.md)
-
-## Node Map
-
-| Node | Role | Agent entry | Human overview |
-|---|---|---|---|
-| `src/app/` | Next.js App Router composition layer | [app/AGENTS.md](app/AGENTS.md) | [app/README.md](app/README.md) |
-| `src/modules/` | bounded-context implementation layer | [modules/AGENTS.md](modules/AGENTS.md) | [modules/README.md](modules/README.md) |
-
-## Drift Guard
-
-- `src/AGENTS.md` 只負責 routing，不重複模組或路由細節。
-- `src/README.md` 保留簡短概覽；深入規則交給子節點。
-````
-
-## File: src/app/AGENTS.md
-````markdown
-# src/app — Agent Guide
-
-## Immediate Index
-
-- Parent: [../AGENTS.md](../AGENTS.md)
-- Pair: [README.md](README.md)
-- Strategic authority: [../../docs/README.md](../../docs/README.md)
-
-## Route Here When
-
-- 新增或修改 page、layout、route group、parallel route。
-- 調整 App Router composition、slot 組合或 route-level loading / error surface。
-
-## Route Elsewhere When
-
-- 業務規則、use case、domain entity → `src/modules/<context>/`
-- 共享 UI primitive → `packages/`
-- 背景 worker / parsing / embedding pipeline → `fn/`
-
-## Drift Guard
-
-- `AGENTS.md` 管路由與 routing。
-- `README.md` 管 App Router 概覽。
-````
-
-## File: src/app/README.md
-````markdown
-# src/app
-
-`src/app/` 是 Next.js App Router composition layer。這裡只做 route / layout / slot 組合。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Strategic authority: [../../docs/README.md](../../docs/README.md)
-
-## Ownership
-
-- Route files 專注在 composition 與 rendering。
-- 業務邏輯仍由 `src/modules/<context>/index.ts` 提供。
-````
-
-## File: src/modules/ai/AGENTS.md
-````markdown
-# AI Module — Agent Guide
-
-## Purpose
-
-`src/modules/ai/` 是 AI 機制能力模組；提供 AI mechanism，使用者體驗仍由其他模組組合。
-
-## Immediate Index
-
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Subdomain Index（actual directories）
-
-- `subdomains/chunk/`
-- `subdomains/citation/`
-- `subdomains/context/`
-- `subdomains/embedding/`
-- `subdomains/evaluation/`
-- `subdomains/generation/`
-- `subdomains/memory/`
-- `subdomains/pipeline/`
-- `subdomains/retrieval/`
-- `subdomains/safety/`
-- `subdomains/tool-calling/`
-
-## Route Here When
-
-- 需要在 `src/modules/ai/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
-
-## Route Elsewhere When
-
-- 使用者對話與 RAG UX → `src/modules/notebooklm/`
-- 知識內容寫入 → `src/modules/notion/`
-- 任務生成業務流程 → `src/modules/workspace/`
-
-## Drift Guard
-
-- `AGENTS.md` 擁有 `src/modules/ai/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
-````
-
 ## File: src/modules/ai/index.ts
 ````typescript
 /**
@@ -15602,44 +15019,6 @@ export function isTerminalTaskStatus(status: TaskStatus): boolean
 // memory
 ⋮----
 // tool-calling
-````
-
-## File: src/modules/ai/README.md
-````markdown
-# AI Module
-
-`src/modules/ai/` 是 AI 機制能力模組；提供 AI mechanism，使用者體驗仍由其他模組組合。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Directory Index（actual directories）
-
-- `subdomains/chunk/`
-- `subdomains/citation/`
-- `subdomains/context/`
-- `subdomains/embedding/`
-- `subdomains/evaluation/`
-- `subdomains/generation/`
-- `subdomains/memory/`
-- `subdomains/pipeline/`
-- `subdomains/retrieval/`
-- `subdomains/safety/`
-- `subdomains/tool-calling/`
-
-## Pair Contract
-
-- `README.md` 維護 `src/modules/ai/` 的最短概覽與實際目錄索引。
-- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
-- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
-
-## Read Next
-
-- [../AGENTS.md](../AGENTS.md)
-- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/ai/subdomains/chunk/adapters/outbound/dto/chunk-job-payload.ts
@@ -15801,160 +15180,6 @@ check(input: ContentSafetyInput): Promise<SafetyCheckResult>;
 ## File: src/modules/ai/subdomains/safety/domain/index.ts
 ````typescript
 
-````
-
-## File: src/modules/analytics/AGENTS.md
-````markdown
-# Analytics Module — Agent Guide
-
-## Purpose
-
-`src/modules/analytics/` 是 分析能力模組；承接事件、指標、洞察與實驗相關實作。
-
-## Immediate Index
-
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Subdomain Index（actual directories）
-
-- `subdomains/event-contracts/`
-- `subdomains/event-ingestion/`
-- `subdomains/event-projection/`
-- `subdomains/experimentation/`
-- `subdomains/insights/`
-- `subdomains/metrics/`
-- `subdomains/realtime-insights/`
-
-## Route Here When
-
-- 需要在 `src/modules/analytics/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
-
-## Route Elsewhere When
-
-- UI 路由與頁面組合 → `src/app/`
-- 跨模組消費 → `src/modules/analytics/index.ts`
-
-## Drift Guard
-
-- `AGENTS.md` 擁有 `src/modules/analytics/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
-````
-
-## File: src/modules/analytics/README.md
-````markdown
-# Analytics Module
-
-`src/modules/analytics/` 是 分析能力模組；承接事件、指標、洞察與實驗相關實作。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Directory Index（actual directories）
-
-- `subdomains/event-contracts/`
-- `subdomains/event-ingestion/`
-- `subdomains/event-projection/`
-- `subdomains/experimentation/`
-- `subdomains/insights/`
-- `subdomains/metrics/`
-- `subdomains/realtime-insights/`
-
-## Pair Contract
-
-- `README.md` 維護 `src/modules/analytics/` 的最短概覽與實際目錄索引。
-- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
-- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
-
-## Read Next
-
-- [../AGENTS.md](../AGENTS.md)
-- [../../../docs/README.md](../../../docs/README.md)
-````
-
-## File: src/modules/billing/AGENTS.md
-````markdown
-# Billing Module — Agent Guide
-
-## Purpose
-
-`src/modules/billing/` 是 計費能力模組；處理 entitlement、subscription、usage-metering。
-
-## Immediate Index
-
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Subdomain Index（actual directories）
-
-- `subdomains/entitlement/`
-- `subdomains/subscription/`
-- `subdomains/usage-metering/`
-
-## Route Here When
-
-- 需要在 `src/modules/billing/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
-
-## Route Elsewhere When
-
-- 跨模組消費 entitlement / plan → `src/modules/billing/index.ts`
-- 帳號 / 組織 / session → `src/modules/iam/`
-
-## Drift Guard
-
-- `AGENTS.md` 擁有 `src/modules/billing/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
-````
-
-## File: src/modules/billing/README.md
-````markdown
-# Billing Module
-
-`src/modules/billing/` 是 計費能力模組；處理 entitlement、subscription、usage-metering。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Directory Index（actual directories）
-
-- `subdomains/entitlement/`
-- `subdomains/subscription/`
-- `subdomains/usage-metering/`
-
-## Pair Contract
-
-- `README.md` 維護 `src/modules/billing/` 的最短概覽與實際目錄索引。
-- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
-- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
-
-## Read Next
-
-- [../AGENTS.md](../AGENTS.md)
-- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/iam/adapters/inbound/react/PublicLandingView.tsx
@@ -16163,93 +15388,6 @@ export async function updateOrganizationMemberRole(
 ): Promise<CommandResult>
 ⋮----
 export async function createOrganizationTeam(input: CreateTeamInput): Promise<CommandResult>
-````
-
-## File: src/modules/iam/AGENTS.md
-````markdown
-# IAM Module — Agent Guide
-
-## Purpose
-
-`src/modules/iam/` 是 Identity & Access Management 模組；account / organization 已集中於此。
-
-## Immediate Index
-
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Subdomain Index（actual directories）
-
-- `subdomains/access-control/`
-- `subdomains/account/`
-- `subdomains/authentication/`
-- `subdomains/authorization/`
-- `subdomains/federation/`
-- `subdomains/identity/`
-- `subdomains/organization/`
-- `subdomains/security-policy/`
-- `subdomains/session/`
-- `subdomains/tenant/`
-
-## Route Here When
-
-- 需要在 `src/modules/iam/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
-
-## Route Elsewhere When
-
-- 工作區 Membership → `src/modules/workspace/`
-- 跨模組消費身份能力 → `src/modules/iam/index.ts`
-
-## Drift Guard
-
-- `AGENTS.md` 擁有 `src/modules/iam/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
-
-## Related Docs
-
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
-````
-
-## File: src/modules/iam/README.md
-````markdown
-# IAM Module
-
-`src/modules/iam/` 是 Identity & Access Management 模組；account / organization 已集中於此。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
-
-## Directory Index（actual directories）
-
-- `subdomains/access-control/`
-- `subdomains/account/`
-- `subdomains/authentication/`
-- `subdomains/authorization/`
-- `subdomains/federation/`
-- `subdomains/identity/`
-- `subdomains/organization/`
-- `subdomains/security-policy/`
-- `subdomains/session/`
-- `subdomains/tenant/`
-
-## Pair Contract
-
-- `README.md` 維護 `src/modules/iam/` 的最短概覽與實際目錄索引。
-- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
-- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
-
-## Read Next
-
-- [../AGENTS.md](../AGENTS.md)
-- [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/iam/subdomains/account/adapters/inbound/http/AccountController.ts
@@ -16596,6 +15734,26 @@ function buildResult(args: ResultArgs): ProcessSourceDocumentWorkflowResult
 - [../../../docs/README.md](../../../docs/README.md)
 ````
 
+## File: src/modules/notebooklm/subdomains/conversation/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notebooklm/subdomains/conversation/README.md
+````markdown
+
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/README.md
+````markdown
+
+````
+
 ## File: src/modules/notebooklm/subdomains/source/adapters/inbound/index.ts
 ````typescript
 // inbound adapters for source subdomain (server actions live at module root adapters/inbound)
@@ -16627,6 +15785,11 @@ async findByNotebookId(notebookId: string): Promise<IngestionSourceSnapshot[]>
 async query(params: IngestionSourceQuery): Promise<IngestionSourceSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notebooklm/subdomains/source/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notebooklm/subdomains/source/application/index.ts
@@ -16688,6 +15851,11 @@ query(params: IngestionSourceQuery): Promise<IngestionSourceSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/notebooklm/subdomains/source/README.md
+````markdown
+
+````
+
 ## File: src/modules/notebooklm/subdomains/synthesis/adapters/inbound/index.ts
 ````typescript
 // inbound adapters for synthesis subdomain
@@ -16696,6 +15864,11 @@ delete(id: string): Promise<void>;
 ## File: src/modules/notebooklm/subdomains/synthesis/adapters/outbound/index.ts
 ````typescript
 // outbound adapters for synthesis subdomain (Genkit implementation lives in infrastructure/ai/)
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notebooklm/subdomains/synthesis/application/index.ts
@@ -16774,6 +15947,11 @@ export interface SynthesisPort {
 }
 ⋮----
 synthesize(input: SynthesisInput): Promise<SynthesisResultSnapshot>;
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/adapters/inbound/server-actions/page-actions.ts
@@ -16906,6 +16084,26 @@ export async function createTemplateAction(rawInput: unknown)
 - [../../../docs/README.md](../../../docs/README.md)
 ````
 
+## File: src/modules/notion/subdomains/block/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/block/README.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/collaboration/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/collaboration/README.md
+````markdown
+
+````
+
 ## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
 ````typescript
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
@@ -16922,6 +16120,11 @@ async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
 async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/database/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts
@@ -16941,6 +16144,11 @@ findById(id: string): Promise<DatabaseSnapshot | null>;
 findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>;
 findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>;
 delete(id: string): Promise<void>;
+````
+
+## File: src/modules/notion/subdomains/database/README.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/knowledge/adapters/inbound/index.ts
@@ -16972,6 +16180,11 @@ async findById(id: string): Promise<KnowledgeArtifactSnapshot | null>
 async query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/knowledge/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/knowledge/application/index.ts
@@ -17110,6 +16323,21 @@ query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/notion/subdomains/knowledge/README.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/page/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/page/README.md
+````markdown
+
+````
+
 ## File: src/modules/notion/subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository.ts
 ````typescript
 import type { Template, TemplateCategory, TemplateScope, TemplateRepository } from "../../../domain/entities/Template";
@@ -17125,6 +16353,11 @@ async findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>
 async listByCategory(category: TemplateCategory): Promise<Template[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/template/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts
@@ -17150,6 +16383,21 @@ async execute(workspaceId: string): Promise<Template[]>
 export class CreateTemplateUseCase {
 ⋮----
 async execute(input: CreateTemplateInput): Promise<CommandResult>
+````
+
+## File: src/modules/notion/subdomains/template/README.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/view/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/view/README.md
+````markdown
+
 ````
 
 ## File: src/modules/platform/adapters/inbound/react/shell/ShellAppRail.tsx
@@ -17459,6 +16707,11 @@ async append(snapshot: AuditLogEntrySnapshot): Promise<void>
 async query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>
 ````
 
+## File: src/modules/platform/subdomains/audit-log/AGENTS.md
+````markdown
+
+````
+
 ## File: src/modules/platform/subdomains/audit-log/application/index.ts
 ````typescript
 
@@ -17559,6 +16812,31 @@ append(snapshot: AuditLogEntrySnapshot): Promise<void>;
 query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>;
 ````
 
+## File: src/modules/platform/subdomains/audit-log/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/background-job/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/background-job/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/cache/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/cache/README.md
+````markdown
+
+````
+
 ## File: src/modules/platform/subdomains/feature-flag/adapters/inbound/index.ts
 ````typescript
 // inbound adapters for feature-flag subdomain
@@ -17588,6 +16866,11 @@ async findByKey(key: string): Promise<FeatureFlagSnapshot | null>
 async query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/platform/subdomains/feature-flag/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/platform/subdomains/feature-flag/application/index.ts
@@ -17719,6 +17002,46 @@ query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/platform/subdomains/feature-flag/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/file-storage/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/file-storage/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/notification/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/notification/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/platform-config/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/platform-config/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/search/AGENTS.md
+````markdown
+
+````
+
 ## File: src/modules/platform/subdomains/search/application/services/shell-command-catalog.ts
 ````typescript
 export interface ShellCommandCatalogItem {
@@ -17752,68 +17075,49 @@ export interface ShellCommandCatalogItem {
 export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
 ````
 
-## File: src/modules/README.md
+## File: src/modules/platform/subdomains/search/README.md
 ````markdown
-# src/modules
 
-`src/modules/` 是唯一的 bounded-context 實作層。此檔只保留實際目錄索引，避免與各模組文件漂移。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Strategic authority: [../../docs/README.md](../../docs/README.md)
-
-## Module Index（actual directories）
-
-| Module | Overview | Agent entry | Public boundary | Actual subdomains |
-|---|---|---|---|---|
-| `ai/` | [README.md](ai/README.md) | [AGENTS.md](ai/AGENTS.md) | [index.ts](ai/index.ts) | `chunk`, `citation`, `context`, `embedding`, `evaluation`, `generation`, `memory`, `pipeline`, `retrieval`, `safety`, `tool-calling` |
-| `analytics/` | [README.md](analytics/README.md) | [AGENTS.md](analytics/AGENTS.md) | [index.ts](analytics/index.ts) | `event-contracts`, `event-ingestion`, `event-projection`, `experimentation`, `insights`, `metrics`, `realtime-insights` |
-| `billing/` | [README.md](billing/README.md) | [AGENTS.md](billing/AGENTS.md) | [index.ts](billing/index.ts) | `entitlement`, `subscription`, `usage-metering` |
-| `iam/` | [README.md](iam/README.md) | [AGENTS.md](iam/AGENTS.md) | [index.ts](iam/index.ts) | `access-control`, `account`, `authentication`, `authorization`, `federation`, `identity`, `organization`, `security-policy`, `session`, `tenant` |
-| `notebooklm/` | [README.md](notebooklm/README.md) | [AGENTS.md](notebooklm/AGENTS.md) | [index.ts](notebooklm/index.ts) | `conversation`, `notebook`, `source`, `synthesis` |
-| `notion/` | [README.md](notion/README.md) | [AGENTS.md](notion/AGENTS.md) | [index.ts](notion/index.ts) | `block`, `collaboration`, `database`, `knowledge`, `page`, `template`, `view` |
-| `platform/` | [README.md](platform/README.md) | [AGENTS.md](platform/AGENTS.md) | [index.ts](platform/index.ts) | `audit-log`, `background-job`, `cache`, `feature-flag`, `file-storage`, `notification`, `platform-config`, `search` |
-| `template/` | [README.md](template/README.md) | [AGENTS.md](template/AGENTS.md) | [index.ts](template/index.ts) | `document`, `generation`, `ingestion`, `workflow` |
-| `workspace/` | [README.md](workspace/README.md) | [AGENTS.md](workspace/AGENTS.md) | [index.ts](workspace/index.ts) | `activity`, `api-key`, `approval`, `audit`, `feed`, `invitation`, `issue`, `lifecycle`, `membership`, `orchestration`, `quality`, `resource`, `schedule`, `settlement`, `share`, `task`, `task-formation` |
-
-## Pair Contract
-
-- `README.md` 只維護模組層實際索引。
-- `AGENTS.md` 提供 AI routing 與 nested index。
-- 模組內細節由各自的 `AGENTS.md` / `README.md` 維護。
 ````
 
-## File: src/modules/template/README.md
+## File: src/modules/template/subdomains/document/AGENTS.md
 ````markdown
-# Template Module
 
-`src/modules/template/` 是 可複製骨架模組；提供新 bounded context 的結構參考。
+````
 
-## Navigation Index
+## File: src/modules/template/subdomains/document/README.md
+````markdown
 
-- Pair: [AGENTS.md](AGENTS.md)
-- Parent: [../README.md](../README.md)
-- Public boundary: [index.ts](index.ts)
+````
 
-## Directory Index（actual directories）
+## File: src/modules/template/subdomains/generation/AGENTS.md
+````markdown
 
-- `subdomains/document/`
-- `subdomains/generation/`
-- `subdomains/ingestion/`
-- `subdomains/workflow/`
+````
 
-## Pair Contract
+## File: src/modules/template/subdomains/generation/README.md
+````markdown
 
-- `README.md` 維護 `src/modules/template/` 的最短概覽與實際目錄索引。
-- `AGENTS.md` 維護 agent routing、nested index 與放置決策。
-- 若未來新增 / 移除子域，先更新這兩份索引，再補充更細的 module-local 說明。
+````
 
-## Read Next
+## File: src/modules/template/subdomains/ingestion/AGENTS.md
+````markdown
 
-- [../AGENTS.md](../AGENTS.md)
-- [../../../docs/README.md](../../../docs/README.md)
+````
+
+## File: src/modules/template/subdomains/ingestion/README.md
+````markdown
+
+````
+
+## File: src/modules/template/subdomains/workflow/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/template/subdomains/workflow/README.md
+````markdown
+
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/workspace-audit-filter.ts
@@ -18123,11 +17427,56 @@ export async function listTasksByWorkspaceAction(workspaceId: string): Promise<T
 - [../../../docs/README.md](../../../docs/README.md)
 ````
 
+## File: src/modules/workspace/subdomains/activity/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/activity/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/api-key/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/api-key/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/approval/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/approval/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/audit/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/audit/README.md
+````markdown
+
+````
+
 ## File: src/modules/workspace/subdomains/feed/adapters/inbound/index.ts
 ````typescript
 // Feed server actions have been removed — use client-side helpers from
 // workspace/adapters/outbound/firebase-composition.ts instead.
 // See feed-actions.ts for the migration note.
+````
+
+## File: src/modules/workspace/subdomains/feed/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/workspace/subdomains/feed/application/dto/FeedDTO.ts
@@ -18220,6 +17569,78 @@ async execute(input: {
 }): Promise<FeedPostSnapshot[]>
 ````
 
+## File: src/modules/workspace/subdomains/feed/README.md
+````markdown
+# feed
+
+## PURPOSE
+
+feed 子域提供工作區每日動態貼文能力，支援文字與圖片內容。
+它是工作區活動流入口，未來可整合任務完成與出勤記錄訊號。
+
+## GETTING STARTED
+
+進入 feed 子域前先讀：
+
+1. [../task-formation/README.md](../task-formation/README.md)
+2. [../../README.md](../../README.md)
+3. [../../AGENTS.md](../../AGENTS.md)
+
+## ARCHITECTURE
+
+feed 目前以貼文聚合根與查詢為核心：
+
+- domain：FeedPost 與貼文語義
+- application：建立與列表用例
+- outbound：Firestore repository
+- inbound/UI：server actions 與每日動態視圖
+
+## PROJECT STRUCTURE
+
+- domain：貼文模型與型別
+- application：CreateFeedPostUseCase、ListFeedPostsUseCase
+- adapters/outbound：FirestoreFeedRepository
+- adapters/inbound：feed-actions 與 UI entry
+
+## DEVELOPMENT RULES
+
+- MUST keep feed domain independent from Firebase SDK.
+- MUST keep cross-subdomain access through workspace module boundary.
+- MUST keep dateKey query contract stable for daily feed retrieval.
+- MUST route storage ownership-sensitive uploads through platform FileAPI.
+
+## AI INTEGRATION
+
+feed 目前不擁有 AI orchestration 核心能力。
+若加入 AI 摘要或推薦能力，需透過 workspace/platform 邊界接入，避免語言污染。
+
+## DOCUMENTATION
+
+- Parent context: [../../README.md](../../README.md)
+- Parent rules: [../../AGENTS.md](../../AGENTS.md)
+- Strategic authority: [../../../../../docs/README.md](../../../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內定位 feed 的主要資料流。
+- 可在 3 分鐘內判斷修改應落在 domain/application/adapters 哪一層。
+````
+
+## File: src/modules/workspace/subdomains/invitation/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/invitation/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/issue/AGENTS.md
+````markdown
+
+````
+
 ## File: src/modules/workspace/subdomains/issue/application/machines/issueLifecycle.machine.test.ts
 ````typescript
 import { describe, expect, it } from "vitest";
@@ -18280,6 +17701,21 @@ export type IssueStatus =
 export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): boolean
 ⋮----
 export function isTerminalIssueStatus(status: IssueStatus): boolean
+````
+
+## File: src/modules/workspace/subdomains/issue/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/lifecycle/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/lifecycle/README.md
+````markdown
+
 ````
 
 ## File: src/modules/workspace/subdomains/membership/adapters/outbound/index.ts
@@ -18350,6 +17786,11 @@ private toAccessPolicyRecord(record: Record<string, unknown>): AccessPolicyRecor
 private matchesAction(policyAction: string, action: WorkspaceMembershipAction): boolean
 ````
 
+## File: src/modules/workspace/subdomains/membership/AGENTS.md
+````markdown
+
+````
+
 ## File: src/modules/workspace/subdomains/membership/application/index.ts
 ````typescript
 
@@ -18386,6 +17827,36 @@ import { describe, expect, it } from "vitest";
 import { WorkspaceRolePolicy } from "./WorkspaceRolePolicy";
 ````
 
+## File: src/modules/workspace/subdomains/membership/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/orchestration/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/orchestration/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/quality/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/quality/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/resource/AGENTS.md
+````markdown
+
+````
+
 ## File: src/modules/workspace/subdomains/resource/domain/repositories/ResourceQuotaRepository.ts
 ````typescript
 import type {
@@ -18406,6 +17877,21 @@ findByWorkspaceAndKind(workspaceId: string, resourceKind: ResourceKind): Promise
 findByWorkspaceId(workspaceId: string): Promise<ResourceQuotaSnapshot[]>;
 save(quota: ResourceQuotaSnapshot): Promise<void>;
 updateUsage(quotaId: string, current: number, nowISO: string): Promise<void>;
+````
+
+## File: src/modules/workspace/subdomains/resource/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/schedule/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/schedule/README.md
+````markdown
+
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/adapters/outbound/firestore/FirestoreInvoiceRepository.ts
@@ -18443,6 +17929,11 @@ async findByWorkspaceId(workspaceId: string): Promise<InvoiceSnapshot[]>
 async save(invoice: InvoiceSnapshot): Promise<void>
 ⋮----
 async delete(invoiceId: string): Promise<void>
+````
+
+## File: src/modules/workspace/subdomains/settlement/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/workspace/subdomains/settlement/application/use-cases/CreateInvoiceFromAcceptedTasksUseCase.ts
@@ -18601,6 +18092,99 @@ export interface LineItem {
 }
 ````
 
+## File: src/modules/workspace/subdomains/settlement/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/share/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/share/README.md
+````markdown
+
+````
+
+## File: src/modules/workspace/subdomains/task-formation/AGENTS.md
+````markdown
+# task-formation Agent Rules
+
+## ROLE
+
+- The agent MUST treat task-formation as the subdomain for AI-assisted task candidate extraction and confirmation.
+- The agent MUST keep TaskFormationJob as the aggregate root for workflow state.
+- The agent MUST preserve boundary-safe collaboration with sibling subdomains.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep domain free from React, Firebase SDK, and Genkit imports.
+- The agent MUST route AI extraction through a port interface and outbound adapter.
+- The agent MUST route final task creation through task subdomain use-case boundaries.
+- The agent MUST persist extracted candidates to job storage before review/confirmation.
+
+## TOOL USAGE
+
+- The agent MUST validate server-action payloads at inbound schema boundary.
+- The agent MUST use Zod-validated output schemas for AI extraction contracts.
+- The agent MUST keep state-machine inputs and transitions explicit.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+  1. Create or load TaskFormationJob.
+  2. Extract candidates through extractor port.
+  3. Persist candidates and update job status.
+  4. Review/confirm candidate selection.
+  5. Trigger task creation through task use-case boundary.
+
+## DATA CONTRACT
+
+- The agent MUST keep candidates shape explicit and persisted.
+- The agent MUST keep event discriminants in kebab-case module.subdomain.action format.
+- The agent MUST keep cross-subdomain payloads schema-validated.
+
+## CONSTRAINTS
+
+- The agent MUST NOT call Firestore repositories directly from inbound adapters.
+- The agent MUST NOT call Genkit directly from use-cases without ports.
+- The agent MUST NOT keep candidate data only in UI state.
+
+## ERROR HANDLING
+
+- The agent MUST fail fast on invalid extraction payloads.
+- The agent MUST mark jobs failed on unrecoverable extraction/confirmation errors.
+- The agent MUST return structured errors to inbound callers.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS as behavior/routing rules and README as implementation overview.
+- The agent MUST keep job lifecycle and event naming consistent across layers.
+
+## SECURITY
+
+- The agent MUST preserve workspace/account scope checks before extraction and confirmation.
+- The agent MUST avoid exposing sensitive source content in logs.
+
+## Route Here When
+
+- You implement extraction, review, confirmation, or lifecycle transitions in task-formation.
+- You update TaskFormationJob, extractor ports, or task-formation inbound/outbound adapters.
+
+## Route Elsewhere When
+
+- Task entity creation internals: [../task](../task)
+- Knowledge content ownership: [../../../notion/AGENTS.md](../../../notion/AGENTS.md)
+- Platform-level file/auth concerns: [../../../platform/AGENTS.md](../../../platform/AGENTS.md)
+
+## Quick Links
+
+- Pair: [README.md](README.md)
+- Parent context: [../../AGENTS.md](../../AGENTS.md)
+- Strategic authority: [../../../../../docs/README.md](../../../../../docs/README.md)
+````
+
 ## File: src/modules/workspace/subdomains/task-formation/domain/ports/TaskCandidateExtractorPort.ts
 ````typescript
 import type { ExtractedTaskCandidate, TaskCandidateSource } from "../value-objects/TaskCandidate";
@@ -18624,6 +18208,71 @@ export interface TaskCandidateExtractorPort {
 }
 ⋮----
 extract(input: ExtractTaskCandidatesInput): Promise<ExtractedTaskCandidate[]>;
+````
+
+## File: src/modules/workspace/subdomains/task-formation/README.md
+````markdown
+# task-formation
+
+## PURPOSE
+
+task-formation 子域負責從知識內容抽取任務候選，並在使用者確認後批次建立正式任務。
+此子域擁有 TaskFormationJob 工作生命週期、候選任務暫存與確認流程。
+
+## GETTING STARTED
+
+開始前先讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../AGENTS.md](../../AGENTS.md)
+3. [../../README.md](../../README.md)
+
+開發時優先檢查 domain 與 use-cases，再接 inbound/outbound adapters。
+
+## ARCHITECTURE
+
+核心流程：
+
+1. CreateTaskFormationJob
+2. ExtractTaskCandidates via extractor port
+3. Persist candidates to job
+4. User review and confirm
+5. Trigger task use-case boundary for batch creation
+
+## PROJECT STRUCTURE
+
+- [domain](domain)：TaskFormationJob、值物件、events、repository port
+- [application](application)：DTO、use-cases、orchestration
+- [adapters/inbound](adapters/inbound)：server actions / UI entry
+- [adapters/outbound](adapters/outbound)：Firestore/Genkit 等實作
+
+## DEVELOPMENT RULES
+
+- MUST persist extracted candidates before UI review.
+- MUST use extractor ports instead of direct Genkit calls inside use-cases.
+- MUST create tasks through task subdomain use-case boundary.
+- MUST keep task-formation lifecycle state transitions explicit.
+
+## AI INTEGRATION
+
+AI extraction 需以 schema 驗證輸入與輸出，並在 application 層以 port 呼叫。
+UI 狀態流建議使用顯式狀態機，避免候選任務狀態漂移。
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent subdomains: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../docs/README.md](../../../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內掌握抽取到確認的主流程。
+- 可在 3 分鐘內定位需修改的層（domain/application/adapters）。
+````
+
+## File: src/modules/workspace/subdomains/task/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/workspace/subdomains/task/application/dto/TaskDTO.ts
@@ -18711,59 +18360,3201 @@ getSnapshot(): Readonly<TaskSnapshot>
 pullDomainEvents(): TaskDomainEventType[]
 ````
 
-## File: src/README.md
+## File: src/modules/workspace/subdomains/task/README.md
 ````markdown
-# src
 
-`src/` 是 Xuanwu App 的 Next.js 根目錄。這一層只保留最短導航，實際規則往下分流。
-
-## Navigation Index
-
-- Pair: [AGENTS.md](AGENTS.md)
-- Route composition: [app/README.md](app/README.md) / [app/AGENTS.md](app/AGENTS.md)
-- Business modules: [modules/README.md](modules/README.md) / [modules/AGENTS.md](modules/AGENTS.md)
-- Strategic authority: [docs/README.md](../docs/README.md)
-
-## Pair Contract
-
-- `README.md` 提供最短概覽。
-- `AGENTS.md` 提供 AI routing 與 nested index。
 ````
 
-## File: src/modules/AGENTS.md
+## File: src/AGENTS.md
 ````markdown
-# src/modules — Agent Guide
+# src Agent Rules
 
-## Immediate Index
+## ROLE
+
+- The agent MUST treat src as the runtime entry for Next.js composition and bounded-context modules.
+- The agent MUST route UI shell and route composition work to app.
+- The agent MUST route business behavior implementation to modules.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep dependency direction aligned with interfaces -> application -> domain <- infrastructure.
+- The agent MUST NOT place business rules in route composition files under app.
+- The agent MUST NOT bypass module public boundaries when crossing contexts.
+- The agent MUST treat [docs/README.md](../docs/README.md) as strategic authority.
+
+## TOOL USAGE
+
+- The agent MUST validate target ownership before edits in src.
+- The agent MUST validate commands and scripts via repository package configuration.
+- The agent MUST prefer minimal, scoped edits for each subtree.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file.
+	3. Enter [app/AGENTS.md](app/AGENTS.md) or [modules/AGENTS.md](modules/AGENTS.md).
+	4. Read paired README in the same subtree.
+	5. Implement and validate.
+
+## DATA CONTRACT
+
+- The agent MUST keep route and module links valid and workspace-relative.
+- The agent MUST keep ownership language aligned with bounded-context terms.
+- The agent MUST keep command guidance synchronized with [../docs/tooling/commands-reference.md](../docs/tooling/commands-reference.md).
+
+## CONSTRAINTS
+
+- The agent MUST NOT import peer module internals directly from another context.
+- The agent MUST NOT move strategic ownership definitions into src docs.
+- The agent MUST NOT duplicate deep implementation details in this routing file.
+
+## ERROR HANDLING
+
+- The agent MUST stop when ownership is ambiguous and request clarification.
+- The agent MUST report stale links or stale route references before continuing.
+- The agent MUST fail fast on missing subtree docs.
+
+## CONSISTENCY
+
+- The agent MUST keep this file as routing-only contract.
+- The agent MUST keep [README.md](README.md) as human overview.
+- The agent MUST preserve consistent path and naming style across src docs.
+
+## SECURITY
+
+- The agent MUST avoid exposing secrets in route docs or examples.
+- The agent MUST respect boundary rules and least-privilege assumptions across layers.
+
+## Route Here When
+
+- You need to decide whether a change belongs to app or modules.
+- You need src-level runtime routing before deeper edits.
+
+## Route Elsewhere When
+
+- App Router composition work: [app/AGENTS.md](app/AGENTS.md)
+- Bounded-context implementation work: [modules/AGENTS.md](modules/AGENTS.md)
+- Strategic ownership and terminology: [../docs/README.md](../docs/README.md)
+
+## Quick Links
 
 - Parent: [../AGENTS.md](../AGENTS.md)
 - Pair: [README.md](README.md)
-- Template baseline: [template/AGENTS.md](template/AGENTS.md)
+- App layer: [app/AGENTS.md](app/AGENTS.md) and [app/README.md](app/README.md)
+- Module layer: [modules/AGENTS.md](modules/AGENTS.md) and [modules/README.md](modules/README.md)
+````
 
-## Bounded Context Index
+## File: src/app/AGENTS.md
+````markdown
+# src/app Agent Rules
 
-| Module | Role | Agent entry | Human overview |
-|---|---|---|---|
-| `ai/` | AI 機制能力模組；提供 AI mechanism，使用者體驗仍由其他模組組合。 | [AGENTS.md](ai/AGENTS.md) | [README.md](ai/README.md) |
-| `analytics/` | 分析能力模組；承接事件、指標、洞察與實驗相關實作。 | [AGENTS.md](analytics/AGENTS.md) | [README.md](analytics/README.md) |
-| `billing/` | 計費能力模組；處理 entitlement、subscription、usage-metering。 | [AGENTS.md](billing/AGENTS.md) | [README.md](billing/README.md) |
-| `iam/` | Identity & Access Management 模組；account / organization 已集中於此。 | [AGENTS.md](iam/AGENTS.md) | [README.md](iam/README.md) |
-| `notebooklm/` | NotebookLM 使用者體驗模組；實際子域以目錄結構為準。 | [AGENTS.md](notebooklm/AGENTS.md) | [README.md](notebooklm/README.md) |
-| `notion/` | KnowledgeArtifact 模組；Page / Block / Database 等可寫內容由此所有。 | [AGENTS.md](notion/AGENTS.md) | [README.md](notion/README.md) |
-| `platform/` | 平台橫切能力模組；account / organization 已遷入 iam。 | [AGENTS.md](platform/AGENTS.md) | [README.md](platform/README.md) |
-| `template/` | 可複製骨架模組；提供新 bounded context 的結構參考。 | [AGENTS.md](template/AGENTS.md) | [README.md](template/README.md) |
-| `workspace/` | 工作區協作模組；workspace-workflow 已拆分，現況以子目錄索引為準。 | [AGENTS.md](workspace/AGENTS.md) | [README.md](workspace/README.md) |
+## ROLE
 
-## Routing Rules
+- The agent MUST treat src/app as App Router composition surface.
+- The agent MUST keep page, layout, and route wiring concerns in this subtree.
+- The agent MUST keep business behavior outside src/app.
 
-- 讀 module-local 規則時，先進入對應 `src/modules/<context>/AGENTS.md`。
-- 跨模組協作只經由 `src/modules/<context>/index.ts`。
-- 子域清單以實際 `subdomains/` 目錄為準，不再在本檔重複維護狀態表。
+## DOMAIN BOUNDARIES
 
-## Drift Guard
+- The agent MUST NOT place use-case logic in route handlers or page components.
+- The agent MUST route business operations through module public APIs.
+- The agent MUST keep shared UI primitives in packages, not app-local duplicates.
 
-- `AGENTS.md` 管 nested index 與 routing。
-- `README.md` 管模組層概覽。
+## TOOL USAGE
+
+- The agent MUST verify route ownership before editing any route group.
+- The agent MUST verify imports resolve to public module boundaries.
+- The agent MUST keep edits scoped to composition concerns only.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Confirm change is composition-level.
+	4. Implement route/layout updates.
+	5. Validate links and build/lint impact.
+
+## DATA CONTRACT
+
+- The agent MUST keep route parameter naming consistent with owning context contracts.
+- The agent MUST keep path references relative and valid.
+- The agent MUST document only composition intent in app docs.
+
+## CONSTRAINTS
+
+- The agent MUST NOT access infrastructure adapters directly from app.
+- The agent MUST NOT add cross-context coupling in route composition.
+- The agent MUST NOT duplicate module documentation in this file.
+
+## ERROR HANDLING
+
+- The agent MUST fail fast when route ownership is unclear.
+- The agent MUST report stale route links or invalid imports.
+- The agent MUST stop and escalate when change requires architecture decision.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS as routing contract and README as human overview.
+- The agent MUST preserve one-way composition flow from app to module public APIs.
+
+## SECURITY
+
+- The agent MUST avoid exposing secrets or raw credentials in route examples.
+- The agent MUST preserve auth boundaries by delegating checks to modules/use-cases.
+
+## Route Here When
+
+- You modify page, layout, route groups, parallel routes, loading/error composition.
+- You adjust App Router slot composition and rendering boundaries.
+
+## Route Elsewhere When
+
+- Business rules, use cases, domain entities: [../modules/AGENTS.md](../modules/AGENTS.md)
+- Shared UI primitives: [../../packages/AGENTS.md](../../packages/AGENTS.md)
+- Heavy async ingestion/embedding pipelines: [../../fn/AGENTS.md](../../fn/AGENTS.md)
+
+## Quick Links
+
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Module layer: [../modules/AGENTS.md](../modules/AGENTS.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
+````
+
+## File: src/app/README.md
+````markdown
+# src/app
+
+## PURPOSE
+
+src/app 是 Next.js App Router 的 composition layer。
+本層負責 page/layout/slot 組裝與 route-level rendering 邏輯。
+業務規則不應落在本層，而應由 modules 提供公開能力。
+
+## GETTING STARTED
+
+從 repo 根目錄啟動：
+
+```bash
+npm install
+npm run dev
+```
+
+進入 app 後，先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../../docs/README.md](../../docs/README.md)
+
+## ARCHITECTURE
+
+app 層只做 composition：
+
+- route group 與 layout 編排
+- loading/error/not-found 視圖組裝
+- 對 modules 公開 API 的調用
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)：AI 路由與邊界規則
+- [../modules](../modules)：業務能力提供層
+- [../README.md](../README.md)：src 層總覽
+
+## DEVELOPMENT RULES
+
+- MUST keep business rules outside route components.
+- MUST call modules through public boundaries.
+- MUST keep command/query orchestration in modules, not in app routes.
+- MUST preserve route parameter semantics from owning context contracts.
+
+## AI INTEGRATION
+
+AI 代理在 app 層只做組裝決策，不直接產生跨域業務邏輯。
+若需求牽涉 bounded-context 所有權，先回到 docs 權威文件。
+
+## DOCUMENTATION
+
+- Routing rules: [AGENTS.md](AGENTS.md)
+- src overview: [../README.md](../README.md)
+- modules overview: [../modules/README.md](../modules/README.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內啟動並找到 app 層入口。
+- 可在 3 分鐘內判斷改動應落在 app 還是 modules。
+````
+
+## File: src/modules/ai/AGENTS.md
+````markdown
+# ai Agent Rules
+
+## ROLE
+
+- The agent MUST treat ai as the mechanism capability module for generation, retrieval, safety, and tool-calling primitives.
+- The agent MUST keep AI mechanism ownership in this context while leaving product UX composition to consumer contexts.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep ai subdomains focused on reusable AI capability, not feature UX.
+- The agent MUST NOT move notebook/chat product workflow ownership into ai.
+- The agent MUST expose cross-context collaboration via [index.ts](index.ts) only.
+
+## TOOL USAGE
+
+- The agent MUST validate subdomain paths before index or doc updates.
+- The agent MUST keep AI contract changes schema-explicit.
+- The agent MUST keep edits scoped to ai ownership.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Identify owning ai subdomain.
+	4. Apply bounded edits.
+	5. Validate boundary and references.
+
+## DATA CONTRACT
+
+- The agent MUST keep subdomain index synchronized with actual directories.
+- The agent MUST keep public capability contracts stable or versioned.
+- The agent MUST keep links relative and valid.
+
+## CONSTRAINTS
+
+- The agent MUST NOT bypass ai module boundary for cross-context calls.
+- The agent MUST NOT duplicate strategic ownership text here.
+- The agent MUST NOT introduce framework/runtime leakage into domain layer.
+
+## ERROR HANDLING
+
+- The agent MUST report stale subdomain links.
+- The agent MUST fail fast on ambiguous ownership.
+- The agent MUST escalate when strategic and runtime rules conflict.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS for routing/rules and README for overview.
+- The agent MUST keep naming aligned with docs ubiquitous language.
+
+## SECURITY
+
+- The agent MUST preserve safety and policy boundaries for AI outputs.
+- The agent MUST avoid secret/key exposure in examples and docs.
+
+## Route Here When
+
+- You change ai mechanism subdomains or capability contracts.
+- You update generation/retrieval/safety/tool-calling internals.
+
+## Route Elsewhere When
+
+- Notebook/user conversation UX: [../notebooklm/AGENTS.md](../notebooklm/AGENTS.md)
+- Knowledge content ownership: [../notion/AGENTS.md](../notion/AGENTS.md)
+- Workspace task business process: [../workspace/AGENTS.md](../workspace/AGENTS.md)
+
+## Quick Links
+
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+````
+
+## File: src/modules/ai/README.md
+````markdown
+# ai
+
+## PURPOSE
+
+ai 模組提供共享 AI 機制能力，包括生成、檢索、記憶、安全與工具調用。
+它是能力提供者，不直接擁有產品體驗流程。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../../../docs/README.md](../../../docs/README.md)
+
+## ARCHITECTURE
+
+ai 以多子域切分機制能力，透過 [index.ts](index.ts) 對外提供穩定邊界。
+子域聚焦 capability，避免與消費端 UX 邊界重疊。
+
+## PROJECT STRUCTURE
+
+- [subdomains/chunk](subdomains/chunk)
+- [subdomains/citation](subdomains/citation)
+- [subdomains/context](subdomains/context)
+- [subdomains/embedding](subdomains/embedding)
+- [subdomains/evaluation](subdomains/evaluation)
+- [subdomains/generation](subdomains/generation)
+- [subdomains/memory](subdomains/memory)
+- [subdomains/pipeline](subdomains/pipeline)
+- [subdomains/retrieval](subdomains/retrieval)
+- [subdomains/safety](subdomains/safety)
+- [subdomains/tool-calling](subdomains/tool-calling)
+
+## DEVELOPMENT RULES
+
+- MUST keep ai as capability provider, not feature UX owner.
+- MUST expose cross-context APIs via module index boundary.
+- MUST keep schema and contract changes explicit.
+- MUST preserve module boundary alignment with docs ownership.
+
+## AI INTEGRATION
+
+ai 模組是 AI integration 的核心承接層。
+若整合 external provider 或 flow contract 變更，需同步驗證契約與消費端邊界。
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent modules index: [../README.md](../README.md)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內定位 ai 子域能力入口。
+- 可在 3 分鐘內判斷需求屬於 ai 機制層或消費端體驗層。
+````
+
+## File: src/modules/ai/subdomains/chunk/AGENTS.md
+````markdown
+# chunk Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat chunk as the ai subdomain for content chunking semantics.
+- The agent MUST keep chunk documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep chunk inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep chunk terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT redefine notebooklm source ownership here.
+
+## Route Here When
+
+- You document ai chunking boundaries.
+
+## Route Elsewhere When
+
+- Embedding logic: [../embedding/AGENTS.md](../embedding/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/chunk/README.md
+````markdown
+# chunk
+
+## PURPOSE
+
+chunk 子域負責內容切塊與 chunking 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接內容切塊與後續 AI pipeline 前置能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep chunk terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 chunk 邊界。
+````
+
+## File: src/modules/ai/subdomains/citation/AGENTS.md
+````markdown
+# citation Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat citation as the ai subdomain for citation and grounding reference semantics.
+- The agent MUST keep citation documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep citation inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep citation terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT claim source-content ownership here.
+
+## Route Here When
+
+- You document ai citation boundaries.
+
+## Route Elsewhere When
+
+- Retrieval logic: [../retrieval/AGENTS.md](../retrieval/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/citation/README.md
+````markdown
+# citation
+
+## PURPOSE
+
+citation 子域負責引用、grounding reference 與可追溯語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 citation 與 grounding reference 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep citation terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 citation 邊界。
+````
+
+## File: src/modules/ai/subdomains/context/AGENTS.md
+````markdown
+# context Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat context as the ai subdomain for prompt context assembly semantics.
+- The agent MUST keep context documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep context inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep context terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move notebooklm conversation ownership here.
+
+## Route Here When
+
+- You document ai context assembly boundaries.
+
+## Route Elsewhere When
+
+- Memory logic: [../memory/AGENTS.md](../memory/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/context/README.md
+````markdown
+# context
+
+## PURPOSE
+
+context 子域負責 prompt context assembly 與上下文預算語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 prompt context assembly 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep context terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 context 邊界。
+````
+
+## File: src/modules/ai/subdomains/embedding/AGENTS.md
+````markdown
+# embedding Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat embedding as the ai subdomain for vectorization and representation semantics.
+- The agent MUST keep embedding documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep embedding inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep embedding terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT mix chunk or retrieval ownership casually.
+
+## Route Here When
+
+- You document ai embedding boundaries.
+
+## Route Elsewhere When
+
+- Chunk logic: [../chunk/AGENTS.md](../chunk/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/embedding/README.md
+````markdown
+# embedding
+
+## PURPOSE
+
+embedding 子域負責向量化與 representation 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 embedding 與 representation 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep embedding terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 embedding 邊界。
+````
+
+## File: src/modules/ai/subdomains/evaluation/AGENTS.md
+````markdown
+# evaluation Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat evaluation as the ai subdomain for output quality and assessment semantics.
+- The agent MUST keep evaluation documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep evaluation inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep evaluation terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move analytics ownership into ai evaluation docs.
+
+## Route Here When
+
+- You document ai evaluation boundaries.
+
+## Route Elsewhere When
+
+- Safety logic: [../safety/AGENTS.md](../safety/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/evaluation/README.md
+````markdown
+# evaluation
+
+## PURPOSE
+
+evaluation 子域負責 AI 輸出品質評估與 assessment 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 output quality evaluation 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep evaluation terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 evaluation 邊界。
+````
+
+## File: src/modules/ai/subdomains/generation/AGENTS.md
+````markdown
+# generation Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat generation as the ai subdomain for model output generation semantics.
+- The agent MUST keep generation documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep generation inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep generation terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT claim product UX ownership here.
+
+## Route Here When
+
+- You document ai generation boundaries.
+
+## Route Elsewhere When
+
+- Pipeline logic: [../pipeline/AGENTS.md](../pipeline/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/generation/README.md
+````markdown
+# generation
+
+## PURPOSE
+
+generation 子域負責模型生成輸出與 generation 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接生成能力與 output production 語言。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep generation terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 generation 邊界。
+````
+
+## File: src/modules/ai/subdomains/memory/AGENTS.md
+````markdown
+# memory Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat memory as the ai subdomain for conversational and retained AI state semantics.
+- The agent MUST keep memory documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep memory inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep memory terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT redefine external memory systems here.
+
+## Route Here When
+
+- You document ai memory boundaries.
+
+## Route Elsewhere When
+
+- Context logic: [../context/AGENTS.md](../context/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/memory/README.md
+````markdown
+# memory
+
+## PURPOSE
+
+memory 子域負責 AI 狀態記憶與 retained context 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 memory retention 與 conversational state 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep memory terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 memory 邊界。
+````
+
+## File: src/modules/ai/subdomains/pipeline/AGENTS.md
+````markdown
+# pipeline Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat pipeline as the ai subdomain for multi-step orchestration and pipeline semantics.
+- The agent MUST keep pipeline documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep pipeline inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep pipeline terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT turn pipeline docs into provider-specific implementation docs.
+
+## Route Here When
+
+- You document ai pipeline boundaries.
+
+## Route Elsewhere When
+
+- Generation logic: [../generation/AGENTS.md](../generation/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/pipeline/README.md
+````markdown
+# pipeline
+
+## PURPOSE
+
+pipeline 子域負責多步驟 AI orchestration 與 pipeline 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 multi-step pipeline orchestration 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep pipeline terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 pipeline 邊界。
+````
+
+## File: src/modules/ai/subdomains/retrieval/AGENTS.md
+````markdown
+# retrieval Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat retrieval as the ai subdomain for search and context retrieval semantics.
+- The agent MUST keep retrieval documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep retrieval inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep retrieval terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT claim notebooklm synthesis ownership here.
+
+## Route Here When
+
+- You document ai retrieval boundaries.
+
+## Route Elsewhere When
+
+- Citation logic: [../citation/AGENTS.md](../citation/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/retrieval/README.md
+````markdown
+# retrieval
+
+## PURPOSE
+
+retrieval 子域負責搜尋與 context retrieval 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 retrieval 與 search-for-context 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep retrieval terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 retrieval 邊界。
+````
+
+## File: src/modules/ai/subdomains/safety/AGENTS.md
+````markdown
+# safety Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat safety as the ai subdomain for guardrail and safety evaluation semantics.
+- The agent MUST keep safety documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep safety inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep safety terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT include harmful examples or unsafe policy shortcuts.
+
+## Route Here When
+
+- You document ai safety boundaries.
+
+## Route Elsewhere When
+
+- Evaluation logic: [../evaluation/AGENTS.md](../evaluation/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/safety/README.md
+````markdown
+# safety
+
+## PURPOSE
+
+safety 子域負責 guardrail、風險限制與 safety evaluation 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 guardrail 與 safety evaluation 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep safety terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 safety 邊界。
+````
+
+## File: src/modules/ai/subdomains/tool-calling/AGENTS.md
+````markdown
+# tool-calling Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat tool-calling as the ai subdomain for tool invocation orchestration semantics.
+- The agent MUST keep tool-calling documentation aligned with ai ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep tool-calling inside ai.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep tool-calling terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT turn tool-calling docs into provider-specific SDK docs.
+
+## Route Here When
+
+- You document ai tool-calling boundaries.
+
+## Route Elsewhere When
+
+- Pipeline logic: [../pipeline/AGENTS.md](../pipeline/AGENTS.md)
+- AI root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/ai/subdomains/tool-calling/README.md
+````markdown
+# tool-calling
+
+## PURPOSE
+
+tool-calling 子域負責工具調用協調與 tool invocation 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 ai，承接 tool invocation orchestration 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep tool-calling terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 ai 中的 tool-calling 邊界。
+````
+
+## File: src/modules/analytics/AGENTS.md
+````markdown
+# analytics Agent Rules
+
+## ROLE
+
+- The agent MUST treat analytics as the read-model and insights capability module.
+- The agent MUST keep analytics focused on event ingestion, projection, and reporting outputs.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep analytics downstream from source domains.
+- The agent MUST NOT place upstream business write ownership in analytics.
+- The agent MUST expose integration through [index.ts](index.ts) and event contracts.
+
+## TOOL USAGE
+
+- The agent MUST validate subdomain path references before updates.
+- The agent MUST keep metric/projection contract changes explicit.
+- The agent MUST keep edits scoped to analytics ownership.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Select owning analytics subdomain.
+	4. Apply bounded changes.
+	5. Validate links and boundaries.
+
+## DATA CONTRACT
+
+- The agent MUST keep event and projection contract naming stable.
+- The agent MUST keep subdomain index synchronized with actual directories.
+- The agent MUST keep links relative and valid.
+
+## CONSTRAINTS
+
+- The agent MUST NOT mutate upstream domain ownership from analytics.
+- The agent MUST NOT bypass event-contract boundaries.
+- The agent MUST NOT duplicate strategic authority text in this routing file.
+
+## ERROR HANDLING
+
+- The agent MUST report stale links or missing subdomain docs.
+- The agent MUST stop on ownership conflicts and request direction.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS as routing/rules and README as overview.
+- The agent MUST keep analytics terminology aligned with strategic docs.
+
+## SECURITY
+
+- The agent MUST avoid exposing sensitive event payload examples.
+- The agent MUST preserve tenant/account scope in analytics contracts.
+
+## Route Here When
+
+- You update event ingestion/projection/metrics/insights capabilities.
+- You change analytics module contracts or subdomain implementation placement.
+
+## Route Elsewhere When
+
+- Route composition and UI rendering: [../../app/AGENTS.md](../../app/AGENTS.md)
+- Upstream business ownership: owning module AGENTS under [../](../)
+
+## Quick Links
+
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+````
+
+## File: src/modules/analytics/README.md
+````markdown
+# analytics
+
+## PURPOSE
+
+analytics 模組承接事件輸入、投影、指標與洞察能力。
+它作為下游分析層，為多個上游 context 生成可觀測與決策支援輸出。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../../../docs/README.md](../../../docs/README.md)
+
+## ARCHITECTURE
+
+analytics 由事件契約、輸入、投影、指標與洞察子域組成。
+跨模組協作以事件與公開邊界為主，不承接上游寫入所有權。
+
+## PROJECT STRUCTURE
+
+- [subdomains/event-contracts](subdomains/event-contracts)
+- [subdomains/event-ingestion](subdomains/event-ingestion)
+- [subdomains/event-projection](subdomains/event-projection)
+- [subdomains/experimentation](subdomains/experimentation)
+- [subdomains/insights](subdomains/insights)
+- [subdomains/metrics](subdomains/metrics)
+- [subdomains/realtime-insights](subdomains/realtime-insights)
+
+## DEVELOPMENT RULES
+
+- MUST keep analytics as downstream projection/reporting owner.
+- MUST keep contracts explicit for event ingestion and projection.
+- MUST avoid upstream domain mutation responsibility.
+- MUST expose module capabilities via [index.ts](index.ts).
+
+## AI INTEGRATION
+
+analytics 可消費 AI 相關事件或評估訊號，但不應直接承接 AI provider 管理。
+若需要 AI 驅動分析，應透過明確事件契約整合。
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent modules index: [../README.md](../README.md)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內定位 analytics 子域入口。
+- 可在 3 分鐘內判斷需求是事件輸入、投影、指標或洞察修改。
+````
+
+## File: src/modules/analytics/subdomains/event-contracts/AGENTS.md
+````markdown
+# event-contracts Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat event-contracts as the analytics subdomain for published event shapes and ingestion-facing contracts.
+- The agent MUST keep event-contracts documentation aligned with analytics ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep event-contracts inside analytics.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep contract naming explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT redefine upstream domain facts here.
+
+## Route Here When
+
+- You document analytics event contract boundaries.
+
+## Route Elsewhere When
+
+- Projection logic: [../event-projection/AGENTS.md](../event-projection/AGENTS.md)
+- Analytics root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/analytics/subdomains/event-contracts/README.md
+````markdown
+# event-contracts
+
+## PURPOSE
+
+event-contracts 子域負責 analytics 事件契約與 ingestion-facing published language。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 analytics，承接事件契約與投影輸入語言。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep event contract names explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 analytics 中的 event-contracts 邊界。
+````
+
+## File: src/modules/analytics/subdomains/event-ingestion/AGENTS.md
+````markdown
+# event-ingestion Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat event-ingestion as the analytics subdomain for receiving and normalizing analytics inputs.
+- The agent MUST keep event-ingestion documentation aligned with analytics ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep event-ingestion inside analytics.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep ingestion terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move upstream write ownership into analytics.
+
+## Route Here When
+
+- You document analytics event ingestion boundaries.
+
+## Route Elsewhere When
+
+- Event contracts: [../event-contracts/AGENTS.md](../event-contracts/AGENTS.md)
+- Analytics root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/analytics/subdomains/event-ingestion/README.md
+````markdown
+# event-ingestion
+
+## PURPOSE
+
+event-ingestion 子域負責接收、正規化與承接 analytics 事件輸入。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 analytics，承接事件輸入與投影前置能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep ingestion terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 analytics 中的 event-ingestion 邊界。
+````
+
+## File: src/modules/analytics/subdomains/event-projection/AGENTS.md
+````markdown
+# event-projection Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat event-projection as the analytics subdomain for read-model projection semantics.
+- The agent MUST keep event-projection documentation aligned with analytics ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep event-projection inside analytics.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep projection terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT redefine source-domain ownership here.
+
+## Route Here When
+
+- You document analytics projection boundaries.
+
+## Route Elsewhere When
+
+- Metrics logic: [../metrics/AGENTS.md](../metrics/AGENTS.md)
+- Analytics root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/analytics/subdomains/event-projection/README.md
+````markdown
+# event-projection
+
+## PURPOSE
+
+event-projection 子域負責事件到 read model 的投影語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 analytics，承接 projection 與下游 read-model 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep projection terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 analytics 中的 event-projection 邊界。
+````
+
+## File: src/modules/analytics/subdomains/experimentation/AGENTS.md
+````markdown
+# experimentation Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat experimentation as the analytics subdomain for experiment and observation semantics.
+- The agent MUST keep experimentation documentation aligned with analytics ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep experimentation inside analytics.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep experimentation terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move product write ownership into analytics.
+
+## Route Here When
+
+- You document analytics experimentation boundaries.
+
+## Route Elsewhere When
+
+- Insights logic: [../insights/AGENTS.md](../insights/AGENTS.md)
+- Analytics root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/analytics/subdomains/experimentation/README.md
+````markdown
+# experimentation
+
+## PURPOSE
+
+experimentation 子域負責實驗觀測與分析試驗語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 analytics，承接 experiment 與 observation 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep experimentation terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 analytics 中的 experimentation 邊界。
+````
+
+## File: src/modules/analytics/subdomains/insights/AGENTS.md
+````markdown
+# insights Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat insights as the analytics subdomain for derived analysis outputs and interpretation semantics.
+- The agent MUST keep insights documentation aligned with analytics ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep insights inside analytics.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep insight terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT present source-domain models as analytics-owned facts.
+
+## Route Here When
+
+- You document analytics insights boundaries.
+
+## Route Elsewhere When
+
+- Metrics logic: [../metrics/AGENTS.md](../metrics/AGENTS.md)
+- Analytics root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/analytics/subdomains/insights/README.md
+````markdown
+# insights
+
+## PURPOSE
+
+insights 子域負責衍生分析輸出與洞察語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 analytics，承接 interpreted output 與洞察能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep insights terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 analytics 中的 insights 邊界。
+````
+
+## File: src/modules/analytics/subdomains/metrics/AGENTS.md
+````markdown
+# metrics Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat metrics as the analytics subdomain for measurement and aggregation semantics.
+- The agent MUST keep metrics documentation aligned with analytics ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep metrics inside analytics.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep metric terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT turn metrics docs into generic business logic docs.
+
+## Route Here When
+
+- You document analytics metrics boundaries.
+
+## Route Elsewhere When
+
+- Insights logic: [../insights/AGENTS.md](../insights/AGENTS.md)
+- Analytics root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/analytics/subdomains/metrics/README.md
+````markdown
+# metrics
+
+## PURPOSE
+
+metrics 子域負責指標定義、聚合與 measurement 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 analytics，承接 metric definition 與 aggregation 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep metrics terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 analytics 中的 metrics 邊界。
+````
+
+## File: src/modules/analytics/subdomains/realtime-insights/AGENTS.md
+````markdown
+# realtime-insights Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat realtime-insights as the analytics subdomain for live analytical signal semantics.
+- The agent MUST keep realtime-insights documentation aligned with analytics ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep realtime-insights inside analytics.
+- The agent MUST route cross-module use through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep realtime signal terminology explicit and stable.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## CONSTRAINTS
+
+- The agent MUST NOT redefine upstream real-time behavior as analytics-owned writes.
+
+## Route Here When
+
+- You document analytics realtime-insights boundaries.
+
+## Route Elsewhere When
+
+- Insights logic: [../insights/AGENTS.md](../insights/AGENTS.md)
+- Analytics root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/analytics/subdomains/realtime-insights/README.md
+````markdown
+# realtime-insights
+
+## PURPOSE
+
+realtime-insights 子域負責即時分析訊號與即時洞察語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 analytics，承接 live analytical signal 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep realtime-insights terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 analytics 中的 realtime-insights 邊界。
+````
+
+## File: src/modules/billing/AGENTS.md
+````markdown
+# billing Agent Rules
+
+## ROLE
+
+- The agent MUST treat billing as the owner of subscription, entitlement, and usage-governance behavior.
+- The agent MUST keep billing focused on commercial capability and access outcomes.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep subscription and entitlement ownership in billing.
+- The agent MUST NOT move identity, account, or organization ownership into billing.
+- The agent MUST expose billing capability through [index.ts](index.ts).
+
+## TOOL USAGE
+
+- The agent MUST validate subdomain path references before edits.
+- The agent MUST keep entitlement and subscription terminology aligned with strategic docs.
+- The agent MUST scope billing edits to billing-owned behavior and docs.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Select the owning billing subdomain.
+	4. Apply bounded changes.
+	5. Validate links and documentation consistency.
+
+## DATA CONTRACT
+
+- The agent MUST keep billing contract names explicit and stable.
+- The agent MUST keep subdomain indexes synchronized with actual directories.
+- The agent MUST keep command and capability wording aligned with public boundaries.
+
+## CONSTRAINTS
+
+- The agent MUST NOT place IAM or workspace governance rules in billing.
+- The agent MUST NOT bypass module index boundaries for cross-module consumption.
+- The agent MUST NOT duplicate strategic ownership text beyond routing needs.
+
+## ERROR HANDLING
+
+- The agent MUST report stale links, missing subdomain docs, or ownership ambiguity.
+- The agent MUST stop and ask for direction if a change implies schema-version or ownership drift.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS focused on routing and behavioral rules.
+- The agent MUST keep README focused on human-readable overview.
+- The agent MUST keep naming aligned with billing terms in strategic docs.
+
+## SECURITY
+
+- The agent MUST avoid exposing sensitive billing data examples.
+- The agent MUST preserve explicit permission and entitlement boundaries in docs.
+
+## Route Here When
+
+- You update subscription, entitlement, or usage-metering behavior or docs.
+- You need the billing module boundary or subdomain routing contract.
+
+## Route Elsewhere When
+
+- Identity, session, account, or organization concerns: [../iam/AGENTS.md](../iam/AGENTS.md)
+- Route composition and app-level orchestration: [../../app/AGENTS.md](../../app/AGENTS.md)
+
+## Quick Links
+
+- Pair: [README.md](README.md)
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+````
+
+## File: src/modules/billing/README.md
+````markdown
+# billing
+
+## PURPOSE
+
+billing 模組負責商業能力治理，涵蓋 subscription、entitlement 與 usage-metering。
+它定義可用能力、商業限制與相關下游輸出。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../../../docs/README.md](../../../docs/README.md)
+
+## ARCHITECTURE
+
+billing 以 entitlement、subscription、usage-metering 三個子域切分。
+跨模組消費應透過 [index.ts](index.ts) 進入，不直接依賴內部實作。
+
+## PROJECT STRUCTURE
+
+- [subdomains/entitlement](subdomains/entitlement)
+- [subdomains/subscription](subdomains/subscription)
+- [subdomains/usage-metering](subdomains/usage-metering)
+
+## DEVELOPMENT RULES
+
+- MUST keep billing as commercial capability owner.
+- MUST keep cross-module consumption behind [index.ts](index.ts).
+- MUST keep entitlement and subscription terminology explicit.
+- MUST avoid leaking IAM or workspace ownership into billing.
+
+## AI INTEGRATION
+
+billing 可提供 entitlement 或 usage signal 給 AI 與其他模組使用。
+若 AI 流程依賴 billing capability，應透過明確契約整合，不直接耦合內部模型。
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent modules index: [../README.md](../README.md)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內理解 billing 的三個子域入口。
+- 可在 3 分鐘內判斷變更屬於 entitlement、subscription 或 usage-metering。
+````
+
+## File: src/modules/billing/subdomains/entitlement/AGENTS.md
+````markdown
+# entitlement Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat entitlement as the billing subdomain for effective capability access outcomes.
+- The agent MUST keep entitlement documentation aligned with billing ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep entitlement inside the billing bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep entitlement terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move subscription or IAM ownership into this subdomain.
+
+## Route Here When
+
+- You document or adjust entitlement-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Subscription lifecycle changes: [../subscription/AGENTS.md](../subscription/AGENTS.md)
+- Billing root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/billing/subdomains/entitlement/README.md
+````markdown
+# entitlement
+
+## PURPOSE
+
+entitlement 子域負責表達有效功能權益與可用能力結果。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 billing，負責 capability outcome 的本地語言。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep entitlement semantics explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 billing 中的 entitlement 邊界。
+````
+
+## File: src/modules/billing/subdomains/subscription/AGENTS.md
+````markdown
+# subscription Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat subscription as the billing subdomain for plan lifecycle and commercial status.
+- The agent MUST keep subscription documentation aligned with billing ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep subscription inside the billing bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep subscription terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move entitlement, IAM, or workspace ownership into this subdomain.
+
+## Route Here When
+
+- You document or adjust subscription-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Entitlement capability outcomes: [../entitlement/AGENTS.md](../entitlement/AGENTS.md)
+- Billing root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/billing/subdomains/subscription/README.md
+````markdown
+# subscription
+
+## PURPOSE
+
+subscription 子域負責方案生命週期、商業狀態與續期相關語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 billing，承接 commercial lifecycle 的本地能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep subscription lifecycle language explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 billing 中的 subscription 邊界。
+````
+
+## File: src/modules/billing/subdomains/usage-metering/AGENTS.md
+````markdown
+# usage-metering Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat usage-metering as the billing subdomain for measuring usage relevant to commercial limits.
+- The agent MUST keep usage-metering documentation aligned with billing ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep usage-metering inside the billing bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep usage-metering terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move analytics or entitlement ownership into this subdomain.
+
+## Route Here When
+
+- You document or adjust usage-metering-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Entitlement outcomes: [../entitlement/AGENTS.md](../entitlement/AGENTS.md)
+- Billing root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/billing/subdomains/usage-metering/README.md
+````markdown
+# usage-metering
+
+## PURPOSE
+
+usage-metering 子域負責記錄與商業限制相關的使用量語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 billing，承接 usage signal 與商業限制相關能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep usage-metering terminology explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 billing 中的 usage-metering 邊界。
+````
+
+## File: src/modules/iam/AGENTS.md
+````markdown
+# iam Agent Rules
+
+## ROLE
+
+- The agent MUST treat iam as the owner of identity, access control, tenant, account, and organization governance.
+- The agent MUST keep iam focused on access and identity semantics, not workspace collaboration or billing logic.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep account and organization ownership in iam.
+- The agent MUST keep security-policy, session, and access-control concerns inside iam.
+- The agent MUST expose cross-module identity capability through [index.ts](index.ts).
+
+## TOOL USAGE
+
+- The agent MUST validate subdomain path references before edits.
+- The agent MUST keep terminology aligned with strategic identity language.
+- The agent MUST scope changes to iam-owned docs and capabilities.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Select the owning iam subdomain.
+	4. Apply bounded changes.
+	5. Validate links and terminology consistency.
+
+## DATA CONTRACT
+
+- The agent MUST keep identity and access contract terms explicit.
+- The agent MUST keep subdomain indexes synchronized with actual directories.
+- The agent MUST keep accountId, actor, tenant, and organization wording precise.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move workspace membership or billing entitlement ownership into iam.
+- The agent MUST NOT bypass public module boundaries for cross-context collaboration.
+- The agent MUST NOT duplicate full strategic docs in this routing file.
+
+## ERROR HANDLING
+
+- The agent MUST report stale links, missing subdomain docs, and naming conflicts.
+- The agent MUST stop and ask for direction if ownership or published language is unclear.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS focused on routing and constraints.
+- The agent MUST keep README focused on overview and navigation.
+- The agent MUST keep naming aligned with strategic IAM terminology.
+
+## SECURITY
+
+- The agent MUST treat identity and access documentation as security-sensitive.
+- The agent MUST avoid exposing secrets, tokens, or unsafe examples.
+
+## Route Here When
+
+- You update identity, access-control, tenant, session, account, or organization behavior or docs.
+- You need the iam module boundary or subdomain routing contract.
+
+## Route Elsewhere When
+
+- Workspace collaboration scope: [../workspace/AGENTS.md](../workspace/AGENTS.md)
+- Billing entitlement and subscription concerns: [../billing/AGENTS.md](../billing/AGENTS.md)
+
+## Quick Links
+
+- Pair: [README.md](README.md)
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+````
+
+## File: src/modules/iam/README.md
+````markdown
+# iam
+
+## PURPOSE
+
+iam 模組負責身份、存取、租戶、帳號與組織治理。
+它提供其他模組所需的 actor、access decision、tenant scope 與相關能力邊界。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../AGENTS.md](../AGENTS.md)
+3. [../../../docs/README.md](../../../docs/README.md)
+
+## ARCHITECTURE
+
+iam 由 access-control、account、authentication、authorization、federation、identity、organization、security-policy、session、tenant 等子域組成。
+跨模組整合應透過 [index.ts](index.ts) 消費公開能力。
+
+## PROJECT STRUCTURE
+
+- [subdomains/access-control](subdomains/access-control)
+- [subdomains/account](subdomains/account)
+- [subdomains/authentication](subdomains/authentication)
+- [subdomains/authorization](subdomains/authorization)
+- [subdomains/federation](subdomains/federation)
+- [subdomains/identity](subdomains/identity)
+- [subdomains/organization](subdomains/organization)
+- [subdomains/security-policy](subdomains/security-policy)
+- [subdomains/session](subdomains/session)
+- [subdomains/tenant](subdomains/tenant)
+
+## DEVELOPMENT RULES
+
+- MUST keep iam as identity and access owner.
+- MUST keep account and organization semantics inside iam.
+- MUST expose cross-module capability via [index.ts](index.ts).
+- MUST avoid mixing workspace or billing ownership into iam.
+
+## AI INTEGRATION
+
+iam 可向 AI 或其他模組提供 actor reference、tenant scope 與 access decision。
+任何 AI 整合都應消費已發布的語言，不應直接依賴 iam 內部模型。
+
+## DOCUMENTATION
+
+- Routing/rules: [AGENTS.md](AGENTS.md)
+- Parent modules index: [../README.md](../README.md)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內定位 iam 的主要子域與責任。
+- 可在 3 分鐘內判斷需求屬於 identity、authorization、session 或 organization。
+````
+
+## File: src/modules/iam/subdomains/access-control/AGENTS.md
+````markdown
+# access-control Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat access-control as the iam subdomain for access decision rules.
+- The agent MUST keep access-control documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep access-control inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep access-control terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move workspace membership or billing entitlement ownership here.
+
+## Route Here When
+
+- You document or adjust access-control-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Session concerns: [../session/AGENTS.md](../session/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/access-control/README.md
+````markdown
+# access-control
+
+## PURPOSE
+
+access-control 子域負責身份授權判定與 access decision 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 access decision 與 policy evaluation 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep access-control terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 access-control 邊界。
+````
+
+## File: src/modules/iam/subdomains/account/AGENTS.md
+````markdown
+# account Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat account as the iam subdomain for account lifecycle and account-scoped identity semantics.
+- The agent MUST keep account documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep account inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep account terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move organization or workspace ownership here.
+
+## Route Here When
+
+- You document or adjust account-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Organization concerns: [../organization/AGENTS.md](../organization/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/account/README.md
+````markdown
+# account
+
+## PURPOSE
+
+account 子域負責帳號生命週期與 account scope 的本地語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 account aggregate 與相關治理能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep account terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 account 邊界。
+````
+
+## File: src/modules/iam/subdomains/authentication/AGENTS.md
+````markdown
+# authentication Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat authentication as the iam subdomain for identity proof and sign-in semantics.
+- The agent MUST keep authentication documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep authentication inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep authentication terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move session or federation ownership here without reason.
+
+## Route Here When
+
+- You document or adjust authentication-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Session concerns: [../session/AGENTS.md](../session/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/authentication/README.md
+````markdown
+# authentication
+
+## PURPOSE
+
+authentication 子域負責身份驗證與 sign-in 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接身份驗證與 proof-of-identity 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep authentication terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 authentication 邊界。
+````
+
+## File: src/modules/iam/subdomains/authorization/AGENTS.md
+````markdown
+# authorization Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat authorization as the iam subdomain for permission evaluation semantics.
+- The agent MUST keep authorization documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep authorization inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep authorization terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move billing or workspace ownership here.
+
+## Route Here When
+
+- You document or adjust authorization-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Access-control concerns: [../access-control/AGENTS.md](../access-control/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/authorization/README.md
+````markdown
+# authorization
+
+## PURPOSE
+
+authorization 子域負責 permission 判定與授權語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 authorization 與 permission evaluation 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep authorization terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 authorization 邊界。
+````
+
+## File: src/modules/iam/subdomains/federation/AGENTS.md
+````markdown
+# federation Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat federation as the iam subdomain for external identity federation semantics.
+- The agent MUST keep federation documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep federation inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep federation terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move authentication ownership out of iam.
+
+## Route Here When
+
+- You document or adjust federation-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Authentication concerns: [../authentication/AGENTS.md](../authentication/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/federation/README.md
+````markdown
+# federation
+
+## PURPOSE
+
+federation 子域負責外部身份聯邦與 related identity exchange 語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 federation 與 external identity integration 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep federation terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 federation 邊界。
+````
+
+## File: src/modules/iam/subdomains/identity/AGENTS.md
+````markdown
+# identity Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat identity as the iam subdomain for actor and identity semantics.
+- The agent MUST keep identity documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep identity inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep identity terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move actor or tenant semantics outside iam.
+
+## Route Here When
+
+- You document or adjust identity-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Tenant concerns: [../tenant/AGENTS.md](../tenant/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/identity/README.md
+````markdown
+# identity
+
+## PURPOSE
+
+identity 子域負責 actor、identity 與相關識別語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 identity 與 actor semantics 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep identity terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 identity 邊界。
+````
+
+## File: src/modules/iam/subdomains/organization/AGENTS.md
+````markdown
+# organization Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat organization as the iam subdomain for organization lifecycle and governance semantics.
+- The agent MUST keep organization documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep organization inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep organization terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move workspace membership ownership into this subdomain.
+
+## Route Here When
+
+- You document or adjust organization-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Account concerns: [../account/AGENTS.md](../account/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/organization/README.md
+````markdown
+# organization
+
+## PURPOSE
+
+organization 子域負責組織生命週期與 organization scope 的本地語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 organization governance 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep organization terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 organization 邊界。
+````
+
+## File: src/modules/iam/subdomains/security-policy/AGENTS.md
+````markdown
+# security-policy Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat security-policy as the iam subdomain for security rule semantics.
+- The agent MUST keep security-policy documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep security-policy inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep security-policy terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT include secrets or insecure examples here.
+
+## Route Here When
+
+- You document or adjust security-policy-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Authorization concerns: [../authorization/AGENTS.md](../authorization/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/security-policy/README.md
+````markdown
+# security-policy
+
+## PURPOSE
+
+security-policy 子域負責安全規則、policy 與治理限制語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 security-policy 與規則治理能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep security-policy terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 security-policy 邊界。
+````
+
+## File: src/modules/iam/subdomains/session/AGENTS.md
+````markdown
+# session Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat session as the iam subdomain for session lifecycle and continuity semantics.
+- The agent MUST keep session documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep session inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep session terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT move authentication or workspace state ownership here without cause.
+
+## Route Here When
+
+- You document or adjust session-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Authentication concerns: [../authentication/AGENTS.md](../authentication/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/session/README.md
+````markdown
+# session
+
+## PURPOSE
+
+session 子域負責 session lifecycle 與持續性相關語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 session continuity 與 lifecycle 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep session terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 session 邊界。
+````
+
+## File: src/modules/iam/subdomains/tenant/AGENTS.md
+````markdown
+# tenant Subdomain Agent Rules
+
+## ROLE
+
+- The agent MUST treat tenant as the iam subdomain for tenant scope and isolation semantics.
+- The agent MUST keep tenant documentation aligned with iam ownership.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep tenant inside the iam bounded context.
+- The agent MUST route cross-module consumption through [../../index.ts](../../index.ts).
+
+## TOOL USAGE
+
+- The agent MUST keep links valid and workspace-relative.
+- The agent MUST keep edits scoped to this subdomain and its pair document.
+
+## EXECUTION FLOW
+
+- The agent MUST read [../../AGENTS.md](../../AGENTS.md) before broad changes.
+- The agent MUST update [README.md](README.md) with this file when ownership text changes.
+
+## DATA CONTRACT
+
+- The agent MUST keep tenant terminology explicit and stable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT mix tenant scope with workspace scope language.
+
+## Route Here When
+
+- You document or adjust tenant-specific behavior and boundaries.
+
+## Route Elsewhere When
+
+- Identity concerns: [../identity/AGENTS.md](../identity/AGENTS.md)
+- IAM root concerns: [../../AGENTS.md](../../AGENTS.md)
+````
+
+## File: src/modules/iam/subdomains/tenant/README.md
+````markdown
+# tenant
+
+## PURPOSE
+
+tenant 子域負責 tenant scope 與隔離語言。
+
+## GETTING STARTED
+
+先閱讀：
+
+1. [AGENTS.md](AGENTS.md)
+2. [../../README.md](../../README.md)
+3. [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## ARCHITECTURE
+
+此子域隸屬 iam，承接 tenant isolation 與 scope 能力。
+
+## PROJECT STRUCTURE
+
+- [AGENTS.md](AGENTS.md)
+
+## DEVELOPMENT RULES
+
+- MUST keep tenant terms explicit.
+- MUST route cross-module access through [../../index.ts](../../index.ts).
+
+## DOCUMENTATION
+
+- Parent: [../../README.md](../../README.md)
+- Strategic authority: [../../../../../../docs/README.md](../../../../../../docs/README.md)
+
+## USABILITY
+
+- 開發者可快速定位 iam 中的 tenant 邊界。
 ````
 
 ## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmAiChatSection.tsx
@@ -19196,48 +21987,131 @@ export function resolveShellPageTitle(pathname: string, tab?: string | null): st
 export function resolveShellBreadcrumbLabel(segment: string): string
 ````
 
-## File: src/modules/template/AGENTS.md
+## File: src/modules/README.md
 ````markdown
-# Template Module — Agent Guide
+# src/modules
 
-## Purpose
+## PURPOSE
 
-`src/modules/template/` 是 可複製骨架模組；提供新 bounded context 的結構參考。
+src/modules 是唯一的 bounded-context 實作層。
+這層承載各主域的 application/domain/infrastructure/interfaces 結構。
+跨模組協作必須經由各模組公開邊界，不可直接穿透內部實作。
 
-## Immediate Index
+## GETTING STARTED
 
-- Parent AGENTS: [../AGENTS.md](../AGENTS.md)
-- Parent README: [../README.md](../README.md)
-- Pair: [README.md](README.md)
-- Public boundary: [index.ts](index.ts)
+在 repo 根目錄啟動開發環境：
 
-## Subdomain Index（actual directories）
+```bash
+npm install
+npm run dev
+```
 
-- `subdomains/document/`
-- `subdomains/generation/`
-- `subdomains/ingestion/`
-- `subdomains/workflow/`
+閱讀順序：
 
-## Route Here When
+1. [AGENTS.md](AGENTS.md)
+2. [../../docs/README.md](../../docs/README.md)
+3. 目標 module 的 AGENTS/README
 
-- 需要在 `src/modules/template/` 內新增或調整 domain / application / adapters / orchestration 實作。
-- 需要確認此 bounded context 的目前目錄形狀與公開邊界。
+## ARCHITECTURE
 
-## Route Elsewhere When
+modules 層以 bounded-context 為主軸：
 
-- 真實業務實作 → `src/modules/<context>/`
-- 共享套件 → `packages/`
+- 每個 context 透過 index.ts 提供公開能力
+- 內部遵循 interfaces -> application -> domain <- infrastructure
+- 跨 context 協作透過 API boundary 或事件契約
 
-## Drift Guard
+## PROJECT STRUCTURE
 
-- `AGENTS.md` 擁有 `src/modules/template/` 的 routing、nested index、放置判斷。
-- `README.md` 擁有同一節點的人類可讀概覽。
-- 子域名稱與數量以實際 `subdomains/` 目錄為準。
+| Module | Overview | Agent entry | Public boundary |
+|---|---|---|---|
+| ai | [ai/README.md](ai/README.md) | [ai/AGENTS.md](ai/AGENTS.md) | [ai/index.ts](ai/index.ts) |
+| analytics | [analytics/README.md](analytics/README.md) | [analytics/AGENTS.md](analytics/AGENTS.md) | [analytics/index.ts](analytics/index.ts) |
+| billing | [billing/README.md](billing/README.md) | [billing/AGENTS.md](billing/AGENTS.md) | [billing/index.ts](billing/index.ts) |
+| iam | [iam/README.md](iam/README.md) | [iam/AGENTS.md](iam/AGENTS.md) | [iam/index.ts](iam/index.ts) |
+| notebooklm | [notebooklm/README.md](notebooklm/README.md) | [notebooklm/AGENTS.md](notebooklm/AGENTS.md) | [notebooklm/index.ts](notebooklm/index.ts) |
+| notion | [notion/README.md](notion/README.md) | [notion/AGENTS.md](notion/AGENTS.md) | [notion/index.ts](notion/index.ts) |
+| platform | [platform/README.md](platform/README.md) | [platform/AGENTS.md](platform/AGENTS.md) | [platform/index.ts](platform/index.ts) |
+| template | [template/README.md](template/README.md) | [template/AGENTS.md](template/AGENTS.md) | [template/index.ts](template/index.ts) |
+| workspace | [workspace/README.md](workspace/README.md) | [workspace/AGENTS.md](workspace/AGENTS.md) | [workspace/index.ts](workspace/index.ts) |
 
-## Related Docs
+## DEVELOPMENT RULES
 
-- [../../../docs/README.md](../../../docs/README.md)
-- [../../../docs/structure/domain/bounded-contexts.md](../../../docs/structure/domain/bounded-contexts.md)
+- MUST confirm owning context before implementation.
+- MUST expose cross-module collaboration only through module index.ts.
+- MUST keep use-case orchestration in application layer and invariants in domain layer.
+- MUST validate external input at interface boundary.
+
+## AI INTEGRATION
+
+AI 代理在 modules 層執行時，先對齊 docs 的戰略術語與所有權，再落地程式碼。
+若術語缺失或衝突，先補文件權威再修改實作。
+
+## DOCUMENTATION
+
+- Routing rules: [AGENTS.md](AGENTS.md)
+- src overview: [../README.md](../README.md)
+- strategic authority: [../../docs/README.md](../../docs/README.md)
+- template baseline: [template/README.md](template/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內找到目標 context。
+- 可在 3 分鐘內透過 module table 定位公開邊界與對應規則檔。
+````
+
+## File: src/modules/template/README.md
+````markdown
+# template
+
+## PURPOSE
+
+template 模組是新 bounded context 的可複製骨架。
+它提供最小可行的目錄結構與分層邊界示例，避免每次從零建模。
+
+## GETTING STARTED
+
+使用 template 作為新模組基線時：
+
+1. 先讀 [AGENTS.md](AGENTS.md)
+2. 對齊 [../../../docs/README.md](../../../docs/README.md) 的所有權與術語
+3. 複製結構後再填入特定 context 的語言與規則
+
+## ARCHITECTURE
+
+template 對齊 modules 層的標準依賴方向與邊界：
+
+- public boundary 由 [index.ts](index.ts) 提供
+- subdomains 提供核心能力分割
+- 文件分工為 AGENTS（行為）與 README（導覽）
+
+## PROJECT STRUCTURE
+
+- [subdomains/document](subdomains/document)
+- [subdomains/generation](subdomains/generation)
+- [subdomains/ingestion](subdomains/ingestion)
+- [subdomains/workflow](subdomains/workflow)
+
+## DEVELOPMENT RULES
+
+- MUST keep template generic and context-agnostic.
+- MUST update AGENTS and README together when scaffold changes.
+- MUST preserve module boundary and dependency-direction examples.
+
+## AI INTEGRATION
+
+AI 代理應使用 template 作為結構參考，而非直接複製業務語言。
+實際命名與邊界需回到 docs 權威文件再落地。
+
+## DOCUMENTATION
+
+- Routing rules: [AGENTS.md](AGENTS.md)
+- Parent module index: [../README.md](../README.md)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內用 template 建立新模組骨架。
+- 可在 3 分鐘內定位要放置的新子域位置與入口檔。
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/WorkspaceAccountDailySection.tsx
@@ -19536,6 +22410,164 @@ import { FirebaseCallableTaskCandidateExtractor } from "./FirebaseCallableTaskCa
 // Format: {item_no} 3RDTW{code} SET {price}...小計{total}（{section_numeral}）{description}
 ````
 
+## File: src/README.md
+````markdown
+# src
+
+## PURPOSE
+
+src 是應用主程式入口，承載 Next.js App Router 組裝與主域模組實作。
+這層把「路由組裝」與「業務能力」分離為 app 與 modules 兩個子樹。
+所有業務規則應留在 modules，src/app 只負責組裝與進入點協調。
+
+## GETTING STARTED
+
+在 repo 根目錄執行：
+
+```bash
+npm install
+npm run dev
+```
+
+開發入口：
+
+- App Router: [app](app)
+- Bounded contexts: [modules](modules)
+
+## ARCHITECTURE
+
+src 內有兩個核心層：
+
+- app：UI route composition 與 entry wiring
+- modules：bounded-context 實作（application/domain/infrastructure/interfaces）
+
+依賴方向遵循 interfaces -> application -> domain <- infrastructure。
+
+## PROJECT STRUCTURE
+
+- [app](app)：Next.js App Router composition layer
+- [modules](modules)：主域模組實作層
+- [AGENTS.md](AGENTS.md)：AI routing 與行為約束
+
+## DEVELOPMENT RULES
+
+- MUST keep business rules in modules, not in app routes.
+- MUST use module public boundaries for cross-context collaboration.
+- MUST separate command behavior and query behavior.
+- MUST validate external input at interface boundary before application flow.
+
+## AI INTEGRATION
+
+AI 代理在 src 層只能做路由與邊界決策，不直接定義業務語言。
+涉及術語、所有權、context map 的問題，先回到 docs 權威文件。
+
+## DOCUMENTATION
+
+- Routing rules: [AGENTS.md](AGENTS.md)
+- App layer guide: [app/README.md](app/README.md)
+- Module layer guide: [modules/README.md](modules/README.md)
+- Strategic authority: [../docs/README.md](../docs/README.md)
+
+## USABILITY
+
+- 新開發者可在 5 分鐘內以 npm run dev 啟動系統。
+- 可在 3 分鐘內透過 app/modules 分流找到要修改的位置。
+````
+
+## File: src/modules/AGENTS.md
+````markdown
+# src/modules Agent Rules
+
+## ROLE
+
+- The agent MUST treat src/modules as the only bounded-context implementation layer.
+- The agent MUST route context-specific changes into the owning module subtree.
+- The agent MUST keep cross-module interaction through module public boundaries.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST preserve context ownership defined by strategic docs.
+- The agent MUST NOT import peer module internals directly.
+- The agent MUST keep dependency direction aligned with interfaces -> application -> domain <- infrastructure.
+- The agent MUST route shared concerns to packages, not duplicate inside modules.
+
+## TOOL USAGE
+
+- The agent MUST validate module ownership before editing.
+- The agent MUST validate any path/link mentioned in module docs.
+- The agent MUST perform scoped edits per module to reduce drift.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Enter owning module AGENTS/README.
+	4. Apply module-local changes.
+	5. Validate boundaries and references.
+
+## DATA CONTRACT
+
+- The agent MUST keep module index synchronized with actual directories.
+- The agent MUST keep module links stable and workspace-relative.
+- The agent MUST keep role descriptions concise and ownership-oriented.
+
+## CONSTRAINTS
+
+- The agent MUST NOT define strategic ownership contrary to docs authority.
+- The agent MUST NOT expose internal adapters as cross-module contracts.
+- The agent MUST NOT duplicate deep module implementation details in this routing file.
+
+## ERROR HANDLING
+
+- The agent MUST report missing module docs or stale links immediately.
+- The agent MUST stop on ownership ambiguity and request direction.
+- The agent MUST surface boundary conflicts before implementation.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS focused on routing and runtime constraints.
+- The agent MUST keep README focused on human module index and overview.
+- The agent MUST keep module naming aligned with strategic ubiquitous language.
+
+## SECURITY
+
+- The agent MUST avoid secret exposure in module docs.
+- The agent MUST respect auth and tenancy boundaries across module interactions.
+
+## Bounded Context Index
+
+| Module | Role | Agent entry | Human overview |
+|---|---|---|---|
+| ai | AI mechanism capability module | [ai/AGENTS.md](ai/AGENTS.md) | [ai/README.md](ai/README.md) |
+| analytics | Metrics, reporting, and projection module | [analytics/AGENTS.md](analytics/AGENTS.md) | [analytics/README.md](analytics/README.md) |
+| billing | Entitlement, subscription, and usage module | [billing/AGENTS.md](billing/AGENTS.md) | [billing/README.md](billing/README.md) |
+| iam | Identity and access management module | [iam/AGENTS.md](iam/AGENTS.md) | [iam/README.md](iam/README.md) |
+| notebooklm | NotebookLM experience and reasoning module | [notebooklm/AGENTS.md](notebooklm/AGENTS.md) | [notebooklm/README.md](notebooklm/README.md) |
+| notion | Knowledge artifact authoring module | [notion/AGENTS.md](notion/AGENTS.md) | [notion/README.md](notion/README.md) |
+| platform | Platform cross-cutting capability module | [platform/AGENTS.md](platform/AGENTS.md) | [platform/README.md](platform/README.md) |
+| template | Reference skeleton for new contexts | [template/AGENTS.md](template/AGENTS.md) | [template/README.md](template/README.md) |
+| workspace | Workspace collaboration and operations module | [workspace/AGENTS.md](workspace/AGENTS.md) | [workspace/README.md](workspace/README.md) |
+
+## Route Here When
+
+- You need to decide owning bounded context for a change.
+- You need module-level routing before context-local edits.
+
+## Route Elsewhere When
+
+- App Router composition only: [../app/AGENTS.md](../app/AGENTS.md)
+- Strategic ownership disputes: [../../docs/README.md](../../docs/README.md)
+- Shared package-level primitives: [../../packages/AGENTS.md](../../packages/AGENTS.md)
+
+## Quick Links
+
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Template baseline: [template/AGENTS.md](template/AGENTS.md)
+- Strategic authority: [../../docs/README.md](../../docs/README.md)
+````
+
 ## File: src/modules/notion/adapters/inbound/react/NotionTemplatesSection.tsx
 ````typescript
 /**
@@ -19716,6 +22748,82 @@ get parentPageId(): string | null
 getSnapshot(): Readonly<PageSnapshot>
 ⋮----
 pullDomainEvents()
+````
+
+## File: src/modules/template/AGENTS.md
+````markdown
+# template Agent Rules
+
+## ROLE
+
+- The agent MUST treat template as the reference skeleton for new bounded-context design.
+- The agent MUST keep this module example-oriented and reusable.
+- The agent MUST avoid mixing production-specific assumptions into template artifacts.
+
+## DOMAIN BOUNDARIES
+
+- The agent MUST keep template aligned with module layering conventions.
+- The agent MUST NOT bind template to one concrete business context.
+- The agent MUST keep cross-module collaboration patterns boundary-safe.
+
+## TOOL USAGE
+
+- The agent MUST validate directory references against actual subdomains.
+- The agent MUST update both AGENTS and README when template routing changes.
+- The agent MUST keep examples minimal and deterministic.
+
+## EXECUTION FLOW
+
+- The agent MUST follow this order:
+	1. Read [../AGENTS.md](../AGENTS.md).
+	2. Read this file and [README.md](README.md).
+	3. Confirm change is template-scaffold related.
+	4. Apply edits in template subtree only.
+	5. Validate links and section consistency.
+
+## DATA CONTRACT
+
+- The agent MUST keep subdomain index synchronized with actual directories.
+- The agent MUST keep links relative and stable.
+- The agent MUST keep template rules generic and reusable.
+
+## CONSTRAINTS
+
+- The agent MUST NOT document production secrets or runtime-only instructions here.
+- The agent MUST NOT duplicate strategic authority content.
+- The agent MUST NOT expose non-template internals as template requirements.
+
+## ERROR HANDLING
+
+- The agent MUST report stale references or missing subdomain paths.
+- The agent MUST stop when template guidance conflicts with strategic docs.
+
+## CONSISTENCY
+
+- The agent MUST keep AGENTS for routing and README for human overview.
+- The agent MUST keep template language consistent with module conventions.
+
+## SECURITY
+
+- The agent MUST avoid any credential examples in template files.
+- The agent MUST keep security guidance principle-based and context-agnostic.
+
+## Route Here When
+
+- You adjust scaffold conventions for new bounded contexts.
+- You update example subdomain structure and baseline boundaries.
+
+## Route Elsewhere When
+
+- Production context implementation: [../AGENTS.md](../AGENTS.md)
+- Strategic ownership decisions: [../../../docs/README.md](../../../docs/README.md)
+
+## Quick Links
+
+- Parent: [../AGENTS.md](../AGENTS.md)
+- Pair: [README.md](README.md)
+- Public boundary: [index.ts](index.ts)
+- Strategic authority: [../../../docs/README.md](../../../docs/README.md)
 ````
 
 ## File: src/modules/workspace/adapters/inbound/react/AccountRouteDispatcher.tsx

@@ -1319,6 +1319,26 @@ export async function createTemplateAction(rawInput: unknown)
 - [../../../docs/README.md](../../../docs/README.md)
 ````
 
+## File: src/modules/notion/subdomains/block/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/block/README.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/collaboration/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/collaboration/README.md
+````markdown
+
+````
+
 ## File: src/modules/notion/subdomains/database/adapters/outbound/memory/InMemoryDatabaseRepository.ts
 ````typescript
 import type { DatabaseSnapshot } from "../../../domain/entities/Database";
@@ -1335,6 +1355,11 @@ async findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>
 async findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/database/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/database/domain/repositories/DatabaseRepository.ts
@@ -1354,6 +1379,11 @@ findById(id: string): Promise<DatabaseSnapshot | null>;
 findByParentPageId(parentPageId: string): Promise<DatabaseSnapshot[]>;
 findByWorkspaceId(workspaceId: string): Promise<DatabaseSnapshot[]>;
 delete(id: string): Promise<void>;
+````
+
+## File: src/modules/notion/subdomains/database/README.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/knowledge/adapters/inbound/index.ts
@@ -1385,6 +1415,11 @@ async findById(id: string): Promise<KnowledgeArtifactSnapshot | null>
 async query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/knowledge/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/knowledge/application/index.ts
@@ -1523,6 +1558,21 @@ query(params: KnowledgeArtifactQuery): Promise<KnowledgeArtifactSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/notion/subdomains/knowledge/README.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/page/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/page/README.md
+````markdown
+
+````
+
 ## File: src/modules/notion/subdomains/template/adapters/outbound/memory/InMemoryTemplateRepository.ts
 ````typescript
 import type { Template, TemplateCategory, TemplateScope, TemplateRepository } from "../../../domain/entities/Template";
@@ -1538,6 +1588,11 @@ async findByScope(scope: TemplateScope, contextId?: string): Promise<Template[]>
 async listByCategory(category: TemplateCategory): Promise<Template[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notion/subdomains/template/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/subdomains/template/application/use-cases/TemplateUseCases.ts
@@ -1563,6 +1618,21 @@ async execute(workspaceId: string): Promise<Template[]>
 export class CreateTemplateUseCase {
 ⋮----
 async execute(input: CreateTemplateInput): Promise<CommandResult>
+````
+
+## File: src/modules/notion/subdomains/template/README.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/view/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notion/subdomains/view/README.md
+````markdown
+
 ````
 
 ## File: src/modules/notion/adapters/inbound/server-actions/database-actions.test.ts

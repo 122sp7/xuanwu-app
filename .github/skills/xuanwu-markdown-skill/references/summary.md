@@ -42,11 +42,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-160 files | 12,811 lines
+298 files | 15,162 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 160 | 12,811 |
+| Markdown | 298 | 15,162 |
 
 **Largest files:**
 - `docs/structure/system/hard-rules-consolidated.md` (415 lines)
@@ -54,8 +54,8 @@ This skill contains the following reference files:
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
 - `docs/structure/domain/ddd-strategic-design.md` (221 lines)
-- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
-- `fn/README.md` (207 lines)
 - `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
 - `docs/tooling/firebase/firebase-architecture.md` (197 lines)
+- `docs/structure/domain/event-driven-design.md` (191 lines)
+- `docs/template/markdown.md` (189 lines)

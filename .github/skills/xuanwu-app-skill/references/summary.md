@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/modules/billing/**, docs/structure/contexts/billing/**
+- Only files matching these patterns are included: src/app/**
 - Files matching these patterns are excluded: .next/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, logs/**, firebase-debug.log, repomix-output.*, .env*, *.pem, *.key, *.crt, skills-lock.json, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db, .github/skills/**/references/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -42,21 +42,19 @@ This skill contains the following reference files:
 
 ## Statistics
 
-62 files | 1,120 lines
+7 files | 204 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 48 | 631 |
-| Markdown | 14 | 489 |
+| TypeScript (TSX) | 4 | 23 |
+| Markdown | 2 | 134 |
+| CSS | 1 | 47 |
 
 **Largest files:**
-- `src/modules/billing/AGENTS.md` (72 lines)
-- `docs/structure/contexts/billing/AGENTS.md` (65 lines)
-- `src/modules/billing/subdomains/subscription/domain/entities/Subscription.ts` (56 lines)
-- `src/modules/billing/subdomains/entitlement/domain/entities/EntitlementGrant.ts` (50 lines)
-- `src/modules/billing/subdomains/subscription/domain/events/SubscriptionDomainEvent.ts` (49 lines)
-- `src/modules/billing/README.md` (48 lines)
-- `src/modules/billing/subdomains/entitlement/domain/events/EntitlementGrantDomainEvent.ts` (46 lines)
-- `src/modules/billing/subdomains/usage-metering/domain/entities/UsageRecord.ts` (41 lines)
-- `src/modules/billing/subdomains/entitlement/AGENTS.md` (38 lines)
-- `src/modules/billing/subdomains/subscription/AGENTS.md` (38 lines)
+- `src/app/AGENTS.md` (74 lines)
+- `src/app/README.md` (60 lines)
+- `src/app/globals.css` (47 lines)
+- `src/app/layout.tsx` (10 lines)
+- `src/app/(shell)/(account)/[accountId]/[[...slug]]/page.tsx` (5 lines)
+- `src/app/(shell)/layout.tsx` (5 lines)
+- `src/app/(public)/page.tsx` (3 lines)

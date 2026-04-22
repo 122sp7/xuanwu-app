@@ -2803,6 +2803,11 @@ async append(snapshot: AuditLogEntrySnapshot): Promise<void>
 async query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>
 ````
 
+## File: src/modules/platform/subdomains/audit-log/AGENTS.md
+````markdown
+
+````
+
 ## File: src/modules/platform/subdomains/audit-log/application/index.ts
 ````typescript
 
@@ -2903,6 +2908,31 @@ append(snapshot: AuditLogEntrySnapshot): Promise<void>;
 query(params: AuditLogQuery): Promise<AuditLogEntrySnapshot[]>;
 ````
 
+## File: src/modules/platform/subdomains/audit-log/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/background-job/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/background-job/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/cache/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/cache/README.md
+````markdown
+
+````
+
 ## File: src/modules/platform/subdomains/feature-flag/adapters/inbound/index.ts
 ````typescript
 // inbound adapters for feature-flag subdomain
@@ -2932,6 +2962,11 @@ async findByKey(key: string): Promise<FeatureFlagSnapshot | null>
 async query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/platform/subdomains/feature-flag/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/platform/subdomains/feature-flag/application/index.ts
@@ -3063,6 +3098,46 @@ query(params: FeatureFlagQuery): Promise<FeatureFlagSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/platform/subdomains/feature-flag/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/file-storage/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/file-storage/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/notification/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/notification/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/platform-config/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/platform-config/README.md
+````markdown
+
+````
+
+## File: src/modules/platform/subdomains/search/AGENTS.md
+````markdown
+
+````
+
 ## File: src/modules/platform/subdomains/search/application/services/shell-command-catalog.ts
 ````typescript
 export interface ShellCommandCatalogItem {
@@ -3094,6 +3169,11 @@ export interface ShellCommandCatalogItem {
 // ── AI tabs (notebooklm group) ────────────────────────────────────────────
 ⋮----
 export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[]
+````
+
+## File: src/modules/platform/subdomains/search/README.md
+````markdown
+
 ````
 
 ## File: src/modules/platform/subdomains/audit-log/application/use-cases/AuditLogUseCases.ts

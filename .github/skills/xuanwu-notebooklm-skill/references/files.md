@@ -1306,6 +1306,26 @@ function buildResult(args: ResultArgs): ProcessSourceDocumentWorkflowResult
 - [../../../docs/README.md](../../../docs/README.md)
 ````
 
+## File: src/modules/notebooklm/subdomains/conversation/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notebooklm/subdomains/conversation/README.md
+````markdown
+
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/AGENTS.md
+````markdown
+
+````
+
+## File: src/modules/notebooklm/subdomains/notebook/README.md
+````markdown
+
+````
+
 ## File: src/modules/notebooklm/subdomains/source/adapters/inbound/index.ts
 ````typescript
 // inbound adapters for source subdomain (server actions live at module root adapters/inbound)
@@ -1337,6 +1357,11 @@ async findByNotebookId(notebookId: string): Promise<IngestionSourceSnapshot[]>
 async query(params: IngestionSourceQuery): Promise<IngestionSourceSnapshot[]>
 ⋮----
 async delete(id: string): Promise<void>
+````
+
+## File: src/modules/notebooklm/subdomains/source/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notebooklm/subdomains/source/application/index.ts
@@ -1398,6 +1423,11 @@ query(params: IngestionSourceQuery): Promise<IngestionSourceSnapshot[]>;
 delete(id: string): Promise<void>;
 ````
 
+## File: src/modules/notebooklm/subdomains/source/README.md
+````markdown
+
+````
+
 ## File: src/modules/notebooklm/subdomains/synthesis/adapters/inbound/index.ts
 ````typescript
 // inbound adapters for synthesis subdomain
@@ -1406,6 +1436,11 @@ delete(id: string): Promise<void>;
 ## File: src/modules/notebooklm/subdomains/synthesis/adapters/outbound/index.ts
 ````typescript
 // outbound adapters for synthesis subdomain (Genkit implementation lives in infrastructure/ai/)
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/AGENTS.md
+````markdown
+
 ````
 
 ## File: src/modules/notebooklm/subdomains/synthesis/application/index.ts
@@ -1484,6 +1519,11 @@ export interface SynthesisPort {
 }
 ⋮----
 synthesize(input: SynthesisInput): Promise<SynthesisResultSnapshot>;
+````
+
+## File: src/modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+
 ````
 
 ## File: src/modules/notebooklm/adapters/inbound/react/NotebooklmAiChatSection.tsx

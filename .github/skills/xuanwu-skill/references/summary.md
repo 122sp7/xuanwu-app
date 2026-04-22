@@ -42,12 +42,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1321 files | 33,881 lines
+1459 files | 36,093 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 929 | 14,247 |
-| Markdown | 159 | 12,913 |
+| Markdown | 297 | 15,125 |
 | TypeScript (TSX) | 111 | 3,337 |
 | Python | 87 | 2,266 |
 | No Extension | 18 | 18 |
@@ -65,7 +65,7 @@ This skill contains the following reference files:
 - `docs/structure/domain/subdomains.md` (273 lines)
 - `docs/tooling/genkit/genkit-flow-standards.md` (229 lines)
 - `docs/structure/domain/ddd-strategic-design.md` (221 lines)
-- `src/modules/workspace/subdomains/task-formation/README.md` (220 lines)
 - `docs/examples/modules/feature/workspace-nav-notion-notebooklm-implementation-guide.md` (215 lines)
-- `fn/README.md` (207 lines)
 - `docs/structure/domain/bounded-context-subdomain-template.md` (203 lines)
+- `src/modules/platform/adapters/inbound/react/platform-ui-stubs.tsx` (203 lines)
+- `src/modules/workspace/adapters/outbound/firebase-composition.ts` (202 lines)
