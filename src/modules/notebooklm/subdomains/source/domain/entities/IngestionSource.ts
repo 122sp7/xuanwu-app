@@ -53,6 +53,16 @@ export interface IngestionSourceSnapshot {
   readonly ragStatus?: string;
   /** fn 解析失敗時的錯誤訊息（由 fn 寫入 Firestore error.message）*/
   readonly errorMessage?: string;
+
+  // ── fn pipeline timing / model fields ─────────────────────────────────────
+  /** Layout Parser 完成時間（由 fn 寫入 Firestore parsed.parsed_at）*/
+  readonly parsedAt?: string;
+  /** Layout Parser 耗時毫秒（由 fn 寫入 Firestore parsed.extraction_ms）*/
+  readonly extractionMs?: number;
+  /** RAG 嵌入模型名稱（由 fn 寫入 Firestore rag.embedding_model）*/
+  readonly embeddingModel?: string;
+  /** RAG 索引完成時間（由 fn 寫入 Firestore rag.indexed_at）*/
+  readonly ragIndexedAt?: string;
 }
 
 export interface RegisterIngestionSourceInput {

@@ -97,6 +97,7 @@ export async function createWorkspaceKnowledgeDatabase(input: {
   description?: string;
   sourceDocumentId?: string;
   sourceText?: string;
+  properties?: DatabaseProperty[];
   createdByUserId: string;
 }): Promise<CommandResult> {
   const { createDatabase } = await import("./adapters/outbound/firebase-composition");
@@ -107,6 +108,7 @@ export async function createWorkspaceKnowledgeDatabase(input: {
     description: input.description,
     sourceDocumentId: input.sourceDocumentId,
     sourceText: input.sourceText,
+    properties: input.properties,
     createdByUserId: input.createdByUserId,
   });
 }

@@ -17,11 +17,12 @@ import { Button, createGoogleViewerEmbedUrl, z } from "@packages";
 import {
   Upload, RefreshCw, FileUp, ArrowRight, BookOpen, ListPlus,
   Eye, X, Loader2, ScanText, Database, FileText, ChevronDown, ChevronUp,
-  Layers, Braces, BarChart2, CheckCircle2,
+  Layers, Braces, BarChart2, CheckCircle2, Clock, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import type { DatabaseProperty } from "@/src/modules/notion/subdomains/database/domain/entities/Database";
 import type { IngestionSourceSnapshot } from "../../../subdomains/source/domain/entities/IngestionSource";
 import {
   queryDocuments,
@@ -96,14 +97,21 @@ const PREVIEWABLE_TYPES = new Set([
 // ~240–320 KB for typical CJK/ASCII mix (3–4 bytes per char in UTF-8), leaving
 // ample headroom for the rest of the page/database snapshot fields.
 const SOURCE_TEXT_MAX_CHARS = 80_000;
-const ARTIFACT_SNIPPET_MAX_CHARS = 300;
+// Summary / description stored in Page.summary and Database.description.
+// 5000 chars gives ~10–20 lines of meaningful context while staying within
+// Firestore field limits and keeping the downstream task-formation prompt compact.
+const ARTIFACT_SNIPPET_MAX_CHARS = 5_000;
 
 const ArtifactPayloadSchema = z.object({
   text: z.string().optional(),
   chunks: z.array(z.object({ text: z.string().optional() })).optional(),
   entities: z.array(z.object({
     type: z.string().optional(),
+    // fn writes snake_case; support both spellings so extractors are forwards-compatible.
     mentionText: z.string().optional(),
+    mention_text: z.string().optional(),
+    normalizedValue: z.string().optional(),
+    normalized_value: z.string().optional(),
   })).optional(),
 });
 
@@ -128,7 +136,7 @@ function extractTextFromArtifactPayload(payload: unknown): string | undefined {
   const entityText = (record.entities ?? [])
     .map((entity) => {
       const key = entity.type ?? "";
-      const mention = entity.mentionText ?? "";
+      const mention = entity.mentionText ?? entity.mention_text ?? "";
       if (key && mention) return `${key}: ${mention}`;
       return mention || key;
     })
@@ -149,6 +157,36 @@ async function loadSourceTextFromArtifactUri(uri: string): Promise<string | unde
     const response = await fetch(artifactUrl);
     if (!response.ok) return undefined;
     return trimSourceText(extractTextFromArtifactPayload(await response.json()));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Fetch a form-parser artifact JSON and map unique entity.type values to
+ * DatabaseProperty definitions so the created Database starts with typed columns.
+ */
+async function entitiesToDatabaseProperties(
+  formArtifactUri: string,
+): Promise<DatabaseProperty[] | undefined> {
+  try {
+    const artifactUrl = await getDocumentDownloadUrl(formArtifactUri);
+    const response = await fetch(artifactUrl);
+    if (!response.ok) return undefined;
+    const payload = await response.json() as unknown;
+    const parsed = ArtifactPayloadSchema.safeParse(payload);
+    if (!parsed.success) return undefined;
+    const entities = parsed.data.entities ?? [];
+    const seen = new Set<string>();
+    const properties: DatabaseProperty[] = [];
+    for (const entity of entities) {
+      const name = (entity.type ?? "").trim();
+      if (name && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        properties.push({ id: crypto.randomUUID(), name, type: "text" });
+      }
+    }
+    return properties.length > 0 ? properties : undefined;
   } catch {
     return undefined;
   }
@@ -197,6 +235,40 @@ export function NotebooklmSourcesSection({
 
   // JSON viewer modal state
   const [jsonViewer, setJsonViewer] = useState<{ doc: IngestionSourceSnapshot; type: "layout" | "form" | "ocr" | "genkit" } | null>(null);
+  // Actual artifact content loaded on modal open
+  const [jsonArtifactContent, setJsonArtifactContent] = useState<string | null>(null);
+  const [jsonArtifactLoading, setJsonArtifactLoading] = useState(false);
+
+  // Fetch actual artifact JSON when modal opens
+  useEffect(() => {
+    if (!jsonViewer) {
+      setJsonArtifactContent(null);
+      return;
+    }
+    const { doc: jDoc, type } = jsonViewer;
+    const uri =
+      type === "layout" ? jDoc.parsedLayoutJsonGcsUri :
+      type === "form" ? jDoc.parsedFormJsonGcsUri :
+      type === "ocr" ? jDoc.parsedOcrJsonGcsUri :
+      jDoc.parsedGenkitJsonGcsUri;
+    if (!uri) {
+      setJsonArtifactContent(null);
+      return;
+    }
+    setJsonArtifactLoading(true);
+    setJsonArtifactContent(null);
+    getDocumentDownloadUrl(uri)
+      .then((url) => fetch(url))
+      .then(async (resp) => {
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const raw = await resp.json() as unknown;
+        setJsonArtifactContent(JSON.stringify(raw, null, 2));
+      })
+      .catch((err: unknown) => {
+        setJsonArtifactContent(`// 無法載入產出物\n// ${err instanceof Error ? err.message : String(err)}`);
+      })
+      .finally(() => { setJsonArtifactLoading(false); });
+  }, [jsonViewer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = () => {
     startRefresh(async () => {
@@ -447,7 +519,10 @@ export function NotebooklmSourcesSection({
       // Database prefers form output first to retain structured entity fields;
       // fallback to layout text when form parser output is not available.
       const sourceUri = doc.parsedFormJsonGcsUri ?? doc.parsedLayoutJsonGcsUri;
-      const sourceText = sourceUri ? await loadSourceTextFromArtifactUri(sourceUri) : undefined;
+      const [sourceText, properties] = await Promise.all([
+        sourceUri ? loadSourceTextFromArtifactUri(sourceUri) : Promise.resolve(undefined),
+        doc.parsedFormJsonGcsUri ? entitiesToDatabaseProperties(doc.parsedFormJsonGcsUri) : Promise.resolve(undefined),
+      ]);
       const result = await createWorkspaceKnowledgeDatabase({
         accountId,
         workspaceId,
@@ -455,6 +530,7 @@ export function NotebooklmSourcesSection({
         description: sourceText?.slice(0, ARTIFACT_SNIPPET_MAX_CHARS),
         sourceDocumentId: doc.id,
         sourceText,
+        properties,
         createdByUserId: accountId,
       });
       if (!result.success) {
@@ -625,6 +701,29 @@ export function NotebooklmSourcesSection({
                     <span className="flex items-center gap-0.5 text-purple-600">
                       <BarChart2 className="size-3" />
                       RAG: {doc.ragChunkCount} 塊 / {doc.ragVectorCount ?? 0} 向量
+                    </span>
+                  )}
+                  {doc.extractionMs != null && (
+                    <span className="flex items-center gap-0.5 text-slate-500">
+                      <Zap className="size-3" />
+                      {doc.extractionMs} ms
+                    </span>
+                  )}
+                  {doc.parsedAt && (
+                    <span className="flex items-center gap-0.5 text-slate-500" title={`解析完成：${doc.parsedAt}`}>
+                      <Clock className="size-3" />
+                      {new Date(doc.parsedAt).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                  {doc.embeddingModel && (
+                    <span className="flex items-center gap-0.5 text-slate-500" title={`嵌入模型：${doc.embeddingModel}`}>
+                      {doc.embeddingModel}
+                    </span>
+                  )}
+                  {doc.ragIndexedAt && (
+                    <span className="flex items-center gap-0.5 text-purple-500" title={`RAG 索引完成：${doc.ragIndexedAt}`}>
+                      <Clock className="size-3" />
+                      索引：{new Date(doc.ragIndexedAt).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
                   {doc.errorMessage && doc.status === "archived" && (
@@ -882,48 +981,17 @@ export function NotebooklmSourcesSection({
         </div>
       )}
 
-      {/* JSON viewer modal — parsed output summary */}
+      {/* JSON viewer modal — actual parsed artifact content */}
       {jsonViewer && (() => {
         const { doc: jDoc, type } = jsonViewer;
-        const payload =
-          type === "layout"
-            ? {
-                parser: "layout",
-                documentId: jDoc.id,
-                name: jDoc.name,
-                parsedPageCount: jDoc.parsedPageCount ?? null,
-                parsedLayoutChunkCount: jDoc.parsedLayoutChunkCount ?? null,
-                parsedLayoutJsonGcsUri: jDoc.parsedLayoutJsonGcsUri ?? null,
-              }
-            : type === "form"
-              ? {
-                parser: "form",
-                documentId: jDoc.id,
-                name: jDoc.name,
-                parsedFormEntityCount: jDoc.parsedFormEntityCount ?? null,
-                parsedFormJsonGcsUri: jDoc.parsedFormJsonGcsUri ?? null,
-              }
-              : type === "ocr"
-                ? {
-                  parser: "ocr",
-                  documentId: jDoc.id,
-                  name: jDoc.name,
-                  parsedOcrJsonGcsUri: jDoc.parsedOcrJsonGcsUri ?? null,
-                }
-                : {
-                  parser: "genkit",
-                  documentId: jDoc.id,
-                  name: jDoc.name,
-                  parsedGenkitJsonGcsUri: jDoc.parsedGenkitJsonGcsUri ?? null,
-                };
         const title =
           type === "layout"
-            ? "Layout Parser JSON 摘要"
+            ? "Layout Parser 產出物"
             : type === "form"
-              ? "Form Parser JSON 摘要"
+              ? "Form Parser 產出物"
               : type === "ocr"
-                ? "Document OCR JSON 摘要"
-                : "Genkit-AI JSON 摘要";
+                ? "Document OCR 產出物"
+                : "Genkit-AI 產出物";
         return (
           <div
             role="dialog"
@@ -933,7 +1001,7 @@ export function NotebooklmSourcesSection({
             onClick={(e) => { if (e.target === e.currentTarget) setJsonViewer(null); }}
             onKeyDown={(e) => { if (e.key === "Escape") setJsonViewer(null); }}
           >
-            <div className="relative flex max-h-[70vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+            <div className="relative flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
               <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="size-4 text-green-600" />
@@ -945,9 +1013,18 @@ export function NotebooklmSourcesSection({
                 </Button>
               </div>
               <div className="flex-1 overflow-auto p-4">
-                <pre className="text-xs text-foreground whitespace-pre-wrap break-all font-mono">
-                  {JSON.stringify(payload, null, 2)}
-                </pre>
+                {jsonArtifactLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    載入產出物…
+                  </div>
+                ) : jsonArtifactContent ? (
+                  <pre className="text-xs text-foreground whitespace-pre-wrap break-all font-mono">
+                    {jsonArtifactContent}
+                  </pre>
+                ) : (
+                  <p className="text-xs text-muted-foreground">（產出物 URI 不存在，請先執行對應解析。）</p>
+                )}
               </div>
             </div>
           </div>

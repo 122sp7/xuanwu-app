@@ -203,7 +203,7 @@ export function NotionPagesSection({
                           <span className="text-xs text-muted-foreground">{page.status}</span>
                         </div>
                         {page.summary ? (
-                          <p className="line-clamp-2 text-xs text-muted-foreground">{page.summary}</p>
+                          <p className="max-h-32 overflow-y-auto text-xs text-muted-foreground whitespace-pre-wrap">{page.summary}</p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
                             尚未提供摘要，任務形成會先使用標題與頁面脈絡。

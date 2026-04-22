@@ -84,18 +84,22 @@ export async function deleteWorkspaceFile(params: { fileId: string }) {
 /**
  * uploadWorkspaceFile — upload a file to Firebase Storage under the workspace prefix.
  *
- * Storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Default storage path: workspace-files/{accountId}/{workspaceId}/{uuid}-{safeName}
+ * Custom prefix can be supplied as `options.prefix` to reuse this function for
+ * other workspace-scoped paths (e.g. notebooklm sources under workspaces/).
  * Returns the GCS storage path (used as StoredFile.url).
  */
 export async function uploadWorkspaceFile(
   file: File,
   accountId: string,
   workspaceId: string,
+  options?: { prefix?: string },
 ): Promise<string> {
   const storage = getFirebaseStorage();
   const uuid = crypto.randomUUID();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `workspace-files/${accountId}/${workspaceId}/${uuid}-${safeName}`;
+  const prefix = options?.prefix ?? `workspace-files/${accountId}/${workspaceId}`;
+  const path = `${prefix}/${uuid}-${safeName}`;
   const storageRef = ref(storage, path);
   const metadata = {
     customMetadata: {

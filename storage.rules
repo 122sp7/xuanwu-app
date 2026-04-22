@@ -12,8 +12,13 @@ service firebase.storage {
       allow read: if request.auth != null;
     }
 
-    // Workspace-scoped general assets (e.g. feed images).
+    // Workspace-scoped general assets (e.g. feed images, sources).
     match /workspaces/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Platform-managed workspace files (WorkspaceFilesSection uploads).
+    match /workspace-files/{allPaths=**} {
       allow read, write: if request.auth != null;
     }
   }
