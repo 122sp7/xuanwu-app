@@ -1,7 +1,7 @@
 # Directory Structure
 
 ```
-.github/copilot-instructions.md (119 lines)
+.github/copilot-instructions.md (155 lines)
 apphosting.yaml (64 lines)
 components.json (25 lines)
 docs/AGENTS.md (39 lines)

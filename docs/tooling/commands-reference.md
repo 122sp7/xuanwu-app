@@ -27,8 +27,21 @@
 
 ## Repomix (AI Skill Generation)
 
+- `npm run repomix:all` — Generate all configured repomix skills in sequence
 - `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:ai` — Generate the AI-focused skill (`xuanwu-ai-skill`)
+- `npm run repomix:analytics` — Generate the analytics-focused skill (`xuanwu-analytics-skill`)
+- `npm run repomix:billing` — Generate the billing-focused skill (`xuanwu-billing-skill`)
+- `npm run repomix:iam` — Generate the IAM-focused skill (`xuanwu-iam-skill`)
+- `npm run repomix:platform` — Generate the platform-focused skill (`xuanwu-platform-skill`)
+- `npm run repomix:src` — Generate the src-focused skill (`xuanwu-src-skill`)
+- `npm run repomix:fn` — Generate the Cloud Functions-focused skill (`xuanwu-fn-skill`)
+- `npm run repomix:packages` — Generate the packages-focused skill (`xuanwu-packages-skill`)
 - `npm run repomix:markdown` — Generate the markdown-only skill (`xuanwu-markdown-skill`)
+- `npm run repomix:notebooklm` — Generate the notebooklm-focused skill (`xuanwu-notebooklm-skill`)
+- `npm run repomix:notion` — Generate the notion-focused skill (`xuanwu-notion-skill`)
+- `npm run repomix:workspace` — Generate the workspace-focused skill (`xuanwu-workspace-skill`)
+- `npm run repomix:explore` — Run repomix with `repomix.config.json` for direct exploration output
 - `npm run repomix:remote` — Generate a skill from a remote GitHub repository
 - `npm run repomix:local` — Generate a skill from a local directory
 
